@@ -4,40 +4,39 @@ import { useCallback, useMemo, useState } from 'react';
 import FormatListButton from '../../components/formatlistbutton';
 import FilterButton from '../../components/filterbutton';
 import {
-    BottomSheetModal, BottomSheetView, BottomSheetBackdrop
+    BottomSheetModal, BottomSheetView
 } from '@gorhom/bottom-sheet';
-import { Chip, Divider, Icon } from 'react-native-paper';
-import { catData, ratings } from '../../constants';
+
 import { useToggleList } from '../../utils/service-toggle';
-import { LegendList } from "@legendapp/list";
 import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
 import MotiViewExpand from '../../components/motiviewexpand';
 import { toggleExpand } from '../../utils/expand-toggle';
 import { SkeletonComponent } from '../../components/skeleton';
 import { LottieViewComponent } from '../../components/lottieview';
-import { StoreCardInner } from '../../components/storecard';
-import { BarberStoreGetDto } from '../../types';
+import { BarberStoreMineDto } from '../../types';
 import { useGetMineStoresQuery } from '../../store/api';
 import { useFocusEffect } from 'expo-router';
 import { FilterBottomSheet } from '../../components/filterbottomsheet';
+import FormStoreUpdate from '../../components/formstoreupdate';
+import { StoreMineCardComp } from '../../components/storeminecard';
+import { getCurrentLocationSafe, useCurrentLocationSafe } from '../../utils/location-helper';
 
 const Index = () => {
-    const { data: stores = [], isLoading, refetch } = useGetMineStoresQuery();
+    const { status: locationStatus, coords, message: locationMessage, retry } =
+        useCurrentLocationSafe(true);
+    const { data: stores = [], isLoading, refetch } = useGetMineStoresQuery(undefined, { skip: locationStatus == 'error' });
+
 
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present } = useSheet('filter');
     const [selectedType, setSelectedType] = useState<string>('Hepsi');
     const [selectedRating, setSelectedRating] = useState<string | number | null>("Hepsi");
     const [expanded, setExpanded] = useState(true);
     const [expandedFreeBarber, setExpandedFreeBarber] = useState(true);
-    useFocusEffect(
-        useCallback(() => {
-            refetch();
-        }, [refetch])
-    );
-
+    useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+    const { setRef, makeBackdrop } = useBottomSheetRegistry();
+    const { present: updateStore } = useSheet('updateStoreMine');
     const {
         list: selectedServices,
         toggle: toggleService,
@@ -45,7 +44,7 @@ const Index = () => {
         has: hasService,
     } = useToggleList<string>([]);
 
-
+    const [storeId, setStoreId] = useState<string>("");
     const screenWidth = Dimensions.get('window').width;
     const cardWidthStore = useMemo(
         () => (expanded ? screenWidth * 0.92 : screenWidth * 0.94),
@@ -56,24 +55,33 @@ const Index = () => {
         [expandedFreeBarber, screenWidth]
     );
 
+    const handlePressUpdateStore = useCallback(
+        (store: BarberStoreMineDto) => {
+            setStoreId(store.id)
+            updateStore();
+        },
+        [updateStore]
+    );
+
     const hasStores = !isLoading && stores.length > 0;
-    const hasFreeBarbers = !isLoading && stores.length > 0; // şimdilik aynı diziyi kullanıyorsun
+    const hasFreeBarbers = !isLoading && stores.length > 0;
 
     const renderItem = useCallback(
-        ({ item }: { item: BarberStoreGetDto }) => (
-            <StoreCardInner
+        ({ item }: { item: BarberStoreMineDto }) => (
+            <StoreMineCardComp
                 store={item}
                 isList={isList}
                 expanded={expanded}
                 cardWidthStore={cardWidthStore}
+                onPressUpdate={handlePressUpdateStore}
             />
         ),
-        [isList, expanded, cardWidthStore]
+        [isList, expanded, cardWidthStore, handlePressUpdateStore]
     );
 
     const renderItemFreeBarber = useCallback(
-        ({ item }: { item: BarberStoreGetDto }) => (
-            <StoreCardInner
+        ({ item }: { item: BarberStoreMineDto }) => (
+            <StoreMineCardComp
                 store={item}
                 isList={isList}
                 expanded={expandedFreeBarber}
@@ -137,9 +145,9 @@ const Index = () => {
                                 paddingTop: hasStores ? 8 : 0,
                             }}
                             ListEmptyComponent={
-                                !isLoading ? (
+                                !hasStores ? (
                                     <LottieViewComponent message='Henüz eklediğiniz berber dükkanı bulunmuyor.' ></LottieViewComponent>
-                                ) : null
+                                ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : null
                             }
                         />
                         <View className="flex flex-row justify-between items-center mt-4">
@@ -180,15 +188,14 @@ const Index = () => {
                                 paddingBottom: 8,
                             }}
                             ListEmptyComponent={
-                                !isLoading ? (
+                                !hasFreeBarbers ? (
                                     <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı' ></LottieViewComponent>
-                                ) : null
+                                ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : null
                             }
                         />
                     </>
                 }
             />
-
             <FilterBottomSheet
                 sheetKey="filter"
                 selectedType={selectedType}
@@ -199,10 +206,17 @@ const Index = () => {
                 hasService={hasService}
                 toggleService={toggleService}
             />
-
+            <BottomSheetModal
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
+                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
+                backgroundStyle={{ backgroundColor: '#151618' }}
+                ref={(inst) => setRef('updateStoreMine', inst)}
+                snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
+                <BottomSheetView className='h-full pt-2'>
+                    <FormStoreUpdate storeId={storeId} />
+                </BottomSheetView>
+            </BottomSheetModal>
         </View>
-
-
     )
 }
 

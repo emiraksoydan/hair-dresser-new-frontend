@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberStoreCreateDto, BarberStoreGetDto, NearbyStoresRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
+import { AccessTokenDto, ApiResponse, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, NearbyStoresRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
@@ -35,11 +35,14 @@ export const api = createApi({
             }),
             keepUnusedDataFor: 0,
         }),
-        getMineStores: builder.query<BarberStoreGetDto[], void>({
+        getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
             keepUnusedDataFor: 0,
-
+        }),
+        getStoreById: builder.query<BarberStoreDetail, string>({
+            query: (id) => `BarberStore/${id}`,
+            keepUnusedDataFor: 0,
         }),
     }),
 });
-export const { useSendOtpMutation, useVerifyOtpMutation, usePasswordMutation, useRevokeMutation, useRefreshMutation, useAddBarberStoreMutation, useLazyGetNearbyStoresQuery, useGetMineStoresQuery } = api;
+export const { useSendOtpMutation, useVerifyOtpMutation, usePasswordMutation, useRevokeMutation, useRefreshMutation, useAddBarberStoreMutation, useLazyGetNearbyStoresQuery, useGetMineStoresQuery, useGetStoreByIdQuery } = api;

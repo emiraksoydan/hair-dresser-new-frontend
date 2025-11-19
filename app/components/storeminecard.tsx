@@ -3,18 +3,18 @@ import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, BarberStoreGetDto } from '../types'; // kendi path’ine göre düzelt
+import { BarberType, BarberStoreMineDto } from '../types'; // kendi path’ine göre düzelt
 
 type Props = {
-    store: BarberStoreGetDto;
+    store: BarberStoreMineDto;
     isList: boolean;
     expanded: boolean;
     cardWidthStore: number;
-    onPressUpdate?: (store: BarberStoreGetDto) => void;
+    onPressUpdate?: (store: BarberStoreMineDto) => void;
 
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate }) => {
+const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const handlePressCard = () => {
         onPressUpdate?.(store);
@@ -166,8 +166,8 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, o
     );
 };
 
-export const StoreCardInner = React.memo(
-    StoreCard,
+export const StoreMineCardComp = React.memo(
+    StoreMineCard,
     (prev, next) =>
         prev.store.id === next.store.id &&
         prev.isList === next.isList &&

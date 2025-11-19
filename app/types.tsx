@@ -36,6 +36,20 @@ export enum UserType {
   FreeBarber = 1,
   BarberStore = 2
 }
+export type LocationResult =
+  | {
+    ok: true;
+    lat: number;
+    lon: number;
+  }
+  | {
+    ok: false;
+    message: string;
+  };
+
+export type LocationStatusHelper = 'idle' | 'loading' | 'ok' | 'error';
+
+
 export type SearchBarProps = {
   searchQuery: string;
   setSearchQuery: (text: string) => void;
@@ -153,7 +167,7 @@ export interface ImageGetDto {
   imageUrl: string;
 }
 
-export interface BarberStoreGetDto {
+export type BarberStoreGetDto = {
   id: string;
   storeName: string;
   pricingType: string;
@@ -168,6 +182,53 @@ export interface BarberStoreGetDto {
   reviewCount: number;
   serviceOfferings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+}
+export type BarberStoreMineDto = {
+  id: string;
+  storeName: string;
+  type: BarberType;
+  rating: number;
+  favoriteCount: number;
+  reviewCount: number;
+  isOpenNow: boolean;
+  serviceOfferings: ServiceOfferingGetDto[];
+  imageList: ImageGetDto[];
+}
+export type BarberStoreDetail = {
+  id: string;
+  storeName: string;
+  imageList: ImageGetDto[];
+  type: BarberType;
+  pricingType: string;
+  pricingValue: number;
+  latitude: number;
+  longitude: number;
+  isOpenNow: boolean;
+  addressDescription: string;
+  barberStoreChairs: BarberChairDto[];
+  manuelBarbers: ManuelBarberDto[];
+  serviceOfferings: ServiceOfferingGetDto[];
+  workingHours: WorkingHourGetDto[];
+}
+export type ManuelBarberDto = {
+  id: string;
+  fullName: string;
+  profileImageUrl: string;
+  rating: number;
+}
+
+export type WorkingHourGetDto = {
+  dayOfWeek: number;
+  endTime: string;
+  id: string;
+  isClosed: boolean,
+  ownerId: string,
+  startTime: string,
+}
+export type BarberChairDto = {
+  id: string;
+  name?: string;
+  manualBarberId?: string
 }
 
 export type LocationStatus = 'unknown' | 'granted' | 'denied';

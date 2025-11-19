@@ -155,7 +155,7 @@ const Index = () => {
                                 paddingTop: hasStores ? 8 : 0,
                             }}
                             ListEmptyComponent={
-                                !loading ? (
+                                !hasStores ? (
                                     <LottieViewComponent message='Yakınında şu an listelenecek berber bulunamadı' ></LottieViewComponent>
                                 ) : locationStatus !== 'denied' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message='Lütfen konumunuzu açınız' ></LottieViewComponent>) : null
                             }
@@ -198,7 +198,7 @@ const Index = () => {
                                 paddingBottom: 8,
                             }}
                             ListEmptyComponent={
-                                !loading ? (
+                                !hasFreeBarbers ? (
                                     <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı' ></LottieViewComponent>
                                 ) : locationStatus !== 'denied' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message='Lütfen konumunuzu açınız' ></LottieViewComponent>) : null
                             }

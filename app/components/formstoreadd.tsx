@@ -205,7 +205,7 @@ const FormStoreAdd = () => {
     } = useForm<FormValues>({
         resolver: zodResolver(fullSchema),
         shouldFocusError: true,
-        mode: 'onChange',
+        mode: 'onSubmit',
         defaultValues: {
             holidayDays: [],
             offerings: [],            // iyi olur
@@ -293,7 +293,6 @@ const FormStoreAdd = () => {
             }),
             workingHours: data.workingHours
         }
-        console.log(payload);
         try {
             var result = await addStore(payload).unwrap();
             if (result.success) {
