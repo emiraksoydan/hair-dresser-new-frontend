@@ -1,6 +1,7 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from 'expo-image-picker';
 import { FileObject } from "../types";
+import { FieldValues, Path, UseFormSetValue } from 'react-hook-form';
 
 
 export const pickPdf = async () => {
@@ -19,6 +20,21 @@ export const pickPdf = async () => {
         mimeType: f.mimeType ?? undefined,
     };
 };
+
+
+export async function pickImageAndSet<TFieldValues extends FieldValues>(
+    setValue: UseFormSetValue<TFieldValues>,
+    name: Path<TFieldValues>
+) {
+    const file = await handlePickImage();
+    if (file) {
+        setValue(name, file as any, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    }
+}
+
 export const handlePickImage = async (): Promise<FileObject | null> => {
     const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,

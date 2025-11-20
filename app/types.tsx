@@ -198,7 +198,7 @@ export type BarberStoreDetail = {
   id: string;
   storeName: string;
   imageList: ImageGetDto[];
-  type: BarberType;
+  type: string;
   pricingType: string;
   pricingValue: number;
   latitude: number;
@@ -209,6 +209,7 @@ export type BarberStoreDetail = {
   manuelBarbers: ManuelBarberDto[];
   serviceOfferings: ServiceOfferingGetDto[];
   workingHours: WorkingHourGetDto[];
+  taxDocumentFilePath: string;
 }
 export type ManuelBarberDto = {
   id: string;
