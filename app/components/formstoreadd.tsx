@@ -1,12 +1,8 @@
-
-
-
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip, Snackbar } from 'react-native-paper';
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { handlePickImage, pickPdf, truncateFileName } from '../utils/pick-document';
 import { useSheet } from '../context/bottomsheet';
@@ -305,7 +301,6 @@ const FormStoreAdd = () => {
                 setSnackVisible(true);
             }
         } catch (error: any) {
-            console.log('addStore error =', JSON.stringify(error, null, 2));
             setSnackText(error?.data?.message ?? error?.message ?? 'Beklenmeyen hata oluştu');
             setSnackVisible(true);
         }
@@ -1209,7 +1204,6 @@ const FormStoreAdd = () => {
             <View className="px-4 my-3">
                 <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit, onInvalid)} buttonColor="#1F2937">Ekle</Button>
             </View>
-
             <Snackbar
                 style={{ backgroundColor: 'green' }}
                 visible={snackVisible}

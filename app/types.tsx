@@ -252,7 +252,13 @@ export type NearbyStoresRequest = {
 };
 
 export type Pos = { lat: number; lon: number };
-
+export type HasLocation = {
+  location: {
+    latitude: number;
+    longitude: number;
+    addressDescription: string;
+  };
+};
 export type UseNearbyControlParams = {
   enabled: boolean;                      // ekran / tab aktif mi
   moveThresholdM?: number;               // 150m

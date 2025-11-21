@@ -1,20 +1,24 @@
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
-import { BarberStoreGetDto, BarberStoreMineDto } from '../types'
 import { z } from "zod";
-import { BUSINESS_TYPES, SERVICE_BY_TYPE, trMoneyRegex } from '../constants';
+import { BUSINESS_TYPES, DAYS_TR, PRICING_OPTIONS, SERVICE_BY_TYPE, trMoneyRegex } from '../constants';
 import { parseTR } from '../utils/money-helper';
-import { timeHHmm, toMinutes } from '../utils/time-helper';
-import { Controller, useForm } from 'react-hook-form';
+import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmm, toHHmm, toMinutes } from '../utils/time-helper';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../context/bottomsheet';
-import { Divider, HelperText, Icon, IconButton, Snackbar, TextInput } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { useGetStoreByIdQuery } from '../store/api';
 import { getErrorMessage } from '../utils/error-message';
-import MotiViewExpand from './motiviewexpand';
 import { CrudSkeletonComponent } from './crudskeleton';
-import { handlePickImage, pickImageAndSet, pickPdf, truncateFileName } from '../utils/pick-document';
+import { pickImageAndSet, pickPdf, truncateFileName } from '../utils/pick-document';
+import { LegendList } from '@legendapp/list';
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { MapPicker } from './mappicker';
+import { createStoreLocationHelpers } from '../utils/store-location-helper';
+import { useCurrentLocationSafe } from '../utils/location-helper';
+
 
 
 const ChairPricingSchema = z.object({
@@ -40,6 +44,18 @@ const ChairPricingSchema = z.object({
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Yüzde oranı gerekli" });
         }
     }
+});
+const BarberSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string().trim().min(1, 'Berber adı zorunlu'),
+    avatar: z
+        .object({
+            uri: z.string(),
+            name: z.string(),
+            type: z.string().optional(),
+        })
+        .nullable()
+        .optional(),
 });
 const LocationSchema = z.object({
     latitude: z.number(),
@@ -72,6 +88,26 @@ const WorkingDaySchema = z.object({
     const diffMin = e - s;
     if (diffMin < 360) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Çalışma süresi en az 6 saat olmalı' });
     if (diffMin > 1080) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Çalışma süresi en fazla 18 saat olmalı' });
+});
+const ChairSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string().trim().optional(),
+    barberId: z.string().uuid().optional(),
+}).superRefine((v, ctx) => {
+    if (!v.name && !v.barberId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["name"],
+            message: "Koltuk adı veya berber atanmalı",
+        });
+    }
+    if (v.name && v.barberId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["barberId"],
+            message: "Koltuk ya isimli ya berber atanmış olmalı, ikisi birden değil",
+        });
+    }
 });
 
 const PdfAssetSchema = z.object({
@@ -113,7 +149,8 @@ const schema = z.object({
     holidayDays: z.array(z.number().int().min(0).max(6)).default([]),
     location: LocationSchema,
     taxDocumentFilePath: TaxDocumentFileField,
-
+    barbers: z.array(BarberSchema).default([]),
+    chairs: z.array(ChairSchema).min(1, "En az 1 koltuk olmalı").default([]),
 })
 export type FormUpdateValues = z.input<typeof schema>;
 
@@ -128,28 +165,21 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
         if (isError)
             setSnackVisible(true);
     }, [isError])
-
-
     const pickMainImage = () => pickImageAndSet(setValue, 'storeImageUrl');
-
-
-
     const {
         control,
         handleSubmit,
+        trigger,
         setValue,
         getValues,
-        trigger,
         watch,
         reset,
-        clearErrors,
         formState: { errors },
     } = useForm<FormUpdateValues>({
         resolver: zodResolver(schema),
         shouldFocusError: true,
         mode: 'onSubmit',
         defaultValues: {
-
             storeName: data?.storeName,
         },
     });
@@ -167,6 +197,58 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
             acc[s.serviceName] = String(s.price);
             return acc;
         }, {} as Record<string, string>);
+        const initialBarbers = (data.manuelBarbers ?? []).map(m => ({
+            id: m.id,
+            name: m.fullName ?? '',
+            avatar: m.profileImageUrl
+                ? {
+                    uri: m.profileImageUrl,
+                    name: m.profileImageUrl.split('/').pop() ?? `barber-${m.id}.jpg`,
+                    type: 'image/jpeg',
+                }
+                : null,
+        }));
+        const initialChairs = (data.barberStoreChairs ?? []).map(c => ({
+            id: c.id,
+            name: c.name ?? undefined,
+            barberId: c.manualBarberId ?? undefined,
+        }));
+        const initialPricing: FormUpdateValues["pricingType"] =
+            data.pricingType?.toLowerCase() === "rent"
+                ? {
+                    mode: "rent",
+                    rent: new Intl.NumberFormat("tr-TR", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                    }).format(data.pricingValue ?? 0),
+                    percent: undefined,
+                }
+                : {
+                    mode: "percent",
+                    percent: data.pricingValue ?? undefined,
+                    rent: undefined,
+                };
+
+        const initialWorkingHours: FormUpdateValues["workingHours"] =
+            Array.from({ length: 7 }, (_, day) => {
+                const w = data.workingHours?.find(x => x.dayOfWeek === day);
+                if (!w) {
+                    return {
+                        dayOfWeek: day,
+                        isClosed: true,
+                        startTime: "09:00",
+                        endTime: "18:00",
+                    };
+                }
+                return {
+                    dayOfWeek: w.dayOfWeek,
+                    isClosed: w.isClosed,
+                    startTime: toHHmm(w.startTime as any),
+                    endTime: toHHmm(w.endTime as any),
+                };
+            });
+        const initialHolidayDays = initialWorkingHours.filter(w => w.isClosed).map(w => w.dayOfWeek);
+
         reset({
             ...getValues(),
             storeName: data.storeName ?? "",
@@ -178,7 +260,6 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                     type: imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
                 }
                 : undefined,
-
             taxDocumentFilePath: taxPath
                 ? {
                     uri: taxPath,
@@ -186,7 +267,6 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                     mimeType: "application/pdf",
                 }
                 : undefined,
-
             location: {
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -194,18 +274,90 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
             },
             offerings: initialOfferings,
             prices: initialPrices,
-
-
-            // ileride offerings, prices, workingHours, pricingType vs. için de mapping ekleyebilirsin
+            barbers: initialBarbers,
+            chairs: initialChairs,
+            pricingType: initialPricing,
+            holidayDays: initialHolidayDays,
+            workingHours: initialWorkingHours,
         });
     }, [data, reset, getValues]);
 
+    const location = watch("location");
+    const latitude = location?.latitude;
+    const longitude = location?.longitude;
+    const address = location?.addressDescription;
     const image = watch('storeImageUrl');
+    const selectedOfferings = watch("offerings") ?? [];
+    const barbers = watch('barbers') ?? [];
+    const chairs = watch("chairs") ?? [];
+    const pricingMode = watch("pricingType.mode");
     const tXErrorText =
         (errors.taxDocumentFilePath as any)?.message ||
         (errors.taxDocumentFilePath as any)?.name?.message ||
         (errors.taxDocumentFilePath as any)?.size?.message;
-    const selectedOfferings = watch("offerings") ?? [];
+    const barberErrorText = React.useMemo(() => {
+        if (!errors.barbers) return "";
+        const msgs: string[] = [];
+        barbers.forEach((_, idx) => {
+            const m = errors.barbers?.[idx]?.name?.message as string | undefined;
+            if (m) msgs.push(`• ${idx + 1}. berber: ${m}`);
+        });
+        return msgs.join("\n");
+    }, [errors.barbers, barbers]);
+    const chairsErrorText = React.useMemo(() => {
+        if (!errors.chairs) return "";
+        const msgs: string[] = [];
+        chairs.forEach((_, idx) => {
+            const m1 = errors.chairs?.[idx]?.name?.message as string | undefined;
+            const m2 = errors.chairs?.[idx]?.barberId?.message as string | undefined;
+            if (m1 || m2) msgs.push(`• ${idx + 1}. koltuk: ${m1 ?? m2}`);
+        });
+        return msgs.join("\n");
+    }, [errors.chairs, chairs]);
+
+    const { fields: chairFields, append: addChair, remove: removeChair, update: updateChair } = useFieldArray({
+        control,
+        name: "chairs",
+        keyName: "_key",
+
+    });
+    const { fields: barberFields, append: addBarber, remove: removeBarber } = useFieldArray({
+        control,
+        name: 'barbers',
+        keyName: "_key",
+    });
+
+    const working = watch("workingHours") ?? [];
+    const holidayDays = watch("holidayDays") ?? [];
+    const [activeDay, setActiveDay] = useState<number>(0);
+    const [activeStart, setActiveStart] = useState<Date>(() =>
+        fromHHmm(working[0]?.startTime ?? "09:00")
+    );
+    const [activeEnd, setActiveEnd] = useState<Date>(() =>
+        fromHHmm(working[0]?.endTime ?? "18:00")
+    );
+
+    useEffect(() => {
+        const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
+        if (idx < 0) return;
+        const row = working[idx];
+        if (!row) return;
+        setActiveStart(fromHHmm(row.startTime));
+        setActiveEnd(fromHHmm(row.endTime));
+    }, [activeDay, working]);
+
+
+
+    const { updateLocation, reverseAndSetAddress } = createStoreLocationHelpers<FormUpdateValues>(setValue, getValues);
+    const { status, coords, retry } = useCurrentLocationSafe(false);
+    const pickMyCurrentLocation = async () => {
+        if (status === 'ok' && coords) {
+            updateLocation(coords.lat, coords.lon);
+            await reverseAndSetAddress(coords.lat, coords.lon);
+        } else {
+            retry();
+        }
+    };
 
     return (
         <View className='h-full'>
@@ -233,31 +385,26 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                 <>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
                         <Text className="text-white text-xl mt-4 px-4">İşletme Resmi Güncelle</Text>
-                        <Controller
-                            control={control}
-                            name="storeImageUrl"
-                            render={() => (
-                                <View className="flex items-center justify-center px-4 mt-4">
-                                    <TouchableOpacity
-                                        onPress={pickMainImage}
-                                        className="w-full bg-gray-800 rounded-xl overflow-hidden"
-                                        style={{ aspectRatio: 2 / 1 }}
-                                        activeOpacity={0.85}
-                                    >
-                                        {image ? (
-                                            <Image
-                                                className='h-full w-full object-cover'
-                                                source={{ uri: image.uri }}
-                                            />
-                                        ) : (
-                                            <View className="flex-1 items-center justify-center">
-                                                <Icon source="image" size={40} color="#888" />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                        />
+                        <View className="flex items-center justify-center px-4 mt-4">
+                            <TouchableOpacity
+                                onPress={pickMainImage}
+                                className="w-full bg-gray-800 rounded-xl overflow-hidden"
+                                style={{ aspectRatio: 2 / 1 }}
+                                activeOpacity={0.85}
+                            >
+                                {image ? (
+                                    <Image
+                                        className="h-full w-full"
+                                        resizeMode="cover"
+                                        source={{ uri: image.uri }}
+                                    />
+                                ) : (
+                                    <View className="flex-1 items-center justify-center">
+                                        <Icon source="image" size={40} color="#888" />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                         <Text className="text-white text-xl mt-6 px-4">İşletme Bilgileri</Text>
                         <View className="mt-2 px-4">
                             <Controller
@@ -304,7 +451,6 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                                 <TextInput
                                                     label="İşletme Adı"
                                                     mode="outlined"
-
                                                     dense
                                                     value={value}
                                                     onChangeText={onChange}
@@ -470,34 +616,32 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                     })}
                                 </View>
                             )}
-                            {/* <View className="mt-2 mx-0 flex-row items-center">
+                            <View className="mt-2 mx-0 flex-row items-center">
                                 <Text className="text-white text-xl flex-1">Çalışan Berber Sayısı : {barberFields.length}  </Text>
-                                <Button mode="text" textColor="#c2a523" onPress={() => addBarber({ id: uuid(), name: "", avatar: null })}>Berber Ekle</Button>
+                                <Button mode="text" textColor="#c2a523" onPress={() => { }}>Berber Ekle</Button>
                             </View>
                             {barberFields.length > 0 && (
-                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
+                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 ">
                                     <View style={{ height: 64 * barberFields.length }}>
                                         <LegendList
                                             data={barberFields}
                                             keyExtractor={(item) => item._key}
                                             estimatedItemSize={64}
-                                            extraData={barberNamesVersion}
                                             renderItem={({ item }) => {
-                                                const index = barberFields.findIndex(f => f.id === item.id);
+                                                const index = barberFields.findIndex(f => f._key === item._key);
                                                 return (
-                                                    <View className="flex-row items-center gap-3 mb-3">
+                                                    <View className="flex-row items-center gap-3">
                                                         <TouchableOpacity
                                                             activeOpacity={0.85}
                                                             onPress={async () => {
-                                                                const file = await handlePickImage();
-                                                                if (file) updateBarber(index, { ...(getValues(`barbers.${index}` as const) as any), avatar: file });
+                                                                // const file = await handlePickImage();
+                                                                // if (file) updateBarber(index, { ...(getValues(`barbers.${index}` as const) as any), avatar: file });
                                                             }}
                                                         >
                                                             {barbers[index]?.avatar?.uri
                                                                 ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
                                                                 : <Avatar.Icon size={40} icon="account-circle" />}
                                                         </TouchableOpacity>
-
                                                         <Controller
                                                             control={control}
                                                             name={`barbers.${index}.name` as const}
@@ -507,8 +651,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                                                     mode="outlined"
                                                                     dense
                                                                     value={value}
-                                                                    onChangeText={onChange}
-                                                                    onBlur={onBlur}
+                                                                    readOnly
                                                                     textColor="white"
                                                                     outlineColor="#444"
                                                                     theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
@@ -516,8 +659,12 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                                                 />
                                                             )}
                                                         />
-
-                                                        <IconButton icon="delete" iconColor="#ef4444" onPress={() => removeBarber(index)} />
+                                                        <TouchableOpacity>
+                                                            <Icon size={22} source="update" color="#c2a523" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity>
+                                                            <Icon size={22} source="delete" color="#ef4444" />
+                                                        </TouchableOpacity>
                                                     </View>
                                                 )
                                             }}
@@ -528,108 +675,46 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                     </HelperText>
                                 </View>
                             )}
-
                             <View className="mt-4 mx-0 flex-row items-center">
                                 <Text className="text-white text-xl flex-1">Koltuk Sayısı : {chairFields.length}</Text>
-                                <Button mode="text" textColor="#c2a523" onPress={() => addChair({ id: uuid(), mode: "named", name: "" })}>Koltuk Ekle</Button>
+                                <Button mode="text" textColor="#c2a523" onPress={() => { }}>Koltuk Ekle</Button>
                             </View>
-
                             {chairFields.length > 0 && (
-                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
+                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
                                     <View style={{ height: 64 * chairFields.length }}>
                                         <LegendList
                                             data={chairFields}
                                             keyExtractor={(item) => item._key}
                                             estimatedItemSize={64}
-                                            extraData={chairExtra}
                                             renderItem={({ item }) => {
-                                                const index = chairFields.findIndex(f => f.id === item.id);
+                                                const index = chairFields.findIndex(f => f._key === item._key);
+                                                if (index === -1) return null;
                                                 const chair = chairs[index];
+                                                if (!chair) return null;
+                                                const isBarberChair = !!chair.barberId;
+                                                const modeLabel = isBarberChair ? "Berber koltuğu" : "İsimli koltuk";
+                                                const barberName = isBarberChair
+                                                    ? (barbers.find(b => b.id === chair.barberId)?.name ?? "Atanmamış")
+                                                    : "-";
                                                 return (
-                                                    <View className="flex-row items-center gap-3 mb-3">
+                                                    <View className="flex-row items-center gap-3 mt-2">
                                                         <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
-                                                        <View className='flex-1'>
-                                                            <Controller
-                                                                control={control}
-                                                                name={`chairs.${index}.mode` as const}
-                                                                render={({ field: { value, onChange } }) => (
-                                                                    <Dropdown
-                                                                        data={[{ label: "İsim ata", value: "named" }, { label: "Berber ata", value: "barber" }]}
-                                                                        labelField="label"
-                                                                        valueField="value"
-                                                                        value={value ?? null}
-                                                                        onChange={(it: any) => {
-                                                                            onChange(it.value);
-                                                                            if (it.value === "named") {
-                                                                                setValue(`chairs.${index}.barberId`, undefined, { shouldDirty: true, shouldValidate: true });
-                                                                            } else {
-                                                                                setValue(`chairs.${index}.name`, undefined, { shouldDirty: true, shouldValidate: true });
-                                                                            }
-                                                                        }}
-                                                                        style={{ height: 42, borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#1F2937", borderWidth: 1, borderColor: "#444", justifyContent: "center" }}
-                                                                        placeholderStyle={{ color: "gray" }}
-                                                                        selectedTextStyle={{ color: "white" }}
-                                                                        itemTextStyle={{ color: "white" }}
-                                                                        containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10, overflow: "hidden" }}
-                                                                        activeColor="#3a3b3d"
-                                                                    />
-                                                                )}
-                                                            />
+                                                        <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                            <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
                                                         </View>
-                                                        <View className='flex-1'>
-                                                            {chair?.mode === "named" ? (
-                                                                <Controller
-                                                                    key={`named-${item._key}`}
-                                                                    control={control}
-                                                                    name={`chairs.${index}.name` as const}
-                                                                    render={({ field: { value, onChange, onBlur } }) => (
-                                                                        <TextInput
-                                                                            label="Koltuk adı"
-                                                                            mode="outlined"
-                                                                            dense
-                                                                            value={value}
-                                                                            onChangeText={onChange}
-                                                                            onBlur={onBlur}
-                                                                            textColor="white"
-                                                                            outlineColor="#444"
-                                                                            theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                                            style={{ backgroundColor: "#1F2937", borderWidth: 0, marginTop: -5 }}
-                                                                        />
-                                                                    )}
-                                                                />
-
+                                                        <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                            {!isBarberChair ? (
+                                                                <Text className='text-gray-500 text-xs mb-1'>{chair.name}</Text>
                                                             ) : (
-                                                                <Controller
-                                                                    key={`barber-dd-${item._key}-${barberNamesVersion}`}
-                                                                    control={control}
-                                                                    name={`chairs.${index}.barberId` as const}
-                                                                    render={({ field: { value, onChange } }) => {
-                                                                        const options = barberOptionsMap.get(chair.id) ?? [];
-                                                                        const disabled = options.length === 0;
-                                                                        return (
-                                                                            <Dropdown
-                                                                                data={options}
-                                                                                labelField="label"
-                                                                                valueField="value"
-                                                                                value={value ?? null}
-                                                                                onChange={(item: any) => onChange(item.value)}
-                                                                                placeholder={disabled ? "Önce isimli berber ekleyin" : "Berber seç"}
-                                                                                disable={disabled}
-                                                                                style={{ height: 42, borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#1F2937", borderWidth: 1, borderColor: "#444", justifyContent: "center" }}
-                                                                                containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10, overflow: "hidden" }}
-                                                                                placeholderStyle={{ color: "gray" }}
-                                                                                selectedTextStyle={{ color: "white" }}
-                                                                                itemTextStyle={{ color: "white" }}
-                                                                                activeColor="#0f766e"
-                                                                            />
-                                                                        )
-                                                                    }
-
-                                                                    }
-                                                                />
+                                                                <Text className='text-white text-xs mb-1'>{barberName}</Text>
                                                             )}
                                                         </View>
-                                                        <IconButton icon="delete" iconColor="#ef4444" onPress={() => removeChair(index)} />
+                                                        <TouchableOpacity onPress={() => { }}>
+                                                            <Icon size={22} source="update" color="#c2a523" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity>
+                                                            <Icon size={22} source="delete" color="#ef4444" />
+                                                        </TouchableOpacity>
                                                     </View>
                                                 );
                                             }}
@@ -701,7 +786,6 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                         )}
                                     />
                                 )}
-
                                 {pricingMode === "percent" && (
                                     <Controller
                                         control={control}
@@ -923,7 +1007,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                         </>
                                     )}
                                 />
-                            </View> */}
+                            </View>
                         </View>
                     </ScrollView>
                     {/* <View className="px-4 my-3">

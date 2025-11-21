@@ -22,10 +22,9 @@ import { StoreMineCardComp } from '../../components/storeminecard';
 import { getCurrentLocationSafe, useCurrentLocationSafe } from '../../utils/location-helper';
 
 const Index = () => {
-    const { status: locationStatus, coords, message: locationMessage, retry } =
-        useCurrentLocationSafe(true);
-    const { data: stores = [], isLoading, refetch } = useGetMineStoresQuery(undefined, { skip: locationStatus == 'error' });
+    const { status: locationStatus, coords, message: locationMessage, retry } = useCurrentLocationSafe(true);
 
+    const { data: stores = [], isLoading, refetch } = useGetMineStoresQuery(undefined, { skip: locationStatus == 'error' });
 
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
@@ -111,7 +110,7 @@ const Index = () => {
                             <Text className="font-ibm-plex-sans-regular text-xl text-white">
                                 İşletmelerim
                             </Text>
-                            {stores && stores.length !== 0 && (
+                            {hasStores && (
 
                                 <MotiViewExpand
                                     expanded={expanded}
@@ -119,13 +118,16 @@ const Index = () => {
                                 />
                             )}
                         </View>
-                        {isLoading && (
+                        {isLoading ? (
                             <View className="flex-1 pt-4">
                                 {Array.from({ length: 2 }).map((_, i) => (
                                     <SkeletonComponent key={i} />
                                 ))}
                             </View>
-                        )}
+                        ) : !hasStores ? (
+                            <LottieViewComponent message='Henüz eklediğiniz berber dükkanı bulunmuyor.' ></LottieViewComponent>
+                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
+
                         <FlatList
                             key="storesMineList"
                             data={hasStores ? stores : []}
@@ -144,11 +146,6 @@ const Index = () => {
                                 gap: 12,
                                 paddingTop: hasStores ? 8 : 0,
                             }}
-                            ListEmptyComponent={
-                                !hasStores ? (
-                                    <LottieViewComponent message='Henüz eklediğiniz berber dükkanı bulunmuyor.' ></LottieViewComponent>
-                                ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : null
-                            }
                         />
                         <View className="flex flex-row justify-between items-center mt-4">
                             <Text className="font-ibm-plex-sans-regular text-xl text-white">
@@ -161,13 +158,15 @@ const Index = () => {
                                 />
                             )}
                         </View>
-                        {isLoading && (
+                        {isLoading ? (
                             <View className="flex-1 pt-4">
                                 {Array.from({ length: 2 }).map((_, i) => (
                                     <SkeletonComponent key={i} />
                                 ))}
                             </View>
-                        )}
+                        ) : !hasFreeBarbers ? (
+                            <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı.' ></LottieViewComponent>
+                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
                         <FlatList
                             key="freeBarbersList"
                             data={hasFreeBarbers ? stores : []}
@@ -187,11 +186,6 @@ const Index = () => {
                                 paddingTop: hasFreeBarbers ? 8 : 0,
                                 paddingBottom: 8,
                             }}
-                            ListEmptyComponent={
-                                !hasFreeBarbers ? (
-                                    <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı' ></LottieViewComponent>
-                                ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : null
-                            }
                         />
                     </>
                 }

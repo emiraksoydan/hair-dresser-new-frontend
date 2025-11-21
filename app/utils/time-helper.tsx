@@ -14,6 +14,11 @@ export const fromHHmm = (s?: string, fallback = "09:00") => {
     return d;
 };
 
+export const toHHmm = (time: string | null | undefined) => {
+    if (!time) return "09:00";
+    return time.slice(0, 5); // "09:00:00" -> "09:00"
+};
+
 export const toMinutes = (hhmm?: string) => {
     if (!hhmm) return NaN;             // <— guard
     const [h, m] = hhmm.split(':');
