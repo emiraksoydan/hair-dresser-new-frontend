@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
 import { z } from "zod";
 import { BUSINESS_TYPES, DAYS_TR, PRICING_OPTIONS, SERVICE_BY_TYPE, trMoneyRegex } from '../constants';
@@ -7,10 +7,9 @@ import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmm, toHHmm, toMinutes } from 
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../context/bottomsheet';
-import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
-import { useGetStoreByIdQuery } from '../store/api';
-import { getErrorMessage } from '../utils/error-message';
+import { useDeleteManuelBarberMutation, useLazyGetStoreByIdQuery } from '../store/api';
 import { CrudSkeletonComponent } from './crudskeleton';
 import { pickImageAndSet, pickPdf, truncateFileName } from '../utils/pick-document';
 import { LegendList } from '@legendapp/list';
@@ -18,6 +17,9 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { MapPicker } from './mappicker';
 import { createStoreLocationHelpers } from '../utils/store-location-helper';
 import { useCurrentLocationSafe } from '../utils/location-helper';
+import { BarberEditModal } from './barbereditmodal';
+import { BarberFormValues } from '../types';
+import { resolveApiErrorMessage } from '../utils/error';
 
 
 
@@ -154,18 +156,33 @@ const schema = z.object({
 })
 export type FormUpdateValues = z.input<typeof schema>;
 
-const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
+const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boolean }) => {
     const { dismiss } = useSheet('updateStoreMine');
-    const { data, isLoading, isError, error } = useGetStoreByIdQuery(storeId, {
-        skip: !storeId,
-    });
+    const [triggerGetStore, { data, isLoading, isError, error, originalArgs }] = useLazyGetStoreByIdQuery();
+    useEffect(() => {
+        if (enabled && storeId) {
+            triggerGetStore(storeId);
+        }
+    }, [enabled, storeId, triggerGetStore]);
+
     const [snackVisible, setSnackVisible] = useState<boolean>(false);
-    const errorText = getErrorMessage(error);
+    const [snackText, setSnackText] = useState<string>('');
+    const [snackIsError, setSnackIsError] = useState<boolean>(false);
+
+    const errorText = resolveApiErrorMessage(error);
     useEffect(() => {
         if (isError)
             setSnackVisible(true);
     }, [isError])
+
     const pickMainImage = () => pickImageAndSet(setValue, 'storeImageUrl');
+    const [barberModalVisible, setBarberModalVisible] = useState(false);
+    const [barberModalTitle, setBarberModalTitle] = useState('Berber Ekle');
+    const [barberInitialValues, setBarberInitialValues] = useState<Partial<BarberFormValues>>({});
+    const [editingBarberIndex, setEditingBarberIndex] = useState<number | null>(null);
+    const [deleteBarber, { isLoading: isDeleting }] = useDeleteManuelBarberMutation();
+
+
     const {
         control,
         handleSubmit,
@@ -179,9 +196,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
         resolver: zodResolver(schema),
         shouldFocusError: true,
         mode: 'onSubmit',
-        defaultValues: {
-            storeName: data?.storeName,
-        },
+        defaultValues: { storeName: data?.storeName, },
     });
     const serviceOptions = useMemo(
         () => (data?.type ? SERVICE_BY_TYPE[data.type] ?? [] : []),
@@ -330,12 +345,8 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
     const working = watch("workingHours") ?? [];
     const holidayDays = watch("holidayDays") ?? [];
     const [activeDay, setActiveDay] = useState<number>(0);
-    const [activeStart, setActiveStart] = useState<Date>(() =>
-        fromHHmm(working[0]?.startTime ?? "09:00")
-    );
-    const [activeEnd, setActiveEnd] = useState<Date>(() =>
-        fromHHmm(working[0]?.endTime ?? "18:00")
-    );
+    const [activeStart, setActiveStart] = useState<Date>(() => fromHHmm(working[0]?.startTime ?? "09:00"));
+    const [activeEnd, setActiveEnd] = useState<Date>(() => fromHHmm(working[0]?.endTime ?? "18:00"));
 
     useEffect(() => {
         const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
@@ -359,6 +370,65 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
         }
     };
 
+    const openEditBarberModal = (index: number) => {
+        const current = barbers[index];
+        if (!current) return;
+        setBarberModalTitle('Berber Güncelle');
+        setBarberInitialValues({
+            name: current.name,
+            profileImageUrl: current.avatar?.uri,
+            id: current.id,
+        });
+        setEditingBarberIndex(index);
+        setBarberModalVisible(true);
+    };
+    const closeBarberModal = () => { setBarberModalVisible(false); };
+
+    const openCreateBarberModal = () => {
+        setBarberModalTitle('Berber Ekle');
+        setBarberInitialValues({ name: '', profileImageUrl: '', id: '' });
+        setEditingBarberIndex(null);
+        setBarberModalVisible(true);
+    };
+    const handleDeleteBarber = (index: number) => {
+        const current = barbers[index];
+        if (!current) return;
+        Alert.alert(
+            'Berberi Sil',
+            `"${current.name}" isimli berberi silmek istediğinize emin misiniz?`,
+            [
+                {
+                    text: 'Vazgeç',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Sil',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (current.id) {
+                                var res = await deleteBarber(current.id).unwrap();
+                                if (res.success)
+                                    setSnackIsError(true);
+                                else
+                                    setSnackIsError(false);
+
+                                setSnackVisible(true);
+                                setSnackText(res.message);
+                            }
+                        } catch (e) {
+                            setSnackVisible(true);
+                            setSnackText(resolveApiErrorMessage(e));
+                            setSnackIsError(true);
+
+                        }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
     return (
         <View className='h-full'>
             <View className='flex-row justify-between items-center px-4'>
@@ -366,7 +436,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                 <IconButton onPress={dismiss} icon="close" iconColor="white" />
             </View>
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
-            {isLoading ? (
+            {!data ? (
                 <View className="flex-1 pt-4">
                     {Array.from({ length: 1 }).map((_, i) => (
                         <CrudSkeletonComponent key={i} />
@@ -618,7 +688,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                             )}
                             <View className="mt-2 mx-0 flex-row items-center">
                                 <Text className="text-white text-xl flex-1">Çalışan Berber Sayısı : {barberFields.length}  </Text>
-                                <Button mode="text" textColor="#c2a523" onPress={() => { }}>Berber Ekle</Button>
+                                <Button mode="text" textColor="#c2a523" onPress={openCreateBarberModal}>Berber Ekle</Button>
                             </View>
                             {barberFields.length > 0 && (
                                 <View className="bg-[#1F2937] rounded-xl px-3 pt-4 ">
@@ -630,18 +700,11 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                             renderItem={({ item }) => {
                                                 const index = barberFields.findIndex(f => f._key === item._key);
                                                 return (
-                                                    <View className="flex-row items-center gap-3">
-                                                        <TouchableOpacity
-                                                            activeOpacity={0.85}
-                                                            onPress={async () => {
-                                                                // const file = await handlePickImage();
-                                                                // if (file) updateBarber(index, { ...(getValues(`barbers.${index}` as const) as any), avatar: file });
-                                                            }}
-                                                        >
-                                                            {barbers[index]?.avatar?.uri
-                                                                ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
-                                                                : <Avatar.Icon size={40} icon="account-circle" />}
-                                                        </TouchableOpacity>
+                                                    <View className="flex-row items-center mb-3 gap-3">
+                                                        {barbers[index]?.avatar?.uri
+                                                            ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
+                                                            : <Avatar.Icon size={40} icon="account-circle" />}
+
                                                         <Controller
                                                             control={control}
                                                             name={`barbers.${index}.name` as const}
@@ -659,10 +722,10 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                                                 />
                                                             )}
                                                         />
-                                                        <TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => openEditBarberModal(index)}>
                                                             <Icon size={22} source="update" color="#c2a523" />
                                                         </TouchableOpacity>
-                                                        <TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => handleDeleteBarber(index)}>
                                                             <Icon size={22} source="delete" color="#ef4444" />
                                                         </TouchableOpacity>
                                                     </View>
@@ -697,7 +760,7 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                                                     ? (barbers.find(b => b.id === chair.barberId)?.name ?? "Atanmamış")
                                                     : "-";
                                                 return (
-                                                    <View className="flex-row items-center gap-3 mt-2">
+                                                    <View className="flex-row items-center gap-3 mt-2  mb-3">
                                                         <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
                                                         <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
                                                             <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
@@ -1013,12 +1076,23 @@ const FormStoreUpdate = ({ storeId }: { storeId: string }) => {
                     {/* <View className="px-4 my-3">
                         <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit, onInvalid)} buttonColor="#1F2937">Ekle</Button>
                     </View> */}
-
+                    <BarberEditModal
+                        visible={barberModalVisible}
+                        title={barberModalTitle}
+                        initialValues={barberInitialValues}
+                        onClose={closeBarberModal}
+                        storeId={storeId}
+                    />
+                    <Snackbar
+                        style={{ backgroundColor: snackIsError ? 'red' : 'green' }}
+                        visible={snackVisible}
+                        onDismiss={() => setSnackVisible(false)}
+                        duration={3000}
+                        action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
+                        {snackText}
+                    </Snackbar>
                 </>
             )}
-
-
-
         </View>
     );
 

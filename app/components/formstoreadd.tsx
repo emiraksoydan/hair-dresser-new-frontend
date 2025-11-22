@@ -1,6 +1,6 @@
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip, Snackbar } from 'react-native-paper';
+import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip, Snackbar, Portal } from 'react-native-paper';
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ import * as Location from "expo-location";
 import { MapPicker } from './mappicker';
 import { useAddBarberStoreMutation } from '../store/api';
 import { BarberStoreCreateDto, ImageOwnerType } from '../types';
+import { resolveApiErrorMessage } from '../utils/error';
 
 
 const ChairPricingSchema = z.object({
@@ -201,7 +202,7 @@ const FormStoreAdd = () => {
     } = useForm<FormValues>({
         resolver: zodResolver(fullSchema),
         shouldFocusError: true,
-        mode: 'onSubmit',
+        mode: 'onChange',
         defaultValues: {
             holidayDays: [],
             offerings: [],            // iyi olur
@@ -251,7 +252,6 @@ const FormStoreAdd = () => {
         m === 'percent' ? 0 : 1;
     const { dismiss } = useSheet('addStore');
     const OnSubmit = async (data: FormValues) => {
-
         const payload: BarberStoreCreateDto = {
             storeName: data.storeName,
             storeImageList: data?.storeImageUrl?.uri
@@ -285,12 +285,14 @@ const FormStoreAdd = () => {
                     id: barber.id,
                     profileImageUrl: barber.avatar?.uri,
                     fullName: barber.name,
+                    storeId: undefined,
                 }
             }),
             workingHours: data.workingHours
         }
         try {
             var result = await addStore(payload).unwrap();
+            console.log(result);
             if (result.success) {
                 setSnackText(result.message);
                 setSnackVisible(true);
@@ -301,7 +303,8 @@ const FormStoreAdd = () => {
                 setSnackVisible(true);
             }
         } catch (error: any) {
-            setSnackText(error?.data?.message ?? error?.message ?? 'Beklenmeyen hata oluştu');
+            const msg = resolveApiErrorMessage(error);
+            setSnackText(msg);
             setSnackVisible(true);
         }
     };
@@ -493,11 +496,7 @@ const FormStoreAdd = () => {
         });
         return msgs.join("\n");
     }, [errors.chairs, chairs.length]);
-    const onInvalid = (errs: any) => {
-        console.log('FORM ERRORS', errs);
-        setSnackText("Lütfen formdaki kırmızı alanları düzeltin.");
-        setSnackVisible(true);
-    };
+
     return (
         <View className='h-full'>
             <View className='flex-row justify-between items-center px-4'>
@@ -1202,16 +1201,19 @@ const FormStoreAdd = () => {
                 </View>
             </ScrollView>
             <View className="px-4 my-3">
-                <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit, onInvalid)} buttonColor="#1F2937">Ekle</Button>
+                <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Ekle</Button>
             </View>
-            <Snackbar
-                style={{ backgroundColor: 'green' }}
-                visible={snackVisible}
-                onDismiss={() => setSnackVisible(false)}
-                duration={3000}
-                action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
-                {snackText}
-            </Snackbar>
+            <Portal>
+                <Snackbar
+                    style={{ backgroundColor: 'green' }}
+                    visible={snackVisible}
+                    onDismiss={() => setSnackVisible(false)}
+                    duration={3000}
+                    action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}
+                >
+                    {snackText}
+                </Snackbar>
+            </Portal>
 
         </View>
     )

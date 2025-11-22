@@ -118,6 +118,12 @@ export type ServiceOfferingCreateDto = {
   serviceName: string;
 };
 export type ManuelBarberCreateDto = {
+  id?: string;
+  fullName: string;
+  profileImageUrl?: string;
+  storeId?: string;
+};
+export type ManuelBarberUpdateDto = {
   id: string;
   fullName: string;
   profileImageUrl?: string;
@@ -166,6 +172,11 @@ export interface ImageGetDto {
   id: string;
   imageUrl: string;
 }
+export type BarberFormValues = {
+  id?: string;
+  name?: string;
+  profileImageUrl?: string;
+};
 
 export type BarberStoreGetDto = {
   id: string;

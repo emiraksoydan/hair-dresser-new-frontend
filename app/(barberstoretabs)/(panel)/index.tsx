@@ -36,6 +36,8 @@ const Index = () => {
     useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present: updateStore } = useSheet('updateStoreMine');
+    const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
+
     const {
         list: selectedServices,
         toggle: toggleService,
@@ -205,9 +207,13 @@ const Index = () => {
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
                 ref={(inst) => setRef('updateStoreMine', inst)}
+                onChange={(index) => {
+                    setIsUpdateSheetOpen(index >= 0);
+                }}
                 snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
                 <BottomSheetView className='h-full pt-2'>
-                    <FormStoreUpdate storeId={storeId} />
+                    <FormStoreUpdate storeId={storeId} enabled={isUpdateSheetOpen} />
+
                 </BottomSheetView>
             </BottomSheetModal>
         </View>
