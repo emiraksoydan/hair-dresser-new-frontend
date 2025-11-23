@@ -110,10 +110,21 @@ export type AccessTokenDto = {
 };
 export type BarberChairCreateDto = {
   barberId?: string;
+  id?: string;
+  name?: string;
+  storeId?: string;
+};
+export type BarberChairUpdateDto = {
+  barberId?: string;
   id: string;
   name?: string;
 };
 export type ServiceOfferingCreateDto = {
+  price: number;
+  serviceName: string;
+};
+export type ServiceOfferingUpdateDto = {
+  id?: string;
   price: number;
   serviceName: string;
 };
@@ -124,7 +135,7 @@ export type ManuelBarberCreateDto = {
   storeId?: string;
 };
 export type ManuelBarberUpdateDto = {
-  id: string;
+  id?: string;
   fullName: string;
   profileImageUrl?: string;
 };
@@ -133,6 +144,14 @@ export type WorkingHourCreateDto = {
   startTime: string;
   endTime: string;
   isClosed: boolean;
+};
+export type WorkingHourUpdateDto = {
+  id?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isClosed: boolean;
+  ownerId?: string;
 };
 export type BarberStoreCreateDto = {
   storeName: string;
@@ -149,11 +168,33 @@ export type BarberStoreCreateDto = {
   manuelBarbers: ManuelBarberCreateDto[];
   workingHours: WorkingHourCreateDto[];
 };
+export type BarberStoreUpdateDto = {
+  id: string;
+  storeName: string;
+  storeImageList?: UpdateImageDto[];
+  type: number;
+  pricingType: number;
+  addressDescription: string;
+  latitude: number;
+  longitude: number;
+  pricingValue: number;
+  taxDocumentFilePath: string;
+  chairs: BarberChairUpdateDto[];
+  offerings: ServiceOfferingUpdateDto[];
+  manuelBarbers: ManuelBarberUpdateDto[];
+  workingHours: WorkingHourUpdateDto[];
+};
+
+
 export type CreateImageDto = {
   imageUrl: string;
   ownerType: ImageOwnerType;
   imageOwnerId?: string;
-
+}
+export type UpdateImageDto = {
+  id: string;
+  imageUrl: string;
+  imageOwnerId: string;
 }
 
 
@@ -176,6 +217,13 @@ export type BarberFormValues = {
   id?: string;
   name?: string;
   profileImageUrl?: string;
+};
+
+export type ChairFormInitial = {
+  id?: string;
+  name?: string;
+  barberId?: string;
+  mode?: 'named' | 'barber';
 };
 
 export type BarberStoreGetDto = {

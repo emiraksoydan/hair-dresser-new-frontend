@@ -269,6 +269,7 @@ const FormStoreAdd = () => {
                     id: c.id,
                     barberId: c.barberId,
                     name: c.name,
+                    storeId: undefined,
                 };
             }),
             offerings: (data.offerings ?? []).map((serviceKey) => {

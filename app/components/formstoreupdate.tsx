@@ -7,9 +7,9 @@ import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmm, toHHmm, toMinutes } from 
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../context/bottomsheet';
-import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button, ActivityIndicator } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button, ActivityIndicator, Portal } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
-import { useDeleteManuelBarberMutation, useLazyGetStoreByIdQuery } from '../store/api';
+import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation } from '../store/api';
 import { CrudSkeletonComponent } from './crudskeleton';
 import { pickImageAndSet, pickPdf, truncateFileName } from '../utils/pick-document';
 import { LegendList } from '@legendapp/list';
@@ -18,8 +18,9 @@ import { MapPicker } from './mappicker';
 import { createStoreLocationHelpers } from '../utils/store-location-helper';
 import { useCurrentLocationSafe } from '../utils/location-helper';
 import { BarberEditModal } from './barbereditmodal';
-import { BarberFormValues } from '../types';
+import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ServiceOfferingUpdateDto } from '../types';
 import { resolveApiErrorMessage } from '../utils/error';
+import { ChairEditModal } from './chaireditmodal';
 
 
 
@@ -70,6 +71,8 @@ const LocationSchema = z.object({
     }
 });
 const WorkingDaySchema = z.object({
+    id: z.string().uuid().optional(),
+    ownerId: z.string().uuid().optional(),
     dayOfWeek: z.number().int().min(0).max(6),
     isClosed: z.boolean(),
     startTime: z.string().regex(timeHHmm, "HH:mm"),
@@ -158,7 +161,9 @@ export type FormUpdateValues = z.input<typeof schema>;
 
 const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boolean }) => {
     const { dismiss } = useSheet('updateStoreMine');
-    const [triggerGetStore, { data, isLoading, isError, error, originalArgs }] = useLazyGetStoreByIdQuery();
+    const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
+    const [updateStore, { isLoading: updateLoading, isSuccess }] = useUpdateBarberStoreMutation();
+
     useEffect(() => {
         if (enabled && storeId) {
             triggerGetStore(storeId);
@@ -177,10 +182,47 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
 
     const pickMainImage = () => pickImageAndSet(setValue, 'storeImageUrl');
     const [barberModalVisible, setBarberModalVisible] = useState(false);
+    const [chairModalVisible, setChairModalVisible] = useState(false);
+
     const [barberModalTitle, setBarberModalTitle] = useState('Berber Ekle');
+    const [chairModalTitle, setChairModalTitle] = useState('Koltuk Ekle');
+
     const [barberInitialValues, setBarberInitialValues] = useState<Partial<BarberFormValues>>({});
-    const [editingBarberIndex, setEditingBarberIndex] = useState<number | null>(null);
+    const [chairInitialValues, setChairInitialValues] = useState<Partial<ChairFormInitial>>({});
+    const [chairAvailableBarbers, setChairAvailableBarbers] = useState<
+        { id: string; name: string }[]
+    >([]);
+
     const [deleteBarber, { isLoading: isDeleting }] = useDeleteManuelBarberMutation();
+    const [deleteChair, { isLoading: isDeletingChair }] = useDeleteStoreChairMutation();
+
+
+    const getAvailableBarbersForChair = (chairIndex: number) => {
+        const currentChair = chairs[chairIndex];
+        if (!currentChair) return [];
+
+        const assignedBarberId = currentChair.barberId ?? null;
+
+        return barbers
+            .map(b => ({ id: b.id, name: b.name }))
+            .filter(b => {
+                const usedInAnotherChair = chairs.some((c, i) => i !== chairIndex && c.barberId === b.id);
+
+                if (assignedBarberId && b.id === assignedBarberId) return true;
+                return !usedInAnotherChair;
+            });
+    };
+    const getAvailableBarbersForNewChair = () => {
+        return barbers
+            .filter(b => {
+                const isUsed = chairs.some(c => c.barberId === b.id);
+                return !isUsed;
+            })
+            .map(b => ({
+                id: b.id,
+                name: b.name,
+            }));
+    };
 
 
     const {
@@ -249,6 +291,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                 const w = data.workingHours?.find(x => x.dayOfWeek === day);
                 if (!w) {
                     return {
+                        id: undefined,
+                        ownerId: undefined,
                         dayOfWeek: day,
                         isClosed: true,
                         startTime: "09:00",
@@ -256,6 +300,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                     };
                 }
                 return {
+                    id: w.id,
+                    ownerId: w.ownerId,
                     dayOfWeek: w.dayOfWeek,
                     isClosed: w.isClosed,
                     startTime: toHHmm(w.startTime as any),
@@ -379,16 +425,39 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
             profileImageUrl: current.avatar?.uri,
             id: current.id,
         });
-        setEditingBarberIndex(index);
         setBarberModalVisible(true);
     };
+    const openEditChairModal = (index: number) => {
+        const current = chairs[index];
+        if (!current) return;
+        const availableBarbers = getAvailableBarbersForChair(index);
+        setChairModalTitle('Koltuk Güncelle');
+        setChairInitialValues({
+            id: current.id,
+            name: current.name ?? undefined,
+            barberId: current.barberId ?? undefined,
+        });
+        setChairAvailableBarbers(availableBarbers);
+        setChairModalVisible(true);
+    };
     const closeBarberModal = () => { setBarberModalVisible(false); };
+    const closeChairModal = () => {
+        setChairModalVisible(false);
+        setChairInitialValues({});
+        setChairAvailableBarbers([]);
+    };
 
     const openCreateBarberModal = () => {
         setBarberModalTitle('Berber Ekle');
         setBarberInitialValues({ name: '', profileImageUrl: '', id: '' });
-        setEditingBarberIndex(null);
         setBarberModalVisible(true);
+    };
+    const openCreateChairModal = () => {
+        const availableBarbers = getAvailableBarbersForNewChair();
+        setChairModalTitle('Koltuk Ekle');
+        setChairInitialValues({ name: undefined, id: undefined, barberId: undefined });
+        setChairAvailableBarbers(availableBarbers);
+        setChairModalVisible(true);
     };
     const handleDeleteBarber = (index: number) => {
         const current = barbers[index];
@@ -427,6 +496,131 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
             ],
             { cancelable: true }
         );
+    };
+    const handleChair = (index: number) => {
+        const current = chairs[index];
+        if (!current) return;
+        Alert.alert(
+            'Koltuğu Sil',
+            `"${current.name}" isimli koltuğu silmek istediğinize emin misiniz?`,
+            [
+                {
+                    text: 'Vazgeç',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Sil',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (current.id) {
+                                var res = await deleteChair(current.id).unwrap();
+                                if (res.success)
+                                    setSnackIsError(true);
+                                else
+                                    setSnackIsError(false);
+
+                                setSnackVisible(true);
+                                setSnackText(res.message);
+                            }
+                        } catch (e) {
+                            setSnackVisible(true);
+                            setSnackText(resolveApiErrorMessage(e));
+                            setSnackIsError(true);
+
+                        }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
+    const mapBarberType = (t: string): number => {
+        switch (t) {
+            case 'MaleHairdresser': return 0;
+            case 'FemaleHairdresser': return 1;
+            case 'BeautySalon': return 2;
+            default: return 0;
+        }
+    };
+    const mapPricingType = (m: 'percent' | 'rent'): number =>
+        m === 'percent' ? 0 : 1
+        ;
+    const OnSubmit = async (form: FormUpdateValues) => {
+        console.log("bgbg");
+
+        const existingImageId = data?.imageList?.[0]?.id;
+        const payload: BarberStoreUpdateDto = {
+            id: storeId,
+            storeName: form.storeName,
+            storeImageList: form.storeImageUrl?.uri
+                ? [{
+                    id: existingImageId!,
+                    imageUrl: form.storeImageUrl.uri,
+                    imageOwnerId: storeId,
+                }]
+                : [],
+            type: mapBarberType(form.type),
+            pricingType: mapPricingType(form.pricingType.mode),
+            addressDescription: form.location.addressDescription,
+            latitude: form.location.latitude,
+            longitude: form.location.longitude,
+            pricingValue: form.pricingType.mode == 'percent' ? form.pricingType.percent! : parseTR(form.pricingType.rent)!,
+            taxDocumentFilePath: form.taxDocumentFilePath.uri,
+            chairs: form.chairs!.map((c, index) => {
+                return {
+                    id: c.id,
+                    barberId: c.barberId,
+                    name: c.name,
+                    storeId: storeId,
+                };
+            }),
+            offerings: (form.offerings ?? [])
+                .map((serviceKey) => {
+                    const priceStr = form.prices?.[serviceKey] ?? "";
+                    const priceNum = parseTR(priceStr);
+                    if (priceNum == null) return null;
+
+                    const existingId = data?.serviceOfferings
+                        ?.find(o => o.serviceName === serviceKey)?.id;
+
+                    const dto: ServiceOfferingUpdateDto = {
+                        id: existingId,           // varsa update, yoksa insert
+                        serviceName: serviceKey,
+                        price: priceNum,
+                    };
+                    return dto;
+                })
+                .filter((x): x is ServiceOfferingUpdateDto => x !== null),
+            manuelBarbers: form.barbers!.map((barber) => {
+                return {
+                    id: barber.id,
+                    profileImageUrl: barber.avatar?.uri,
+                    fullName: barber.name,
+                    storeId: storeId,
+                }
+            }),
+            workingHours: form.workingHours
+        }
+
+        try {
+            var result = await updateStore(payload).unwrap();
+            console.log(result);
+            if (result.success) {
+                setSnackText(result.message);
+                setSnackVisible(true);
+                dismiss();
+            }
+            else {
+                setSnackText(result.message);
+                setSnackVisible(true);
+            }
+        } catch (error: any) {
+            const msg = resolveApiErrorMessage(error);
+            setSnackText(msg);
+            setSnackVisible(true);
+        }
     };
 
     return (
@@ -740,7 +934,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                             )}
                             <View className="mt-4 mx-0 flex-row items-center">
                                 <Text className="text-white text-xl flex-1">Koltuk Sayısı : {chairFields.length}</Text>
-                                <Button mode="text" textColor="#c2a523" onPress={() => { }}>Koltuk Ekle</Button>
+                                <Button mode="text" textColor="#c2a523" onPress={openCreateChairModal}>Koltuk Ekle</Button>
                             </View>
                             {chairFields.length > 0 && (
                                 <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
@@ -767,15 +961,15 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                                                         </View>
                                                         <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
                                                             {!isBarberChair ? (
-                                                                <Text className='text-gray-500 text-xs mb-1'>{chair.name}</Text>
+                                                                <Text className='text-white text-xs mb-1'>{chair.name}</Text>
                                                             ) : (
                                                                 <Text className='text-white text-xs mb-1'>{barberName}</Text>
                                                             )}
                                                         </View>
-                                                        <TouchableOpacity onPress={() => { }}>
+                                                        <TouchableOpacity onPress={() => openEditChairModal(index)}>
                                                             <Icon size={22} source="update" color="#c2a523" />
                                                         </TouchableOpacity>
-                                                        <TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => handleChair(index)}>
                                                             <Icon size={22} source="delete" color="#ef4444" />
                                                         </TouchableOpacity>
                                                     </View>
@@ -989,7 +1183,19 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                                                     labelField="label"
                                                     valueField="value"
                                                     value={(value ?? []).map(String)}
-                                                    onChange={(vals: string[]) => onChange(vals.map(v => Number(v)))}
+                                                    onChange={(vals: string[]) => {
+                                                        const numeric = vals.map(v => Number(v));
+                                                        onChange(numeric);
+                                                        const current = getValues("workingHours") ?? [];
+                                                        const updated = current.map(w => ({
+                                                            ...w,
+                                                            isClosed: numeric.includes(w.dayOfWeek),
+                                                        }));
+                                                        setValue("workingHours", updated, {
+                                                            shouldDirty: true,
+                                                            shouldValidate: true,
+                                                        });
+                                                    }}
                                                     placeholder="Tatil günlerini seç"
                                                     dropdownPosition="top"
                                                     inside
@@ -1073,9 +1279,9 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                             </View>
                         </View>
                     </ScrollView>
-                    {/* <View className="px-4 my-3">
-                        <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit, onInvalid)} buttonColor="#1F2937">Ekle</Button>
-                    </View> */}
+                    <View className="px-4 my-3">
+                        <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
+                    </View>
                     <BarberEditModal
                         visible={barberModalVisible}
                         title={barberModalTitle}
@@ -1083,14 +1289,25 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                         onClose={closeBarberModal}
                         storeId={storeId}
                     />
-                    <Snackbar
-                        style={{ backgroundColor: snackIsError ? 'red' : 'green' }}
-                        visible={snackVisible}
-                        onDismiss={() => setSnackVisible(false)}
-                        duration={3000}
-                        action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
-                        {snackText}
-                    </Snackbar>
+                    <ChairEditModal
+                        visible={chairModalVisible}
+                        title={chairModalTitle}
+                        initialValues={chairInitialValues}
+                        barbers={chairAvailableBarbers}
+                        onClose={closeChairModal}
+                        storeId={storeId}
+                    />
+                    <Portal>
+                        <Snackbar
+                            style={{ backgroundColor: snackIsError ? 'red' : 'green' }}
+                            visible={snackVisible}
+                            onDismiss={() => setSnackVisible(false)}
+                            duration={3000}
+                            action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
+                            {snackText}
+                        </Snackbar>
+                    </Portal>
+
                 </>
             )}
         </View>

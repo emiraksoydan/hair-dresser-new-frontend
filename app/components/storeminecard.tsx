@@ -169,7 +169,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
 export const StoreMineCardComp = React.memo(
     StoreMineCard,
     (prev, next) =>
-        prev.store.id === next.store.id &&
+        prev.store === next.store &&
         prev.isList === next.isList &&
         prev.expanded === next.expanded &&
         prev.cardWidthStore === next.cardWidthStore

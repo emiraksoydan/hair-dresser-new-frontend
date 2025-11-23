@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyStoresRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
+import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyStoresRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
@@ -27,6 +27,10 @@ export const api = createApi({
         }),
         addBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreCreateDto>({
             query: (dto) => ({ url: 'BarberStore/create-store', method: 'POST', body: dto }),
+            invalidatesTags: ['MineStores'],
+        }),
+        updateBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreUpdateDto>({
+            query: (dto) => ({ url: 'BarberStore/update-store', method: 'PUT', body: dto }),
             invalidatesTags: ['MineStores'],
         }),
         getNearbyStores: builder.query<BarberStoreGetDto[], NearbyStoresRequest>({
@@ -76,6 +80,35 @@ export const api = createApi({
             }),
             invalidatesTags: ['GetStoreById'],
         }),
+        addStoreChair: builder.mutation<
+            { message: string; success: boolean },
+            { dto: BarberChairCreateDto }
+        >({
+            query: ({ dto }) => ({
+                url: `BarberStoreChair`,
+                method: 'POST',
+                body: dto,
+            }),
+            invalidatesTags: ['GetStoreById'],
+        }),
+        updateStoreChair: builder.mutation<
+            { message: string; success: boolean },
+            { dto: BarberChairUpdateDto }
+        >({
+            query: ({ dto }) => ({
+                url: `BarberStoreChair`,
+                method: 'PUT',
+                body: dto,
+            }),
+            invalidatesTags: ['GetStoreById'],
+        }),
+        deleteStoreChair: builder.mutation<{ message: string; success: boolean }, string>({
+            query: (id) => ({
+                url: `BarberStoreChair/${id}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: ['GetStoreById'],
+        }),
     }),
 });
-export const { useSendOtpMutation, useVerifyOtpMutation, usePasswordMutation, useRevokeMutation, useRefreshMutation, useAddBarberStoreMutation, useLazyGetNearbyStoresQuery, useGetMineStoresQuery, useLazyGetStoreByIdQuery, useAddManuelBarberMutation, useDeleteManuelBarberMutation, useUpdateManuelBarberMutation } = api;
+export const { useSendOtpMutation, useVerifyOtpMutation, usePasswordMutation, useRevokeMutation, useRefreshMutation, useAddBarberStoreMutation, useUpdateBarberStoreMutation, useLazyGetNearbyStoresQuery, useGetMineStoresQuery, useLazyGetStoreByIdQuery, useAddManuelBarberMutation, useDeleteManuelBarberMutation, useUpdateManuelBarberMutation, useAddStoreChairMutation, useUpdateStoreChairMutation, useDeleteStoreChairMutation } = api;
