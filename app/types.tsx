@@ -127,6 +127,7 @@ export type ServiceOfferingUpdateDto = {
   id?: string;
   price: number;
   serviceName: string;
+  ownerId?: string;
 };
 export type ManuelBarberCreateDto = {
   id?: string;
@@ -195,6 +196,7 @@ export type UpdateImageDto = {
   id: string;
   imageUrl: string;
   imageOwnerId: string;
+  ownerType?: number;
 }
 
 

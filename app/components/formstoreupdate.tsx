@@ -18,7 +18,7 @@ import { MapPicker } from './mappicker';
 import { createStoreLocationHelpers } from '../utils/store-location-helper';
 import { useCurrentLocationSafe } from '../utils/location-helper';
 import { BarberEditModal } from './barbereditmodal';
-import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ServiceOfferingUpdateDto } from '../types';
+import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ImageOwnerType, ServiceOfferingUpdateDto } from '../types';
 import { resolveApiErrorMessage } from '../utils/error';
 import { ChairEditModal } from './chaireditmodal';
 
@@ -223,8 +223,6 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                 name: b.name,
             }));
     };
-
-
     const {
         control,
         handleSubmit,
@@ -240,10 +238,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
         mode: 'onSubmit',
         defaultValues: { storeName: data?.storeName, },
     });
-    const serviceOptions = useMemo(
-        () => (data?.type ? SERVICE_BY_TYPE[data.type] ?? [] : []),
-        [data?.type]
-    );
+
     useEffect(() => {
         if (!data) return;
         const firstImage = data.imageList?.[0];
@@ -348,7 +343,6 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
     const longitude = location?.longitude;
     const address = location?.addressDescription;
     const image = watch('storeImageUrl');
-    const selectedOfferings = watch("offerings") ?? [];
     const barbers = watch('barbers') ?? [];
     const chairs = watch("chairs") ?? [];
     const pricingMode = watch("pricingType.mode");
@@ -393,6 +387,15 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
     const [activeDay, setActiveDay] = useState<number>(0);
     const [activeStart, setActiveStart] = useState<Date>(() => fromHHmm(working[0]?.startTime ?? "09:00"));
     const [activeEnd, setActiveEnd] = useState<Date>(() => fromHHmm(working[0]?.endTime ?? "18:00"));
+    const selectedType = watch("type");
+    const currentPrices = watch("prices");
+    const selectedOfferings = watch("offerings") ?? [];
+    const effectiveType = selectedType || (data?.type ?? undefined);
+
+    const serviceOptions = useMemo(
+        () => (effectiveType ? SERVICE_BY_TYPE[effectiveType] ?? [] : []),
+        [effectiveType]
+    );
 
     useEffect(() => {
         const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
@@ -544,12 +547,46 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
             default: return 0;
         }
     };
-    const mapPricingType = (m: 'percent' | 'rent'): number =>
-        m === 'percent' ? 0 : 1
-        ;
-    const OnSubmit = async (form: FormUpdateValues) => {
-        console.log("bgbg");
+    const mapPricingType = (m: 'percent' | 'rent'): number => m === 'percent' ? 0 : 1;
 
+    const prevTypeRef = React.useRef<string | undefined>(undefined);
+    useEffect(() => {
+        if (prevTypeRef.current === undefined) {
+            prevTypeRef.current = selectedType;
+            return;
+        }
+        if (selectedType && prevTypeRef.current && selectedType !== prevTypeRef.current) {
+            setValue("offerings", [], { shouldDirty: true, shouldValidate: true });
+            setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
+        }
+        prevTypeRef.current = selectedType;
+    }, [selectedType, setValue]);
+
+    useEffect(() => {
+        const next: Record<string, string> = { ...(currentPrices ?? {}) };
+        let changed = false;
+        Object.keys(next).forEach((k) => {
+            if (!selectedOfferings.includes(k)) {
+                delete next[k];
+                changed = true;
+            }
+        });
+        selectedOfferings.forEach((k) => {
+            if (!(k in next)) {
+                next[k] = "";
+                changed = true;
+            }
+        });
+        if (changed) {
+            setValue("prices", next, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+    }, [selectedOfferings, currentPrices, setValue]);
+
+
+    const OnSubmit = async (form: FormUpdateValues) => {
         const existingImageId = data?.imageList?.[0]?.id;
         const payload: BarberStoreUpdateDto = {
             id: storeId,
@@ -559,6 +596,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                     id: existingImageId!,
                     imageUrl: form.storeImageUrl.uri,
                     imageOwnerId: storeId,
+                    ownerType: ImageOwnerType.Store,
                 }]
                 : [],
             type: mapBarberType(form.type),
@@ -586,9 +624,10 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                         ?.find(o => o.serviceName === serviceKey)?.id;
 
                     const dto: ServiceOfferingUpdateDto = {
-                        id: existingId,           // varsa update, yoksa insert
+                        id: existingId,
                         serviceName: serviceKey,
                         price: priceNum,
+                        ownerId: storeId,
                     };
                     return dto;
                 })
@@ -771,9 +810,9 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                                     />
                                 </View>
                             </View>
-                            {data?.type ? (
+                            {selectedType ? (
                                 <View className="mt-[-10x]">
-                                    <Text className="text-white text-xl mb-2">Hizmetler ({BUSINESS_TYPES.find(t => t.value === data.type)?.label})</Text>
+                                    <Text className="text-white text-xl mb-2">Hizmetler  ({BUSINESS_TYPES.find(t => t.value === selectedType)?.label})</Text>
                                     <Controller
                                         control={control}
                                         name="offerings"
