@@ -1,15 +1,11 @@
-import { Text, View, Alert, Linking, Dimensions, ScrollView, FlatList } from 'react-native';
+import { Text, View, Alert, Linking, Dimensions, FlatList } from 'react-native';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SkeletonComponent } from '../../components/skeleton';
 import SearchBar from '../../components/searchbar';
-import { Chip, Divider, Icon, IconButton } from 'react-native-paper';
 import { toggleExpand } from '../../utils/expand-toggle';
-import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { LegendList } from '@legendapp/list';
+import { useSheet } from '../../context/bottomsheet';
 import { useToggleList } from '../../utils/service-toggle';
-import { catData, ratings } from '../../constants';
 import { BarberStoreGetDto } from '../../types';
 import { StoreCardInner } from '../../components/storecard';
 import FormatListButton from '../../components/formatlistbutton';

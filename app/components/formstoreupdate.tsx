@@ -1279,7 +1279,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                             <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
                             <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
                                 <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
-                                <Button mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
+                                <Button loading={isLoading} disabled={isLoading} mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
                                 <MapPicker
                                     lat={latitude ?? undefined}
                                     lng={longitude ?? undefined}
