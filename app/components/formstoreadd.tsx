@@ -197,7 +197,6 @@ const FormStoreAdd = () => {
         getValues,
         trigger,
         watch,
-        clearErrors,
         formState: { errors },
     } = useForm<FormValues>({
         resolver: zodResolver(fullSchema),
@@ -555,7 +554,7 @@ const FormStoreAdd = () => {
                                         dense
                                         pointerEvents="none"
                                         textColor="white"
-                                        outlineColor={errors.storeName ? "#b00020" : "#444"}
+                                        outlineColor={errors.taxDocumentFilePath ? "#b00020" : "#444"}
                                         theme={{
                                             roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
                                         }}
@@ -684,8 +683,6 @@ const FormStoreAdd = () => {
                                                 }}
                                                 selectedTextProps={{ numberOfLines: 1 }}
                                             />
-
-
                                             <HelperText type="error" visible={!!errors.offerings}>
                                                 {errors.offerings?.message}
                                             </HelperText>
@@ -707,7 +704,7 @@ const FormStoreAdd = () => {
                                                 <Controller
                                                     control={control}
                                                     name={`prices.${serviceKey}` as const}
-                                                    render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
+                                                    render={({ field: { value, onChange }, fieldState: { error } }) => (
                                                         <TextInput
                                                             mode="outlined"
                                                             dense
