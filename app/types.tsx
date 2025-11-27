@@ -169,6 +169,29 @@ export type BarberStoreCreateDto = {
   manuelBarbers: ManuelBarberCreateDto[];
   workingHours: WorkingHourCreateDto[];
 };
+export type FreeBarberCreateDto = {
+  firstName: string;
+  lastName: string;
+  type: BarberType;
+  imageList?: CreateImageDto[];
+  latitude: number;
+  longitude: number;
+  isAvailable: boolean;
+  barberCertificate: string;
+  offerings: ServiceOfferingCreateDto[];
+};
+export type FreeBarberUpdateDto = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  type: BarberType;
+  imageList?: CreateImageDto[];
+  latitude: number;
+  longitude: number;
+  isAvailable: boolean;
+  barberCertificate: string;
+  offerings: ServiceOfferingCreateDto[];
+};
 export type BarberStoreUpdateDto = {
   id: string;
   storeName: string;
@@ -295,6 +318,44 @@ export type BarberChairDto = {
 
 export type LocationStatus = 'unknown' | 'granted' | 'denied';
 
+export type FreeBarGetDto = {
+  id: string;
+  fullName: string;
+  rating: number;
+  favoriteCount: number;
+  isAvailable: boolean;
+  distanceKm: number;
+  type: BarberType;
+  reviewCount: number;
+  latitude: number;
+  longitude: number;
+  offerings: ServiceOfferingGetDto[];
+  imageList: ImageGetDto[];
+}
+
+export type FreeBarberMinePanelDto = {
+  id: string;
+  fullName: string;
+  rating: number;
+  favoriteCount: number;
+  isAvailable: boolean;
+  type: BarberType;
+  reviewCount: number;
+  offerings: ServiceOfferingGetDto[];
+  imageList: ImageGetDto[];
+}
+
+export type FreeBarberMinePanelDetailDto = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  type: BarberType;
+  isAvailable: boolean;
+  offerings: ServiceOfferingGetDto[];
+  imageList: ImageGetDto[];
+}
+
+
 export interface VerifyOtpRequest {
   firstName: string;
   lastName: string;
@@ -306,7 +367,7 @@ export interface VerifyOtpRequest {
   mode: string;
 }
 
-export type NearbyStoresRequest = {
+export type NearbyRequest = {
   lat: number;
   lon: number;
   radiusKm?: number;

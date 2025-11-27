@@ -1,13 +1,15 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyStoresRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
+import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberMinePanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById'],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel"],
     refetchOnReconnect: true,
     endpoints: (builder) => ({
+
+        //Auth Api
         sendOtp: builder.mutation<{ message: string; success: boolean }, { phoneNumber: string, userType?: UserType, Otppurpose: OtpPurpose }>({
             query: (body) => ({ url: 'Auth/send-otp', method: 'POST', body }),
         }),
@@ -25,6 +27,8 @@ export const api = createApi({
         refresh: builder.mutation<ApiResponse<AccessTokenDto>, { refreshToken: string }>({
             query: (body) => ({ url: 'Auth/refresh', method: 'POST', body }),
         }),
+
+        // Barber Store Api
         addBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreCreateDto>({
             query: (dto) => ({ url: 'BarberStore/create-store', method: 'POST', body: dto }),
             invalidatesTags: ['MineStores'],
@@ -33,7 +37,7 @@ export const api = createApi({
             query: (dto) => ({ url: 'BarberStore/update-store', method: 'PUT', body: dto }),
             invalidatesTags: ['MineStores'],
         }),
-        getNearbyStores: builder.query<BarberStoreGetDto[], NearbyStoresRequest>({
+        getNearbyStores: builder.query<BarberStoreGetDto[], NearbyRequest>({
             query: ({ lat, lon, radiusKm = 1 }) => ({
                 url: 'BarberStore/nearby',
                 method: 'GET',
@@ -51,6 +55,35 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: ['GetStoreById'],
         }),
+
+        /// Free Barber Api
+        addFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberCreateDto>({
+            query: (dto) => ({ url: 'FreeBarber/create-free-barber', method: 'POST', body: dto }),
+            invalidatesTags: ['MineFreeBarberPanel'],
+        }),
+        updateFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberUpdateDto>({
+            query: (dto) => ({ url: 'FreeBarber/update-free-barber', method: 'PUT', body: dto }),
+            invalidatesTags: ['MineFreeBarberPanel'],
+        }),
+        getNearbyFreeBarber: builder.query<FreeBarGetDto[], NearbyRequest>({
+            query: ({ lat, lon, radiusKm = 1 }) => ({
+                url: 'FreeBarber/nearby',
+                method: 'GET',
+                params: { lat, lon, radiusKm },
+            }),
+            keepUnusedDataFor: 0,
+        }),
+        getFreeBarberMinePanel: builder.query<FreeBarberMinePanelDto, void>({
+            query: () => 'FreeBarber/mypanel',
+            keepUnusedDataFor: 0,
+            providesTags: ['MineFreeBarberPanel'],
+        }),
+        getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
+            query: (id) => `FreeBarber/${id}`,
+            keepUnusedDataFor: 0,
+        }),
+
+        /// Manuel Barber Api
         addManuelBarber: builder.mutation<
             { message: string; success: boolean },
             { dto: ManuelBarberCreateDto }
@@ -80,6 +113,8 @@ export const api = createApi({
             }),
             invalidatesTags: ['GetStoreById'],
         }),
+
+        // Store Chair Api
         addStoreChair: builder.mutation<
             { message: string; success: boolean },
             { dto: BarberChairCreateDto }
@@ -111,4 +146,25 @@ export const api = createApi({
         }),
     }),
 });
-export const { useSendOtpMutation, useVerifyOtpMutation, usePasswordMutation, useRevokeMutation, useRefreshMutation, useAddBarberStoreMutation, useUpdateBarberStoreMutation, useLazyGetNearbyStoresQuery, useGetMineStoresQuery, useLazyGetStoreByIdQuery, useAddManuelBarberMutation, useDeleteManuelBarberMutation, useUpdateManuelBarberMutation, useAddStoreChairMutation, useUpdateStoreChairMutation, useDeleteStoreChairMutation } = api;
+export const {
+    useSendOtpMutation,
+    useVerifyOtpMutation,
+    usePasswordMutation,
+    useRevokeMutation,
+    useRefreshMutation,
+    useAddBarberStoreMutation,
+    useUpdateBarberStoreMutation,
+    useLazyGetNearbyStoresQuery,
+    useGetMineStoresQuery,
+    useLazyGetStoreByIdQuery,
+    useAddManuelBarberMutation,
+    useDeleteManuelBarberMutation,
+    useUpdateManuelBarberMutation,
+    useAddStoreChairMutation,
+    useUpdateStoreChairMutation,
+    useDeleteStoreChairMutation,
+    useGetFreeBarberMinePanelQuery,
+    useLazyGetFreeBarberMinePanelDetailQuery,
+    useAddFreeBarberPanelMutation,
+    useUpdateFreeBarberPanelMutation,
+} = api;

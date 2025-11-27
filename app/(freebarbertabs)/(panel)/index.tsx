@@ -11,8 +11,24 @@ import MotiViewExpand from '../../components/motiviewexpand';
 import { toggleExpand } from '../../utils/expand-toggle';
 import { FilterBottomSheet } from '../../components/filterbottomsheet';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { FormFreeBarberOperation } from '../../components/formfreebarberoper';
+import { useCurrentLocationSafe } from '../../utils/location-helper';
+import { useGetFreeBarberMinePanelQuery } from '../../store/api';
+import { resolveApiErrorMessage } from '../../utils/error';
+import { FreeBarberMineCardComp } from '../../components/freebarberminecard';
+import { BarberStoreGetDto, FreeBarberMinePanelDto } from '../../types';
+import { Button } from 'react-native-paper';
+import { StoreCardInner } from '../../components/storecard';
+import { useNearbyStores } from '../../hook/useNearByStore';
 
 const Index = () => {
+
+    const { status: locationStatus, message: locationMessage, retry } = useCurrentLocationSafe(true);
+
+    const { data: freeBarber, isLoading, refetch, isError, error } = useGetFreeBarberMinePanelQuery(undefined, { skip: locationStatus == 'error' });
+    const { stores, loading, error: storeError, retryPermission } = useNearbyStores(true);
+
+
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
     const { present } = useSheet('freeBarberFilter');
@@ -22,13 +38,12 @@ const Index = () => {
     const [expandedStoreBarber, setExpandedStoreBarber] = useState(true);
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present: freeBarberPanel } = useSheet('freeBarberMinePanel');
-    const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     const { list: selectedServices, toggle: toggleService, clear: clearServices, has: hasService, } = useToggleList<string>([]);
-    const [freeBarberId, setFreeBarberId] = useState<string>("");
+    const [freeBarberId, setFreeBarberId] = useState<string | null>(null);
 
     const screenWidth = Dimensions.get('window').width;
-
     const cardWidthStores = useMemo(
         () => (expandedMineStore ? screenWidth * 0.92 : screenWidth * 0.94),
         [expandedMineStore, screenWidth]
@@ -38,17 +53,28 @@ const Index = () => {
         [setExpandedStoreBarber, screenWidth]
     );
 
-    // const hasMineStores = !loading && stores.length > 0;
-    // const hasStoreBarbers = !loading && stores.length > 0;
+    const hasMineFreeBarber = !isLoading && freeBarber != null;
+    const hasStoreBarbers = !loading && stores.length > 0;
 
 
-    // const handlePressUpdatePanel = useCallback(
-    //     (store: FreeBarberPanelDto) => {
-    //         setFreeBarberId(store.id)
-    //         updateStore();
-    //     },
-    //     [updateStore]
-    // );
+    const handlePressUpdatePanel = useCallback(
+        (freeBarber: FreeBarberMinePanelDto) => {
+            setFreeBarberId(freeBarber.id)
+            freeBarberPanel();
+        },
+        [freeBarberPanel]
+    );
+    const renderItem = useCallback(
+        ({ item }: { item: BarberStoreGetDto }) => (
+            <StoreCardInner
+                store={item}
+                isList={isList}
+                expanded={expandedStoreBarber}
+                cardWidthStore={cardWidthStores}
+            />
+        ),
+        [isList, expandedStoreBarber, cardWidthStores]
+    );
 
 
     return (
@@ -60,7 +86,7 @@ const Index = () => {
                 <FormatListButton isList={isList} setIsList={setIsList}></FormatListButton>
                 <FilterButton onPress={present}></FilterButton>
             </View>
-            {/* <FlatList
+            <FlatList
                 data={[]}
                 keyExtractor={() => 'dummy'}
                 renderItem={() => null}
@@ -71,11 +97,10 @@ const Index = () => {
                             <Text className="font-ibm-plex-sans-regular text-xl text-white">
                                 Panelim
                             </Text>
-                            {hasStores && (
-
+                            {hasMineFreeBarber && (
                                 <MotiViewExpand
-                                    expanded={expanded}
-                                    onPress={() => toggleExpand(expanded, setExpanded)}
+                                    expanded={expandedMineStore}
+                                    onPress={() => toggleExpand(expandedMineStore, setExpandedMineStore)}
                                 />
                             )}
                         </View>
@@ -85,32 +110,29 @@ const Index = () => {
                                     <SkeletonComponent key={i} />
                                 ))}
                             </View>
-                        ) : !hasStores ? (
-                            <LottieViewComponent message='Henüz eklediğiniz panel bulunmuyor.' ></LottieViewComponent>
-                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
+                        ) :
+                            !hasMineFreeBarber ?
+                                (
+                                    <>
+                                        <LottieViewComponent message='Henüz eklediğiniz panel bulunmuyor.' ></LottieViewComponent>
+                                        <Button mode='contained' icon={'plus'} onPress={() => freeBarberPanel()}>Lütfen Panel Ekleyin</Button>
+                                    </>
+                                ) :
+                                locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>)
+                                    : isError ? (<LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} ></LottieViewComponent>) : hasMineFreeBarber && (
+                                        <FreeBarberMineCardComp
+                                            freeBarber={freeBarber}
+                                            isList={isList}
+                                            expanded={expandedMineStore}
+                                            cardWidthFreeBarber={cardWidthFreeBarber}
+                                            onPressUpdate={handlePressUpdatePanel}
+                                        />
+                                    )}
 
-                        <FlatList
-                            key="storesMineList"
-                            data={hasStores ? stores : []}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderItem}
-                            horizontal={!expanded}
-                            nestedScrollEnabled
-                            initialNumToRender={6}
-                            maxToRenderPerBatch={6}
-                            updateCellsBatchingPeriod={16}
-                            windowSize={7}
-                            removeClippedSubviews
-                            showsHorizontalScrollIndicator={false}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{
-                                gap: 12,
-                                paddingTop: hasStores ? 8 : 0,
-                            }}
-                        />
+
                         <View className="flex flex-row justify-between items-center mt-4">
                             <Text className="font-ibm-plex-sans-regular text-xl text-white">
-                                Berber Dükkanları
+                                Çevremdeki Berber Dükkanları
                             </Text>
                             {stores && stores.length !== 0 && (
                                 <MotiViewExpand
@@ -119,38 +141,40 @@ const Index = () => {
                                 />
                             )}
                         </View>
-                        {isLoading ? (
+                        {loading ? (
                             <View className="flex-1 pt-4">
                                 {Array.from({ length: 2 }).map((_, i) => (
                                     <SkeletonComponent key={i} />
                                 ))}
                             </View>
-                        ) : !hasFreeBarbers ? (
+                        ) : !hasStoreBarbers ? (
                             <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı.' ></LottieViewComponent>
-                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
-                        <FlatList
-                            key="barberStoreList"
-                            data={hasFreeBarbers ? stores : []}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderItemFreeBarber}
-                            horizontal={!expandedStoreBarber}
-                            nestedScrollEnabled
-                            initialNumToRender={6}
-                            maxToRenderPerBatch={6}
-                            updateCellsBatchingPeriod={16}
-                            windowSize={7}
-                            removeClippedSubviews
-                            showsHorizontalScrollIndicator={false}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{
-                                gap: 12,
-                                paddingTop: hasFreeBarbers ? 8 : 0,
-                                paddingBottom: 8,
-                            }}
-                        />
+                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : storeError ? (<LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} ></LottieViewComponent>) : hasMineFreeBarber && (
+                            <FlatList
+                                key="barberStoreList"
+                                data={hasStoreBarbers ? stores : []}
+                                keyExtractor={(item) => item.id}
+                                renderItem={renderItem}
+                                horizontal={!expandedStoreBarber}
+                                nestedScrollEnabled
+                                initialNumToRender={6}
+                                maxToRenderPerBatch={6}
+                                updateCellsBatchingPeriod={16}
+                                windowSize={7}
+                                removeClippedSubviews
+                                showsHorizontalScrollIndicator={false}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{
+                                    gap: 12,
+                                    paddingTop: hasStoreBarbers ? 8 : 0,
+                                    paddingBottom: 8,
+                                }}
+                            />
+                        )}
+
                     </>
                 }
-            /> */}
+            />
             <FilterBottomSheet
                 sheetKey="freeBarberFilter"
                 selectedType={selectedType}
@@ -161,20 +185,17 @@ const Index = () => {
                 hasService={hasService}
                 toggleService={toggleService}
             />
-            {/* <BottomSheetModal
+            <BottomSheetModal
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
                 ref={(inst) => setRef('freeBarberMinePanel', inst)}
-                onChange={(index) => {
-                    setIsUpdateSheetOpen(index >= 0);
-                }}
+                onChange={(index) => { setIsSheetOpen(index >= 0); }}
                 snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
                 <BottomSheetView className='h-full pt-2'>
-                    <FormStoreUpdate storeId={storeId} enabled={isUpdateSheetOpen} />
-
+                    <FormFreeBarberOperation freeBarberId={freeBarberId!} enabled={isSheetOpen} />
                 </BottomSheetView>
-            </BottomSheetModal> */}
+            </BottomSheetModal>
         </View>
     )
 }
