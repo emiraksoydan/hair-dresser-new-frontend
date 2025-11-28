@@ -28,7 +28,6 @@ const Index = () => {
     const { data: freeBarber, isLoading, refetch, isError, error } = useGetFreeBarberMinePanelQuery(undefined, { skip: locationStatus == 'error' });
     const { stores, loading, error: storeError, retryPermission } = useNearbyStores(true);
 
-
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
     const { present } = useSheet('freeBarberFilter');
@@ -53,7 +52,7 @@ const Index = () => {
         [setExpandedStoreBarber, screenWidth]
     );
 
-    const hasMineFreeBarber = !isLoading && freeBarber != null;
+    const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
     const hasStoreBarbers = !loading && stores.length > 0;
 
 
@@ -115,7 +114,7 @@ const Index = () => {
                                 (
                                     <>
                                         <LottieViewComponent message='Henüz eklediğiniz panel bulunmuyor.' ></LottieViewComponent>
-                                        <Button mode='contained' icon={'plus'} onPress={() => freeBarberPanel()}>Lütfen Panel Ekleyin</Button>
+                                        <Button style={{ marginTop: 10 }} buttonColor='#c2a523' mode='contained' icon={'plus'} onPress={() => freeBarberPanel()}>Lütfen Panel Ekleyin</Button>
                                     </>
                                 ) :
                                 locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>)
