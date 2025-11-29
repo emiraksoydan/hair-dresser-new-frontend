@@ -1,12 +1,12 @@
 // useNearByStore.ts (useNearbyStores)
-import { useLazyGetNearbyStoresQuery } from "../store/api";
+import { useLazyGetNearbyFreeBarberQuery } from "../store/api";
 import { useNearbyControl } from "./useNearByControl";
-import type { BarberStoreGetDto } from "../types";
+import type { FreeBarGetDto } from "../types";
 
 const DEFAULT_RADIUS_KM = 1;
 
-export function useNearbyStores(enabled: boolean) {
-    const [trigger, result] = useLazyGetNearbyStoresQuery();
+export function useNearbyFreeBarber(enabled: boolean) {
+    const [trigger, result] = useLazyGetNearbyFreeBarberQuery();
 
     const nearby = useNearbyControl({
         enabled,
@@ -19,7 +19,7 @@ export function useNearbyStores(enabled: boolean) {
     });
 
     return {
-        stores: (result.data ?? []) as BarberStoreGetDto[],
+        freeBarbers: (result.data ?? []) as FreeBarGetDto[],
         loading: nearby.initialLoading || result.isLoading,
         fetching: result.isFetching,
         fetchedOnce: nearby.fetchedOnce,

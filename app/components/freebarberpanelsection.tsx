@@ -1,0 +1,85 @@
+import React, { useState, useMemo, memo } from 'react';
+import { View, Text, Dimensions } from 'react-native';
+import { Button } from 'react-native-paper';
+import { SkeletonComponent } from './skeleton'; // Yolunu projene göre ayarla
+import { LottieViewComponent } from './lottieview'; // Yolunu projene göre ayarla
+import MotiViewExpand from './motiviewexpand'; // Yolunu projene göre ayarla
+import { FreeBarberMineCardComp } from './freebarberminecard'; // Yolunu projene göre ayarla
+import { useGetFreeBarberMinePanelQuery } from '../store/api'; // Store yolunu kontrol et
+import { toggleExpand } from '../utils/expand-toggle'; // Utils yolunu kontrol et
+import { resolveApiErrorMessage } from '../utils/error'; // Utils yolunu kontrol et
+import { FreeBarberMinePanelDto } from '../types'; // Type yolunu kontrol et
+
+interface Props {
+    locationStatus: string;
+    locationMessage: string | null;
+    onOpenPanel: (id: string | null) => void;
+    screenWidth: number;
+}
+
+// React.memo ile sarmaladık. Sadece props değişirse render olur.
+export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, onOpenPanel, screenWidth }: Props) => {
+
+    // API isteğini buraya aldık. Ana sayfa render olsa bile burası etkilenmez.
+    const { data: freeBarber, isLoading, isError, error } = useGetFreeBarberMinePanelQuery(undefined, {
+        skip: locationStatus === 'error'
+    });
+
+    const [expandedMineStore, setExpandedMineStore] = useState(true);
+
+    const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
+
+    const cardWidthFreeBarber = useMemo(
+        () => (expandedMineStore ? screenWidth * 0.92 : screenWidth * 0.94),
+        [expandedMineStore, screenWidth]
+    );
+
+    return (
+        <>
+            <View className="flex flex-row justify-between items-center mt-4">
+                <Text className="font-ibm-plex-sans-regular text-xl text-white">
+                    Panelim
+                </Text>
+                {hasMineFreeBarber && (
+                    <MotiViewExpand
+                        expanded={expandedMineStore}
+                        onPress={() => toggleExpand(expandedMineStore, setExpandedMineStore)}
+                    />
+                )}
+            </View>
+
+            {isLoading ? (
+                <View className="flex-1 pt-4">
+                    {Array.from({ length: 1 }).map((_, i) => (
+                        <SkeletonComponent key={i} />
+                    ))}
+                </View>
+            ) : !hasMineFreeBarber ? (
+                <>
+                    <LottieViewComponent message='Henüz eklediğiniz panel bulunmuyor.' />
+                    <Button
+                        style={{ marginTop: 10 }}
+                        buttonColor='#c2a523'
+                        mode='contained'
+                        icon={'plus'}
+                        onPress={() => onOpenPanel(null)}
+                    >
+                        Lütfen Panel Ekleyin
+                    </Button>
+                </>
+            ) : locationStatus === 'error' ? (
+                <LottieViewComponent animationSource={require('../../assets/animations/Location.json')} message={locationMessage!} />
+            ) : isError ? (
+                <LottieViewComponent animationSource={require('../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} />
+            ) : (
+                <FreeBarberMineCardComp
+                    freeBarber={freeBarber as FreeBarberMinePanelDto}
+                    isList={true}
+                    expanded={expandedMineStore}
+                    cardWidthFreeBarber={cardWidthFreeBarber}
+                    onPressUpdate={(barber) => onOpenPanel(barber.id)}
+                />
+            )}
+        </>
+    );
+});

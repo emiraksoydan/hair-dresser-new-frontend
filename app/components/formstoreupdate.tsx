@@ -16,7 +16,7 @@ import { LegendList } from '@legendapp/list';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MapPicker } from './mappicker';
 import { createStoreLocationHelpers } from '../utils/store-location-helper';
-import { useCurrentLocationSafe } from '../utils/location-helper';
+import { getCurrentLocationSafe } from '../utils/location-helper';
 import { BarberEditModal } from './barbereditmodal';
 import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ImageOwnerType, ServiceOfferingUpdateDto } from '../types';
 import { resolveApiErrorMessage } from '../utils/error';
@@ -409,13 +409,23 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
 
 
     const { updateLocation, reverseAndSetAddress } = createStoreLocationHelpers<FormUpdateValues>(setValue, getValues);
-    const { status, coords, retry } = useCurrentLocationSafe(false);
+    const [locBusy, setLocBusy] = useState(false);
     const pickMyCurrentLocation = async () => {
-        if (status === 'ok' && coords) {
-            updateLocation(coords.lat, coords.lon);
-            await reverseAndSetAddress(coords.lat, coords.lon);
-        } else {
-            retry();
+        if (locBusy) return;
+        setLocBusy(true);
+        try {
+            const res = await getCurrentLocationSafe();
+            if (!res.ok) {
+                setSnackIsError(true);
+                setSnackText(res.message);
+                setSnackVisible(true);
+                return;
+            }
+
+            updateLocation(res.lat, res.lon);
+            await reverseAndSetAddress(res.lat, res.lon);
+        } finally {
+            setLocBusy(false);
         }
     };
 
@@ -480,11 +490,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                         try {
                             if (current.id) {
                                 var res = await deleteBarber(current.id).unwrap();
-                                if (res.success)
-                                    setSnackIsError(true);
-                                else
-                                    setSnackIsError(false);
-
+                                setSnackIsError(!res.success);
                                 setSnackVisible(true);
                                 setSnackText(res.message);
                             }
@@ -518,11 +524,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                         try {
                             if (current.id) {
                                 var res = await deleteChair(current.id).unwrap();
-                                if (res.success)
-                                    setSnackIsError(true);
-                                else
-                                    setSnackIsError(false);
-
+                                setSnackIsError(!res.success);
                                 setSnackVisible(true);
                                 setSnackText(res.message);
                             }
@@ -1279,7 +1281,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                             <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
                             <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
                                 <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
-                                <Button loading={isLoading} disabled={isLoading} mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
+                                <Button loading={locBusy}
+                                    disabled={locBusy} mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
                                 <MapPicker
                                     lat={latitude ?? undefined}
                                     lng={longitude ?? undefined}
@@ -1319,7 +1322,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                         </View>
                     </ScrollView>
                     <View className="px-4 my-3">
-                        <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
+                        <Button style={{ borderRadius: 10 }} disabled={updateLoading} loading={updateLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
                     </View>
                     <BarberEditModal
                         visible={barberModalVisible}

@@ -36,18 +36,10 @@ export enum UserType {
   FreeBarber = 1,
   BarberStore = 2
 }
-export type LocationResult =
-  | {
-    ok: true;
-    lat: number;
-    lon: number;
-  }
-  | {
-    ok: false;
-    message: string;
-  };
-
-export type LocationStatusHelper = 'idle' | 'loading' | 'ok' | 'error';
+export enum PricingType {
+  Percent = 0,
+  Rent = 1,
+}
 
 
 export type SearchBarProps = {
@@ -275,8 +267,11 @@ export type BarberStoreMineDto = {
   favoriteCount: number;
   reviewCount: number;
   isOpenNow: boolean;
+  addressDescription?: string;
   serviceOfferings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+  pricingType?: string;
+  pricingValue?: number;
 }
 export type BarberStoreDetail = {
   id: string;
@@ -315,8 +310,6 @@ export type BarberChairDto = {
   name?: string;
   manualBarberId?: string
 }
-
-export type LocationStatus = 'unknown' | 'granted' | 'denied';
 
 export type FreeBarGetDto = {
   id: string;
@@ -373,19 +366,67 @@ export type NearbyRequest = {
   radiusKm?: number;
 };
 
+
+export type EmptyStateProps = {
+  loading: boolean;
+  locationStatus: LocationStatus;
+  hasLocation: boolean;
+  fetchedOnce: boolean;
+  hasData: boolean;
+  noResultText: string;
+  needLocationText?: string;
+  deniedText?: string;
+  onRetry?: () => void;
+};
+
+export type SlotDto = {
+  slotId: string;
+  start: string;
+  end: string;
+  isBooked: boolean;
+  isPast: boolean;
+};
+export type ChairSlotDto = {
+  chairId: string;
+  chairName?: string;
+  barberId?: string | null;
+  barberName?: string | null;
+  barberRating?: number | null;
+  slots: SlotDto[];
+};
+
+
+// types/location.ts
 export type Pos = { lat: number; lon: number };
+
+export type LocationStatus = "unknown" | "granted" | "denied";
+
+export type LocationGateReason = "permission" | "services" | "unknown";
+
+export type LocationGateResult =
+  | { ok: true }
+  | { ok: false; reason: LocationGateReason; message?: string };
+
+export type LocationResult =
+  | { ok: true; lat: number; lon: number }
+  | { ok: false; message: string; reason?: LocationGateReason };
+
+export type LocationStatusHelper = "idle" | "loading" | "ok" | "error";
+
 export type HasLocation = {
   location: {
     latitude: number;
     longitude: number;
-    addressDescription: string;
+    addressDescription?: string;
   };
 };
+
 export type UseNearbyControlParams = {
-  enabled: boolean;                      // ekran / tab aktif mi
-  moveThresholdM?: number;               // 150m
-  staleMs?: number;                      // hareketliyken 15sn
-  hardRefreshMs?: number;                // hareketsizken 60sn
-  onFetch: (lat: number, lon: number) => void | Promise<void>;
+  enabled: boolean;
+  moveThresholdM?: number;
+  staleMs?: number;
+  hardRefreshMs?: number;
+  onFetch: (lat: number, lon: number) => Promise<void>;
 };
+
 

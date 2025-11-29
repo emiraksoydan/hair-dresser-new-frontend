@@ -49,6 +49,7 @@ const RootLayout = () => {
                 <Stack.Screen name="(barberstoretabs)" />
                 <Stack.Screen name="(freebarbertabs)" />
                 <Stack.Screen name="(customertabs)" />
+                <Stack.Screen name="(screens)" />
               </Stack>
               <StatusBar />
             </BottomSheetModalProvider>

@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberMinePanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest } from '../types';
+import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberMinePanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
@@ -82,6 +82,11 @@ export const api = createApi({
             query: (id) => `FreeBarber/${id}`,
             keepUnusedDataFor: 0,
         }),
+        getStoreForUsers: builder.query<BarberStoreMineDto, string>({
+            query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
+            keepUnusedDataFor: 0,
+
+        }),
 
         /// Manuel Barber Api
         addManuelBarber: builder.mutation<
@@ -144,6 +149,26 @@ export const api = createApi({
             }),
             invalidatesTags: ['GetStoreById'],
         }),
+
+        // Appointment Api
+        getAvailability: builder.query<ChairSlotDto[], { storeId: string; dateOnly: string }>({
+            query: ({ storeId, dateOnly }) =>
+                `Appointment/availability?storeId=${storeId}&dateOnly=${dateOnly}`,
+            keepUnusedDataFor: 0,
+        }),
+
+        // Working Hours Api
+        getWorkingHoursByTarget: builder.query<WorkingHourGetDto[], string>({
+            query: (targetId) => `Working/${targetId}`,
+            transformResponse: (res: any) => {
+                if (Array.isArray(res)) return res;
+                if (Array.isArray(res?.data)) return res.data; // { data: [] }
+                if (Array.isArray(res?.Data)) return res.Data; // { Data: [] } ihtimali
+                return [];
+            },
+            keepUnusedDataFor: 0,
+        }),
+
     }),
 });
 export const {
@@ -165,6 +190,10 @@ export const {
     useDeleteStoreChairMutation,
     useGetFreeBarberMinePanelQuery,
     useLazyGetFreeBarberMinePanelDetailQuery,
+    useLazyGetNearbyFreeBarberQuery,
     useAddFreeBarberPanelMutation,
     useUpdateFreeBarberPanelMutation,
+    useGetAvailabilityQuery,
+    useGetStoreForUsersQuery,
+    useGetWorkingHoursByTargetQuery,
 } = api;

@@ -1,193 +1,165 @@
-import { Dimensions, FlatList, ScrollView, Text, View } from 'react-native'
-import SearchBar from '../../components/searchbar'
-import { useCallback, useMemo, useState } from 'react';
-import FormatListButton from '../../components/formatlistbutton';
-import FilterButton from '../../components/filterbutton';
-import {
-    BottomSheetModal, BottomSheetView
-} from '@gorhom/bottom-sheet';
-
-import { useToggleList } from '../../utils/service-toggle';
-import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
-import MotiViewExpand from '../../components/motiviewexpand';
-import { toggleExpand } from '../../utils/expand-toggle';
-import { SkeletonComponent } from '../../components/skeleton';
-import { LottieViewComponent } from '../../components/lottieview';
-import { BarberStoreMineDto } from '../../types';
-import { useGetMineStoresQuery } from '../../store/api';
-import { useFocusEffect } from 'expo-router';
-import { FilterBottomSheet } from '../../components/filterbottomsheet';
-import FormStoreUpdate from '../../components/formstoreupdate';
-import { StoreMineCardComp } from '../../components/storeminecard';
-import { getCurrentLocationSafe, useCurrentLocationSafe } from '../../utils/location-helper';
+import { Dimensions, FlatList, Text, View } from "react-native";
+import SearchBar from "../../components/searchbar";
+import { useCallback, useMemo, useState } from "react";
+import FormatListButton from "../../components/formatlistbutton";
+import FilterButton from "../../components/filterbutton";
+import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import { useToggleList } from "../../utils/service-toggle";
+import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
+import MotiViewExpand from "../../components/motiviewexpand";
+import { toggleExpand } from "../../utils/expand-toggle";
+import { SkeletonComponent } from "../../components/skeleton";
+import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
+import { useGetMineStoresQuery } from "../../store/api";
+import { FilterBottomSheet } from "../../components/filterbottomsheet";
+import FormStoreUpdate from "../../components/formstoreupdate";
+import { StoreMineCardComp } from "../../components/storeminecard";
+import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
+import { EmptyState } from "../../components/emptystateresult";
+import { FreeBarberCardInner } from "../../components/freebarbercard";
 
 const Index = () => {
-    const { status: locationStatus, coords, message: locationMessage, retry } = useCurrentLocationSafe(true);
-
-    const { data: stores = [], isLoading, refetch } = useGetMineStoresQuery(undefined, { skip: locationStatus == 'error' });
-
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isList, setIsList] = useState(true);
-    const { present } = useSheet('filter');
-    const [selectedType, setSelectedType] = useState<string>('Hepsi');
-    const [selectedRating, setSelectedRating] = useState<string | number | null>("Hepsi");
-    const [expanded, setExpanded] = useState(true);
-    const [expandedFreeBarber, setExpandedFreeBarber] = useState(true);
-    useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const { present: updateStore } = useSheet('updateStoreMine');
-    const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
 
     const {
-        list: selectedServices,
-        toggle: toggleService,
-        clear: clearServices,
-        has: hasService,
-    } = useToggleList<string>([]);
+        freeBarbers,
+        loading: freeLoading,
+        locationStatus: freeLocationStatus,
+        hasLocation: freeHasLocation,
+        fetchedOnce: freeFetchedOnce,
+        locationMessage: freeLocationMessage,
+        retryPermission: freeRetryPermission,
+    } = useNearbyFreeBarber(true);
+    const { data: stores = [], isLoading: storeLoading, refetch } = useGetMineStoresQuery(undefined, { skip: !freeHasLocation });
 
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isList, setIsList] = useState(true);
+    const { present } = useSheet("filter");
+
+    const [selectedType, setSelectedType] = useState<string>("Hepsi");
+    const [selectedRating, setSelectedRating] = useState<string | number | null>("Hepsi");
+    const { list: selectedServices, toggle: toggleService, has: hasService } = useToggleList<string>([]);
+
+    const [expandedStores, setExpandedStores] = useState(true);
+    const [expandedFreeBarbers, setExpandedFreeBarbers] = useState(true);
+
+    const { setRef, makeBackdrop } = useBottomSheetRegistry();
+    const { present: updateStore } = useSheet("updateStoreMine");
+    const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
     const [storeId, setStoreId] = useState<string>("");
-    const screenWidth = Dimensions.get('window').width;
+
+    const screenWidth = Dimensions.get("window").width;
+
     const cardWidthStore = useMemo(
-        () => (expanded ? screenWidth * 0.92 : screenWidth * 0.94),
-        [expanded, screenWidth]
+        () => (expandedStores ? screenWidth * 0.92 : screenWidth * 0.94),
+        [expandedStores, screenWidth]
     );
+
     const cardWidthFreeBarber = useMemo(
-        () => (expandedFreeBarber ? screenWidth * 0.92 : screenWidth * 0.94),
-        [expandedFreeBarber, screenWidth]
+        () => (expandedFreeBarbers ? screenWidth * 0.92 : screenWidth * 0.94),
+        [expandedFreeBarbers, screenWidth]
     );
 
     const handlePressUpdateStore = useCallback(
         (store: BarberStoreMineDto) => {
-            setStoreId(store.id)
+            setStoreId(store.id);
             updateStore();
         },
         [updateStore]
     );
-
-    const hasStores = !isLoading && stores.length > 0;
-    const hasFreeBarbers = !isLoading && stores.length > 0;
-
-    const renderItem = useCallback(
+    const hasStores = !storeLoading && stores.length > 0;
+    const hasFreeBarbers = !freeLoading && (freeBarbers?.length ?? 0) > 0;
+    const renderStoreItem = useCallback(
         ({ item }: { item: BarberStoreMineDto }) => (
             <StoreMineCardComp
                 store={item}
                 isList={isList}
-                expanded={expanded}
+                expanded={expandedStores}
                 cardWidthStore={cardWidthStore}
                 onPressUpdate={handlePressUpdateStore}
             />
         ),
-        [isList, expanded, cardWidthStore, handlePressUpdateStore]
+        [isList, expandedStores, cardWidthStore, handlePressUpdateStore]
     );
-
-    const renderItemFreeBarber = useCallback(
-        ({ item }: { item: BarberStoreMineDto }) => (
-            <StoreMineCardComp
-                store={item}
-                isList={isList}
-                expanded={expandedFreeBarber}
-                cardWidthStore={cardWidthFreeBarber}
-            />
+    const renderFreeBarberItem = useCallback(
+        ({ item }: { item: FreeBarGetDto }) => (
+            <FreeBarberCardInner freeBarber={item} isList={isList} expanded={expandedFreeBarbers} cardWidthFreeBarber={cardWidthFreeBarber} />
         ),
-        [isList, expandedFreeBarber, cardWidthFreeBarber]
+        [isList, expandedFreeBarbers, cardWidthFreeBarber]
     );
 
     return (
-        <View className='flex flex-1 pl-4 pr-2 bg-[#151618]'>
-            <View className='flex flex-row items-center gap-2 mt-4'>
-                <View className=' flex flex-1'>
-                    <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery}></SearchBar>
+        <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
+            <View className="flex flex-row items-center gap-2 mt-4">
+                <View className="flex flex-1">
+                    <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                 </View>
-                <FormatListButton isList={isList} setIsList={setIsList}></FormatListButton>
-                <FilterButton onPress={present}></FilterButton>
+                <FormatListButton isList={isList} setIsList={setIsList} />
+                <FilterButton onPress={present} />
             </View>
+
             <FlatList
-                data={[]}
-                keyExtractor={() => 'dummy'}
+                data={[{ key: "content" }]}
+                keyExtractor={(i) => i.key}
                 renderItem={() => null}
                 contentContainerStyle={{ paddingBottom: 16 }}
                 ListHeaderComponent={
                     <>
                         <View className="flex flex-row justify-between items-center mt-4">
-                            <Text className="font-ibm-plex-sans-regular text-xl text-white">
-                                İşletmelerim
-                            </Text>
+                            <Text className="font-ibm-plex-sans-regular text-xl text-white">İşletmelerim</Text>
                             {hasStores && (
-
-                                <MotiViewExpand
-                                    expanded={expanded}
-                                    onPress={() => toggleExpand(expanded, setExpanded)}
-                                />
+                                <MotiViewExpand expanded={expandedStores} onPress={() => toggleExpand(expandedStores, setExpandedStores)} />
                             )}
                         </View>
-                        {isLoading ? (
-                            <View className="flex-1 pt-4">
-                                {Array.from({ length: 2 }).map((_, i) => (
-                                    <SkeletonComponent key={i} />
-                                ))}
-                            </View>
-                        ) : !hasStores ? (
-                            <LottieViewComponent message='Henüz eklediğiniz berber dükkanı bulunmuyor.' ></LottieViewComponent>
-                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
 
+                        {storeLoading && (
+                            <View className="flex-1 pt-4">
+                                {Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}
+                            </View>
+                        )}
                         <FlatList
                             key="storesMineList"
                             data={hasStores ? stores : []}
                             keyExtractor={(item) => item.id}
-                            renderItem={renderItem}
-                            horizontal={!expanded}
+                            renderItem={renderStoreItem}
+                            horizontal={!expandedStores}
                             nestedScrollEnabled
-                            initialNumToRender={6}
-                            maxToRenderPerBatch={6}
-                            updateCellsBatchingPeriod={16}
-                            windowSize={7}
-                            removeClippedSubviews
                             showsHorizontalScrollIndicator={false}
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{
-                                gap: 12,
-                                paddingTop: hasStores ? 8 : 0,
-                            }}
+                            contentContainerStyle={{ gap: 12, paddingTop: hasStores ? 8 : 0 }}
+                            ListEmptyComponent={() => (
+                                <EmptyState loading={storeLoading} hasLocation={freeHasLocation} locationStatus={freeLocationStatus} fetchedOnce={true} hasData={hasStores} noResultText="Eklenmiş berber dükkanınız bulunmuyor." ></EmptyState>
+                            )}
                         />
                         <View className="flex flex-row justify-between items-center mt-4">
-                            <Text className="font-ibm-plex-sans-regular text-xl text-white">
-                                Serbet Berberler
-                            </Text>
-                            {stores && stores.length !== 0 && (
+                            <Text className="font-ibm-plex-sans-regular text-xl text-white">Serbest Berberler</Text>
+                            {hasFreeBarbers && (
                                 <MotiViewExpand
-                                    expanded={expandedFreeBarber}
-                                    onPress={() => toggleExpand(expandedFreeBarber, setExpandedFreeBarber)}
+                                    expanded={expandedFreeBarbers}
+                                    onPress={() => toggleExpand(expandedFreeBarbers, setExpandedFreeBarbers)}
                                 />
                             )}
                         </View>
-                        {isLoading ? (
+
+                        {freeLoading && (
                             <View className="flex-1 pt-4">
-                                {Array.from({ length: 2 }).map((_, i) => (
-                                    <SkeletonComponent key={i} />
-                                ))}
+                                {Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}
                             </View>
-                        ) : !hasFreeBarbers ? (
-                            <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı.' ></LottieViewComponent>
-                        ) : locationStatus === 'error' ? (<LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>) : undefined}
+                        )}
+
                         <FlatList
                             key="freeBarbersList"
-                            data={hasFreeBarbers ? stores : []}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderItemFreeBarber}
-                            horizontal={!expandedFreeBarber}
+                            data={hasFreeBarbers ? freeBarbers : []}
+                            keyExtractor={(item: FreeBarGetDto) => item.id}
+                            renderItem={renderFreeBarberItem}
+                            horizontal={!expandedFreeBarbers}
                             nestedScrollEnabled
-                            initialNumToRender={6}
-                            maxToRenderPerBatch={6}
-                            updateCellsBatchingPeriod={16}
-                            windowSize={7}
-                            removeClippedSubviews
                             showsHorizontalScrollIndicator={false}
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{
-                                gap: 12,
-                                paddingTop: hasFreeBarbers ? 8 : 0,
-                                paddingBottom: 8,
-                            }}
+                            contentContainerStyle={{ gap: 12, paddingTop: hasFreeBarbers ? 8 : 0, paddingBottom: 8 }}
+                            ListEmptyComponent={() => (
+                                <EmptyState loading={freeLoading} hasLocation={freeHasLocation} locationStatus={freeLocationStatus} fetchedOnce={freeFetchedOnce} hasData={hasFreeBarbers} noResultText="Yakınınızda serbest berber bulunamadı" ></EmptyState>
+                            )}
                         />
                     </>
                 }
@@ -202,22 +174,23 @@ const Index = () => {
                 hasService={hasService}
                 toggleService={toggleService}
             />
-            <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
-                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
-                backgroundStyle={{ backgroundColor: '#151618' }}
-                ref={(inst) => setRef('updateStoreMine', inst)}
-                onChange={(index) => {
-                    setIsUpdateSheetOpen(index >= 0);
-                }}
-                snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
-                <BottomSheetView className='h-full pt-2'>
-                    <FormStoreUpdate storeId={storeId} enabled={isUpdateSheetOpen} />
 
+            <BottomSheetModal
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                ref={(inst) => setRef("updateStoreMine", inst)}
+                onChange={(index) => setIsUpdateSheetOpen(index >= 0)}
+                snapPoints={["100%"]}
+                enableOverDrag={false}
+                enablePanDownToClose={false}
+            >
+                <BottomSheetView className="h-full pt-2">
+                    <FormStoreUpdate storeId={storeId} enabled={isUpdateSheetOpen} />
                 </BottomSheetView>
             </BottomSheetModal>
         </View>
-    )
-}
+    );
+};
 
-export default Index
+export default Index;

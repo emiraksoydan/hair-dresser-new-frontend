@@ -1,18 +1,27 @@
-// useNearbyControl.ts
-import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
-import { LocationStatus, Pos, UseNearbyControlParams } from '../types';
+import * as Location from "expo-location";
+import { useEffect, useRef, useState } from "react";
+import { ensureLocationGateWithUI } from "../components/location/location-gate";
+import type { Pos } from "../types";
+
+export type LocationStatus = "unknown" | "granted" | "denied";
+
+export type UseNearbyControlParams = {
+    enabled: boolean;
+    moveThresholdM?: number;
+    staleMs?: number;
+    hardRefreshMs?: number;
+    onFetch: (lat: number, lon: number) => Promise<void>;
+};
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLat / 2) ** 2 +
         Math.cos((lat1 * Math.PI) / 180) *
         Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+        Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
@@ -24,44 +33,47 @@ export function useNearbyControl({
     hardRefreshMs = 30_000,
     onFetch,
 }: UseNearbyControlParams) {
-    const [locationStatus, setLocationStatus] =
-        useState<LocationStatus>('unknown'); // 'unknown' | 'granted' | 'denied'
+    const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
+    const [locationMessage, setLocationMessage] = useState<string>("");
+    const [fetchedOnce, setFetchedOnce] = useState(false);
 
     const lastFetchPos = useRef<Pos | null>(null);
     const lastFetchTime = useRef(0);
     const lastKnownPos = useRef<Pos | null>(null);
+
     const watchRef = useRef<Location.LocationSubscription | null>(null);
+    const inflightFetch = useRef(false);
+
+    const initialLoading = !fetchedOnce && locationStatus !== "denied";
 
     function shouldFetchByMoveOrAge(lat: number, lon: number) {
         const now = Date.now();
+        if (!lastFetchPos.current) return true;
 
-        if (!lastFetchPos.current) return true; // ilk sefer
-
-        const distKm = distanceKm(
-            lastFetchPos.current.lat,
-            lastFetchPos.current.lon,
-            lat,
-            lon
-        );
-        const distM = distKm * 1000;
+        const distM = distanceKm(lastFetchPos.current.lat, lastFetchPos.current.lon, lat, lon) * 1000;
         const age = now - lastFetchTime.current;
 
-        if (distM >= moveThresholdM) return true;
-        if (age >= staleMs) return true;
-
-        return false;
+        return distM >= moveThresholdM || age >= staleMs;
     }
 
     async function handleFetch(lat: number, lon: number) {
-        await onFetch(lat, lon); // RTK trigger vs.
-        lastFetchPos.current = { lat, lon };
-        lastFetchTime.current = Date.now();
+        if (inflightFetch.current) return;
+
+        inflightFetch.current = true;
+        try {
+            await onFetch(lat, lon);
+        } finally {
+            inflightFetch.current = false;
+            setFetchedOnce(true);
+            lastFetchPos.current = { lat, lon };
+            lastFetchTime.current = Date.now();
+        }
     }
 
     async function startWatching() {
         if (watchRef.current) return;
 
-        watchRef.current = await Location.watchPositionAsync(
+        const sub = await Location.watchPositionAsync(
             {
                 accuracy: Location.Accuracy.Balanced,
                 distanceInterval: 10,
@@ -70,75 +82,79 @@ export function useNearbyControl({
             (pos) => {
                 const lat = pos.coords.latitude;
                 const lon = pos.coords.longitude;
-                lastKnownPos.current = { lat, lon };
+                if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
-                if (!shouldFetchByMoveOrAge(lat, lon)) return;
+                const p = { lat, lon };
+                lastKnownPos.current = p;
 
-                handleFetch(lat, lon);
+                if (!shouldFetchByMoveOrAge(p.lat, p.lon)) return;
+                handleFetch(p.lat, p.lon);
             }
         );
+
+        watchRef.current = sub;
     }
 
-    async function askPermissionAndMaybeStart(): Promise<boolean> {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+    async function gateAndStart(): Promise<boolean> {
+        const gate = await ensureLocationGateWithUI();
 
-        if (status !== 'granted') {
-            setLocationStatus('denied');
+        if (!gate.ok) {
+            setLocationMessage(gate.message ?? "Konum hazır değil.");
+            setLocationStatus(gate.reason === "permission" ? "denied" : "unknown");
             return false;
         }
 
-        setLocationStatus('granted');
+        setLocationMessage("");
+        setLocationStatus("granted");
         await startWatching();
         return true;
     }
 
-    // 📍 ilk mount + enabled değişince izin iste + watch başlat
     useEffect(() => {
         if (!enabled) return;
 
-        askPermissionAndMaybeStart();
+        gateAndStart();
 
         return () => {
             watchRef.current?.remove();
             watchRef.current = null;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enabled]);
 
-    // ⏱ Hard refresh – ama sadece izin "granted" ise
     useEffect(() => {
         if (!enabled) return;
-        if (locationStatus !== 'granted') return;
+        if (locationStatus !== "granted") return;
 
         const id = setInterval(() => {
-            if (!lastKnownPos.current) return;
+            const pos = lastKnownPos.current;
+            if (!pos) return;
 
-            const now = Date.now();
-            const age = now - lastFetchTime.current;
-
-            if (age >= hardRefreshMs) {
-                handleFetch(lastKnownPos.current.lat, lastKnownPos.current.lon);
-            }
+            const age = Date.now() - lastFetchTime.current;
+            if (age >= hardRefreshMs) handleFetch(pos.lat, pos.lon);
         }, hardRefreshMs);
 
         return () => clearInterval(id);
     }, [enabled, locationStatus, hardRefreshMs]);
 
-    // 🔁 Dışarı vereceğimiz "tekrar dene" fonksiyonu
     const retryPermission = async () => {
         if (!enabled) return;
-        const granted = await askPermissionAndMaybeStart();
-        if (granted && lastKnownPos.current) {
+        const ok = await gateAndStart();
+        if (ok && lastKnownPos.current) {
             await handleFetch(lastKnownPos.current.lat, lastKnownPos.current.lon);
         }
     };
 
     return {
+        locationStatus,
+        locationMessage,
+        hasLocation: locationStatus === "granted",
+        fetchedOnce,
+        initialLoading,
         manualFetch: () => {
-            if (!lastKnownPos.current || locationStatus !== 'granted') return;
+            if (!lastKnownPos.current || locationStatus !== "granted") return;
             return handleFetch(lastKnownPos.current.lat, lastKnownPos.current.lon);
         },
-        locationStatus,
-        hasLocation: locationStatus === 'granted',
         retryPermission,
     };
 }

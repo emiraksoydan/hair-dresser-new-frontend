@@ -1,29 +1,28 @@
 // app/components/StoreCard.tsx
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, BarberStoreGetDto, PricingType } from '../types'; // kendi path’ine göre düzelt
+import { BarberType, FreeBarGetDto } from '../types'; // kendi path’ine göre düzelt
 
 type Props = {
-    store: BarberStoreGetDto;
+    freeBarber: FreeBarGetDto;
     isList: boolean;
     expanded: boolean;
-    cardWidthStore: number;
-    isViewerFromFreeBr?: boolean;
-    onPressUpdate?: (store: BarberStoreGetDto) => void;
+    cardWidthFreeBarber: number;
+    onPressUpdate?: (freeBarber: FreeBarGetDto) => void;
 
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, onPressUpdate }) => {
-    const coverImage = store.imageList?.[0]?.imageUrl;
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate }) => {
+    const coverImage = freeBarber.imageList?.[0]?.imageUrl;
     const handlePressCard = () => {
-        onPressUpdate?.(store);
+        onPressUpdate?.(freeBarber);
     };
 
     return (
         <View
-            style={{ width: cardWidthStore }}
+            style={{ width: cardWidthFreeBarber }}
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >
@@ -53,7 +52,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                 style={{ fontSize: 20 }}
                                 className="font-ibm-plex-sans-semibold flex-shrink text-white"
                             >
-                                {store.storeName}
+                                {freeBarber.fullName}
                             </Text>
 
                             <IconButton
@@ -67,7 +66,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                     flexShrink: 1,
                                 }}
                                 icon={
-                                    store.type === BarberType.MaleHairdresser
+                                    freeBarber.type === BarberType.MaleHairdresser
                                         ? 'face-man'
                                         : 'face-woman'
                                 }
@@ -90,7 +89,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                     className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
                                         }`}
                                 >
-                                    ({store.favoriteCount})
+                                    ({freeBarber.favoriteCount})
                                 </Text>
                             </View>
                         )}
@@ -102,16 +101,16 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                     >
                         <View className="flex-row items-center gap-1">
                             <StarRatingDisplay
-                                rating={store.rating}
+                                rating={freeBarber.rating}
                                 starSize={15}
                                 starStyle={{ marginHorizontal: 0 }}
                             />
-                            <Text className="text-white">{store.rating}</Text>
+                            <Text className="text-white">{freeBarber.rating}</Text>
                         </View>
                         {isList && (
                             <TouchableOpacity onPress={() => { }}>
                                 <Text className="text-white underline mr-1 mb-1 text-xs">
-                                    Yorumlar ({store.reviewCount})
+                                    Yorumlar ({freeBarber.reviewCount})
                                 </Text>
                             </TouchableOpacity>
                         )}
@@ -127,12 +126,12 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                 <Text
                                     className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
                                 >
-                                    ({store.favoriteCount})
+                                    ({freeBarber.favoriteCount})
                                 </Text>
                             </View>
                             <TouchableOpacity onPress={() => { }}>
                                 <Text className="text-white underline mr-1 mb-1 text-xs">
-                                    Yorumlar ({store.reviewCount})
+                                    Yorumlar ({freeBarber.reviewCount})
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -141,14 +140,14 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                 </View>
             </View>
 
-            {!!store.serviceOfferings?.length && (
+            {!!freeBarber.offerings?.length && (
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     className="mt-2"
                     contentContainerStyle={{ gap: 8 }}
                 >
-                    {store.serviceOfferings.map((s) => (
+                    {freeBarber.offerings.map((s) => (
                         <View
                             key={s.id}
                             className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
@@ -163,23 +162,15 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                     ))}
                 </ScrollView>
             )}
-            {isViewerFromFreeBr && (
-                <View className='bg-[#2a2b2f] px-3 py-2 rounded-lg'>
-                    <Text className='text-[#d1d5db] mr-1 text-sm'>
-                        {store.pricingType.toLowerCase() === 'percent' ? `Fiyatlandırma: yapılan işlemlerin toplamının  %${store.pricingValue} alınır` : store.pricingType.toLowerCase() === 'rent' ? `Fiyatlandırma: Koltuk kirası (Saatlik:${store.pricingValue}₺/saat)` : ''}
-                    </Text>
-                </View>
-            )}
         </View>
     );
 };
 
-export const StoreCardInner = React.memo(
-    StoreCard,
+export const FreeBarberCardInner = React.memo(
+    FreeBarberCard,
     (prev, next) =>
-        prev.store.id === next.store.id &&
-        (prev.isViewerFromFreeBr ?? false) === (next.isViewerFromFreeBr ?? false) &&
+        prev.freeBarber.id === next.freeBarber.id &&
         prev.isList === next.isList &&
         prev.expanded === next.expanded &&
-        prev.cardWidthStore === next.cardWidthStore
+        prev.cardWidthFreeBarber === next.cardWidthFreeBarber
 );
