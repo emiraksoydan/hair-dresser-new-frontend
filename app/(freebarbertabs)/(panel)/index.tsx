@@ -12,12 +12,10 @@ import { toggleExpand } from '../../utils/expand-toggle';
 import { FilterBottomSheet } from '../../components/filterbottomsheet';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { FormFreeBarberOperation } from '../../components/formfreebarberoper';
-import { getCurrentLocationSafe } from '../../utils/location-helper';
 import { resolveApiErrorMessage } from '../../utils/error';
 import { StoreCardInner } from '../../components/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BarberStoreGetDto } from '../../types';
-// YENİ OLUŞTURDUĞUMUZ BİLEŞENİ IMPORT EDİYORUZ
 import { FreeBarberPanelSection } from '../../components/freebarberpanelsection';
 
 const Index = () => {

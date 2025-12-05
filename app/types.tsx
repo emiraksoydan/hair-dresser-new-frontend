@@ -326,7 +326,7 @@ export type FreeBarGetDto = {
   imageList: ImageGetDto[];
 }
 
-export type FreeBarberMinePanelDto = {
+export type FreeBarberPanelDto = {
   id: string;
   fullName: string;
   rating: number;

@@ -2,51 +2,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Icon } from "react-native-paper";
-
 import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery } from "../../store/api";
 import { ChairSlotDto } from "../../types";
 import { getBarberTypeName } from "../../utils/barber-type";
 import FilterChip from "../../components/filter-chip";
-
-// --- helpers ---
-const fmtDateOnly = (d: Date) => {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-};
-const build7Days = () => {
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    return Array.from({ length: 7 }).map((_, i) => {
-        const d = new Date(base);
-        d.setDate(base.getDate() + i);
-        return d;
-    });
-};
-const normalizeTime = (t: string) => {
-    if (!t) return "";
-    const parts = t.trim().replace(".", ":").split(":");
-    const hh = (parts[0] ?? "00").padStart(2, "0");
-    const mm = (parts[1] ?? "00").padStart(2, "0");
-    return `${hh}:${mm}`;
-};
-
-const addMinutesToHHmm = (hhmm: string, minutes: number) => {
-    const [h, m] = hhmm.split(":").map((n) => parseInt(n, 10));
-    const d = new Date(2000, 0, 1, h, m, 0, 0);
-    d.setMinutes(d.getMinutes() + minutes);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
-
-const areHourlyContiguous = (keys: string[]) => {
-    if (keys.length <= 1) return true;
-    const sorted = [...keys].sort(); // "HH:mm"
-    for (let i = 1; i < sorted.length; i++) {
-        if (addMinutesToHHmm(sorted[i - 1], 60) !== sorted[i]) return false;
-    }
-    return true;
-};
+import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../../utils/time-helper";
 
 // start/end iso üretmek istersen:
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
@@ -298,7 +258,6 @@ export default function StoreDetail() {
                         />
                     )}
 
-                    {/* SLOTS (MULTI + CONTIGUOUS) */}
                     {!selectedChair ? (
                         <Text className="text-gray-400">Önce koltuk seç.</Text>
                     ) : (
@@ -313,7 +272,6 @@ export default function StoreDetail() {
                                 const isPast = s.isPast;
                                 const key = normalizeTime(s.start);
                                 const isSelected = selectedSlotKeys.includes(key);
-
                                 return (
                                     <FilterChip
                                         itemKey={String(s.slotId)}

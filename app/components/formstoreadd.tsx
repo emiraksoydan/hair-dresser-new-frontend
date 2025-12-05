@@ -11,7 +11,7 @@ import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR
 import 'react-native-get-random-values';
 import { v4 as uuid } from "uuid";
 import { LegendList } from '@legendapp/list';
-import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmm, toMinutes } from '../utils/time-helper';
+import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmmRegex, toMinutes } from '../utils/time-helper';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { parseTR } from '../utils/money-helper';
 import * as Location from "expo-location";
@@ -58,8 +58,8 @@ const LocationSchema = z.object({
 const WorkingDaySchema = z.object({
     dayOfWeek: z.number().int().min(0).max(6),
     isClosed: z.boolean(),
-    startTime: z.string().regex(timeHHmm, "HH:mm"),
-    endTime: z.string().regex(timeHHmm, "HH:mm"),
+    startTime: z.string().regex(timeHHmmRegex, "HH:mm"),
+    endTime: z.string().regex(timeHHmmRegex, "HH:mm"),
 }).superRefine((v, ctx) => {
     if (v.isClosed) return;
     if (!v.startTime) { ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Başlangıç saati gerekli' }); return; }

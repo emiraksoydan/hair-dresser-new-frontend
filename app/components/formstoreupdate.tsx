@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { z } from "zod";
 import { BUSINESS_TYPES, DAYS_TR, PRICING_OPTIONS, SERVICE_BY_TYPE, trMoneyRegex } from '../constants';
 import { parseTR } from '../utils/money-helper';
-import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmm, toHHmm, toMinutes } from '../utils/time-helper';
+import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, normalizeTime, timeHHmmRegex, toMinutes } from '../utils/time-helper';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../context/bottomsheet';
@@ -75,8 +75,8 @@ const WorkingDaySchema = z.object({
     ownerId: z.string().uuid().optional(),
     dayOfWeek: z.number().int().min(0).max(6),
     isClosed: z.boolean(),
-    startTime: z.string().regex(timeHHmm, "HH:mm"),
-    endTime: z.string().regex(timeHHmm, "HH:mm"),
+    startTime: z.string().regex(timeHHmmRegex, "HH:mm"),
+    endTime: z.string().regex(timeHHmmRegex, "HH:mm"),
 }).superRefine((v, ctx) => {
     if (v.isClosed) return;
     if (!v.startTime) { ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Başlangıç saati gerekli' }); return; }
@@ -299,8 +299,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                     ownerId: w.ownerId,
                     dayOfWeek: w.dayOfWeek,
                     isClosed: w.isClosed,
-                    startTime: toHHmm(w.startTime as any),
-                    endTime: toHHmm(w.endTime as any),
+                    startTime: normalizeTime(w.startTime as any),
+                    endTime: normalizeTime(w.endTime as any),
                 };
             });
         const initialHolidayDays = initialWorkingHours.filter(w => w.isClosed).map(w => w.dayOfWeek);

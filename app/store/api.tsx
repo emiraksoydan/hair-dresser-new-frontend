@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberMinePanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
+import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
@@ -55,6 +55,12 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: ['GetStoreById'],
         }),
+        getStoreForUsers: builder.query<BarberStoreMineDto, string>({
+            query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
+            keepUnusedDataFor: 0,
+
+        }),
+
 
         /// Free Barber Api
         addFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberCreateDto>({
@@ -73,7 +79,7 @@ export const api = createApi({
             }),
             keepUnusedDataFor: 0,
         }),
-        getFreeBarberMinePanel: builder.query<FreeBarberMinePanelDto, void>({
+        getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
             keepUnusedDataFor: 0,
             providesTags: ['MineFreeBarberPanel'],
@@ -82,12 +88,10 @@ export const api = createApi({
             query: (id) => `FreeBarber/${id}`,
             keepUnusedDataFor: 0,
         }),
-        getStoreForUsers: builder.query<BarberStoreMineDto, string>({
-            query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
+        getFreeBarberForUsers: builder.query<FreeBarberPanelDto, string>({
+            query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
             keepUnusedDataFor: 0,
-
         }),
-
         /// Manuel Barber Api
         addManuelBarber: builder.mutation<
             { message: string; success: boolean },
@@ -196,4 +200,5 @@ export const {
     useGetAvailabilityQuery,
     useGetStoreForUsersQuery,
     useGetWorkingHoursByTargetQuery,
+    useGetFreeBarberForUsersQuery,
 } = api;
