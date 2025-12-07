@@ -254,6 +254,7 @@ export type BarberStoreGetDto = {
   favoriteCount: number;
   latitude: number;
   longitude: number;
+  addressDescription: string;
   isOpenNow: boolean;
   reviewCount: number;
   serviceOfferings: ServiceOfferingGetDto[];
@@ -336,6 +337,8 @@ export type FreeBarberPanelDto = {
   isAvailable: boolean;
   type: BarberType;
   reviewCount: number;
+  latitude: number;
+  longitude: number;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
 }

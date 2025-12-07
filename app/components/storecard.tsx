@@ -27,6 +27,15 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >
+            {!isList && (
+                <View className='flex-row justify-end px-2'>
+                    <View className={`${store.isOpenNow ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
+                        <Text className="text-white text-sm font-ibm-plex-sans-medium">
+                            {store.isOpenNow ? 'Açık' : 'Kapalı'}
+                        </Text>
+                    </View>
+                </View>
+            )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
                     <Image
@@ -37,21 +46,38 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                 ? { uri: coverImage }
                                 : require('../../assets/images/empty.png')
                         }
-
                         resizeMode={'cover'}
                     />
+                    {isList && (
+                        <View className="absolute top-3 right-3 flex-row gap-2 z-10">
+                            <View className={`px-2 py-1 rounded-xl flex-row items-center justify-center ${store.type === BarberType.MaleHairdresser ? 'bg-blue-500' : 'bg-pink-500'}`}>
+                                <Icon
+                                    source={store.type === BarberType.MaleHairdresser ? 'face-man' : store.type === BarberType.FemaleHairdresser ? 'face-woman' : 'store'}
+                                    color="white"
+                                    size={14}
+                                />
+                                <Text className="text-white text-base font-ibm-plex-sans-medium ml-1">
+                                    {store.type === BarberType.MaleHairdresser ? 'Erkek Berber' : store.type === BarberType.FemaleHairdresser ? 'Kadın Kuaför' : 'Güzellik Salonu'}
+                                </Text>
+                            </View>
+                            <View className={`${store.isOpenNow ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
+                                <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                    {store.isOpenNow ? 'Açık' : 'Kapalı'}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
                 </TouchableOpacity>
-                <View className="flex-1 relative">
+                <View className="flex-1 flex-col gap-2">
                     <View
-                        className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'
+                        className={`flex-row  justify-between ${!isList ? 'items-start' : 'items-center'
                             }`}
                     >
-                        <View className={`flex-row flex-1 ${isList ? 'items-center' : ''}`}>
+                        <View className={`flex-row  h-8 flex-1 ${isList ? 'items-center' : ''}`}>
                             <Text
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
-                                style={{ fontSize: 20 }}
-                                className="font-ibm-plex-sans-semibold flex-shrink text-white"
+                                className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
                             >
                                 {store.storeName}
                             </Text>
@@ -96,28 +122,9 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                         )}
                     </View>
 
-                    <View
-                        className="flex-row justify-between items-center"
-                        style={{ marginTop: !isList ? -5 : 0 }}
-                    >
-                        <View className="flex-row items-center gap-1">
-                            <StarRatingDisplay
-                                rating={store.rating}
-                                starSize={15}
-                                starStyle={{ marginHorizontal: 0 }}
-                            />
-                            <Text className="text-white">{store.rating}</Text>
-                        </View>
-                        {isList && (
-                            <TouchableOpacity onPress={() => { }}>
-                                <Text className="text-white underline mr-1 mb-1 text-xs">
-                                    Yorumlar ({store.reviewCount})
-                                </Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
                     {!isList && (
-                        <View className="flex-row mt-2 justify-between items-center">
+                        <View className="flex-row  justify-between pr-2 ">
+                            <Text className='text-base text-gray-500'>{store.type === BarberType.MaleHairdresser ? "Erkek Berber" : store.type === BarberType.FemaleHairdresser ? 'Kadın Kuaför' : 'Güzellik Salonu'}</Text>
                             <View className="flex-row items-center gap-1">
                                 <Icon
                                     size={25}
@@ -130,14 +137,27 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                     ({store.favoriteCount})
                                 </Text>
                             </View>
+                        </View>
+                    )}
+                    <View
+                        className="flex-row justify-between items-center"
+                        style={{ marginTop: !isList ? -5 : -10 }}
+                    >
+                        <View className="flex-row items-center gap-1">
+                            <StarRatingDisplay
+                                rating={store.rating}
+                                starSize={15}
+                                starStyle={{ marginHorizontal: 0 }}
+                            />
+                            <Text className="text-white flex-1">{store.rating}</Text>
                             <TouchableOpacity onPress={() => { }}>
-                                <Text className="text-white underline mr-1 mb-1 text-xs">
+                                <Text className="text-white underline mr-1 mb-0 text-xs">
                                     Yorumlar ({store.reviewCount})
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    )}
 
+                    </View>
                 </View>
             </View>
 
@@ -164,7 +184,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                 </ScrollView>
             )}
             {isViewerFromFreeBr && (
-                <View className='bg-[#2a2b2f] px-3 py-2 rounded-lg'>
+                <View className='bg-[#2a2b2f] mt-2 px-3 py-2 rounded-lg'>
                     <Text className='text-[#d1d5db] mr-1 text-sm'>
                         {store.pricingType.toLowerCase() === 'percent' ? `Fiyatlandırma: yapılan işlemlerin toplamının  %${store.pricingValue} alınır` : store.pricingType.toLowerCase() === 'rent' ? `Fiyatlandırma: Koltuk kirası (Saatlik:${store.pricingValue}₺/saat)` : ''}
                     </Text>

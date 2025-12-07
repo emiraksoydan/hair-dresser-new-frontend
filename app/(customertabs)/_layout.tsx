@@ -13,6 +13,7 @@ const CustomerLayout = () => {
                 headerShown: false,
 
             }}>
+            <Tabs.Screen name="index" options={{ href: null }} />
             <Tabs.Screen
                 name="(panel)"
                 options={{

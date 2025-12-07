@@ -1,133 +1,91 @@
-import * as Location from "expo-location";
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
-import { BarberStoreMineDto, FreeBarGetDto } from "../types";
+import { BarberStoreMineDto, FreeBarGetDto, LocationStatus } from "../types";
 import { useLazyGetNearbyFreeBarberQuery } from "../store/api";
+import { safeCoord } from "../utils/geo";
 
-export type LocationStatus = "unknown" | "granted" | "denied";
 
 export type UseNearbyStoresParams = {
     stores: BarberStoreMineDto[];
     enabled: boolean;
     hardRefreshMs?: number;
+    radiusKm?: number;
 };
-
-const DEFAULT_RADIUS_KM = 1;
 
 export function useNearbyStoresControl({
     stores,
     enabled,
     hardRefreshMs = 15_000,
+    radiusKm = 1,
 }: UseNearbyStoresParams) {
     const [trigger] = useLazyGetNearbyFreeBarberQuery();
 
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
-    const [locationMessage, setLocationMessage] = useState<string>("");
     const [freeBarbers, setFreeBarbers] = useState<FreeBarGetDto[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchedOnce, setFetchedOnce] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // 1. FETCH FONKSİYONU
-    // useCallback içinde stores bağımlılığını kaldırdık çünkü parametre olarak almayacağız,
-    // o anki stores ref'ini veya state'ini kullanacağız.
-    // Ancak burada en temiz yöntem fonksiyonu her seferinde yeniden oluşturmaktır.
-    const handleFetchStores = useCallback(async () => {
-        if (!stores || stores.length === 0) return;
+    // Konum izni kontrolü
+    useEffect(() => {
+        if (!enabled) return;
+        ensureLocationGateWithUI().then((gate) => {
+            setLocationStatus(gate.ok ? "granted" : "denied");
+        });
+    }, [enabled]);
 
+    // Store'ların koordinat imzası (Store değişirse bu değişir)
+    const storesFingerprint = useMemo(() => {
+        if (!stores?.length) return "[]";
+        return JSON.stringify(stores.map(s => `${s.id}:${s.latitude},${s.longitude}`));
+    }, [stores]);
+
+    const fetchNearby = useCallback(async () => {
+        if (!enabled || !stores.length) return;
+
+        setIsLoading(true);
         try {
+            // Her mağaza için ayrı istek atıp sonuçları topluyoruz
             const promises = stores.map(store => {
-                if (store.latitude && store.longitude) {
-                    return trigger({
-                        lat: store.latitude,
-                        lon: store.longitude,
-                        radiusKm: DEFAULT_RADIUS_KM
-                    }, false).unwrap();
-                }
-                return Promise.resolve([]);
-            });
+                const c = safeCoord(store.latitude, store.longitude);
+                if (!c) return null;
+                // RTK Query'nin 'trigger'ı her zaman güncel cache veya yeni veri getirir
+                return trigger({ lat: c.lat, lon: c.lon, radiusKm }, true).unwrap();
+            }).filter(Boolean);
 
             const results = await Promise.all(promises);
 
-            const allBarbersMap = new Map<string, FreeBarGetDto>();
-            results.flat().forEach(barber => {
-                if (barber && barber.id) {
-                    allBarbersMap.set(barber.id, barber);
+            // Tüm sonuçları tek bir listede birleştir ve ID'ye göre tekrar edenleri temizle
+            const allBarbers = new Map<string, FreeBarGetDto>();
+            results.forEach((list) => {
+                if (Array.isArray(list)) {
+                    list.forEach(barber => allBarbers.set((barber as any).id, barber));
                 }
             });
 
-            setFreeBarbers(Array.from(allBarbersMap.values()));
-            setFetchedOnce(true);
-            console.log("📍 İstek Atıldı:", new Date().toLocaleTimeString());
-
+            setFreeBarbers(Array.from(allBarbers.values()));
         } catch (error) {
-            console.error("Fetch Error:", error);
+            console.log("Hata:", error);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
-    }, [stores, trigger]);
+    }, [enabled, stores, radiusKm, trigger]);
 
-    // Fonksiyon referansını sakla
-    const savedCallback = useRef(handleFetchStores);
+    // 1. Durum: Store listesi veya koordinatı değişirse ANINDA çek (Optimistic update burayı tetikler)
     useEffect(() => {
-        savedCallback.current = handleFetchStores;
-    }, [handleFetchStores]);
+        fetchNearby();
+    }, [storesFingerprint, fetchNearby]);
 
-    // 2. İZİN ALMA
-    async function gateAndStart(): Promise<boolean> {
-        const gate = await ensureLocationGateWithUI();
-
-        if (!gate.ok) {
-            setLocationMessage(gate.message ?? "Konum hazır değil.");
-            setLocationStatus(gate.reason === "permission" ? "denied" : "unknown");
-            return false;
-        }
-
-        setLocationMessage("");
-        setLocationStatus("granted");
-        return true;
-    }
-
-    // 3. BAŞLANGIÇ İZNİ
+    // 2. Durum: Periyodik olarak arka planda yenile (Timer)
     useEffect(() => {
         if (!enabled) return;
-        gateAndStart();
-    }, [enabled]);
-
-    // ---------------------------------------------------------------------------
-    // 4. TEK MERKEZLİ ZAMANLAYICI (HEM DEĞİŞİM HEM INTERVAL)
-    // ---------------------------------------------------------------------------
-
-    // Parmak izi (Fingerprint) oluştur
-    const storesFingerprint = useMemo(() => {
-        return JSON.stringify(stores.map(s => `${s.latitude},${s.longitude}`));
-    }, [stores]);
-
-    useEffect(() => {
-        if (!enabled || locationStatus !== "granted" || stores.length === 0) return;
-        savedCallback.current();
-
-
-        const id = setInterval(() => {
-            savedCallback.current();
-        }, hardRefreshMs);
-
-        return () => clearInterval(id);
-
-    }, [storesFingerprint, locationStatus, enabled, hardRefreshMs]);
-
-    const retryPermission = async () => {
-        if (!enabled) return;
-        await gateAndStart();
-    };
+        const interval = setInterval(fetchNearby, hardRefreshMs);
+        return () => clearInterval(interval);
+    }, [enabled, hardRefreshMs, fetchNearby]);
 
     return {
         freeBarbers,
-        loading,
+        isLoading,
         locationStatus,
-        locationMessage,
         hasLocation: locationStatus === "granted",
-        fetchedOnce,
-        manualFetch: handleFetchStores,
-        retryPermission,
+        manualFetch: fetchNearby, // İstersen elle çağırmak için
     };
 }

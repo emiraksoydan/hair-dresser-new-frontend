@@ -14,7 +14,7 @@ export function useNearbyFreeBarber(enabled: boolean) {
         staleMs: 15_000,
         hardRefreshMs: 15_000,
         onFetch: async (lat, lon) => {
-            await trigger({ lat, lon, radiusKm: DEFAULT_RADIUS_KM }, true);
+            await trigger({ lat, lon, radiusKm: DEFAULT_RADIUS_KM }, false);
         },
     });
 

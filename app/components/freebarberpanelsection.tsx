@@ -17,24 +17,25 @@ interface Props {
     locationMessage: string | null;
     onOpenPanel: (id: string | null) => void;
     screenWidth: number;
+    freeBarber?: FreeBarberPanelDto;
+    isLoading: boolean;
+    isError: boolean;
+    error: any;
+    isTracking: boolean;
+    isUpdating: boolean;
 }
 
 // React.memo ile sarmaladık. Sadece props değişirse render olur.
-export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMessage, onOpenPanel, screenWidth }: Props) => {
+export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMessage, onOpenPanel,
+    screenWidth,
+    freeBarber,
+    isLoading,
+    isError,
+    error, isTracking, isUpdating }: Props) => {
 
-
-    // API isteğini buraya aldık. Ana sayfa render olsa bile burası etkilenmez.
-    const { data: freeBarber, isLoading, isError, error } = useGetFreeBarberMinePanelQuery(undefined, {
-        skip: locationStatus === 'error'
-    });
 
     const [expandedMineStore, setExpandedMineStore] = useState(true);
-
     const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
-    const { isTracking, isUpdating } = useTrackFreeBarberLocation(
-        true,
-        freeBarber?.id ?? null
-    );
     const cardWidthFreeBarber = useMemo(
         () => (expandedMineStore ? screenWidth * 0.92 : screenWidth * 0.94),
         [expandedMineStore, screenWidth]

@@ -21,6 +21,7 @@ import { BarberEditModal } from './barbereditmodal';
 import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ImageOwnerType, ServiceOfferingUpdateDto } from '../types';
 import { resolveApiErrorMessage } from '../utils/error';
 import { ChairEditModal } from './chaireditmodal';
+import { safeCoord } from '../utils/geo';
 
 
 
@@ -159,7 +160,9 @@ const schema = z.object({
 })
 export type FormUpdateValues = z.input<typeof schema>;
 
-const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boolean }) => {
+const FormStoreUpdate = ({ storeId, enabled, }: {
+    storeId: string; enabled: boolean
+}) => {
     const { dismiss } = useSheet('updateStoreMine');
     const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
     const [updateStore, { isLoading: updateLoading, isSuccess }] = useUpdateBarberStoreMutation();
@@ -304,6 +307,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                 };
             });
         const initialHolidayDays = initialWorkingHours.filter(w => w.isClosed).map(w => w.dayOfWeek);
+        const c0 = safeCoord(data.latitude, data.longitude);
 
         reset({
             ...getValues(),
@@ -324,8 +328,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                 }
                 : undefined,
             location: {
-                latitude: data.latitude,
-                longitude: data.longitude,
+                latitude: c0?.lat ?? 0,
+                longitude: c0?.lon ?? 0,
                 addressDescription: data.addressDescription ?? "",
             },
             offerings: initialOfferings,
@@ -339,8 +343,6 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
     }, [data, reset, getValues]);
 
     const location = watch("location");
-    const latitude = location?.latitude;
-    const longitude = location?.longitude;
     const address = location?.addressDescription;
     const image = watch('storeImageUrl');
     const barbers = watch('barbers') ?? [];
@@ -649,6 +651,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
             var result = await updateStore(payload).unwrap();
             console.log(result);
             if (result.success) {
+
                 setSnackText(result.message);
                 setSnackVisible(true);
                 dismiss();
@@ -663,6 +666,7 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
             setSnackVisible(true);
         }
     };
+    const c = safeCoord(location?.latitude, location?.longitude);
 
     return (
         <View className='h-full'>
@@ -1284,8 +1288,8 @@ const FormStoreUpdate = ({ storeId, enabled }: { storeId: string; enabled: boole
                                 <Button loading={locBusy}
                                     disabled={locBusy} mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
                                 <MapPicker
-                                    lat={latitude ?? undefined}
-                                    lng={longitude ?? undefined}
+                                    lat={c ? c.lat : undefined}
+                                    lng={c ? c.lon : undefined}
                                     address={address}
                                     onChange={async (la, ln) => { updateLocation(la, ln); await reverseAndSetAddress(la, ln); }}
                                 />

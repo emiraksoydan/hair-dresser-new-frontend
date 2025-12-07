@@ -1,5 +1,5 @@
 import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
 import type { Pos } from "../types";
 
@@ -44,6 +44,9 @@ export function useNearbyControl({
     const watchRef = useRef<Location.LocationSubscription | null>(null);
     const inflightFetch = useRef(false);
 
+    // ✅ DÜZELTİLEN SATIR: Başlangıç değeri undefined olarak ayarlandı
+    const savedFetchHandler = useRef<((lat: number, lon: number) => Promise<void>) | undefined>(undefined);
+
     const initialLoading = !fetchedOnce && locationStatus !== "denied";
 
     function shouldFetchByMoveOrAge(lat: number, lon: number) {
@@ -56,19 +59,27 @@ export function useNearbyControl({
         return distM >= moveThresholdM || age >= staleMs;
     }
 
-    async function handleFetch(lat: number, lon: number) {
+    // handleFetch'i useCallback ile sarmalıyoruz
+    const handleFetch = useCallback(async (lat: number, lon: number) => {
         if (inflightFetch.current) return;
 
         inflightFetch.current = true;
         try {
             await onFetch(lat, lon);
+        } catch (e) {
+            console.error("Fetch Error:", e);
         } finally {
             inflightFetch.current = false;
             setFetchedOnce(true);
             lastFetchPos.current = { lat, lon };
             lastFetchTime.current = Date.now();
         }
-    }
+    }, [onFetch]);
+
+    // Her renderda handleFetch'in son halini ref'e kaydet
+    useEffect(() => {
+        savedFetchHandler.current = handleFetch;
+    }, [handleFetch]);
 
     async function startWatching() {
         if (watchRef.current) return;
@@ -76,7 +87,7 @@ export function useNearbyControl({
         const sub = await Location.watchPositionAsync(
             {
                 accuracy: Location.Accuracy.Balanced,
-                distanceInterval: 10,
+                distanceInterval: 50,
                 timeInterval: 3000,
             },
             (pos) => {
@@ -88,7 +99,11 @@ export function useNearbyControl({
                 lastKnownPos.current = p;
 
                 if (!shouldFetchByMoveOrAge(p.lat, p.lon)) return;
-                handleFetch(p.lat, p.lon);
+
+                // Hareket algılandı, güncel fonksiyonu çağır
+                if (savedFetchHandler.current) {
+                    savedFetchHandler.current(p.lat, p.lon);
+                }
             }
         );
 
@@ -112,25 +127,28 @@ export function useNearbyControl({
 
     useEffect(() => {
         if (!enabled) return;
-
         gateAndStart();
-
         return () => {
             watchRef.current?.remove();
             watchRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enabled]);
 
+    // Timer (Zorunlu Yenileme - Hard Refresh)
     useEffect(() => {
         if (!enabled) return;
         if (locationStatus !== "granted") return;
 
-        const id = setInterval(() => {
+        // Bu fonksiyon her tetiklendiğinde ref içindeki EN GÜNCEL handleFetch'i bulur.
+        const tick = () => {
             const pos = lastKnownPos.current;
             if (!pos) return;
-            handleFetch(pos.lat, pos.lon);
-        }, hardRefreshMs);
+
+            // Ref üzerinden çağırdığımız için stale closure (eski veri) olmaz.
+            savedFetchHandler.current?.(pos.lat, pos.lon);
+        };
+
+        const id = setInterval(tick, hardRefreshMs);
 
         return () => clearInterval(id);
     }, [enabled, locationStatus, hardRefreshMs]);
@@ -138,8 +156,8 @@ export function useNearbyControl({
     const retryPermission = async () => {
         if (!enabled) return;
         const ok = await gateAndStart();
-        if (ok && lastKnownPos.current) {
-            await handleFetch(lastKnownPos.current.lat, lastKnownPos.current.lon);
+        if (ok && lastKnownPos.current && savedFetchHandler.current) {
+            await savedFetchHandler.current(lastKnownPos.current.lat, lastKnownPos.current.lon);
         }
     };
 
@@ -151,7 +169,7 @@ export function useNearbyControl({
         initialLoading,
         manualFetch: () => {
             if (!lastKnownPos.current || locationStatus !== "granted") return;
-            return handleFetch(lastKnownPos.current.lat, lastKnownPos.current.lon);
+            return savedFetchHandler.current?.(lastKnownPos.current.lat, lastKnownPos.current.lon);
         },
         retryPermission,
     };

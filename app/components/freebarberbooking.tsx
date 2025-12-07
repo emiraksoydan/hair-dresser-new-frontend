@@ -84,7 +84,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             <View className="p-4 gap-3">
                 <Text className="text-white font-ibm-plex-sans-bold mt-1 text-xl">{isBarberMode ? 'Hizmetler' : 'Hizmet Seçiniz'}</Text>
 
-                <View className="h-16">
+                <View>
                     <FlatList
                         data={freeBarberData?.offerings ?? []}
                         keyExtractor={(item) => item.id}
@@ -102,7 +102,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     itemKey={item.id}
                                     selected={!isBarberMode && isSelected}
                                     onPress={() => !isBarberMode && toggleService(item.id)}
-                                    className={`rounded-xl px-4 py-2 ${isSelected ? "bg-[#f05e23]" : "bg-[#2a2b2f]"}`}
+                                    className={`rounded-xl px-4 py-2 ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
                                 >
                                     <Text style={{ color: isSelected ? "white" : "#d1d5db", fontSize: 14, fontWeight: '600' }}>
                                         {item.serviceName} - {item.price} ₺
@@ -114,7 +114,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                 </View>
                 <TouchableOpacity
                     disabled={!freeBarberData?.isAvailable}
-                    className={`py-3 flex-row justify-center gap-2 rounded-xl mt-4 items-center ${(!freeBarberData?.isAvailable) ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
+                    className={`py-3 flex-row justify-center gap-2 rounded-xl mt-2 items-center ${(!freeBarberData?.isAvailable) ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
                     style={{ opacity: !freeBarberData?.isAvailable ? 0.7 : 1 }}
                     onPress={() => {
                         if (selectedServices.length === 0) {
