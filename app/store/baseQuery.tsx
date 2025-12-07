@@ -4,7 +4,7 @@ import { tokenStore } from '../lib/tokenStore';
 import { saveTokens, clearStoredTokens, loadTokens } from '../lib/tokenStorage';
 import { jwtDecode } from 'jwt-decode';
 
-export const API = 'http://192.168.1.105:5149/api/';
+export const API = 'http://192.168.1.108:5149/api/';
 
 type Decoded = { exp?: number };
 

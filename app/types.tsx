@@ -268,6 +268,8 @@ export type BarberStoreMineDto = {
   reviewCount: number;
   isOpenNow: boolean;
   addressDescription?: string;
+  latitude?: number;
+  longitude?: number;
   serviceOfferings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
   pricingType?: string;
@@ -337,7 +339,11 @@ export type FreeBarberPanelDto = {
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
 }
-
+export type UpdateLocationDto = {
+  id: string;
+  latitude: number;
+  longitude: number;
+};
 export type FreeBarberMinePanelDetailDto = {
   id: string;
   firstName: string;
@@ -346,6 +352,8 @@ export type FreeBarberMinePanelDetailDto = {
   isAvailable: boolean;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+  latitude?: number;
+  longitude?: number;
 }
 
 
@@ -358,6 +366,7 @@ export interface VerifyOtpRequest {
   device: string | null;
   userType: number;
   mode: string;
+  password?: string;
 }
 
 export type NearbyRequest = {

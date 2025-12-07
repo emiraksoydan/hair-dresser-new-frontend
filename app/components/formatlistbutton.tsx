@@ -6,9 +6,9 @@ const FormatListButton: React.FC<FormatListButtonProps> = ({ isList, setIsList }
     return (
         <IconButton
             icon="format-list-bulleted"
-            iconColor={isList ? 'white' : '#c2a523'}
+            iconColor={isList ? 'white' : '#f05e23'}
             size={24}
-            containerColor={isList ? '#c2a523' : '#202123'}
+            containerColor={isList ? '#f05e23' : '#202123'}
             style={{
                 borderRadius: 10,
                 height: 38,

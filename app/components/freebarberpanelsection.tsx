@@ -8,9 +8,11 @@ import { FreeBarberMineCardComp } from './freebarberminecard'; // Yolunu projene
 import { useGetFreeBarberMinePanelQuery } from '../store/api'; // Store yolunu kontrol et
 import { toggleExpand } from '../utils/expand-toggle'; // Utils yolunu kontrol et
 import { resolveApiErrorMessage } from '../utils/error'; // Utils yolunu kontrol et
-import { FreeBarberMinePanelDto } from '../types'; // Type yolunu kontrol et
+import { FreeBarberPanelDto } from '../types'; // Type yolunu kontrol et
+import { useTrackFreeBarberLocation } from '../hook/useTrackFreeBarberLocation';
 
 interface Props {
+    isList: boolean;
     locationStatus: string;
     locationMessage: string | null;
     onOpenPanel: (id: string | null) => void;
@@ -18,7 +20,8 @@ interface Props {
 }
 
 // React.memo ile sarmaladık. Sadece props değişirse render olur.
-export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, onOpenPanel, screenWidth }: Props) => {
+export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMessage, onOpenPanel, screenWidth }: Props) => {
+
 
     // API isteğini buraya aldık. Ana sayfa render olsa bile burası etkilenmez.
     const { data: freeBarber, isLoading, isError, error } = useGetFreeBarberMinePanelQuery(undefined, {
@@ -28,7 +31,10 @@ export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, o
     const [expandedMineStore, setExpandedMineStore] = useState(true);
 
     const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
-
+    const { isTracking, isUpdating } = useTrackFreeBarberLocation(
+        true,
+        freeBarber?.id ?? null
+    );
     const cardWidthFreeBarber = useMemo(
         () => (expandedMineStore ? screenWidth * 0.92 : screenWidth * 0.94),
         [expandedMineStore, screenWidth]
@@ -37,9 +43,13 @@ export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, o
     return (
         <>
             <View className="flex flex-row justify-between items-center mt-4">
-                <Text className="font-ibm-plex-sans-regular text-xl text-white">
-                    Panelim
-                </Text>
+                <View className='flex-row items-center gap-2'>
+                    <Text className="font-ibm-plex-sans-regular text-xl text-white"> Panelim</Text>
+                    {hasMineFreeBarber && isTracking && (
+                        <View className={`w-2 h-2 rounded-full ${isUpdating ? 'bg-yellow-400' : 'bg-green-500'}`} />
+                    )}
+                </View>
+
                 {hasMineFreeBarber && (
                     <MotiViewExpand
                         expanded={expandedMineStore}
@@ -47,7 +57,6 @@ export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, o
                     />
                 )}
             </View>
-
             {isLoading ? (
                 <View className="flex-1 pt-4">
                     {Array.from({ length: 1 }).map((_, i) => (
@@ -72,13 +81,17 @@ export const FreeBarberPanelSection = memo(({ locationStatus, locationMessage, o
             ) : isError ? (
                 <LottieViewComponent animationSource={require('../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} />
             ) : (
-                <FreeBarberMineCardComp
-                    freeBarber={freeBarber as FreeBarberMinePanelDto}
-                    isList={true}
-                    expanded={expandedMineStore}
-                    cardWidthFreeBarber={cardWidthFreeBarber}
-                    onPressUpdate={(barber) => onOpenPanel(barber.id)}
-                />
+
+                <View key={freeBarber?.id}>
+                    <FreeBarberMineCardComp
+                        freeBarber={freeBarber as FreeBarberPanelDto}
+                        isList={isList}
+                        expanded={expandedMineStore}
+                        cardWidthFreeBarber={cardWidthFreeBarber}
+                        onPressUpdate={(barber) => onOpenPanel(barber.id)}
+                    />
+                </View>
+
             )}
         </>
     );

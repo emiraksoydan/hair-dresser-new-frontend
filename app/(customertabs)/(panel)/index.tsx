@@ -14,7 +14,6 @@ import { StoreCardInner } from "../../components/storecard";
 import FormatListButton from "../../components/formatlistbutton";
 import FilterButton from "../../components/filterbutton";
 import MotiViewExpand from "../../components/motiviewexpand";
-import { LottieViewComponent } from "../../components/lottieview";
 import { FilterBottomSheet } from "../../components/filterbottomsheet";
 import { FreeBarberCardInner } from "../../components/freebarbercard";
 import { EmptyState } from "../../components/emptystateresult";
@@ -47,12 +46,21 @@ const Index = () => {
     const hasStores = (stores ?? []).length > 0;
     const hasFreeBarbers = (freeBarbers ?? []).length > 0;
     const router = useRouter();
+
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
             pathname: "/store/[storeId]",
             params: { storeId: store.id, },
         });
     }, [router]);
+
+    const goFreeBarberDetail = useCallback((freeBarber: FreeBarGetDto) => {
+        router.push({
+            pathname: "/freebarber/[freeBarberId]",
+            params: { freeBarberId: freeBarber.id, },
+        });
+    }, [router]);
+
 
     const renderStoreItem = useCallback(
         ({ item }: { item: BarberStoreGetDto }) => (
@@ -73,6 +81,8 @@ const Index = () => {
                 isList={isList}
                 expanded={expandedFreeBarber}
                 cardWidthFreeBarber={cardWidthFreeBarber}
+                onPressUpdate={goFreeBarberDetail}
+
             />
         ),
         [isList, expandedFreeBarber, cardWidthFreeBarber]

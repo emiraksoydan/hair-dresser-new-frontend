@@ -129,9 +129,7 @@ export function useNearbyControl({
         const id = setInterval(() => {
             const pos = lastKnownPos.current;
             if (!pos) return;
-
-            const age = Date.now() - lastFetchTime.current;
-            if (age >= hardRefreshMs) handleFetch(pos.lat, pos.lon);
+            handleFetch(pos.lat, pos.lon);
         }, hardRefreshMs);
 
         return () => clearInterval(id);

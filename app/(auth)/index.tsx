@@ -126,6 +126,7 @@ const Index = () => {
             //     setSnackText(res.message);
             // }
         } catch (err: any) {
+            console.log("🔴 SEND OTP HATASI:", JSON.stringify(err, null, 2));
             setSnackText(err.data.message);
             setSnackVisible(true);
         }
@@ -136,11 +137,12 @@ const Index = () => {
         return `${m}:${s}`;
     }, [left]);
     const doVerify = async (code: string) => {
+
         try {
             const f = getValues();
             // const result = await verifyOtp({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login' }).unwrap();
 
-            const result = await sendPassword({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login' }).unwrap();
+            const result = await sendPassword({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login', password: '1234', }).unwrap();
             if (result.success === true) {
                 tokenStore.set({
                     accessToken: result?.data?.token!,
@@ -158,6 +160,8 @@ const Index = () => {
                 setSnackVisible(true);
             }
         } catch (err: any) {
+
+            console.log("🔴 DO VERIFY HATASI:", JSON.stringify(err, null, 2));
             setSnackText(err?.data?.message ?? 'Hata oluştu');
             setSnackVisible(true);
         }

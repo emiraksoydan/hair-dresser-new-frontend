@@ -6,7 +6,7 @@ const FilterButton = ({ onPress }: OnPressProps) => {
     return (
         <IconButton
             icon="filter-variant"
-            iconColor="#c2a523"
+            iconColor="#f05e23"
             size={24}
             containerColor="#202123"
             style={{

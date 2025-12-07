@@ -11,15 +11,18 @@ type Props = {
     expanded: boolean;
     cardWidthFreeBarber: number;
     onPressUpdate?: (freeBarber: FreeBarGetDto) => void;
+    mode?: 'default' | 'barbershop';
 
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate }) => {
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
+
+    console.log(freeBarber);
+    const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = () => {
         onPressUpdate?.(freeBarber);
     };
-
     return (
         <View
             style={{ width: cardWidthFreeBarber }}
@@ -36,9 +39,39 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                 ? { uri: coverImage }
                                 : require('../../assets/images/empty.png')
                         }
-
                         resizeMode={'cover'}
                     />
+                    <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
+                        <TouchableOpacity
+                            onPress={() => { }}
+                            className={` ${freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7]' : 'bg-[#ff69b4]'}  flex-row items-center px-2 py-2 rounded-full shadow-sm`}
+                            style={{ elevation: 5 }}
+                        >
+                            <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                {freeBarber.type == BarberType.MaleHairdresser ? "Erkek" : "Kadın"}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => { }}
+                            className={`  ${isAvailable ? 'bg-[#2e6a45]' : 'bg-[#b24949]'}  flex-row items-center px-2 py-2 rounded-full shadow-sm`}
+                            style={{ elevation: 5 }}
+                        >
+                            <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                {isAvailable ? "Müsait" : "Meşgul"}
+                            </Text>
+                        </TouchableOpacity>
+                        {mode === 'barbershop' && isAvailable && (
+                            <TouchableOpacity
+                                onPress={() => { }}
+                                className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
+                                style={{ elevation: 5 }}
+                            >
+                                <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                    Berberi Çağır
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </TouchableOpacity>
                 <View className="flex-1 relative">
                     <View

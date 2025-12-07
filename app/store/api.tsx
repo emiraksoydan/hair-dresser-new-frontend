@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
+import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
@@ -71,6 +71,15 @@ export const api = createApi({
             query: (dto) => ({ url: 'FreeBarber/update-free-barber', method: 'PUT', body: dto }),
             invalidatesTags: ['MineFreeBarberPanel'],
         }),
+        updateFreeBarberLocation: builder.mutation<ApiResponse<string>, UpdateLocationDto>({
+            query: (body) => ({
+                url: 'FreeBarber/update-location',
+                method: 'POST',
+                body: body,
+            }),
+            invalidatesTags: ['MineFreeBarberPanel'],
+
+        }),
         getNearbyFreeBarber: builder.query<FreeBarGetDto[], NearbyRequest>({
             query: ({ lat, lon, radiusKm = 1 }) => ({
                 url: 'FreeBarber/nearby',
@@ -78,6 +87,7 @@ export const api = createApi({
                 params: { lat, lon, radiusKm },
             }),
             keepUnusedDataFor: 0,
+
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
@@ -92,6 +102,9 @@ export const api = createApi({
             query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
             keepUnusedDataFor: 0,
         }),
+
+
+
         /// Manuel Barber Api
         addManuelBarber: builder.mutation<
             { message: string; success: boolean },
@@ -201,4 +214,5 @@ export const {
     useGetStoreForUsersQuery,
     useGetWorkingHoursByTargetQuery,
     useGetFreeBarberForUsersQuery,
+    useUpdateFreeBarberLocationMutation,
 } = api;

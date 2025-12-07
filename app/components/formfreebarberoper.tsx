@@ -53,8 +53,8 @@ const FreeBarberFileField = z
     .pipe(PdfAssetSchema);
 
 const schema = z.object({
-    name: z.string().trim().min(1, "İsim zorunludur"),
-    surname: z.string().trim().min(1, "Soyisim zorunludur"),
+    name: z.string({ required_error: 'İsim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
+    surname: z.string({ required_error: 'Soyisim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
     image: z
         .object({
             uri: z.string().min(1),
@@ -196,6 +196,16 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         const imageUrl = firstImage?.imageUrl;
 
         const taxPath = (data as any).barberCertificate as string | undefined;
+        let pdfName = "tax-document.pdf"; // Varsayılan isim
+        if (taxPath) {
+            const extractedName = taxPath.split("/").pop();
+            if (extractedName) {
+                // Eğer çekilen isim .pdf ile bitmiyorsa, biz ekleyelim ki Zod hata vermesin
+                pdfName = extractedName.toLowerCase().endsWith('.pdf')
+                    ? extractedName
+                    : `${extractedName}.pdf`;
+            }
+        }
         const initialOfferings = (data?.offerings ?? []).map((s: any) => s.serviceName);
         const initialPrices = (data?.offerings ?? []).reduce((acc: Record<string, string>, s: any) => {
             acc[s.serviceName] = String(s.price);
@@ -219,14 +229,20 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
             freeBarberFile: taxPath
                 ? {
                     uri: taxPath,
-                    name: taxPath.split("/").pop() ?? "tax-document.pdf",
+                    name: pdfName, // Düzeltilmiş ismi buraya veriyoruz
                     mimeType: "application/pdf",
                 }
-                : (undefined as any),
-            location: { latitude: 0, longitude: 0 },
+                : undefined,
+            location: {
+                latitude: (data as any)?.latitude ?? 0,
+                longitude: (data as any)?.longitude ?? 0
+            },
             offerings: initialOfferings,
             prices: initialPrices,
         });
+        if (!data?.latitude || data.latitude === 0)
+            setLocationNow();
+
     }, [data, isEdit, reset, getValues]);
 
     const effectiveType = selectedType ? selectedType : data?.type != null ? mapTypeToLabel(data.type) : undefined;
@@ -347,6 +363,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
             barberCertificate: form.freeBarberFile.uri,
             isAvailable: isEdit ? form.isAvailable : true,
         };
+        console.log(payload);
 
         try {
             const result = !isEdit ? await addFreeBarber(payload).unwrap() : await updateFreeBarber(payload).unwrap();
@@ -360,12 +377,15 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
             showSnack(resolveApiErrorMessage(error), true);
         }
     };
+    const onErrors = (errors: any) => {
+        console.log("🔴 VALIDATION HATALARI:", JSON.stringify(errors, null, 2));
+    };
 
     // Skeleton sadece edit + data gelene kadar
     const showSkeleton = isEdit && !data;
 
     return (
-        <View className="h-full bg-gray-900">
+        <View className="h-full">
             <View className="flex-row justify-between items-center px-4 py-2">
                 <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">
                     {!isEdit ? "Panel Oluştur" : "Panel Düzenleme"}
@@ -447,7 +467,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                         </View>
 
                         {/* Name / Surname */}
-                        <View className="px-4 mt-1 flex-row gap-3">
+                        <View className="px-4 mt-0 flex-row gap-3">
                             <View className="flex-1">
                                 <Controller
                                     control={control}
@@ -549,26 +569,48 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                                     render={({ field: { value, onChange } }) => (
                                         <>
                                             <MultiSelect
+
                                                 data={serviceOptions}
                                                 labelField="label"
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
                                                 onChange={onChange}
                                                 placeholder="Hizmet seçin"
+                                                dropdownPosition="top"
+                                                inside
+                                                alwaysRenderSelectedItem
+                                                visibleSelectedItem
                                                 style={{
                                                     backgroundColor: "#1F2937",
-                                                    borderColor: errors?.offerings ? "#b00020" : "#444",
+                                                    borderColor: errors.offerings ? "#b00020" : "#444",
                                                     borderWidth: 1,
                                                     borderRadius: 10,
                                                     paddingHorizontal: 12,
-                                                    paddingVertical: 12,
+                                                    paddingVertical: 8,
                                                 }}
-                                                containerStyle={{ backgroundColor: "#1F2937", borderColor: "#444", borderRadius: 10 }}
+                                                containerStyle={{
+                                                    backgroundColor: "#1F2937",
+                                                    borderWidth: 1,
+                                                    borderColor: '#444',
+                                                    borderRadius: 10,
+                                                    overflow: 'hidden',
+
+                                                }}
                                                 placeholderStyle={{ color: "gray" }}
                                                 selectedTextStyle={{ color: "white" }}
                                                 itemTextStyle={{ color: "white" }}
-                                                activeColor="#374151"
-                                                selectedStyle={{ borderRadius: 10, backgroundColor: "#374151", borderColor: "#0f766e" }}
+                                                activeColor="#0f766e"
+                                                selectedStyle={{
+                                                    borderRadius: 10,
+                                                    backgroundColor: "#374151",
+                                                    borderColor: "#0f766e",
+                                                    paddingHorizontal: 10,
+                                                    paddingVertical: 6,
+                                                    margin: 0,
+                                                }}
+                                                selectedTextProps={{ numberOfLines: 1 }}
+
+
                                             />
                                             <HelperText type="error" visible={!!errors.offerings}>
                                                 {errors.offerings?.message}
@@ -646,7 +688,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                             disabled={addFreeBarberLoad || updateFreeBarberLoad}
                             loading={addFreeBarberLoad || updateFreeBarberLoad}
                             mode="contained"
-                            onPress={handleSubmit(OnSubmit)}
+                            onPress={handleSubmit(OnSubmit, onErrors)}
                             buttonColor="#1F2937"
                             labelStyle={{ fontSize: 16 }}
                         >

@@ -16,11 +16,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery }) =>
                 backgroundColor: "#202123",
                 height: 38,
                 borderWidth: 1.5,
-                borderColor: isFocused ? "#c2a523" : "#2f3032",
+                borderColor: isFocused ? "#f05e23" : "#2f3032",
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            iconColor="#c2a523"
+            iconColor="#f05e23"
             inputStyle={{
                 fontSize: 14,
                 paddingVertical: 0,

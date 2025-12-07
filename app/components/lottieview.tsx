@@ -17,7 +17,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
     animationSize = 120,
 }) => {
     return (
-        <View className="items-center justify-start pt-4" style={style}>
+        <View className="items-center justify-center pt-4" style={style}>
             <LottieView
                 source={animationSource}
                 autoPlay

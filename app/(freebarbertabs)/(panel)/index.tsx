@@ -17,10 +17,13 @@ import { StoreCardInner } from '../../components/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BarberStoreGetDto } from '../../types';
 import { FreeBarberPanelSection } from '../../components/freebarberpanelsection';
+import { EmptyState } from '../../components/emptystateresult';
+import { useRouter } from 'expo-router';
 
 const Index = () => {
 
-    const { stores, loading, error: storeError, locationStatus, locationMessage } = useNearbyStores(true);
+    const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce } = useNearbyStores(true);
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
     const { present } = useSheet('freeBarberFilter');
@@ -49,6 +52,13 @@ const Index = () => {
         freeBarberPanel();
     }, [freeBarberPanel]);
 
+    const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
+        router.push({
+            pathname: "/store/[storeId]",
+            params: { storeId: store.id, },
+        });
+    }, [router]);
+
     const renderItem = useCallback(
         ({ item }: { item: BarberStoreGetDto }) => (
             <StoreCardInner
@@ -57,6 +67,7 @@ const Index = () => {
                 expanded={expandedStoreBarber}
                 cardWidthStore={cardWidthStores}
                 isViewerFromFreeBr={true}
+                onPressUpdate={goStoreDetail}
             />
         ),
         [isList, expandedStoreBarber, cardWidthStores]
@@ -80,6 +91,7 @@ const Index = () => {
                 ListHeaderComponent={
                     <>
                         <FreeBarberPanelSection
+                            isList={isList}
                             locationStatus={locationStatus}
                             locationMessage={locationMessage}
                             onOpenPanel={handleOpenPanel}
@@ -103,10 +115,6 @@ const Index = () => {
                                     <SkeletonComponent key={i} />
                                 ))}
                             </View>
-                        ) : !hasStoreBarbers ? (
-                            <LottieViewComponent message='Yakınında şu an listelenecek serbest berber bulunamadı.' ></LottieViewComponent>
-                        ) : locationStatus === 'denied' ? (
-                            <LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage} ></LottieViewComponent>
                         ) : storeError ? (
                             <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(storeError)} ></LottieViewComponent>
                         ) : (
@@ -129,6 +137,9 @@ const Index = () => {
                                     paddingTop: hasStoreBarbers ? 8 : 0,
                                     paddingBottom: 8,
                                 }}
+                                ListEmptyComponent={() => (
+                                    <EmptyState loading={loading} hasLocation={hasLocation} locationStatus={locationStatus} fetchedOnce={fetchedOnce} hasData={hasStoreBarbers} noResultText="Yakınınızda dükkan bulunamadı" ></EmptyState>
+                                )}
                             />
                         )}
                     </>

@@ -3,14 +3,14 @@ import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, BarberStoreMineDto, FreeBarberMinePanelDto } from '../types'; // kendi path’ine göre düzelt
+import { BarberType, BarberStoreMineDto, FreeBarberPanelDto } from '../types'; // kendi path’ine göre düzelt
 
 type Props = {
-    freeBarber: FreeBarberMinePanelDto;
+    freeBarber: FreeBarberPanelDto;
     isList: boolean;
     expanded: boolean;
     cardWidthFreeBarber: number;
-    onPressUpdate?: (store: FreeBarberMinePanelDto) => void;
+    onPressUpdate?: (store: FreeBarberPanelDto) => void;
 
 };
 

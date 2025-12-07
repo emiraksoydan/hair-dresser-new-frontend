@@ -1,8 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
 import { Stack } from 'expo-router'
 
-const FreeBarberLayout = () => {
+const ProfileLayout = () => {
     return (
         <Stack screenOptions={{
             headerShown: false,
@@ -13,5 +11,5 @@ const FreeBarberLayout = () => {
     )
 }
 
-export default FreeBarberLayout
+export default ProfileLayout
 
