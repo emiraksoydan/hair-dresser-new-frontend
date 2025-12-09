@@ -4,12 +4,19 @@ import { Icon, IconButton } from 'react-native-paper';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import FormStoreAdd from '../components/formstoreadd';
 import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
+import { useGetBadgeCountsQuery } from '../store/api';
+import { BadgeIconButton } from '../components/badgeiconbutton';
+import { NotificationsSheet } from '../components/notificationdetail';
 
 const BarberStoreLayout = () => {
 
-    const { width } = Dimensions.get('window');
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present } = useSheet('addStore');
+    const { present: presentNoti, dismiss: dismissNoti } = useSheet("notifications");
+
+    const { data: badge } = useGetBadgeCountsQuery();
+    const unreadNoti = badge?.unreadNotifications ?? 0;
+    const unreadMsg = badge?.unreadMessages ?? 0;
 
     return (
         <>
@@ -60,12 +67,12 @@ const BarberStoreLayout = () => {
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
                                 </TouchableOpacity>
-                                <IconButton
+                                <BadgeIconButton
                                     icon="bell-outline"
-                                    iconColor='white'
+                                    iconColor="white"
                                     size={20}
-                                    onPress={() => console.log('Zil tıklandı')}
-                                    style={{ marginRight: 14 }}
+                                    badgeCount={unreadNoti}
+                                    onPress={presentNoti}
                                 />
                             </View>
                         ),
@@ -108,12 +115,12 @@ const BarberStoreLayout = () => {
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
                                 </TouchableOpacity>
-                                <IconButton
+                                <BadgeIconButton
                                     icon="bell-outline"
-                                    iconColor='white'
+                                    iconColor="white"
                                     size={20}
-                                    onPress={() => console.log('Zil tıklandı')}
-                                    style={{ marginRight: 14 }}
+                                    badgeCount={unreadNoti}
+                                    onPress={presentNoti}
                                 />
                             </View>
                         ),
@@ -133,11 +140,12 @@ const BarberStoreLayout = () => {
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
-                            <IconButton
-                                icon={focused ? 'message' : 'message-outline'}
-                                iconColor={focused ? '#f05e23' : '#38393b'}
+                            <BadgeIconButton
+                                icon={focused ? "message" : "message-outline"}
+                                iconColor={focused ? "#f05e23" : "#38393b"}
                                 size={30}
-                                style={{ margin: 0, }}
+                                badgeCount={unreadMsg}
+                                onPress={undefined} // tab zaten navigation yapıyor
                             />
                         ),
                         tabBarLabel: ({ focused }) => (
@@ -156,12 +164,12 @@ const BarberStoreLayout = () => {
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
                                 </TouchableOpacity>
-                                <IconButton
+                                <BadgeIconButton
                                     icon="bell-outline"
-                                    iconColor='white'
+                                    iconColor="white"
                                     size={20}
-                                    onPress={() => console.log('Zil tıklandı')}
-                                    style={{ marginRight: 14 }}
+                                    badgeCount={unreadNoti}
+                                    onPress={presentNoti}
                                 />
                             </View>
                         ),
@@ -204,12 +212,12 @@ const BarberStoreLayout = () => {
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
                                 </TouchableOpacity>
-                                <IconButton
+                                <BadgeIconButton
                                     icon="bell-outline"
-                                    iconColor='white'
+                                    iconColor="white"
                                     size={20}
-                                    onPress={() => console.log('Zil tıklandı')}
-                                    style={{ marginRight: 14 }}
+                                    badgeCount={unreadNoti}
+                                    onPress={presentNoti}
                                 />
                             </View>
                         ),
@@ -252,12 +260,12 @@ const BarberStoreLayout = () => {
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
                                 </TouchableOpacity>
-                                <IconButton
+                                <BadgeIconButton
                                     icon="bell-outline"
-                                    iconColor='white'
+                                    iconColor="white"
                                     size={20}
-                                    onPress={() => console.log('Zil tıklandı')}
-                                    style={{ marginRight: 14 }}
+                                    badgeCount={unreadNoti}
+                                    onPress={presentNoti}
                                 />
                             </View>
                         ),
@@ -265,7 +273,19 @@ const BarberStoreLayout = () => {
                     }}
                 />
             </Tabs>
-
+            <BottomSheetModal
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                ref={(inst) => setRef("notifications", inst)}
+                snapPoints={["85%"]}
+                enableOverDrag={false}
+                enablePanDownToClose
+            >
+                <BottomSheetView style={{ flex: 1, paddingTop: 8 }}>
+                    <NotificationsSheet onClose={dismissNoti} />
+                </BottomSheetView>
+            </BottomSheetModal>
             <BottomSheetModal
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}

@@ -410,7 +410,7 @@ export type BadgeCount = {
   unreadNotifications: number;
   unreadMessages: number;
 }
-export interface NotificationDto {
+export type NotificationDto = {
   id: string;
   type: NotificationType;
   appointmentId?: string | null;

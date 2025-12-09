@@ -1,76 +1,84 @@
-import { useEffect, useRef } from 'react';
-import * as SignalR from '@microsoft/signalr';
-import { useDispatch } from 'react-redux';
-import { api } from '../store/api';
-import { BadgeCount } from '../types'; // BadgeCountDto olarak import edildiğinden emin olun
-import { tokenStore } from '../lib/tokenStore';
-import { AppDispatch } from '../store/redux-store'; // Dispatch tipini buradan çekiyoruz
+import "react-native-url-polyfill/auto";
+import { useEffect, useRef } from "react";
+import * as SignalR from "@microsoft/signalr";
+import { useDispatch } from "react-redux";
+import { api } from "../store/api";
+import { tokenStore } from "../lib/tokenStore";
+import type { AppDispatch } from "../store/redux-store";
+import type { BadgeCount, NotificationDto } from "../types";
 
-const HUB_URL = 'http://192.168.1.35:5000/hubs/app';
+const HUB_URL = "http://192.168.1.35:5000/hubs/app";
 
 export const useSignalR = () => {
+    const dispatch = useDispatch<AppDispatch>();
     const connectionRef = useRef<SignalR.HubConnection | null>(null);
 
-    // DÜZELTME 1: useDispatch'e AppDispatch tipini vererek Thunk kullanımını desteklemesini sağlıyoruz.
-    const dispatch = useDispatch<AppDispatch>();
-
     useEffect(() => {
-        let isMounted = true;
+        let stopped = false;
 
-        const startConnection = async () => {
-            // DÜZELTME 2: tokenStore.access bir getter olduğu için () kaldırıldı.
-            // Eğer promise dönüyorsa 'await' kalabilir, dönmüyorsa 'await'i de kaldırabilirsiniz.
-            const token = tokenStore.access;
-
-            if (!token) return;
+        const start = async () => {
+            const initialToken = tokenStore.access;
+            if (!initialToken) return;
 
             const connection = new SignalR.HubConnectionBuilder()
                 .withUrl(HUB_URL, {
-                    accessTokenFactory: () => token,
+                    transport: SignalR.HttpTransportType.WebSockets,
+                    skipNegotiation: true,
+                    accessTokenFactory: async () => tokenStore.access ?? "",
                 })
-                .withAutomaticReconnect()
+                .withAutomaticReconnect([0, 2000, 10000, 30000])
                 .configureLogging(SignalR.LogLevel.Information)
                 .build();
 
-            // --- EVENT HANDLERS ---
-
-            // 1. Badge Güncellemesi
-            connection.on('badge.updated', (data: BadgeCount) => {
-                console.log('SignalR: Badge updated', data);
-                // Dispatch artık Thunk action'ı kabul edecektir
+            connection.on("badge.updated", (data: BadgeCount) => {
+                dispatch(api.util.invalidateTags(["Badge"]));
                 dispatch(
-                    api.util.updateQueryData('getBadgeCounts', undefined, (draft) => {
+                    api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                        if (!draft) return;
                         draft.unreadMessages = data.unreadMessages;
                         draft.unreadNotifications = data.unreadNotifications;
                     })
                 );
             });
+            connection.on("notification.received", (dto: NotificationDto) => {
+                dispatch(
+                    api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+                        if (!draft) return;
+                        draft.unshift(dto); // isRead server’dan ne geldiyse o
+                    })
+                );
 
-            // 2. Yeni Bildirim
-            connection.on('notification.received', () => {
-                console.log('SignalR: Notification received');
-                dispatch(api.util.invalidateTags(['Notification', 'Badge']));
+                dispatch(api.util.invalidateTags(["Badge"])); // badge server hesaplıyor
             });
 
-            // 3. Yeni Chat Mesajı
-            connection.on('chat.message', () => {
-                dispatch(api.util.invalidateTags(['Chat', 'Badge']));
+
+            connection.on("chat.message", () => {
+                // Chat endpointlerin yoksa burada en azından badge garanti olsun
+                dispatch(api.util.invalidateTags(["Badge"]));
             });
 
             try {
                 await connection.start();
-                console.log('SignalR Connected via Hook');
+                if (stopped) {
+                    await connection.stop();
+                    return;
+                }
                 connectionRef.current = connection;
-            } catch (err) {
-                console.error('SignalR Connection Error:', err);
+            } catch (e) {
+                console.error("SignalR start error:", e);
             }
         };
 
-        startConnection();
+        start();
 
         return () => {
-            isMounted = false;
-            connectionRef.current?.stop();
+            stopped = true;
+            const c = connectionRef.current;
+            c?.off("badge.updated");
+            c?.off("notification.received");
+            c?.off("chat.message");
+            c?.stop();
+            connectionRef.current = null;
         };
     }, [dispatch]);
 };

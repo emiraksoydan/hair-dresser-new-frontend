@@ -17,12 +17,11 @@ import {
 import { BottomSheetRegistryProvider } from './context/bottomsheet';
 import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
+import { useSignalR } from './hook/useSignalR';
 
 
 SplashScreen.preventAutoHideAsync();
 const RootLayout = () => {
-  // clearStoredTokens();
-  // tokenStore.clear();
   const [ready, setReady] = useState(false);
   useEffect(() => {
     (async () => {
@@ -39,6 +38,7 @@ const RootLayout = () => {
         <PaperProvider>
           <BottomSheetRegistryProvider>
             <BottomSheetModalProvider>
+              <SignalRBootstrap />
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -59,6 +59,11 @@ const RootLayout = () => {
     </ReduxProvider>
 
   )
+}
+
+function SignalRBootstrap() {
+  useSignalR();
+  return null;
 }
 
 export default RootLayout
