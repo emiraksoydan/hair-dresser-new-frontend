@@ -4,7 +4,7 @@ import { tokenStore } from '../lib/tokenStore';
 import { saveTokens, clearStoredTokens, loadTokens } from '../lib/tokenStorage';
 import { jwtDecode } from 'jwt-decode';
 
-export const API = 'http://192.168.1.101:5149/api/';
+export const API = process.env.EXPO_PUBLIC_API_URL;
 
 type Decoded = { exp?: number };
 
@@ -24,7 +24,6 @@ function extractTokens(body: any) {
 export const isExpired = (access: string, skewMs = 30_000) => {
   try {
     const { exp } = jwtDecode<Decoded>(access) || {};
-    console.log(exp);
     if (!exp) return true;
     return exp * 1000 <= Date.now() + skewMs;
   } catch {
