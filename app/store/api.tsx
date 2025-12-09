@@ -1,11 +1,11 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
+import { AccessTokenDto, ApiResponse, BadgeCount, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, NotificationDto, OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat"],
     refetchOnReconnect: true,
     endpoints: (builder) => ({
 
@@ -186,6 +186,34 @@ export const api = createApi({
             keepUnusedDataFor: 0,
         }),
 
+        // Notification
+        getBadgeCounts: builder.query<BadgeCount, void>({
+            query: () => 'Badge',
+            providesTags: ['Badge'],
+        }),
+        getAllNotifications: builder.query<NotificationDto[], void>({
+            query: () => 'Notification',
+            providesTags: (result) =>
+                result
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'Notification' as const, id })),
+                        { type: 'Notification', id: 'LIST' },
+                    ]
+                    : [{ type: 'Notification', id: 'LIST' }],
+        }),
+
+        markNotificationRead: builder.mutation<void, string>({
+            query: (id) => ({
+                url: `Notification/read/${id}`,
+                method: 'POST',
+            }),
+            // Bildirim okununca hem listeyi hem de badge sayısını yenile
+            invalidatesTags: (result, error, id) => [
+                { type: 'Notification', id },
+                'Badge'
+            ],
+        }),
+
     }),
 });
 export const {
@@ -215,4 +243,7 @@ export const {
     useGetWorkingHoursByTargetQuery,
     useGetFreeBarberForUsersQuery,
     useUpdateFreeBarberLocationMutation,
+    useGetBadgeCountsQuery,
+    useGetAllNotificationsQuery,
+    useMarkNotificationReadMutation,
 } = api;
