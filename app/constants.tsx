@@ -23,9 +23,6 @@ export const SERVICE_BY_TYPE: Record<string, { label: string; value: string }[]>
         { label: "Fön", value: "blowdry" },
         { label: "Boya", value: "color" },
         { label: "Kesim", value: "cut" },
-        { label: "Kasdasesim", value: "asdacut" },
-        { label: "asdasdasdasd", value: "asdasdasdasdacut" },
-
     ],
     BeautySalon: [
         { label: "Manikür", value: "manicure" },

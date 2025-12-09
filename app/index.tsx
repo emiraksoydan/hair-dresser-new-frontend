@@ -8,7 +8,6 @@ export default function Index() {
   const [target, setTarget] = useState<string>('/(auth)');
   useEffect(() => {
     const t = tokenStore.access;
-    console.log(t);
     if (!t) { setTarget('/(auth)'); return; }
     const userType = getUserTypeFromToken(t);
     setTarget(pathByUserType(userType));

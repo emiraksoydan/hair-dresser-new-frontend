@@ -21,8 +21,6 @@ import { tokenStore } from './lib/tokenStore';
 
 SplashScreen.preventAutoHideAsync();
 const RootLayout = () => {
-  // clearStoredTokens();
-  // tokenStore.clear();
   const [ready, setReady] = useState(false);
   useEffect(() => {
     (async () => {
