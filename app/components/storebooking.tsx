@@ -2,11 +2,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Icon } from "react-native-paper";
-import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery } from "../store/api";
-import { ChairSlotDto } from "../types";
+import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation, useLazyGetNearbyFreeBarberQuery } from "../store/api";
+import { ChairSlotDto, UserType, JwtPayload, FreeBarGetDto } from "../types";
 import { getBarberTypeName } from "../utils/barber-type";
 import FilterChip from "../components/filter-chip";
 import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../utils/time-helper";
+import { tokenStore } from "../lib/tokenStore";
+import { jwtDecode } from "jwt-decode";
+import { useNearbyFreeBarber } from "../hook/useNearByFreeBarber";
 
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
 interface Props {
@@ -21,6 +24,29 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
     const { data: storeData } = useGetStoreForUsersQuery(storeId, { skip: !storeId });
     const { data: workingHours } = useGetWorkingHoursByTargetQuery(storeId, { skip: !storeId });
     const router = useRouter();
+    const [createCustomerAppointment, { isLoading: isCreatingCustomer }] = useCreateCustomerAppointmentMutation();
+    const [createFreeBarberAppointment, { isLoading: isCreatingFreeBarber }] = useCreateFreeBarberAppointmentMutation();
+    const [createStoreAppointment, { isLoading: isCreatingStore }] = useCreateStoreAppointmentMutation();
+
+    const currentUserType = useMemo(() => {
+        const token = tokenStore.access;
+        if (!token) return null;
+        try {
+            const decoded = jwtDecode<JwtPayload>(token);
+            const ut = decoded.userType?.toLowerCase();
+            if (ut === 'customer') return UserType.Customer;
+            if (ut === 'freebarber') return UserType.FreeBarber;
+            if (ut === 'barberstore') return UserType.BarberStore;
+            return null;
+        } catch {
+            return null;
+        }
+    }, [tokenStore.access]);
+
+    // Müşteri için freebarber seçimi
+    const [selectedFreeBarberId, setSelectedFreeBarberId] = useState<string | null>(null);
+    const { freeBarbers, loading: freeBarbersLoading, hasLocation, locationStatus } = useNearbyFreeBarber(isCustomer && !selectedFreeBarberId);
+    const [showFreeBarberSelection, setShowFreeBarberSelection] = useState(false);
 
 
     // day selection
@@ -196,6 +222,94 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                         <Text className="text-white font-ibm-plex-sans-regular mt-3 text-xl">Randevu Al</Text>
                     </View>
 
+                    {/* Müşteri için FreeBarber Seçimi */}
+                    {isCustomer && currentUserType === UserType.Customer && (
+                        <View className="gap-2">
+                            {!selectedFreeBarberId ? (
+                                <>
+                                    <Text className="text-white font-ibm-plex-sans-medium text-base">
+                                        Serbest Berber Seçin (Opsiyonel)
+                                    </Text>
+                                    <TouchableOpacity
+                                        onPress={() => setShowFreeBarberSelection(!showFreeBarberSelection)}
+                                        className="bg-gray-800 rounded-xl p-3 flex-row items-center justify-between"
+                                    >
+                                        <Text className="text-gray-300 font-ibm-plex-sans-regular">
+                                            {showFreeBarberSelection ? "Berber Seçimini Gizle" : "Berber Seç"}
+                                        </Text>
+                                        <Icon source={showFreeBarberSelection ? "chevron-up" : "chevron-down"} size={20} color="white" />
+                                    </TouchableOpacity>
+                                    {showFreeBarberSelection && (
+                                        <View className="bg-gray-800 rounded-xl p-3 max-h-[300px]">
+                                            {freeBarbersLoading ? (
+                                                <ActivityIndicator />
+                                            ) : !hasLocation ? (
+                                                <Text className="text-gray-400 text-center">Konum izni gerekli</Text>
+                                            ) : freeBarbers.length === 0 ? (
+                                                <Text className="text-gray-400 text-center">Yakınlarda serbest berber bulunamadı</Text>
+                                            ) : (
+                                                <FlatList
+                                                    data={freeBarbers}
+                                                    keyExtractor={(item) => item.id}
+                                                    renderItem={({ item }) => (
+                                                        <TouchableOpacity
+                                                            onPress={() => {
+                                                                setSelectedFreeBarberId(item.id);
+                                                                setShowFreeBarberSelection(false);
+                                                            }}
+                                                            className="bg-gray-700 rounded-lg p-3 mb-2 flex-row items-center gap-3"
+                                                        >
+                                                            {item.imageList?.[0]?.imageUrl && (
+                                                                <Image
+                                                                    source={{ uri: item.imageList[0].imageUrl }}
+                                                                    className="w-12 h-12 rounded-full"
+                                                                />
+                                                            )}
+                                                            <View className="flex-1">
+                                                                <Text className="text-white font-ibm-plex-sans-medium">
+                                                                    {item.fullName}
+                                                                </Text>
+                                                                <View className="flex-row items-center gap-2 mt-1">
+                                                                    <Icon source="star" size={14} color="#FFA500" />
+                                                                    <Text className="text-gray-300 text-xs">
+                                                                        {item.rating.toFixed(1)} • {item.distanceKm.toFixed(1)} km
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                />
+                                            )}
+                                        </View>
+                                    )}
+                                </>
+                            ) : (
+                                <View className="bg-green-600/20 rounded-xl p-3 flex-row items-center justify-between">
+                                    <View className="flex-row items-center gap-3 flex-1">
+                                        {freeBarbers.find(fb => fb.id === selectedFreeBarberId)?.imageList?.[0]?.imageUrl && (
+                                            <Image
+                                                source={{ uri: freeBarbers.find(fb => fb.id === selectedFreeBarberId)!.imageList![0].imageUrl }}
+                                                className="w-10 h-10 rounded-full"
+                                            />
+                                        )}
+                                        <View className="flex-1">
+                                            <Text className="text-white font-ibm-plex-sans-medium">
+                                                {freeBarbers.find(fb => fb.id === selectedFreeBarberId)?.fullName || "Serbest Berber"}
+                                            </Text>
+                                            <Text className="text-gray-300 text-xs">Seçildi</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedFreeBarberId(null)}
+                                        className="bg-red-600 rounded-lg px-3 py-1"
+                                    >
+                                        <Text className="text-white text-xs">Kaldır</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                     {/* DAYS */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View className="flex-row gap-3">
@@ -370,7 +484,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
 
                     <TouchableOpacity
-                        disabled={!canSubmit}
+                        disabled={!canSubmit || isCreatingCustomer || isCreatingFreeBarber || isCreatingStore}
                         className={`py-3 flex-row justify-center gap-2 rounded-xl mt-0 items-center ${(!canSubmit) ? "bg-[#4b5563] opacity-60" : "bg-[#22c55e] opacity-100"}`}
                         onPress={async () => {
                             try {
@@ -385,18 +499,51 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 const start = sorted[0];
                                 const end = addMinutesToHHmm(start, sorted.length * 60);
 
-                                const startIso = toLocalIso(selectedDateOnly, start);
-                                const endIso = toLocalIso(selectedDateOnly, end);
+                                // TimeSpan format: "HH:mm:ss"
+                                const startTime = `${start}:00`;
+                                const endTime = `${end}:00`;
 
+                                const appointmentData = {
+                                    storeId: storeId,
+                                    chairId: selectedChair.chairId,
+                                    appointmentDate: selectedDateOnly,
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    serviceOfferingIds: selectedServices,
+                                    freeBarberUserId: selectedFreeBarberId || null,
+                                    requestLatitude: storeData?.latitude ?? null,
+                                    requestLongitude: storeData?.longitude ?? null,
+                                };
 
+                                let result;
+                                if (isCustomer || currentUserType === UserType.Customer) {
+                                    result = await createCustomerAppointment(appointmentData).unwrap();
+                                } else if (isFreeBarber || currentUserType === UserType.FreeBarber) {
+                                    result = await createFreeBarberAppointment(appointmentData).unwrap();
+                                } else if (currentUserType === UserType.BarberStore) {
+                                    result = await createStoreAppointment(appointmentData).unwrap();
+                                } else {
+                                    Alert.alert("Hata", "Kullanıcı tipi belirlenemedi.");
+                                    return;
+                                }
 
-                                Alert.alert("Özet", `${startIso} → ${endIso}\nHizmet: ${selectedServices.length} adet\nTutar: ${totalPrice} TL`);
+                                if (result.success) {
+                                    Alert.alert("Başarılı", "Randevunuz oluşturuldu!", [
+                                        { text: "Tamam", onPress: () => router.back() }
+                                    ]);
+                                } else {
+                                    Alert.alert("Hata", result.message ?? "Randevu oluşturulamadı.");
+                                }
                             } catch (e: any) {
                                 Alert.alert("Hata", e?.data?.message ?? e?.message ?? "İşlem başarısız.");
                             }
                         }}
                     >
-                        <Icon source="location-enter" size={18} color="white" />
+                        {(isCreatingCustomer || isCreatingFreeBarber || isCreatingStore) ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Icon source="location-enter" size={18} color="white" />
+                        )}
                         <Text className="text-white font-ibm-plex-sans-regular text-base">Randevu Al</Text>
                     </TouchableOpacity>
                 </View>
