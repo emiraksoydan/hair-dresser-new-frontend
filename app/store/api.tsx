@@ -1,11 +1,11 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from './baseQuery';
-import { AccessTokenDto, ApiResponse, BadgeCount, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, NotificationDto, OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto } from '../types';
+import { AccessTokenDto, ApiResponse, BadgeCount, BarberChairCreateDto, BarberChairUpdateDto, BarberStoreCreateDto, BarberStoreDetail, BarberStoreGetDto, BarberStoreMineDto, BarberStoreUpdateDto, ChairSlotDto, CreateAppointmentRequestDto, FreeBarberCreateDto, FreeBarberMinePanelDetailDto, FreeBarberPanelDto, FreeBarberUpdateDto, FreeBarGetDto, ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, NotificationDto, OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto, AppointmentDto, ChatThreadListItemDto, ChatMessageItemDto, ChatMessageDto } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment"],
     refetchOnReconnect: true,
     endpoints: (builder) => ({
 
@@ -43,7 +43,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, radiusKm },
             }),
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 60, // Cache for 60 seconds
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
@@ -52,7 +52,7 @@ export const api = createApi({
         }),
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 60, // Cache for 60 seconds
             providesTags: ['GetStoreById'],
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
@@ -86,8 +86,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, radiusKm },
             }),
-            keepUnusedDataFor: 0,
-
+            keepUnusedDataFor: 60, // Cache for 60 seconds
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
@@ -214,6 +213,80 @@ export const api = createApi({
             ],
         }),
 
+        // Appointment Api
+        createCustomerAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
+            query: (body) => ({ url: 'Appointment/customer', method: 'POST', body }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        createFreeBarberAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
+            query: (body) => ({ url: 'Appointment/freebarber', method: 'POST', body }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        createStoreAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
+            query: (body) => ({ url: 'Appointment/store', method: 'POST', body }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        storeDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
+            query: ({ appointmentId, approve }) => ({
+                url: `Appointment/${appointmentId}/store-decision`,
+                method: 'POST',
+                params: { approve },
+            }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        freeBarberDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
+            query: ({ appointmentId, approve }) => ({
+                url: `Appointment/${appointmentId}/freebarber-decision`,
+                method: 'POST',
+                params: { approve },
+            }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        cancelAppointment: builder.mutation<ApiResponse<boolean>, string>({
+            query: (appointmentId) => ({
+                url: `Appointment/${appointmentId}/cancel`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+        completeAppointment: builder.mutation<ApiResponse<boolean>, string>({
+            query: (appointmentId) => ({
+                url: `Appointment/${appointmentId}/complete`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+        }),
+
+        // Chat Api
+        getChatThreads: builder.query<ChatThreadListItemDto[], void>({
+            query: () => 'Chat/threads',
+            providesTags: ['Chat'],
+            keepUnusedDataFor: 0,
+        }),
+        getChatMessages: builder.query<ChatMessageItemDto[], { appointmentId: string; before?: string }>({
+            query: ({ appointmentId, before }) => ({
+                url: `Chat/${appointmentId}/messages`,
+                method: 'GET',
+                params: before ? { before } : undefined,
+            }),
+            keepUnusedDataFor: 0,
+        }),
+        sendChatMessage: builder.mutation<ApiResponse<ChatMessageDto>, { appointmentId: string; text: string }>({
+            query: ({ appointmentId, text }) => ({
+                url: `Chat/${appointmentId}/message`,
+                method: 'POST',
+                body: { text },
+            }),
+            invalidatesTags: ['Chat', 'Badge'],
+        }),
+        markChatThreadRead: builder.mutation<ApiResponse<boolean>, string>({
+            query: (appointmentId) => ({
+                url: `Chat/${appointmentId}/read`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['Chat', 'Badge'],
+        }),
+
     }),
 });
 export const {
@@ -246,4 +319,15 @@ export const {
     useGetBadgeCountsQuery,
     useGetAllNotificationsQuery,
     useMarkNotificationReadMutation,
+    useCreateCustomerAppointmentMutation,
+    useCreateFreeBarberAppointmentMutation,
+    useCreateStoreAppointmentMutation,
+    useStoreDecisionMutation,
+    useFreeBarberDecisionMutation,
+    useCancelAppointmentMutation,
+    useCompleteAppointmentMutation,
+    useGetChatThreadsQuery,
+    useGetChatMessagesQuery,
+    useSendChatMessageMutation,
+    useMarkChatThreadReadMutation,
 } = api;

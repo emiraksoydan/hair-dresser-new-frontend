@@ -3,8 +3,9 @@ import type { BaseQueryFn, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { tokenStore } from '../lib/tokenStore';
 import { saveTokens, clearStoredTokens, loadTokens } from '../lib/tokenStorage';
 import { jwtDecode } from 'jwt-decode';
+import { API_CONFIG } from '../constants/api';
 
-export const API = 'http://192.168.1.101:5149/api/';
+export const API = API_CONFIG.BASE_URL;
 
 type Decoded = { exp?: number };
 
@@ -21,10 +22,9 @@ function extractTokens(body: any) {
 }
 
 
-export const isExpired = (access: string, skewMs = 30_000) => {
+export const isExpired = (access: string, skewMs = API_CONFIG.REFRESH_TOKEN_SKEW_MS) => {
   try {
     const { exp } = jwtDecode<Decoded>(access) || {};
-    console.log(exp);
     if (!exp) return true;
     return exp * 1000 <= Date.now() + skewMs;
   } catch {
@@ -52,7 +52,8 @@ let refreshing: Promise<any> | null = null;
 export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError> =
   async (args, api, extra) => {
     let res = await raw(args, api, extra);
-    if (res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498 && tokenStore.refresh) {
+    // Fix operator precedence: && has higher precedence than ||
+    if ((res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498) && tokenStore.refresh) {
       if (!refreshing) {
         refreshing = (async () => {
           try {

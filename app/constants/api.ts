@@ -1,0 +1,21 @@
+/**
+ * API-related constants
+ * Centralized API configuration
+ */
+
+export const API_CONSTANTS = {
+    BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.101:5149/api/',
+    SIGNALR_HUB_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://192.168.1.35:5000/hubs/app',
+
+    // Timeouts
+    REQUEST_TIMEOUT_MS: 30000,
+    REFRESH_TOKEN_SKEW_MS: 30000,
+
+    // Retry configuration
+    MAX_RETRIES: 3,
+    RETRY_DELAY_MS: 1000,
+} as const;
+
+// Backward compatibility
+export const API_CONFIG = API_CONSTANTS;
+

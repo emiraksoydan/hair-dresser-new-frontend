@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { StatusBar, View } from "react-native";
 
-import StoreBookingContent from "../../components/storebooking";
+import StoreBookingContent from "../../components/store/storebooking";
 
 
 

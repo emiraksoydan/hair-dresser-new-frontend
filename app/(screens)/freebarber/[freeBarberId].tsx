@@ -3,9 +3,9 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGetFreeBarberForUsersQuery } from '../../store/api';
 import { Icon } from 'react-native-paper';
-import FilterChip from '../../components/filter-chip';
-import { getBarberTypeName } from '../../utils/barber-type';
-import FreeBarberBookingContent from '../../components/freebarberbooking';
+import FilterChip from '../../components/common/filter-chip';
+import { getBarberTypeName } from '../../utils/store/barber-type';
+import FreeBarberBookingContent from '../../components/freebarber/freebarberbooking';
 
 const FreeBarberDetail = () => {
 

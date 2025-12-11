@@ -2,26 +2,26 @@ import { Text, View, Dimensions, FlatList, TouchableOpacity, Image } from "react
 import { useCallback, useMemo, useState } from "react";
 import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
-import { SkeletonComponent } from "../../components/skeleton";
-import SearchBar from "../../components/searchbar";
+import { SkeletonComponent } from "../../components/common/skeleton";
+import SearchBar from "../../components/common/searchbar";
 import { toggleExpand } from "../../utils/expand-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
 import { useToggleList } from "../../utils/service-toggle";
 import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
-import { StoreCardInner } from "../../components/storecard";
-import FormatListButton from "../../components/formatlistbutton";
-import FilterButton from "../../components/filterbutton";
-import MotiViewExpand from "../../components/motiviewexpand";
-import { FilterBottomSheet } from "../../components/filterbottomsheet";
-import { FreeBarberCardInner } from "../../components/freebarbercard";
-import { EmptyState } from "../../components/emptystateresult";
+import { StoreCardInner } from "../../components/store/storecard";
+import FormatListButton from "../../components/common/formatlistbutton";
+import FilterButton from "../../components/common/filterbutton";
+import MotiViewExpand from "../../components/common/motiviewexpand";
+import { FilterBottomSheet } from "../../components/common/filterbottomsheet";
+import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard";
+import { EmptyState } from "../../components/common/emptystateresult";
 import { useRouter } from "expo-router";
 import { Icon, IconButton } from "react-native-paper";
 import MapView, { Marker } from "react-native-maps"; // Harita importları
 import { safeCoord } from "../../utils/geo"; // Geo yardımcı fonksiyon
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import StoreBookingContent from "../../components/storebooking";
-import FreeBarberBookingContent from "../../components/freebarberbooking";
+import StoreBookingContent from "../../components/store/storebooking";
+import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 
 const Index = () => {
     const { stores, loading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(true);

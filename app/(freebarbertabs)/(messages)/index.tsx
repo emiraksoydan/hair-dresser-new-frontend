@@ -1,13 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+/**
+ * Free barber messages page
+ * Uses shared MessageThreadList component
+ */
+import React from 'react';
+import { MessageThreadList } from '../../components/messages/MessageThreadList';
 
-const Index = () => {
+const FreeBarberMessagesPage = () => {
     return (
-        <View>
-            <Text>index</Text>
-        </View>
-    )
-}
+        <MessageThreadList
+            routePrefix="/(freebarbertabs)/(messages)"
+            iconSource="store"
+        />
+    );
+};
 
-export default Index
-
+export default FreeBarberMessagesPage;

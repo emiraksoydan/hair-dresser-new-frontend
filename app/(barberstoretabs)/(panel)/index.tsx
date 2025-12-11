@@ -3,30 +3,30 @@ import { Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
 
-import SearchBar from "../../components/searchbar";
-import FormatListButton from "../../components/formatlistbutton";
-import FilterButton from "../../components/filterbutton";
+import SearchBar from "../../components/common/searchbar";
+import FormatListButton from "../../components/common/formatlistbutton";
+import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 
 import { useToggleList } from "../../utils/service-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
-import MotiViewExpand from "../../components/motiviewexpand";
+import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/expand-toggle";
-import { SkeletonComponent } from "../../components/skeleton";
+import { SkeletonComponent } from "../../components/common/skeleton";
 
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
 import { useGetMineStoresQuery } from "../../store/api";
-import { FilterBottomSheet } from "../../components/filterbottomsheet";
-import FormStoreUpdate from "../../components/formstoreupdate";
-import { StoreMineCardComp } from "../../components/storeminecard";
-import { EmptyState } from "../../components/emptystateresult";
-import { FreeBarberCardInner } from "../../components/freebarbercard";
-import FreeBarberBookingContent from "../../components/freebarberbooking";
+import { FilterBottomSheet } from "../../components/common/filterbottomsheet";
+import FormStoreUpdate from "../../components/store/formstoreupdate";
+import { StoreMineCardComp } from "../../components/store/storeminecard";
+import { EmptyState } from "../../components/common/emptystateresult";
+import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard";
+import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 
 import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
 import { safeCoord } from "../../utils/geo";
 import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi
-import { BarberMarker } from "../../components/barbermarker";
+import { BarberMarker } from "../../components/freebarber/barbermarker";
 
 const Index = () => {
     const { data: stores = [], isLoading: storeLoading } = useGetMineStoresQuery();

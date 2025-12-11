@@ -1,17 +1,7 @@
 import * as Location from "expo-location";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
-import type { Pos } from "../types";
-
-export type LocationStatus = "unknown" | "granted" | "denied";
-
-export type UseNearbyControlParams = {
-    enabled: boolean;
-    moveThresholdM?: number;
-    staleMs?: number;
-    hardRefreshMs?: number;
-    onFetch: (lat: number, lon: number) => Promise<void>;
-};
+import type { Pos, LocationStatus, UseNearbyControlParams } from "../types";
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371;
@@ -67,7 +57,7 @@ export function useNearbyControl({
         try {
             await onFetch(lat, lon);
         } catch (e) {
-            console.error("Fetch Error:", e);
+            // Error handled by RTK Query
         } finally {
             inflightFetch.current = false;
             setFetchedOnce(true);

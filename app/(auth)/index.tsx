@@ -4,7 +4,7 @@ import { Button, TextInput, HelperText, Snackbar, ActivityIndicator, Portal, Mod
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { pickPdf, truncateFileName } from '../utils/pick-document';
+import { pickPdf, truncateFileName } from '../utils/form/pick-document';
 import { Dropdown } from "react-native-element-dropdown";
 import { userTypeItems } from '../constants';
 import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation } from '../store/api';
@@ -12,9 +12,10 @@ import { OtpInput } from "react-native-otp-entry";
 import { tokenStore } from '../lib/tokenStore';
 import { loadTokens, saveTokens } from '../lib/tokenStorage';
 import { jwtDecode } from 'jwt-decode';
-import { MyJwtPayload, OtpPurpose, UserType } from '../types';
+import { logger } from '../utils/common/logger';
+import { JwtPayload, OtpPurpose, UserType } from '../types';
 import { useRouter } from 'expo-router';
-import { pathByUserType } from '../utils/redirect-by-user-type';
+import { pathByUserType } from '../utils/auth/redirect-by-user-type';
 
 const PdfAssetSchema = z.object({
     uri: z.string().min(1),
@@ -126,7 +127,7 @@ const Index = () => {
             //     setSnackText(res.message);
             // }
         } catch (err: any) {
-            console.log("🔴 SEND OTP HATASI:", JSON.stringify(err, null, 2));
+            // Error is already handled by RTK Query, no need to log here
             setSnackText(err.data.message);
             setSnackVisible(true);
         }
@@ -153,7 +154,7 @@ const Index = () => {
                     refreshToken: result?.data?.refreshToken!,
                 });
                 const t = await loadTokens();
-                const decoded = jwtDecode<MyJwtPayload>(t.accessToken);
+                const decoded = jwtDecode<JwtPayload>(t.accessToken);
                 route.replace(pathByUserType(decoded.userType));
             } else {
                 setSnackText(result.message ?? 'Hata oluştu');
@@ -161,7 +162,7 @@ const Index = () => {
             }
         } catch (err: any) {
 
-            console.log("🔴 DO VERIFY HATASI:", JSON.stringify(err, null, 2));
+            // Error is already handled by RTK Query, no need to log here
             setSnackText(err?.data?.message ?? 'Hata oluştu');
             setSnackVisible(true);
         }

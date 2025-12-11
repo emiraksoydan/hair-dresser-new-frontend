@@ -1,13 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+/**
+ * Customer messages page
+ * Uses shared MessageThreadList component
+ */
+import React from 'react';
+import { MessageThreadList } from '../../components/messages/MessageThreadList';
 
-const Index = () => {
+const CustomerMessagesPage = () => {
     return (
-        <View>
-            <Text>Index</Text>
-        </View>
-    )
-}
+        <MessageThreadList
+            routePrefix="/(customertabs)/(messages)"
+            iconSource="store"
+        />
+    );
+};
 
-export default Index
-
+export default CustomerMessagesPage;

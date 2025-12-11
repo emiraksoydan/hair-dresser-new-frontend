@@ -2,11 +2,11 @@ import { Dimensions, Text, TouchableOpacity, View } from 'react-native'
 import { Tabs } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import FormStoreAdd from '../components/formstoreadd';
+import FormStoreAdd from '../components/store/formstoreadd';
 import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
 import { useGetBadgeCountsQuery } from '../store/api';
-import { BadgeIconButton } from '../components/badgeiconbutton';
-import { NotificationsSheet } from '../components/notificationdetail';
+import { BadgeIconButton } from '../components/common/badgeiconbutton';
+import { NotificationsSheet } from '../components/appointment/notificationdetail';
 
 const BarberStoreLayout = () => {
 

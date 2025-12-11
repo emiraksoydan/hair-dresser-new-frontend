@@ -1,12 +1,17 @@
-import { Text, View } from 'react-native'
+/**
+ * Barber store messages page
+ * Uses shared MessageThreadList component
+ */
+import React from 'react';
+import { MessageThreadList } from '../../components/messages/MessageThreadList';
 
-const Index = () => {
+const BarberStoreMessagesPage = () => {
     return (
-        <View>
-            <Text>index</Text>
-        </View>
-    )
-}
+        <MessageThreadList
+            routePrefix="/(barberstoretabs)/(messages)/(details)"
+            iconSource="account"
+        />
+    );
+};
 
-export default Index
-
+export default BarberStoreMessagesPage;

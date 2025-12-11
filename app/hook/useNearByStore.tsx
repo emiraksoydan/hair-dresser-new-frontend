@@ -1,33 +1,25 @@
 // useNearByStore.ts (useNearbyStores)
+// Wrapper hook for stores - uses the generic useNearby hook
 import { useLazyGetNearbyStoresQuery } from "../store/api";
-import { useNearbyControl } from "./useNearByControl";
+import { useNearby } from "./useNearby";
 import type { BarberStoreGetDto } from "../types";
 
-const DEFAULT_RADIUS_KM = 1;
-
 export function useNearbyStores(enabled: boolean) {
-    const [trigger, result] = useLazyGetNearbyStoresQuery();
-
-    const nearby = useNearbyControl({
-        enabled,
-        moveThresholdM: 150,
-        staleMs: 15_000,
-        hardRefreshMs: 15_000,
-        onFetch: async (lat, lon) => {
-            await trigger({ lat, lon, radiusKm: DEFAULT_RADIUS_KM }, false);
-        },
-    });
+    const result = useNearby<BarberStoreGetDto>(
+        useLazyGetNearbyStoresQuery,
+        { enabled }
+    );
 
     return {
-        stores: (result.data ?? []) as BarberStoreGetDto[],
-        loading: nearby.initialLoading || result.isLoading,
-        fetching: result.isFetching,
-        fetchedOnce: nearby.fetchedOnce,
+        stores: result.data,
+        loading: result.loading,
+        fetching: result.fetching,
+        fetchedOnce: result.fetchedOnce,
         error: result.error,
-        locationStatus: nearby.locationStatus,
-        locationMessage: nearby.locationMessage,
-        hasLocation: nearby.hasLocation,
-        manualFetch: nearby.manualFetch,
-        retryPermission: nearby.retryPermission,
+        locationStatus: result.locationStatus,
+        locationMessage: result.locationMessage,
+        hasLocation: result.hasLocation,
+        manualFetch: result.manualFetch,
+        retryPermission: result.retryPermission,
     };
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
 import { BarberStoreMineDto, FreeBarGetDto, LocationStatus } from "../types";
 import { useLazyGetNearbyFreeBarberQuery } from "../store/api";
-import { safeCoord } from "../utils/geo";
+import { safeCoord } from "../utils/location/geo";
 
 
 export type UseNearbyStoresParams = {
@@ -63,7 +63,7 @@ export function useNearbyStoresControl({
 
             setFreeBarbers(Array.from(allBarbers.values()));
         } catch (error) {
-            console.log("Hata:", error);
+            // Error handled by RTK Query
         } finally {
             setIsLoading(false);
         }

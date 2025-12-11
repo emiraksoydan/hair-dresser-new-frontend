@@ -1,8 +1,13 @@
 import { Tabs } from 'expo-router'
 import { StyleSheet, Text, View } from 'react-native'
 import { IconButton } from 'react-native-paper'
+import { useGetBadgeCountsQuery } from '../store/api';
+import { BadgeIconButton } from '../components/common/badgeiconbutton';
 
 const FreeBarberLayout = () => {
+    const { data: badge } = useGetBadgeCountsQuery();
+    const unreadMsg = badge?.unreadMessages ?? 0;
+
     return (
         <Tabs
             screenOptions={{
@@ -47,7 +52,9 @@ const FreeBarberLayout = () => {
                             icon="bell-outline"
                             iconColor='white'
                             size={20}
-                            onPress={() => console.log('Zil tıklandı')}
+                            onPress={() => {
+                                // Notification bell - to be implemented
+                            }}
                             style={{ marginRight: 14 }}
                         />
                     ),
@@ -87,7 +94,9 @@ const FreeBarberLayout = () => {
                             icon="bell-outline"
                             iconColor='white'
                             size={20}
-                            onPress={() => console.log('Zil tıklandı')}
+                            onPress={() => {
+                                // Notification bell - to be implemented
+                            }}
                             style={{ marginRight: 14 }}
                         />
                     ),
@@ -107,11 +116,12 @@ const FreeBarberLayout = () => {
                         </Text>
                     ),
                     tabBarIcon: ({ focused }) => (
-                        <IconButton
+                        <BadgeIconButton
                             icon={focused ? 'message' : 'message-outline'}
                             iconColor={focused ? '#c2a523' : '#38393b'}
                             size={30}
-                            style={{ margin: 0 }}
+                            badgeCount={unreadMsg}
+                            onPress={undefined}
                         />
                     ),
                     tabBarLabel: ({ focused }) => (
@@ -127,7 +137,9 @@ const FreeBarberLayout = () => {
                             icon="bell-outline"
                             iconColor='white'
                             size={20}
-                            onPress={() => console.log('Zil tıklandı')}
+                            onPress={() => {
+                                // Notification bell - to be implemented
+                            }}
                             style={{ marginRight: 14 }}
                         />
                     ),
@@ -167,7 +179,9 @@ const FreeBarberLayout = () => {
                             icon="bell-outline"
                             iconColor='white'
                             size={20}
-                            onPress={() => console.log('Zil tıklandı')}
+                            onPress={() => {
+                                // Notification bell - to be implemented
+                            }}
                             style={{ marginRight: 14 }}
                         />
                     ),
@@ -207,7 +221,9 @@ const FreeBarberLayout = () => {
                             icon="bell-outline"
                             iconColor='white'
                             size={20}
-                            onPress={() => console.log('Zil tıklandı')}
+                            onPress={() => {
+                                // Notification bell - to be implemented
+                            }}
                             style={{ marginRight: 14 }}
                         />
                     ),

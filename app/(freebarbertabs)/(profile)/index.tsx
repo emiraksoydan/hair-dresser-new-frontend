@@ -69,7 +69,7 @@ const Index = () => {
 
                             }
                         } catch (error) {
-                            console.log(error);
+                            logger.error('Profile error:', error);
                         }
 
 

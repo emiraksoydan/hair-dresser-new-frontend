@@ -5,9 +5,10 @@ import { useDispatch } from "react-redux";
 import { api } from "../store/api";
 import { tokenStore } from "../lib/tokenStore";
 import type { AppDispatch } from "../store/redux-store";
-import type { BadgeCount, NotificationDto } from "../types";
+import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto } from "../types";
+import { API_CONFIG } from "../constants/api";
 
-const HUB_URL = "http://192.168.1.35:5000/hubs/app";
+const HUB_URL = API_CONFIG.SIGNALR_HUB_URL;
 
 export const useSignalR = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -52,8 +53,38 @@ export const useSignalR = () => {
             });
 
 
-            connection.on("chat.message", () => {
-                // Chat endpointlerin yoksa burada en azından badge garanti olsun
+            connection.on("chat.message", (dto: ChatMessageDto) => {
+                // Mesaj geldiğinde thread listesini ve mesaj listesini güncelle
+                dispatch(api.util.invalidateTags(["Badge", "Chat"]));
+                
+                // Thread listesindeki lastMessagePreview'ı güncelle
+                dispatch(
+                    api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                        if (!draft) return;
+                        const thread = draft.find(t => t.appointmentId === dto.appointmentId);
+                        if (thread) {
+                            thread.lastMessagePreview = dto.text.length > 60 ? dto.text.substring(0, 60) : dto.text;
+                            thread.lastMessageAt = dto.createdAt;
+                            // Sender dışındaki kullanıcılar için unread count artacak (backend'de yapılıyor)
+                        }
+                    })
+                );
+            });
+
+            connection.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
+                // Yeni chat thread oluşturulduğunda listeyi güncelle
+                dispatch(
+                    api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                        if (!draft) return;
+                        // Eğer zaten varsa güncelle, yoksa başa ekle
+                        const existingIndex = draft.findIndex(t => t.appointmentId === dto.appointmentId);
+                        if (existingIndex >= 0) {
+                            draft[existingIndex] = dto;
+                        } else {
+                            draft.unshift(dto);
+                        }
+                    })
+                );
                 dispatch(api.util.invalidateTags(["Badge"]));
             });
 
@@ -65,7 +96,8 @@ export const useSignalR = () => {
                 }
                 connectionRef.current = connection;
             } catch (e) {
-                console.error("SignalR start error:", e);
+                // Error logging will be handled by logger if needed
+                // SignalR connection errors are expected during network issues
             }
         };
 
@@ -77,6 +109,7 @@ export const useSignalR = () => {
             c?.off("badge.updated");
             c?.off("notification.received");
             c?.off("chat.message");
+            c?.off("chat.threadCreated");
             c?.stop();
             connectionRef.current = null;
         };

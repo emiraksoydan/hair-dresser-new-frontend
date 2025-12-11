@@ -18,6 +18,7 @@ import { BottomSheetRegistryProvider } from './context/bottomsheet';
 import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
 import { useSignalR } from './hook/useSignalR';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 
 SplashScreen.preventAutoHideAsync();
@@ -33,31 +34,32 @@ const RootLayout = () => {
   if (!ready) return null;
 
   return (
-    <ReduxProvider store={store}>
-      <GestureHandlerRootView className="flex flex-1">
-        <PaperProvider>
-          <BottomSheetRegistryProvider>
-            <BottomSheetModalProvider>
-              <SignalRBootstrap />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: '#151618' },
-                }}
-              >
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(barberstoretabs)" />
-                <Stack.Screen name="(freebarbertabs)" />
-                <Stack.Screen name="(customertabs)" />
-                <Stack.Screen name="(screens)" />
-              </Stack>
-              <StatusBar />
-            </BottomSheetModalProvider>
-          </BottomSheetRegistryProvider>
-        </PaperProvider>
-      </GestureHandlerRootView>
-    </ReduxProvider>
-
+    <ErrorBoundary>
+      <ReduxProvider store={store}>
+        <GestureHandlerRootView className="flex flex-1">
+          <PaperProvider>
+            <BottomSheetRegistryProvider>
+              <BottomSheetModalProvider>
+                <SignalRBootstrap />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: '#151618' },
+                  }}
+                >
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(barberstoretabs)" />
+                  <Stack.Screen name="(freebarbertabs)" />
+                  <Stack.Screen name="(customertabs)" />
+                  <Stack.Screen name="(screens)" />
+                </Stack>
+                <StatusBar />
+              </BottomSheetModalProvider>
+            </BottomSheetRegistryProvider>
+          </PaperProvider>
+        </GestureHandlerRootView>
+      </ReduxProvider>
+    </ErrorBoundary>
   )
 }
 
