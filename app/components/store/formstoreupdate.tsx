@@ -7,7 +7,7 @@ import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, normalizeTime, timeHHmmRegex, toMin
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../../context/bottomsheet';
-import { Avatar, Divider, HelperText, Icon, IconButton, Snackbar, TextInput, Button, ActivityIndicator, Portal } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation } from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
@@ -22,6 +22,8 @@ import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ImageOwnerTyp
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { ChairEditModal } from './chaireditmodal';
 import { safeCoord } from '../../utils/location/geo';
+import { useSnackbar } from '../../hook/useSnackbar';
+import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 
 
 
@@ -173,15 +175,14 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         }
     }, [enabled, storeId, triggerGetStore]);
 
-    const [snackVisible, setSnackVisible] = useState<boolean>(false);
-    const [snackText, setSnackText] = useState<string>('');
-    const [snackIsError, setSnackIsError] = useState<boolean>(false);
+    const { showSnack, SnackbarComponent } = useSnackbar();
 
     const errorText = resolveApiErrorMessage(error);
     useEffect(() => {
-        if (isError)
-            setSnackVisible(true);
-    }, [isError])
+        if (isError) {
+            showSnack(errorText, true);
+        }
+    }, [isError, errorText, showSnack])
 
     const pickMainImage = () => pickImageAndSet(setValue, 'storeImageUrl');
     const [barberModalVisible, setBarberModalVisible] = useState(false);
@@ -418,9 +419,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         try {
             const res = await getCurrentLocationSafe();
             if (!res.ok) {
-                setSnackIsError(true);
-                setSnackText(res.message);
-                setSnackVisible(true);
+                showSnack(res.message, true);
                 return;
             }
 
@@ -492,15 +491,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                         try {
                             if (current.id) {
                                 var res = await deleteBarber(current.id).unwrap();
-                                setSnackIsError(!res.success);
-                                setSnackVisible(true);
-                                setSnackText(res.message);
+                                showSnack(res.message, !res.success);
                             }
                         } catch (e) {
-                            setSnackVisible(true);
-                            setSnackText(resolveApiErrorMessage(e));
-                            setSnackIsError(true);
-
+                            showSnack(resolveApiErrorMessage(e), true);
                         }
                     },
                 },
@@ -526,15 +520,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                         try {
                             if (current.id) {
                                 var res = await deleteChair(current.id).unwrap();
-                                setSnackIsError(!res.success);
-                                setSnackVisible(true);
-                                setSnackText(res.message);
+                                showSnack(res.message, !res.success);
                             }
                         } catch (e) {
-                            setSnackVisible(true);
-                            setSnackText(resolveApiErrorMessage(e));
-                            setSnackIsError(true);
-
+                            showSnack(resolveApiErrorMessage(e), true);
                         }
                     },
                 },
@@ -543,15 +532,6 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         );
     };
 
-    const mapBarberType = (t: string): number => {
-        switch (t) {
-            case 'MaleHairdresser': return 0;
-            case 'FemaleHairdresser': return 1;
-            case 'BeautySalon': return 2;
-            default: return 0;
-        }
-    };
-    const mapPricingType = (m: 'percent' | 'rent'): number => m === 'percent' ? 0 : 1;
 
     const prevTypeRef = React.useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -651,19 +631,15 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             var result = await updateStore(payload).unwrap();
             // Result handled by RTK Query mutation
             if (result.success) {
-
-                setSnackText(result.message);
-                setSnackVisible(true);
+                showSnack(result.message, false);
                 dismiss();
             }
             else {
-                setSnackText(result.message);
-                setSnackVisible(true);
+                showSnack(result.message, true);
             }
         } catch (error: any) {
             const msg = resolveApiErrorMessage(error);
-            setSnackText(msg);
-            setSnackVisible(true);
+            showSnack(msg, true);
         }
     };
     const c = safeCoord(location?.latitude, location?.longitude);
@@ -681,15 +657,6 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                         <CrudSkeletonComponent key={i} />
                     ))}
                 </View>
-            ) : isError ? (
-                <Snackbar
-                    style={{ backgroundColor: 'red' }}
-                    visible={snackVisible}
-                    onDismiss={() => setSnackVisible(false)}
-                    duration={3000}
-                    action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
-                    {isError ? errorText : "Hata Oluştu"}
-                </Snackbar>
             ) : (
                 <>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
@@ -1343,16 +1310,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                         onClose={closeChairModal}
                         storeId={storeId}
                     />
-                    <Portal>
-                        <Snackbar
-                            style={{ backgroundColor: snackIsError ? 'red' : 'green' }}
-                            visible={snackVisible}
-                            onDismiss={() => setSnackVisible(false)}
-                            duration={3000}
-                            action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
-                            {snackText}
-                        </Snackbar>
-                    </Portal>
+                    <SnackbarComponent />
 
                 </>
             )}

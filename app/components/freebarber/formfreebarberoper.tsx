@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { Divider, Icon, IconButton, TextInput, HelperText, Button, Snackbar, Portal, Switch } from "react-native-paper";
+import { Divider, Icon, IconButton, TextInput, HelperText, Button, Switch } from "react-native-paper";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,8 @@ import { useSheet } from "../../context/bottomsheet";
 import { resolveApiErrorMessage } from "../../utils/common/error";
 import { BUSINESS_TYPES, SERVICE_BY_TYPE, trMoneyRegex } from "../../constants";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
+import { useSnackbar } from "../../hook/useSnackbar";
+import { mapBarberType, mapTypeToLabel } from "../../utils/form/form-mappers";
 import {
     useAddFreeBarberPanelMutation,
     useLazyGetFreeBarberMinePanelDetailQuery,
@@ -83,9 +85,7 @@ type Props = { freeBarberId: string | null; enabled: boolean };
 export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
     const isEdit = freeBarberId != null;
 
-    const [snackText, setSnackText] = useState("");
-    const [snackVisible, setSnackVisible] = useState(false);
-    const [snackIsError, setSnackIsError] = useState<boolean>(false);
+    const { showSnack, SnackbarComponent } = useSnackbar();
 
     const [triggerGetFreeBarberPanel, { data }] = useLazyGetFreeBarberMinePanelDetailQuery();
     const [addFreeBarber, { isLoading: addFreeBarberLoad }] = useAddFreeBarberPanelMutation();
@@ -118,11 +118,6 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
     const selectedOfferings = watch("offerings");
     const currentPrices = watch("prices");
 
-    const showSnack = (msg: string, isErr: boolean) => {
-        setSnackText(msg);
-        setSnackIsError(isErr);
-        setSnackVisible(true);
-    };
 
     // Edit ise panel detay çek
     useEffect(() => {
@@ -131,27 +126,6 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         triggerGetFreeBarberPanel(freeBarberId!);
     }, [enabled, isEdit, freeBarberId, triggerGetFreeBarberPanel]);
 
-    const mapBarberType = (t: string): number => {
-        switch (t) {
-            case "MaleHairdresser":
-                return 0;
-            case "FemaleHairdresser":
-                return 1;
-            default:
-                return 0;
-        }
-    };
-
-    const mapTypeToLabel = (t: number): string => {
-        switch (t) {
-            case 0:
-                return "MaleHairdresser";
-            case 1:
-                return "FemaleHairdresser";
-            default:
-                return "";
-        }
-    };
 
     const pickMainImage = async () => {
         const file = await handlePickImage();
@@ -698,17 +672,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                 </>
             )}
 
-            <Portal>
-                <Snackbar
-                    style={{ backgroundColor: snackIsError ? "#b91c1c" : "#15803d" }}
-                    visible={snackVisible}
-                    onDismiss={() => setSnackVisible(false)}
-                    duration={3000}
-                    action={{ label: "Tamam", onPress: () => setSnackVisible(false), textColor: "white" }}
-                >
-                    {snackText}
-                </Snackbar>
-            </Portal>
+            <SnackbarComponent />
         </View>
     );
 };

@@ -1,6 +1,6 @@
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip, Snackbar, Portal } from 'react-native-paper';
+import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip } from 'react-native-paper';
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,8 @@ import { MapPicker } from '../common/mappicker';
 import { useAddBarberStoreMutation } from '../../store/api';
 import { BarberStoreCreateDto, ImageOwnerType } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
+import { useSnackbar } from '../../hook/useSnackbar';
+import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 
 
 const ChairPricingSchema = z.object({
@@ -237,18 +239,7 @@ const FormStoreAdd = () => {
     const latitude = watch("location.latitude");
     const longitude = watch("location.longitude");
     const address = watch("location.addressDescription");
-    const [snackVisible, setSnackVisible] = useState(false);
-    const [snackText, setSnackText] = useState("");
-    const mapBarberType = (t: string): number => {
-        switch (t) {
-            case 'MaleHairdresser': return 0;
-            case 'FemaleHairdresser': return 1;
-            case 'BeautySalon': return 2;
-            default: return 0;
-        }
-    };
-    const mapPricingType = (m: 'percent' | 'rent'): number =>
-        m === 'percent' ? 0 : 1;
+    const { showSnack, SnackbarComponent } = useSnackbar();
     const { dismiss } = useSheet('addStore');
     const OnSubmit = async (data: FormValues) => {
         const payload: BarberStoreCreateDto = {
@@ -294,18 +285,15 @@ const FormStoreAdd = () => {
             var result = await addStore(payload).unwrap();
             // Result handled by RTK Query mutation
             if (result.success) {
-                setSnackText(result.message);
-                setSnackVisible(true);
+                showSnack(result.message, false);
                 dismiss();
             }
             else {
-                setSnackText(result.message);
-                setSnackVisible(true);
+                showSnack(result.message, true);
             }
         } catch (error: any) {
             const msg = resolveApiErrorMessage(error);
-            setSnackText(msg);
-            setSnackVisible(true);
+            showSnack(msg, true);
         }
     };
     const {
@@ -1201,17 +1189,7 @@ const FormStoreAdd = () => {
             <View className="px-4 my-3">
                 <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Ekle</Button>
             </View>
-            <Portal>
-                <Snackbar
-                    style={{ backgroundColor: 'green' }}
-                    visible={snackVisible}
-                    onDismiss={() => setSnackVisible(false)}
-                    duration={3000}
-                    action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}
-                >
-                    {snackText}
-                </Snackbar>
-            </Portal>
+            <SnackbarComponent />
 
         </View>
     )
