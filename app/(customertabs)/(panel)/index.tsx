@@ -4,9 +4,9 @@ import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import SearchBar from "../../components/common/searchbar";
-import { toggleExpand } from "../../utils/expand-toggle";
+import { toggleExpand } from "../../utils/common/expand-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
-import { useToggleList } from "../../utils/service-toggle";
+import { useToggleList } from "../../utils/common/service-toggle";
 import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
 import { StoreCardInner } from "../../components/store/storecard";
 import FormatListButton from "../../components/common/formatlistbutton";
@@ -18,7 +18,7 @@ import { EmptyState } from "../../components/common/emptystateresult";
 import { useRouter } from "expo-router";
 import { Icon, IconButton } from "react-native-paper";
 import MapView, { Marker } from "react-native-maps"; // Harita importları
-import { safeCoord } from "../../utils/geo"; // Geo yardımcı fonksiyon
+import { safeCoord } from "../../utils/location/geo"; // Geo yardımcı fonksiyon
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import StoreBookingContent from "../../components/store/storebooking";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";

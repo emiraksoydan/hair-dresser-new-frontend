@@ -18,8 +18,8 @@ import {
     useAddFreeBarberPanelMutation,
     useLazyGetFreeBarberMinePanelDetailQuery,
     useUpdateFreeBarberPanelMutation,
-} from "../store/api";
-import { CrudSkeletonComponent } from "./crudskeleton";
+} from "../../store/api";
+import { CrudSkeletonComponent } from "../common/crudskeleton";
 
 // --- Schema Definitions ---
 const LocationSchema = z

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React, { useState } from 'react'
 import { Searchbar } from 'react-native-paper'
-import { SearchBarProps } from '../types';
+import { SearchBarProps } from '../../types';
 
 const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery }) => {
     const [isFocused, setIsFocused] = useState(false);

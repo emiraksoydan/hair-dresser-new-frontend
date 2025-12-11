@@ -3,7 +3,7 @@ import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, BarberStoreMineDto } from '../types'; // kendi path’ine göre düzelt
+import { BarberType, BarberStoreMineDto } from '../../types';
 
 type Props = {
     store: BarberStoreMineDto;

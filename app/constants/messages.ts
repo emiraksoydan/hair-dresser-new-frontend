@@ -71,5 +71,19 @@ export const MESSAGES = {
         MAX_DISPLAY: 99,
         MAX_DISPLAY_TEXT: '99+',
     },
+
+    // Labels
+    LABELS: {
+        FREE_BARBER: 'Serbest Berber',
+        CUSTOMER: 'Müşteri',
+        STORE: 'İşletme',
+    },
+
+    // Appointment Details
+    APPOINTMENT_DETAILS: {
+        CUSTOMER_DEFAULT_NAME: 'Müşteri',
+        STORE_DEFAULT_NAME: 'İşletme',
+        FREE_BARBER_DEFAULT_NAME: 'Serbest Berber',
+    },
 } as const;
 

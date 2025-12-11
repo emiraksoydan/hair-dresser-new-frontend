@@ -3,6 +3,7 @@
  */
 
 import { BarberType, ImageGetDto, ServiceOfferingGetDto } from './common';
+import type { CreateImageDto, ServiceOfferingCreateDto } from './store';
 
 export type FreeBarberCreateDto = {
   firstName: string;
@@ -70,6 +71,6 @@ export type FreeBarberMinePanelDetailDto = {
   longitude?: number;
 };
 
-// Re-export from store types
-export type { CreateImageDto, ServiceOfferingCreateDto } from './store';
+// Re-export from store types for convenience
+export type { CreateImageDto, ServiceOfferingCreateDto };
 

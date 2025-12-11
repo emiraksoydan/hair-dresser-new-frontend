@@ -157,9 +157,9 @@ export function useNearbyControl({
         hasLocation: locationStatus === "granted",
         fetchedOnce,
         initialLoading,
-        manualFetch: () => {
+        manualFetch: async () => {
             if (!lastKnownPos.current || locationStatus !== "granted") return;
-            return savedFetchHandler.current?.(lastKnownPos.current.lat, lastKnownPos.current.lon);
+            await savedFetchHandler.current?.(lastKnownPos.current.lat, lastKnownPos.current.lon);
         },
         retryPermission,
     };

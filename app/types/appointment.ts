@@ -2,7 +2,7 @@
  * Appointment-related types
  */
 
-import { ServiceOfferingGetDto } from './store';
+import { ServiceOfferingGetDto } from './common';
 
 export enum AppointmentStatus {
   Pending = 0,

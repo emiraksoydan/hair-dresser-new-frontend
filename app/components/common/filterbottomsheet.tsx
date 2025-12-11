@@ -6,8 +6,8 @@ import {
 } from '@gorhom/bottom-sheet';
 import { Chip, Divider, Icon } from 'react-native-paper';
 import { LegendList } from '@legendapp/list';
-import { useBottomSheetRegistry } from '../context/bottomsheet';
-import { catData, ratings } from '../constants';
+import { useBottomSheetRegistry } from '../../context/bottomsheet';
+import { catData, ratings } from '../../constants';
 
 type FilterBottomSheetProps = {
     sheetKey: string;

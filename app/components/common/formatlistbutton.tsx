@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import { IconButton } from 'react-native-paper'
-import { FormatListButtonProps } from '../types'
+import { FormatListButtonProps } from '../../types'
 
 const FormatListButton: React.FC<FormatListButtonProps> = ({ isList, setIsList }) => {
     return (

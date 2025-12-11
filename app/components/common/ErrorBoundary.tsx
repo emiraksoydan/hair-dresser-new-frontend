@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { logger } from '../utils/common/logger';
+import { logger } from '../../utils/common/logger';
+import { MESSAGES } from '../../constants/messages';
 
 interface Props {
     children: ReactNode;

@@ -6,7 +6,6 @@
 import { useCallback } from "react";
 import { useNearbyControl } from "./useNearByControl";
 import { LocationStatus } from "../types";
-import type { LazyQueryTrigger } from "@reduxjs/toolkit/query/react";
 
 const DEFAULT_RADIUS_KM = 1;
 const DEFAULT_MOVE_THRESHOLD_M = 150;
@@ -30,7 +29,7 @@ interface UseNearbyResult<T> {
     locationStatus: LocationStatus;
     locationMessage: string;
     hasLocation: boolean;
-    manualFetch: (() => Promise<void>) | undefined;
+    manualFetch: () => Promise<void>;
     retryPermission: () => Promise<void>;
 }
 
@@ -40,7 +39,7 @@ interface UseNearbyResult<T> {
  * @param options - Configuration options
  */
 export function useNearby<T>(
-    queryHook: () => [LazyQueryTrigger<any>, { data?: T[]; isLoading: boolean; isFetching: boolean; error: any }],
+    queryHook: () => [any, { data?: T[]; isLoading: boolean; isFetching: boolean; error?: any }, any],
     options: UseNearbyOptions
 ): UseNearbyResult<T> {
     const {
@@ -74,7 +73,7 @@ export function useNearby<T>(
         locationStatus: nearby.locationStatus,
         locationMessage: nearby.locationMessage,
         hasLocation: nearby.hasLocation,
-        manualFetch: nearby.manualFetch,
+        manualFetch: nearby.manualFetch ?? (async () => { }),
         retryPermission: nearby.retryPermission,
     };
 }

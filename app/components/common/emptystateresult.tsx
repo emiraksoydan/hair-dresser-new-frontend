@@ -1,6 +1,6 @@
 import React from "react";
 import { LottieViewComponent } from "./lottieview";
-import { EmptyStateProps } from "../types";
+import { EmptyStateProps } from "../../types";
 
 
 

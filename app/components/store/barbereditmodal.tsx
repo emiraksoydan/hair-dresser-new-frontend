@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import { Avatar, Button, Dialog, HelperText, Icon, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
-import { BarberFormValues } from '../types';
-import { useAddManuelBarberMutation, useUpdateManuelBarberMutation } from '../store/api';
-import { handlePickImage, pickImageAndSet } from '../utils/form/pick-document';
-import { resolveApiErrorMessage } from '../utils/common/error';
+import { BarberFormValues } from '../../types';
+import { useAddManuelBarberMutation, useUpdateManuelBarberMutation } from '../../store/api';
+import { handlePickImage, pickImageAndSet } from '../../utils/form/pick-document';
+import { resolveApiErrorMessage } from '../../utils/common/error';
 
 
 type Props = {

@@ -1,7 +1,7 @@
 // utils/location-kit.ts
 import * as Location from "expo-location";
-import { ensureLocationGateWithUI } from "../components/location/location-gate";
-import type { LocationResult, Pos } from "../types";
+import { ensureLocationGateWithUI } from "../../components/location/location-gate";
+import type { LocationResult, Pos } from "../../types";
 
 export async function getCurrentLocationSafe(): Promise<LocationResult> {
     const gate = await ensureLocationGateWithUI();

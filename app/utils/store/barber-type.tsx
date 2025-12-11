@@ -1,4 +1,4 @@
-import { BarberType } from "../types";
+import { BarberType } from "../../types";
 
 export function getBarberTypeName(type: BarberType): string {
     switch (type) {

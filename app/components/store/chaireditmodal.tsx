@@ -9,12 +9,12 @@ import {
     TextInput,
 } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
-import { ChairFormInitial } from '../types';
+import { ChairFormInitial } from '../../types';
 import {
     useAddStoreChairMutation,
     useUpdateStoreChairMutation,
-} from '../store/api';
-import { resolveApiErrorMessage } from '../utils/common/error';
+} from '../../store/api';
+import { resolveApiErrorMessage } from '../../utils/common/error';
 import { Dropdown } from 'react-native-element-dropdown';
 
 type ChairModalBarber = {

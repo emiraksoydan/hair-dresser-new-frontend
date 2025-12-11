@@ -3,7 +3,7 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, FreeBarGetDto } from '../types'; // kendi path'ine göre düzelt
+import { BarberType, FreeBarGetDto } from '../../types';
 
 type Props = {
     freeBarber: FreeBarGetDto;

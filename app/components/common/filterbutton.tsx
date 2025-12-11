@@ -1,5 +1,5 @@
 import { IconButton } from 'react-native-paper';
-import { OnPressProps } from '../types';
+import { OnPressProps } from '../../types';
 
 const FilterButton = ({ onPress }: OnPressProps) => {
 

@@ -1,18 +1,18 @@
 import { Dimensions, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
-import { useToggleList } from '../../utils/service-toggle';
+import { useToggleList } from '../../utils/common/service-toggle';
 import SearchBar from '../../components/common/searchbar';
 import FormatListButton from '../../components/common/formatlistbutton';
 import FilterButton from '../../components/common/filterbutton';
 import { SkeletonComponent } from '../../components/common/skeleton';
 import { LottieViewComponent } from '../../components/common/lottieview';
 import MotiViewExpand from '../../components/common/motiviewexpand';
-import { toggleExpand } from '../../utils/expand-toggle';
+import { toggleExpand } from '../../utils/common/expand-toggle';
 import { FilterBottomSheet } from '../../components/common/filterbottomsheet';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { FormFreeBarberOperation } from '../../components/freebarber/formfreebarberoper';
-import { resolveApiErrorMessage } from '../../utils/error';
+import { resolveApiErrorMessage } from '../../utils/common/error';
 import { StoreCardInner } from '../../components/store/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BarberStoreGetDto } from '../../types';
@@ -21,7 +21,7 @@ import { EmptyState } from '../../components/common/emptystateresult';
 import { useRouter } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import MapView, { Marker } from 'react-native-maps';
-import { safeCoord } from '../../utils/geo';
+import { safeCoord } from '../../utils/location/geo';
 import StoreBookingContent from '../../components/store/storebooking';
 import { useGetFreeBarberMinePanelQuery } from '../../store/api';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';

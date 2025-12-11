@@ -1,15 +1,15 @@
 import React, { useState, useMemo, memo } from 'react';
 import { View, Text, Dimensions } from 'react-native';
 import { Button } from 'react-native-paper';
-import { SkeletonComponent } from './skeleton'; // Yolunu projene göre ayarla
-import { LottieViewComponent } from './lottieview'; // Yolunu projene göre ayarla
-import MotiViewExpand from './motiviewexpand'; // Yolunu projene göre ayarla
-import { FreeBarberMineCardComp } from './freebarberminecard'; // Yolunu projene göre ayarla
-import { useGetFreeBarberMinePanelQuery } from '../store/api'; // Store yolunu kontrol et
-import { toggleExpand } from '../utils/common/expand-toggle';
-import { resolveApiErrorMessage } from '../utils/common/error';
-import { FreeBarberPanelDto } from '../types'; // Type yolunu kontrol et
-import { useTrackFreeBarberLocation } from '../hook/useTrackFreeBarberLocation';
+import { SkeletonComponent } from '../common/skeleton';
+import { LottieViewComponent } from '../common/lottieview';
+import MotiViewExpand from '../common/motiviewexpand';
+import { FreeBarberMineCardComp } from './freebarberminecard';
+import { useGetFreeBarberMinePanelQuery } from '../../store/api';
+import { toggleExpand } from '../../utils/common/expand-toggle';
+import { resolveApiErrorMessage } from '../../utils/common/error';
+import { FreeBarberPanelDto } from '../../types';
+import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 
 interface Props {
     isList: boolean;

@@ -8,10 +8,10 @@ import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 
-import { useToggleList } from "../../utils/service-toggle";
+import { useToggleList } from "../../utils/common/service-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
-import { toggleExpand } from "../../utils/expand-toggle";
+import { toggleExpand } from "../../utils/common/expand-toggle";
 import { SkeletonComponent } from "../../components/common/skeleton";
 
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
@@ -24,7 +24,7 @@ import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard"
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 
 import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
-import { safeCoord } from "../../utils/geo";
+import { safeCoord } from "../../utils/location/geo";
 import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi
 import { BarberMarker } from "../../components/freebarber/barbermarker";
 

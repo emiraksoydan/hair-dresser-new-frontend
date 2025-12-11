@@ -2,13 +2,15 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
-import { useGetFreeBarberForUsersQuery, useCreateCustomerAppointmentMutation, useCreateStoreAppointmentMutation } from '../store/api';
-import FilterChip from './filter-chip';
-import { getBarberTypeName } from '../utils/store/barber-type';
-import { SkeletonComponent } from './skeleton';
-import { LottieViewComponent } from './lottieview';
-import { useAuth } from '../hook/useAuth';
-import { UserType } from '../types';
+import { useGetFreeBarberForUsersQuery, useCreateCustomerAppointmentMutation, useCreateStoreAppointmentMutation } from '../../store/api';
+import FilterChip from '../common/filter-chip';
+import { getBarberTypeName } from '../../utils/store/barber-type';
+import { SkeletonComponent } from '../common/skeleton';
+import { LottieViewComponent } from '../common/lottieview';
+import { useAuth } from '../../hook/useAuth';
+import { UserType, FreeBarGetDto } from '../../types';
+import { MESSAGES } from '../../constants/messages';
+import { APPOINTMENT_CONSTANTS } from '../../constants/appointment';
 
 interface Props {
     barberId: string;

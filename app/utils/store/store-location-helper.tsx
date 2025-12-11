@@ -1,8 +1,8 @@
 // utils/store-location-helpers.ts
 import type { FieldValues, Path, UseFormGetValues, UseFormSetValue } from "react-hook-form";
 import * as Location from "expo-location";
-import type { HasLocation } from "../types";
-import { reverseGeocodeLine } from "./location-helper";
+import type { HasLocation } from "../../types";
+import { reverseGeocodeLine } from "../location/location-helper";
 
 export function createStoreLocationHelpers<T extends FieldValues & HasLocation>(
     setValue: UseFormSetValue<T>,

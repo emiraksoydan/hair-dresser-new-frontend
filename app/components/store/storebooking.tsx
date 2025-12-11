@@ -76,10 +76,8 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
     });
 
     const chairs: ChairSlotDto[] = useMemo(() => {
+        if (!data) return [];
         if (Array.isArray(data)) return data;
-        if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
-            return data.data as ChairSlotDto[];
-        }
         return [];
     }, [data]);
 

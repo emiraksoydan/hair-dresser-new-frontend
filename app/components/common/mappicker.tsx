@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import MapView, { MapPressEvent, Marker } from "react-native-maps";
-import { IST } from "../constants";
+import { IST } from "../../constants";
 
 
 export const MapPicker = ({

@@ -4,17 +4,22 @@
 
 import type { Control, UseFormSetValue } from "react-hook-form";
 
-// FormValues is exported from formstoreadd.tsx, we import it here for type usage
+// Import types from component files
+import type { FormValues as FormStoreAddValues } from "../components/store/formstoreadd";
+import type { FormUpdateValues as FormStoreUpdateValues } from "../components/store/formstoreupdate";
+import type { FormFreeBarberValues as FormFreeBarberValuesType } from "../components/freebarber/formfreebarberoper";
+
+// Re-export for convenience
 export type { FormValues } from "../components/store/formstoreadd";
 export type { FormUpdateValues } from "../components/store/formstoreupdate";
 export type { FormFreeBarberValues } from "../components/freebarber/formfreebarberoper";
 
 export type ChairRowProps = {
   index: number;
-  control: Control<import("../components/store/formstoreadd").FormValues>;
-  setValue: UseFormSetValue<import("../components/store/formstoreadd").FormValues>;
+  control: Control<FormStoreAddValues>;
+  setValue: UseFormSetValue<FormStoreAddValues>;
   remove: () => void;
-  barbers?: import("../components/store/formstoreadd").FormValues['barbers'];
+  barbers?: FormStoreAddValues['barbers'];
   takenSet: Set<string>;
 };
 

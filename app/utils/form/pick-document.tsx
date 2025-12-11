@@ -1,6 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from 'expo-image-picker';
-import { FileObject } from "../types";
+import { FileObject } from "../../types";
 import { FieldValues, Path, UseFormSetValue } from 'react-hook-form';
 
 

@@ -3,9 +3,9 @@
  * Used across different user type appointment pages
  */
 
-import { AppointmentStatus } from '../types';
-import { COLORS } from '../constants/colors';
-import { MESSAGES } from '../constants/messages';
+import { AppointmentStatus } from '../../types';
+import { COLORS } from '../../constants/colors';
+import { MESSAGES } from '../../constants/messages';
 
 /**
  * Get color for appointment status

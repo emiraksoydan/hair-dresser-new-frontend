@@ -2,11 +2,11 @@ import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image, Modal } from "react-native";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { Icon } from "react-native-paper";
-import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, api } from "../store/api";
-import { useAppDispatch } from "../store/hook";
-import type { NotificationDto, NotificationPayload } from "../types";
-import { NotificationType } from "../types";
-import { fmtDateOnly } from "../utils/time/time-helper";
+import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, api } from "../../store/api";
+import { useAppDispatch } from "../../store/hook";
+import type { NotificationDto, NotificationPayload } from "../../types";
+import { NotificationType } from "../../types";
+import { fmtDateOnly } from "../../utils/time/time-helper";
 
 export function NotificationsSheet({
     onClose,
