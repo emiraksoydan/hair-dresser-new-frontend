@@ -78,9 +78,9 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
                     </Button>
                 </>
             ) : locationStatus === 'error' ? (
-                <LottieViewComponent animationSource={require('../../assets/animations/Location.json')} message={locationMessage!} />
+                <LottieViewComponent animationSource={require('../../../assets/animations/Location.json')} message={locationMessage!} />
             ) : isError ? (
-                <LottieViewComponent animationSource={require('../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} />
+                <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(error)} />
             ) : (
 
                 <View key={freeBarber?.id}>

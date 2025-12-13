@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { pickPdf, truncateFileName } from '../utils/form/pick-document';
 import { Dropdown } from "react-native-element-dropdown";
 import { userTypeItems } from '../constants';
-import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation } from '../store/api';
+import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation, api } from '../store/api';
 import { OtpInput } from "react-native-otp-entry";
 import { tokenStore } from '../lib/tokenStore';
 import { loadTokens, saveTokens } from '../lib/tokenStorage';
@@ -16,6 +16,7 @@ import { logger } from '../utils/common/logger';
 import { JwtPayload, OtpPurpose, UserType } from '../types';
 import { useRouter } from 'expo-router';
 import { pathByUserType } from '../utils/auth/redirect-by-user-type';
+import { useAppDispatch } from '../store/hook';
 
 const PdfAssetSchema = z.object({
     uri: z.string().min(1),
@@ -65,6 +66,7 @@ type FormData = z.infer<typeof schema>;
 
 
 const Index = () => {
+    const dispatch = useAppDispatch();
     const {
         control,
         handleSubmit,
@@ -143,7 +145,25 @@ const Index = () => {
             const f = getValues();
             // const result = await verifyOtp({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login' }).unwrap();
 
-            const result = await sendPassword({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login', password: '1234', }).unwrap();
+            // Login modunda userType göndermiyoruz (backend mevcut kullanıcının userType'ını kullanacak)
+            // Register modunda userType zorunlu
+            // Backend'de login modunda mevcut kullanıcının userType'ı kullanılacak
+            // Register modunda gönderilen userType kullanılacak
+            const userTypeToSend = isRegister
+                ? (mapUserTypeToNumber(f.userType) ?? UserType.Customer) // Register: userType zorunlu, yoksa Customer
+                : 0; // Login: backend mevcut kullanıcının userType'ını kullanacak, burada 0 gönderiyoruz (backend ignore edecek)
+
+            const result = await sendPassword({
+                firstName: f.firstName ?? '',
+                lastName: f.surname ?? '',
+                phoneNumber: phone,
+                certificateFilePath: f.certificationFile?.uri ?? '',
+                code: code,
+                device: null,
+                userType: userTypeToSend,
+                mode: isRegister ? 'register' : 'login',
+                password: '1234',
+            }).unwrap();
             if (result.success === true) {
                 tokenStore.set({
                     accessToken: result?.data?.token!,
@@ -153,9 +173,14 @@ const Index = () => {
                     accessToken: result?.data?.token!,
                     refreshToken: result?.data?.refreshToken!,
                 });
+                // Login sonrası badge count'u invalidate et - böylece giriş yaptığında bildirim sayısı görünecek
+                dispatch(api.util.invalidateTags(['Badge', 'Notification']));
                 const t = await loadTokens();
                 const decoded = jwtDecode<JwtPayload>(t.accessToken);
-                route.replace(pathByUserType(decoded.userType));
+                // JWT'den gelen userType direkt kullanılmalı (örn: "Customer", "FreeBarber", "BarberStore")
+                const userTypeFromToken = decoded.userType;
+                const targetPath = pathByUserType(userTypeFromToken);
+                route.replace(targetPath);
             } else {
                 setSnackText(result.message ?? 'Hata oluştu');
                 setSnackVisible(true);

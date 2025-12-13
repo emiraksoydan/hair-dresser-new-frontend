@@ -1,18 +1,14 @@
-import { useRouter } from 'expo-router';
-import { InteractionManager, Text, View } from 'react-native'
-import { Avatar, Button, Divider, IconButton } from 'react-native-paper';
-import { useRevokeMutation } from '../../store/api';
-import { tokenStore } from '../../lib/tokenStore';
-import { clearStoredTokens } from '../../lib/tokenStorage';
+import { View } from 'react-native'
+import React from 'react'
+import { LottieViewComponent } from '../../components/common/lottieview';
+import { MESSAGES } from '../../constants/messages';
 
 const Index = () => {
-
     return (
-        <View className='flex-1 flex pl-0 pt-4   bg-[#151618]'>
-
+        <View className="flex-1 bg-[#151618]">
+            <LottieViewComponent message={MESSAGES.EMPTY_STATE.NO_FAVORITES} />
         </View>
-    );
+    )
 }
 
 export default Index
-

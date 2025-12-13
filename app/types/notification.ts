@@ -5,13 +5,13 @@
 import { AppointmentStatus } from './appointment';
 
 export enum NotificationType {
-  AppointmentCreated = 1,
-  AppointmentApproved = 2,
-  AppointmentRejected = 3,
-  AppointmentCancelled = 4,
-  AppointmentCompleted = 5,
-  AppointmentUnanswered = 6,
-  AppointmentDecisionUpdated = 7,
+  AppointmentCreated = 0,
+  AppointmentApproved = 1,
+  AppointmentRejected = 2,
+  AppointmentCancelled = 3,
+  AppointmentCompleted = 4,
+  AppointmentUnanswered = 5,
+  AppointmentDecisionUpdated = 6,
 }
 
 export type NotificationDto = {
@@ -36,31 +36,52 @@ export interface NotificationPayload {
 
   store?: {
     storeId: string;
-    StoreOwnerUserId: string;
+    storeOwnerUserId: string; // camelCase - backend JSON serialization camelCase kullanıyor
     storeName: string;
     imageUrl?: string;
+    type?: number; // BarberType: 0 = MaleHairdresser, 1 = FemaleHairdresser, 2 = BeautySalon
+    pricingType?: number; // PricingType enum
+    pricingValue?: number;
+    rating?: number;
   };
   customer?: {
     userId: string;
     displayName?: string;
     avatarUrl?: string;
     roleHint: string;
+    type?: number; // FreeBarber için BarberType
+    rating?: number; // FreeBarber için rating
   };
   freeBarber?: {
     userId: string;
     displayName: string;
     avatarUrl?: string;
     roleHint: string;
+    type?: number; // BarberType: 0 = MaleHairdresser, 1 = FemaleHairdresser, 2 = BeautySalon
+    rating?: number;
   };
   chair?: {
     chairId: string;
     chairName: string;
     manuelBarberId?: string;
     manuelBarberName?: string;
+    manuelBarberImageUrl?: string;
+    manuelBarberRating?: number;
   };
   status?: AppointmentStatus;
   storeDecision?: number;
   freeBarberDecision?: number;
+  pendingExpiresAt?: string | null; // UTC formatında ISO string
+  serviceOfferings?: Array<{
+    id: string;
+    serviceName: string;
+    price: number;
+  }>;
+
+  // Favori durumu (recipient'a göre)
+  isCustomerInFavorites?: boolean; // Store veya FreeBarber için müşteri favorilerinde mi?
+  isFreeBarberInFavorites?: boolean; // Store için freeBarber favorilerinde mi?
+  isStoreInFavorites?: boolean; // FreeBarber için store favorilerinde mi?
 }
 
 export type BadgeCount = {

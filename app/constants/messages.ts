@@ -26,6 +26,7 @@ export const MESSAGES = {
         NO_MESSAGES: 'Henüz mesajınız bulunmamaktadır.',
         NO_APPOINTMENTS: 'Henüz randevunuz bulunmamaktadır.',
         NO_NOTIFICATIONS: 'Henüz bildiriminiz bulunmamaktadır.',
+        NO_FAVORITES: 'Henüz favori listenizde bir şey bulunmamaktadır.',
     },
 
     // Actions

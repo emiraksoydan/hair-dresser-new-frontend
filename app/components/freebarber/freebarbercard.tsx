@@ -40,12 +40,12 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
                     <Image
-                        defaultSource={require('../../assets/images/empty.png')}
+                        defaultSource={require('../../../assets/images/empty.png')}
                         className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
                         source={
                             coverImage
                                 ? { uri: coverImage }
-                                : require('../../assets/images/empty.png')
+                                : require('../../../assets/images/empty.png')
                         }
                         resizeMode={'cover'}
                     />

@@ -311,7 +311,6 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         const c0 = safeCoord(data.latitude, data.longitude);
 
         reset({
-            ...getValues(),
             storeName: data.storeName ?? "",
             type: String(data.type),
             storeImageUrl: imageUrl
@@ -341,7 +340,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             holidayDays: initialHolidayDays,
             workingHours: initialWorkingHours,
         });
-    }, [data, reset, getValues]);
+    }, [data, reset]);
 
     const location = watch("location");
     const address = location?.addressDescription;
@@ -454,11 +453,17 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         setChairAvailableBarbers(availableBarbers);
         setChairModalVisible(true);
     };
-    const closeBarberModal = () => { setBarberModalVisible(false); };
-    const closeChairModal = () => {
+    const closeBarberModal = async () => {
+        setBarberModalVisible(false);
+        // Modal kapandığında store data'sını yeniden yükle
+        await triggerGetStore(storeId);
+    };
+    const closeChairModal = async () => {
         setChairModalVisible(false);
         setChairInitialValues({});
         setChairAvailableBarbers([]);
+        // Modal kapandığında store data'sını yeniden yükle
+        await triggerGetStore(storeId);
     };
 
     const openCreateBarberModal = () => {
@@ -492,6 +497,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                             if (current.id) {
                                 var res = await deleteBarber(current.id).unwrap();
                                 showSnack(res.message, !res.success);
+                                if (res.success) {
+                                    // Store data'sını yeniden yükle
+                                    await triggerGetStore(storeId);
+                                }
                             }
                         } catch (e) {
                             showSnack(resolveApiErrorMessage(e), true);
@@ -521,6 +530,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                             if (current.id) {
                                 var res = await deleteChair(current.id).unwrap();
                                 showSnack(res.message, !res.success);
+                                if (res.success) {
+                                    // Store data'sını yeniden yükle
+                                    await triggerGetStore(storeId);
+                                }
                             }
                         } catch (e) {
                             showSnack(resolveApiErrorMessage(e), true);

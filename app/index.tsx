@@ -9,9 +9,13 @@ export default function Index() {
   useEffect(() => {
     const t = tokenStore.access;
     // Token rehydration handled silently
-    if (!t) { setTarget('/(auth)'); return; }
+    if (!t) {
+      setTarget('/(auth)');
+      return;
+    }
     const userType = getUserTypeFromToken(t);
-    setTarget(pathByUserType(userType));
+    const path = pathByUserType(userType);
+    setTarget(path);
   }, []);
 
   return <Redirect href={target} />;

@@ -2,18 +2,15 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
-
 import SearchBar from "../../components/common/searchbar";
 import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-
 import { useToggleList } from "../../utils/common/service-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/common/expand-toggle";
 import { SkeletonComponent } from "../../components/common/skeleton";
-
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
 import { useGetMineStoresQuery } from "../../store/api";
 import { FilterBottomSheet } from "../../components/common/filterbottomsheet";
@@ -22,7 +19,6 @@ import { StoreMineCardComp } from "../../components/store/storeminecard";
 import { EmptyState } from "../../components/common/emptystateresult";
 import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
-
 import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
 import { safeCoord } from "../../utils/location/geo";
 import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi

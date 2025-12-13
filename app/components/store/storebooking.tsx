@@ -2,14 +2,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Icon } from "react-native-paper";
-import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation, useLazyGetNearbyFreeBarberQuery } from "../../store/api";
+import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation } from "../../store/api";
 import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
-import { ChairSlotDto, UserType, JwtPayload, FreeBarGetDto } from "../../types";
+import { ChairSlotDto, UserType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import FilterChip from "../common/filter-chip";
 import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../../utils/time/time-helper";
-import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
 import { useAuth } from "../../hook/useAuth";
+import { getCurrentLocationSafe } from "../../utils/location/location-helper";
 
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
 interface Props {
@@ -17,9 +17,11 @@ interface Props {
     isBottomSheet?: boolean;
     isFreeBarber?: boolean;
     isCustomer?: boolean;
+    freeBarberUserId?: string; // Serbest berber randevusu için
+    preselectedServices?: string[]; // Önceden seçilmiş hizmetler (serbest berber randevusu için)
 }
 
-const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = false, isCustomer = false }: Props) => {
+const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = false, isCustomer = false, freeBarberUserId, preselectedServices }: Props) => {
     // store header info
     const { data: storeData } = useGetStoreForUsersQuery(storeId, { skip: !storeId });
     const { data: workingHours } = useGetWorkingHoursByTargetQuery(storeId, { skip: !storeId });
@@ -30,10 +32,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
     const { userType: currentUserType } = useAuth();
 
-    // Müşteri için freebarber seçimi
-    const [selectedFreeBarberId, setSelectedFreeBarberId] = useState<string | null>(null);
-    const { freeBarbers, loading: freeBarbersLoading, hasLocation, locationStatus } = useNearbyFreeBarber(isCustomer && !selectedFreeBarberId);
-    const [showFreeBarberSelection, setShowFreeBarberSelection] = useState(false);
+    // FreeBarber seçimi artık koltuk seçiminde gösteriliyor (barberId koltuğa atanmışsa)
 
 
     // day selection
@@ -66,13 +65,22 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
     const [selectedChairId, setSelectedChairId] = useState<string | null>(null);
     const [selectedSlotKeys, setSelectedSlotKeys] = useState<string[]>([]); // "HH:mm"
-    const [selectedServices, setSelectedServices] = useState<string[]>([]);
+    const [selectedServices, setSelectedServices] = useState<string[]>(preselectedServices ?? []);
     const toggleService = useCallback((id: string) => {
         setSelectedServices(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
     }, []);
+
+    // Preselected services varsa, bunları başlangıçta seçili yap
+    useEffect(() => {
+        if (preselectedServices && preselectedServices.length > 0) {
+            setSelectedServices(preselectedServices);
+        }
+    }, [preselectedServices]);
     const { data, isFetching, isLoading, refetch } = useGetAvailabilityQuery({
         storeId,
         dateOnly: selectedDateOnly,
+    }, {
+        skip: !storeId || !selectedDateOnly,
     });
 
     const chairs: ChairSlotDto[] = useMemo(() => {
@@ -81,9 +89,18 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         return [];
     }, [data]);
 
+    // Gün değiştiğinde veya chairs değiştiğinde ilk koltuk seç
     useEffect(() => {
-        if (!selectedChairId && chairs.length > 0) setSelectedChairId(chairs[0].chairId);
-    }, [chairs, selectedChairId]);
+        if (chairs.length > 0) {
+            // Eğer seçili koltuk yeni listede yoksa veya hiç seçili değilse, ilk koltuğu seç
+            const currentChairExists = selectedChairId && chairs.some(c => c.chairId === selectedChairId);
+            if (!currentChairExists) {
+                setSelectedChairId(chairs[0].chairId);
+            }
+        } else {
+            setSelectedChairId(null);
+        }
+    }, [chairs, selectedDateOnly, selectedChairId]);
 
     const selectedChair = useMemo(
         () => chairs.find((c) => c.chairId === selectedChairId) ?? null,
@@ -203,102 +220,14 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
             </View>
 
-            <ScrollView>
+            <ScrollView nestedScrollEnabled>
                 <View className="p-4 z-0 gap-3">
                     <View className="flex-row justify-between items-center">
                         <Text className="text-white font-ibm-plex-sans-regular mt-3 text-xl">Randevu Al</Text>
                     </View>
 
-                    {/* Müşteri için FreeBarber Seçimi */}
-                    {isCustomer && currentUserType === UserType.Customer && (
-                        <View className="gap-2">
-                            {!selectedFreeBarberId ? (
-                                <>
-                                    <Text className="text-white font-ibm-plex-sans-medium text-base">
-                                        Serbest Berber Seçin (Opsiyonel)
-                                    </Text>
-                                    <TouchableOpacity
-                                        onPress={() => setShowFreeBarberSelection(!showFreeBarberSelection)}
-                                        className="bg-gray-800 rounded-xl p-3 flex-row items-center justify-between"
-                                    >
-                                        <Text className="text-gray-300 font-ibm-plex-sans-regular">
-                                            {showFreeBarberSelection ? "Berber Seçimini Gizle" : "Berber Seç"}
-                                        </Text>
-                                        <Icon source={showFreeBarberSelection ? "chevron-up" : "chevron-down"} size={20} color="white" />
-                                    </TouchableOpacity>
-                                    {showFreeBarberSelection && (
-                                        <View className="bg-gray-800 rounded-xl p-3 max-h-[300px]">
-                                            {freeBarbersLoading ? (
-                                                <ActivityIndicator />
-                                            ) : !hasLocation ? (
-                                                <Text className="text-gray-400 text-center">Konum izni gerekli</Text>
-                                            ) : freeBarbers.length === 0 ? (
-                                                <Text className="text-gray-400 text-center">Yakınlarda serbest berber bulunamadı</Text>
-                                            ) : (
-                                                <FlatList
-                                                    data={freeBarbers}
-                                                    keyExtractor={(item) => item.id}
-                                                    renderItem={({ item }) => (
-                                                        <TouchableOpacity
-                                                            onPress={() => {
-                                                                setSelectedFreeBarberId(item.id);
-                                                                setShowFreeBarberSelection(false);
-                                                            }}
-                                                            className="bg-gray-700 rounded-lg p-3 mb-2 flex-row items-center gap-3"
-                                                        >
-                                                            {item.imageList?.[0]?.imageUrl && (
-                                                                <Image
-                                                                    source={{ uri: item.imageList[0].imageUrl }}
-                                                                    className="w-12 h-12 rounded-full"
-                                                                />
-                                                            )}
-                                                            <View className="flex-1">
-                                                                <Text className="text-white font-ibm-plex-sans-medium">
-                                                                    {item.fullName}
-                                                                </Text>
-                                                                <View className="flex-row items-center gap-2 mt-1">
-                                                                    <Icon source="star" size={14} color="#FFA500" />
-                                                                    <Text className="text-gray-300 text-xs">
-                                                                        {item.rating.toFixed(1)} • {item.distanceKm.toFixed(1)} km
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-                                                        </TouchableOpacity>
-                                                    )}
-                                                />
-                                            )}
-                                        </View>
-                                    )}
-                                </>
-                            ) : (
-                                <View className="bg-green-600/20 rounded-xl p-3 flex-row items-center justify-between">
-                                    <View className="flex-row items-center gap-3 flex-1">
-                                        {freeBarbers.find(fb => fb.id === selectedFreeBarberId)?.imageList?.[0]?.imageUrl && (
-                                            <Image
-                                                source={{ uri: freeBarbers.find(fb => fb.id === selectedFreeBarberId)!.imageList![0].imageUrl }}
-                                                className="w-10 h-10 rounded-full"
-                                            />
-                                        )}
-                                        <View className="flex-1">
-                                            <Text className="text-white font-ibm-plex-sans-medium">
-                                                {freeBarbers.find(fb => fb.id === selectedFreeBarberId)?.fullName || "Serbest Berber"}
-                                            </Text>
-                                            <Text className="text-gray-300 text-xs">Seçildi</Text>
-                                        </View>
-                                    </View>
-                                    <TouchableOpacity
-                                        onPress={() => setSelectedFreeBarberId(null)}
-                                        className="bg-red-600 rounded-lg px-3 py-1"
-                                    >
-                                        <Text className="text-white text-xs">Kaldır</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                        </View>
-                    )}
-
                     {/* DAYS */}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                         <View className="flex-row gap-3">
                             {days.map((d) => {
                                 const key = fmtDateOnly(d);
@@ -333,28 +262,46 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             data={chairs}
                             keyExtractor={(c) => c.chairId}
                             showsHorizontalScrollIndicator={false}
+                            nestedScrollEnabled
                             contentContainerStyle={{ gap: 10 }}
                             renderItem={({ item: c }) => {
                                 const isSelected = c.chairId === selectedChairId;
-                                const title = c.barberId == null ? c.chairName : c.barberName;
-                                const rating = c.barberRating != null ? Number(c.barberRating).toFixed(1) : "0.0";
+                                const hasBarber = c.barberId != null && c.barberName != null;
+                                const chairName = c.chairName ?? "Koltuk";
+                                const barberName = c.barberName ?? "";
+                                const rating = c.barberRating != null ? Number(c.barberRating).toFixed(1) : null;
 
                                 return (
                                     <FilterChip
                                         itemKey={c.chairId}
                                         selected={isSelected}
                                         onPress={() => setSelectedChairId(c.chairId)}
-                                        className={`items-center w-[120px] px-2 py-2 rounded-xl ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
-                                        icon={<Icon source="seat" size={30} color="white" />}
+                                        className={`items-center w-[140px] px-2 py-3 rounded-xl ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
+                                        icon={<Icon source="seat" size={24} color="white" />}
                                     >
-                                        <View className="items-center">
-                                            <Text className="text-white font-ibm-plex-sans-regular" numberOfLines={1}>
-                                                {title ?? "Koltuk"}
+                                        <View className="items-center gap-1">
+                                            <Text className="text-white font-ibm-plex-sans-medium text-sm" numberOfLines={1}>
+                                                {chairName}
                                             </Text>
-                                            <View className="flex-row items-center gap-1">
-                                                <Icon size={14} source="star" color={isSelected ? "white" : "orange"} />
-                                                <Text className="text-white text-xs">{rating}</Text>
-                                            </View>
+                                            {hasBarber && (
+                                                <>
+                                                    <Text className="text-white font-ibm-plex-sans-regular text-xs" numberOfLines={1}>
+                                                        {barberName}
+                                                    </Text>
+                                                    {rating != null && (
+                                                        <View className="flex-row items-center gap-1">
+                                                            <Icon size={12} source="star" color={isSelected ? "white" : "#FFA500"} />
+                                                            <Text className="text-white text-xs">{rating}</Text>
+                                                        </View>
+                                                    )}
+                                                </>
+                                            )}
+                                            {!hasBarber && rating != null && (
+                                                <View className="flex-row items-center gap-1">
+                                                    <Icon size={12} source="star" color={isSelected ? "white" : "#FFA500"} />
+                                                    <Text className="text-white text-xs">{rating}</Text>
+                                                </View>
+                                            )}
                                         </View>
                                     </FilterChip>
                                 );
@@ -370,6 +317,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             data={selectedChair.slots}
                             keyExtractor={(s) => String(s.slotId)}
                             showsHorizontalScrollIndicator={false}
+                            nestedScrollEnabled
                             contentContainerStyle={{ gap: 10 }}
                             renderItem={({ item: s }) => {
                                 const isBooked = s.isBooked;
@@ -442,6 +390,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     keyExtractor={(item) => item.id}
                                     horizontal
                                     showsHorizontalScrollIndicator={false}
+                                    nestedScrollEnabled
                                     removeClippedSubviews
                                     contentContainerStyle={{ gap: 8 }}
                                     renderItem={({ item }) => {
@@ -477,18 +426,54 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             try {
                                 if (!selectedChair || selectedSlotKeys.length === 0) return;
 
+                                // Duplicate request önleme: buton disabled yap
+                                if (isCreatingCustomer || isCreatingFreeBarber || isCreatingStore) {
+                                    return;
+                                }
+
                                 if (!areHourlyContiguous(selectedSlotKeys)) {
                                     Alert.alert("Uyarı", "Lütfen ardışık saatleri seçin (boşluk olamaz).");
                                     return;
                                 }
 
+                                // Seçilen slotların hala müsait olduğunu kontrol et
                                 const sorted = [...selectedSlotKeys].sort();
                                 const start = sorted[0];
                                 const end = addMinutesToHHmm(start, sorted.length * APPOINTMENT_CONSTANTS.SLOT_DURATION_MINUTES);
 
+                                // Güncel availability'yi kontrol et
+                                const currentChair = chairs.find(c => c.chairId === selectedChair.chairId);
+                                if (currentChair) {
+                                    const selectedSlots = sorted.map(key => {
+                                        const slot = currentChair.slots.find(s => normalizeTime(s.start) === key);
+                                        return slot;
+                                    });
+
+                                    const hasBookedSlot = selectedSlots.some(slot => slot?.isBooked === true);
+                                    if (hasBookedSlot) {
+                                        Alert.alert("Uyarı", "Seçtiğiniz saatlerden biri başka bir kullanıcı tarafından alındı. Lütfen güncel durumu kontrol edin.");
+                                        // Availability'yi yenile
+                                        refetch();
+                                        return;
+                                    }
+                                }
+
                                 // TimeSpan format: "HH:mm:ss"
                                 const startTime = `${start}:00`;
                                 const endTime = `${end}:00`;
+
+                                // Müşteri için konum al
+                                let customerLat: number | null = null;
+                                let customerLon: number | null = null;
+                                if (isCustomer || currentUserType === UserType.Customer) {
+                                    const locationResult = await getCurrentLocationSafe();
+                                    if (!locationResult.ok) {
+                                        Alert.alert("Konum Gerekli", locationResult.message ?? "Randevu almak için konum izni gereklidir.");
+                                        return;
+                                    }
+                                    customerLat = locationResult.lat;
+                                    customerLon = locationResult.lon;
+                                }
 
                                 const appointmentData = {
                                     storeId: storeId,
@@ -497,9 +482,9 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     startTime: startTime,
                                     endTime: endTime,
                                     serviceOfferingIds: selectedServices,
-                                    freeBarberUserId: selectedFreeBarberId || null,
-                                    requestLatitude: storeData?.latitude ?? null,
-                                    requestLongitude: storeData?.longitude ?? null,
+                                    freeBarberUserId: freeBarberUserId || null, // freeBarberUserId ve manuelBarberId ayrı şeyler, karıştırma
+                                    requestLatitude: (isCustomer || currentUserType === UserType.Customer) ? customerLat : (storeData?.latitude ?? null),
+                                    requestLongitude: (isCustomer || currentUserType === UserType.Customer) ? customerLon : (storeData?.longitude ?? null),
                                 };
 
                                 let result;
@@ -522,7 +507,61 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     Alert.alert("Hata", result.message ?? "Randevu oluşturulamadı.");
                                 }
                             } catch (e: any) {
-                                Alert.alert("Hata", e?.data?.message ?? e?.message ?? "İşlem başarısız.");
+                                // Duplicate key hatası için özel mesaj - SQL Server exception formatını da yakala
+                                // Hata mesajını farklı katmanlardan al
+                                const errorMessage =
+                                    e?.data?.message ??
+                                    e?.data?.error ??
+                                    e?.error?.message ??
+                                    e?.error?.data?.message ??
+                                    e?.message ??
+                                    e?.error ??
+                                    String(e) ??
+                                    "İşlem başarısız.";
+
+                                const errorString = String(errorMessage).toLowerCase();
+
+                                // Hata nesnesinin tamamını string'e çevirip kontrol et (nested hatalar için)
+                                const fullErrorString = JSON.stringify(e).toLowerCase();
+
+                                // SQL Server duplicate key hatalarını yakala
+                                const isDuplicateError =
+                                    errorString.includes("duplicate key") ||
+                                    errorString.includes("ix_appointments") ||
+                                    errorString.includes("cannot insert duplicate") ||
+                                    errorString.includes("unique index") ||
+                                    errorString.includes("sqlexception") ||
+                                    errorString.includes("sql exception") ||
+                                    errorString.includes("alındı") ||
+                                    errorString.includes("slot taken") ||
+                                    errorString.includes("slottaken") ||
+                                    errorString.includes("already booked") ||
+                                    errorString.includes("already reserved") ||
+                                    fullErrorString.includes("duplicate key") ||
+                                    fullErrorString.includes("ix_appointments") ||
+                                    fullErrorString.includes("cannot insert duplicate") ||
+                                    fullErrorString.includes("unique index") ||
+                                    fullErrorString.includes("sqlexception");
+
+                                if (isDuplicateError) {
+                                    Alert.alert(
+                                        "Uyarı",
+                                        "Bu randevu zamanı başka bir kullanıcı tarafından alındı. Lütfen başka bir saat seçin.",
+                                        [
+                                            {
+                                                text: "Yenile",
+                                                onPress: () => {
+                                                    // Availability'yi yenile ve seçimleri temizle
+                                                    refetch();
+                                                    setSelectedSlotKeys([]);
+                                                }
+                                            },
+                                            { text: "Tamam" }
+                                        ]
+                                    );
+                                } else {
+                                    Alert.alert("Hata", errorMessage);
+                                }
                             }
                         }}
                     >

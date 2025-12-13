@@ -8,6 +8,8 @@ interface AuthResult {
     userId: string | null;
     isAuthenticated: boolean;
     token: string | null;
+    userName: string | null;
+    userFullName: string | null;
 }
 
 /**
@@ -42,11 +44,38 @@ export const useAuth = (): AuthResult => {
         }
     }, [token]);
 
+    const userName = useMemo(() => {
+        if (!token) return null;
+        try {
+            const decoded = jwtDecode<JwtPayload>(token);
+            return decoded.name || null;
+        } catch {
+            return null;
+        }
+    }, [token]);
+
+    const userFullName = useMemo(() => {
+        if (!token) return null;
+        try {
+            const decoded = jwtDecode<JwtPayload>(token);
+            const name = decoded.name || '';
+            const lastName = decoded.lastName || '';
+            if (name && lastName) {
+                return `${name} ${lastName}`;
+            }
+            return name || lastName || null;
+        } catch {
+            return null;
+        }
+    }, [token]);
+
     return {
         userType,
         userId,
         isAuthenticated: !!token,
         token,
+        userName,
+        userFullName,
     };
 };
 

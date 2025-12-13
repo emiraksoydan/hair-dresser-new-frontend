@@ -24,7 +24,7 @@ export const EmptyState = ({
     if (showDenied) {
         return (
             <LottieViewComponent
-                animationSource={require("../../assets/animations/Location.json")} // path’i proje yapına göre düzelt
+                animationSource={require("../../../assets/animations/Location.json")}
                 message={deniedText}
             />
         );
@@ -32,7 +32,7 @@ export const EmptyState = ({
     if (showNeedLocation) {
         return (
             <LottieViewComponent
-                animationSource={require("../../assets/animations/Location.json")}
+                animationSource={require("../../../assets/animations/Location.json")}
                 message={needLocationText}
             />
         );

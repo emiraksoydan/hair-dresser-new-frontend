@@ -13,7 +13,7 @@ type EmptyStateProps = {
 export const LottieViewComponent: React.FC<EmptyStateProps> = ({
     message = 'Yakınında şu an listelenecek berber bulunamadı.',
     style,
-    animationSource = require('../../assets/animations/empty.json'),
+    animationSource = require('../../../assets/animations/empty.json'),
     animationSize = 120,
 }) => {
     return (

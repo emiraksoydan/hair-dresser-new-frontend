@@ -1,8 +1,28 @@
+import { logger } from '../common/logger';
+
 export function pathByUserType(userType?: string | null) {
-    switch (userType) {
-        case 'Customer': return '/(customertabs)';
-        case 'FreeBarber': return '/(freebarbertabs)';
-        case 'BarberStore': return '/(barberstoretabs)';
-        default: return '/(auth)';
+    if (!userType) {
+        logger.warn('pathByUserType: userType is null or undefined');
+        return '/(auth)';
+    }
+
+    // Normalize: trim whitespace and convert to lowercase for case-insensitive comparison
+    const normalized = String(userType).trim().toLowerCase();
+
+    // C# enum.ToString() returns "Customer", "FreeBarber", "BarberStore"
+    // Handle all possible case variations
+    switch (normalized) {
+        case 'customer':
+        case '0':
+            return '/(customertabs)';
+        case 'freebarber':
+        case '1':
+            return '/(freebarbertabs)';
+        case 'barberstore':
+        case '2':
+            return '/(barberstoretabs)';
+        default:
+            logger.error('pathByUserType: Unknown userType:', userType, 'normalized:', normalized, 'type:', typeof userType);
+            return '/(auth)';
     }
 }

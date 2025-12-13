@@ -7,12 +7,14 @@ import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { NotificationsSheet } from '../components/appointment/notificationdetail';
+import { useAuth } from '../hook/useAuth';
 
 const BarberStoreLayout = () => {
 
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present } = useSheet('addStore');
     const { present: presentNoti, dismiss: dismissNoti } = useSheet("notifications");
+    const { userName } = useAuth();
 
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
@@ -40,7 +42,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg  text-white mr-0' >
-                                Hoşgeldiniz Emir
+                                {userName ? `Hoşgeldiniz ${userName}` : 'Hoşgeldiniz'}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -278,12 +280,12 @@ const BarberStoreLayout = () => {
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
                 ref={(inst) => setRef("notifications", inst)}
-                snapPoints={["85%"]}
+                snapPoints={["100%"]}
                 enableOverDrag={false}
                 enablePanDownToClose
             >
                 <BottomSheetView style={{ flex: 1, paddingTop: 8 }}>
-                    <NotificationsSheet onClose={dismissNoti} />
+                    <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
                 </BottomSheetView>
             </BottomSheetModal>
             <BottomSheetModal

@@ -51,32 +51,47 @@ let refreshing: Promise<any> | null = null;
 
 export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError> =
   async (args, api, extra) => {
-    let res = await raw(args, api, extra);
-    // Fix operator precedence: && has higher precedence than ||
-    if ((res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498) && tokenStore.refresh) {
-      if (!refreshing) {
-        refreshing = (async () => {
-          try {
-            const r = await rawNoAuth(
-              { url: 'Auth/refresh', method: 'POST', body: { refreshToken: tokenStore.refresh } },
-              api, extra
-            );
-            if ((r as any).error) throw new Error('HTTP error');
-            const { accessToken, refreshToken } = extractTokens((r as any).data);
-            tokenStore.set({ accessToken, refreshToken });
-            await saveTokens({ accessToken, refreshToken });
-            return true;
-          } catch {
-            tokenStore.clear();
-            await clearStoredTokens();
-            return false;
-          }
-        })();
+    try {
+      let res = await raw(args, api, extra);
+      // Fix operator precedence: && has higher precedence than || 
+      if ((res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498) && tokenStore.refresh) {
+        if (!refreshing) {
+          refreshing = (async () => {
+            try {
+              const r = await rawNoAuth(
+                { url: 'Auth/refresh', method: 'POST', body: { refreshToken: tokenStore.refresh } },
+                api, extra
+              );
+              if ((r as any).error) throw new Error('HTTP error');
+              const { accessToken, refreshToken } = extractTokens((r as any).data);
+              tokenStore.set({ accessToken, refreshToken });
+              await saveTokens({ accessToken, refreshToken });
+              return true;
+            } catch (error) {
+              tokenStore.clear();
+              await clearStoredTokens();
+              return false;
+            }
+          })();
+        }
+        const ok = await refreshing.finally(() => (refreshing = null));
+        if (ok) res = await raw(args, api, extra);
       }
-      const ok = await refreshing.finally(() => (refreshing = null));
-      if (ok) res = await raw(args, api, extra);
+      return res;
+    } catch (error) {
+      // Global error handler - tüm hatalar burada yakalanır
+      // Logger'a kaydedilir, kullanıcıya gösterilmez (component seviyesinde gösterilebilir)
+      const { logger } = await import('../utils/common/logger');
+      logger.error('API request failed:', error);
+      
+      // Return error in RTK Query format
+      return {
+        error: {
+          status: 'FETCH_ERROR',
+          data: { message: 'Beklenmeyen bir hata oluştu' }
+        }
+      } as any;
     }
-    return res;
   };
 
 

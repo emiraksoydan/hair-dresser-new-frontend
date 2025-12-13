@@ -7,6 +7,7 @@ export const api = createApi({
     baseQuery: baseQueryWithReauth,
     tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment"],
     refetchOnReconnect: true,
+    refetchOnFocus: false, // Tab değişimlerinde veya bottom sheet açıldığında otomatik refetch yapma
     endpoints: (builder) => ({
 
         //Auth Api
@@ -43,7 +44,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, radiusKm },
             }),
-            keepUnusedDataFor: 60, // Cache for 60 seconds
+            keepUnusedDataFor: 0,
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
@@ -52,7 +53,7 @@ export const api = createApi({
         }),
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
-            keepUnusedDataFor: 60, // Cache for 60 seconds
+            keepUnusedDataFor: 0,
             providesTags: ['GetStoreById'],
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
@@ -86,7 +87,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, radiusKm },
             }),
-            keepUnusedDataFor: 60, // Cache for 60 seconds
+            keepUnusedDataFor: 0,
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
@@ -170,6 +171,16 @@ export const api = createApi({
         getAvailability: builder.query<ChairSlotDto[], { storeId: string; dateOnly: string }>({
             query: ({ storeId, dateOnly }) =>
                 `Appointment/availability?storeId=${storeId}&dateOnly=${dateOnly}`,
+            transformResponse: (response: any) => {
+                // Backend ApiResponse formatında dönebilir: { success, data, message }
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
+            providesTags: (result, error, { storeId, dateOnly }) => [
+                { type: 'Appointment' as const, id: `availability-${storeId}-${dateOnly}` },
+                { type: 'Appointment' as const, id: 'availability' },
+            ],
             keepUnusedDataFor: 0,
         }),
 
@@ -188,17 +199,37 @@ export const api = createApi({
         // Notification
         getBadgeCounts: builder.query<BadgeCount, void>({
             query: () => 'Badge',
+            transformResponse: (response: any) => {
+                // Backend zaten camelCase dönüyor (Program.cs'de ayarlandı)
+                // Sadece array kontrolü yeterli
+                if (response?.unreadNotifications !== undefined && response?.unreadMessages !== undefined) {
+                    return response;
+                }
+                if (response?.data && response.data.unreadNotifications !== undefined && response.data.unreadMessages !== undefined) {
+                    return response.data;
+                }
+                // Fallback
+                return { unreadNotifications: 0, unreadMessages: 0 };
+            },
             providesTags: ['Badge'],
         }),
         getAllNotifications: builder.query<NotificationDto[], void>({
             query: () => 'Notification',
-            providesTags: (result) =>
-                result
-                    ? [
-                        ...result.map(({ id }) => ({ type: 'Notification' as const, id })),
-                        { type: 'Notification', id: 'LIST' },
-                    ]
-                    : [{ type: 'Notification', id: 'LIST' }],
+            transformResponse: (response: any) => {
+                // Backend zaten camelCase dönüyor
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
+            providesTags: (result) => {
+                if (!result || !Array.isArray(result)) {
+                    return [{ type: 'Notification' as const, id: 'LIST' }];
+                }
+                return [
+                    ...result.map(({ id }) => ({ type: 'Notification' as const, id })),
+                    { type: 'Notification' as const, id: 'LIST' },
+                ];
+            },
         }),
 
         markNotificationRead: builder.mutation<void, string>({
@@ -208,7 +239,7 @@ export const api = createApi({
             }),
             // Bildirim okununca hem listeyi hem de badge sayısını yenile
             invalidatesTags: (result, error, id) => [
-                { type: 'Notification', id },
+                { type: 'Notification' as const, id },
                 'Badge'
             ],
         }),
@@ -216,15 +247,37 @@ export const api = createApi({
         // Appointment Api
         createCustomerAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/customer', method: 'POST', body }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: (result, error, arg) => [
+                'Appointment',
+                'Badge',
+                'Notification',
+                { type: 'Appointment' as const, id: `availability-${arg.storeId}-${arg.appointmentDate}` },
+                { type: 'Appointment' as const, id: 'availability' },
+            ],
         }),
         createFreeBarberAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/freebarber', method: 'POST', body }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: (result, error, arg) => [
+                'Appointment',
+                'Badge',
+                'Notification',
+                ...(arg.storeId && arg.appointmentDate ? [
+                    { type: 'Appointment' as const, id: `availability-${arg.storeId}-${arg.appointmentDate}` },
+                    { type: 'Appointment' as const, id: 'availability' },
+                ] : []),
+            ],
         }),
         createStoreAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/store', method: 'POST', body }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: (result, error, arg) => [
+                'Appointment',
+                'Badge',
+                'Notification',
+                ...(arg.storeId && arg.appointmentDate ? [
+                    { type: 'Appointment' as const, id: `availability-${arg.storeId}-${arg.appointmentDate}` },
+                    { type: 'Appointment' as const, id: 'availability' },
+                ] : []),
+            ],
         }),
         storeDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
             query: ({ appointmentId, approve }) => ({
@@ -232,7 +285,7 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment' as const, id: 'availability' }],
         }),
         freeBarberDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
             query: ({ appointmentId, approve }) => ({
@@ -240,26 +293,32 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment' as const, id: 'availability' }],
         }),
         cancelAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (appointmentId) => ({
                 url: `Appointment/${appointmentId}/cancel`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment' as const, id: 'availability' }],
         }),
         completeAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (appointmentId) => ({
                 url: `Appointment/${appointmentId}/complete`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification'],
+            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment' as const, id: 'availability' }],
         }),
 
         // Chat Api
         getChatThreads: builder.query<ChatThreadListItemDto[], void>({
             query: () => 'Chat/threads',
+            transformResponse: (response: any) => {
+                // Backend zaten camelCase dönüyor
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
             providesTags: ['Chat'],
             keepUnusedDataFor: 0,
         }),
