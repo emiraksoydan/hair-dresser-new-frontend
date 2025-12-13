@@ -38,51 +38,65 @@ export type CreateAppointmentRequestDto = {
   requestLongitude?: number | null;
 };
 
-export type AppointmentDto = {
+
+export enum AppointmentFilter {
+  Active = 1,
+  Completed = 2,
+  Cancelled = 3,
+}
+
+// Hizmet Detayı
+export type AppointmentServiceDto = {
+  serviceId: string;
+  serviceName: string;
+  price: number;
+}
+
+// Ana Randevu DTO'su
+export type AppointmentGetDto = {
   id: string;
-  chairId?: string | null;
-  startTime: string; // TimeSpan format
-  endTime: string; // TimeSpan format
-  appointmentDate: string; // DateOnly format
+  chairId?: string;
+  startTime: string; // "14:30:00"
+  endTime: string;
+  appointmentDate: string; // "2025-12-14"
   status: AppointmentStatus;
   createdAt: string;
-  updatedAt: string;
-  barberStoreUserId?: string | null;
-  customerUserId?: string | null;
-  freeBarberUserId?: string | null;
-  manuelBarberId?: string | null;
-  requestedBy: AppointmentRequester;
-  storeDecision: DecisionStatus;
-  freeBarberDecision: DecisionStatus;
-  pendingExpiresAt?: string | null;
-  cancelledByUserId?: string | null;
-  approvedAt?: string | null;
-  completedAt?: string | null;
-  // Related data
-  store?: {
-    id: string;
-    storeName: string;
-    addressDescription?: string;
-    imageUrl?: string;
-  };
-  customer?: {
-    userId: string;
-    displayName?: string;
-    avatarUrl?: string;
-  };
-  freeBarber?: {
-    userId: string;
-    displayName: string;
-    avatarUrl?: string;
-  };
-  chair?: {
-    chairId: string;
-    chairName?: string;
-    manuelBarberId?: string;
-    manuelBarberName?: string;
-  };
-  serviceOfferings?: ServiceOfferingGetDto[];
-};
+
+  // YENİ: Hizmetler ve Fiyat
+  services: AppointmentServiceDto[];
+  totalPrice: number;
+
+  // Store
+  barberStoreId?: string;
+  storeName?: string;
+  storeImage?: string;
+  isStoreFavorite: boolean;
+  myRatingForStore?: number;
+  myCommentForStore?: string;
+
+  // FreeBarber
+  freeBarberId?: string;
+  freeBarberName?: string;
+  freeBarberImage?: string;
+  isFreeBarberFavorite: boolean;
+  myRatingForFreeBarber?: number;
+  myCommentForFreeBarber?: string;
+
+  // ManuelBarber
+  manuelBarberId?: string;
+  manuelBarberName?: string;
+  manuelBarberImage?: string;
+  myRatingForManuelBarber?: number;
+  myCommentForManuelBarber?: string;
+
+  // Customer
+  customerUserId?: string;
+  customerName?: string;
+  customerImage?: string;
+  isCustomerFavorite: boolean;
+  myRatingForCustomer?: number;
+  myCommentForCustomer?: string;
+}
 
 export type SlotDto = {
   slotId: string;

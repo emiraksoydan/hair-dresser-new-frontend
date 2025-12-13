@@ -6,7 +6,7 @@ import FormStoreAdd from '../components/store/formstoreadd';
 import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
-import { NotificationsSheet } from '../components/appointment/notificationdetail';
+import { NotificationsSheet } from '../components/appointment/notificationsheet';
 import { useAuth } from '../hook/useAuth';
 
 const BarberStoreLayout = () => {

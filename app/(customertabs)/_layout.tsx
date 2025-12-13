@@ -6,7 +6,7 @@ import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { useAuth } from '../hook/useAuth';
 import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
-import { NotificationsSheet } from '../components/appointment/notificationdetail';
+import { NotificationsSheet } from '../components/appointment/notificationsheet';
 
 const CustomerLayout = () => {
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
