@@ -71,18 +71,15 @@ export default function SharedAppointmentScreen() {
 
     // Favori toggle
     const handleToggleFavorite = useCallback(async (targetId: string, appointmentId?: string) => {
-        console.log('[SharedAppointment] handleToggleFavorite: Başlatılıyor', { targetId, appointmentId });
-
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId,
                 appointmentId: appointmentId || null,
             }).unwrap();
 
-            console.log('[SharedAppointment] handleToggleFavorite: Başarılı', result);
-            refetch(); // Listeyi yenile
+            // Listeyi yenile - cache invalidation otomatik olarak yapılacak
+            refetch();
         } catch (error: any) {
-            console.error('[SharedAppointment] handleToggleFavorite: Hata', error);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
     }, [toggleFavorite, refetch]);
@@ -138,6 +135,15 @@ export default function SharedAppointmentScreen() {
         canRateNow: boolean;
         onRatePress: () => void;
     }) => {
+        // Rating gösterimi: Ortalama rating her zaman gösterilmeli (tamamlandı/iptal durumunda da)
+        // Kullanıcının kendi rating'i de her zaman gösterilmeli (eğer varsa)
+        const hasAnyRating = (averageRating !== undefined && averageRating !== null) ||
+            (myRating !== undefined && myRating > 0);
+
+        if (!hasAnyRating && !canRateNow) {
+            return null; // Rating yok ve rating yapılamazsa hiçbir şey gösterme
+        }
+
         return (
             <View className="mt-1">
                 {/* Ortalama Rating - Her zaman göster (eğer varsa) */}

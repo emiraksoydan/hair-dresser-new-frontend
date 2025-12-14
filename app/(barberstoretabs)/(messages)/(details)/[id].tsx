@@ -5,15 +5,16 @@ import { ChatDetailScreen } from '../../../components/chat/ChatDetailScreen';
 /**
  * BarberStore message detail page
  * Uses the shared ChatDetailScreen component
+ * Now uses threadId instead of appointmentId
  */
 const ChatDetailPage = () => {
-    const { id: appointmentId } = useLocalSearchParams<{ id: string }>();
+    const { id: threadId } = useLocalSearchParams<{ id: string }>();
 
-    if (!appointmentId) {
+    if (!threadId) {
         return null;
     }
 
-    return <ChatDetailScreen appointmentId={appointmentId} />;
+    return <ChatDetailScreen threadId={threadId} />;
 };
 
 export default ChatDetailPage;

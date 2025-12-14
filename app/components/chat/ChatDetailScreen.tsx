@@ -1,104 +1,89 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
-import { useGetChatMessagesQuery, useSendChatMessageMutation, useMarkChatThreadReadMutation, useGetChatThreadsQuery, useGetAllNotificationsQuery } from '../../store/api';
-import { ChatMessageItemDto, AppointmentStatus, NotificationPayload } from '../../types';
+import {
+    useGetChatMessagesByThreadQuery,
+    useSendChatMessageMutation,
+    useSendChatMessageByThreadMutation,
+    useMarkChatThreadReadMutation,
+    useGetChatThreadsQuery,
+    useGetBadgeCountsQuery,
+    useNotifyTypingMutation
+} from '../../store/api';
+import { ChatMessageItemDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { logger } from '../../utils/common/logger';
+import { useSignalR } from '../../hook/useSignalR';
 
 interface ChatDetailScreenProps {
-    appointmentId: string;
+    threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
 }
 
 /**
  * Reusable chat detail screen component
  * Used by all user types (Customer, BarberStore, FreeBarber)
+ * Works with both appointment and favorite threads
  */
-export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentId }) => {
+export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) => {
     const router = useRouter();
     const [messageText, setMessageText] = useState('');
     const flatListRef = useRef<FlatList>(null);
     const { userId: currentUserId } = useAuth();
+    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
 
-    const { data: messages, isLoading, refetch } = useGetChatMessagesQuery(
-        { appointmentId },
-        { skip: !appointmentId }
-    );
+    // SignalR bağlantı kontrolü
+    const { isConnected, connectionRef } = useSignalR();
 
     const { data: threads } = useGetChatThreadsQuery();
-    const { data: notifications } = useGetAllNotificationsQuery();
-
     const currentThread = useMemo(() =>
-        threads?.find(t => t.appointmentId === appointmentId),
-        [threads, appointmentId]
+        threads?.find(t => t.threadId === threadId),
+        [threads, threadId]
     );
 
-    // Thread'den appointment bilgilerini al (kullanıcı fotoğrafları için)
-    const appointmentNotification = useMemo(() => {
-        if (!notifications || !appointmentId) return null;
-        return notifications.find(n => n.appointmentId === appointmentId);
-    }, [notifications, appointmentId]);
+    // Mesajları ThreadId ile getir
+    const { data: messages, isLoading, refetch } = useGetChatMessagesByThreadQuery(
+        { threadId },
+        { skip: !threadId }
+    );
 
-    const appointmentPayload = useMemo<NotificationPayload | null>(() => {
-        if (!appointmentNotification?.payloadJson) return null;
-        try {
-            return JSON.parse(appointmentNotification.payloadJson) as NotificationPayload;
-        } catch {
-            return null;
-        }
-    }, [appointmentNotification]);
-
-    // Mesaj gönderme kontrolü: Sadece Pending veya Approved durumunda
+    // Mesaj gönderme kontrolleri
     const canSendMessage = useMemo(() => {
         if (!currentThread) return false;
-        return currentThread.status === AppointmentStatus.Pending ||
-            currentThread.status === AppointmentStatus.Approved;
-    }, [currentThread]);
+        if (!isConnected) return false; // SignalR bağlantısı yoksa mesaj gönderilemez
 
-    // Kullanıcı bilgilerini al (avatar için)
-    const getUserInfo = useCallback((userId: string) => {
-        if (!appointmentPayload) return null;
-
-        // Store bilgisi
-        if (appointmentPayload.store?.storeOwnerUserId === userId) {
-            return {
-                name: appointmentPayload.store.storeName,
-                avatar: appointmentPayload.store.imageUrl,
-                isStore: true,
-            };
+        // Randevu thread'i için: Pending veya Approved
+        if (!currentThread.isFavoriteThread && currentThread.status) {
+            return currentThread.status === AppointmentStatus.Pending ||
+                currentThread.status === AppointmentStatus.Approved;
         }
 
-        // Customer bilgisi
-        if (appointmentPayload.customer?.userId === userId) {
-            return {
-                name: appointmentPayload.customer.displayName || 'Müşteri',
-                avatar: appointmentPayload.customer.avatarUrl,
-                isStore: false,
-            };
+        // Favori thread için: her zaman gönderilebilir (aktif favori kontrolü backend'de)
+        if (currentThread.isFavoriteThread) {
+            return true;
         }
 
-        // FreeBarber bilgisi
-        if (appointmentPayload.freeBarber?.userId === userId) {
-            return {
-                name: appointmentPayload.freeBarber.displayName,
-                avatar: appointmentPayload.freeBarber.avatarUrl,
-                isStore: false,
-            };
-        }
+        return false;
+    }, [currentThread, isConnected]);
 
-        return null;
-    }, [appointmentPayload]);
+    // Mesaj gönderme mutation'ları
+    const [sendMessageByAppointment, { isLoading: isSendingByAppt }] = useSendChatMessageMutation();
+    const [sendMessageByThread, { isLoading: isSendingByThread }] = useSendChatMessageByThreadMutation();
+    const isSending = isSendingByAppt || isSendingByThread;
 
-    const [sendMessage, { isLoading: isSending }] = useSendChatMessageMutation();
     const [markRead] = useMarkChatThreadReadMutation();
+    const [notifyTyping] = useNotifyTypingMutation();
+
+    // Typing indicator için debounce
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastTypingNotificationRef = useRef(false);
 
     // Mark thread as read when opened
     useEffect(() => {
-        if (appointmentId && currentThread && currentThread.unreadCount > 0) {
-            markRead(appointmentId);
+        if (threadId && currentThread && currentThread.unreadCount > 0) {
+            markRead(threadId);
         }
-    }, [appointmentId, currentThread?.unreadCount, markRead]);
+    }, [threadId, currentThread?.unreadCount, markRead]);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -109,30 +94,114 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentI
         }
     }, [messages]);
 
-    const handleSend = useCallback(async () => {
-        if (!messageText.trim() || !appointmentId || isSending) return;
+    // Typing indicator timeout
+    useEffect(() => {
+        if (typingUsers.size > 0) {
+            const timeout = setTimeout(() => {
+                setTypingUsers(new Set());
+            }, 3000); // 3 saniye sonra typing indicator'ü kaldır
+            return () => clearTimeout(timeout);
+        }
+    }, [typingUsers]);
 
-        // Durum kontrolü
+    // Typing indicator SignalR event handler
+    useEffect(() => {
+        const connection = connectionRef?.current;
+        if (!connection) return;
+
+        const handleTyping = (data: { threadId: string; typingUserId: string; typingUserName: string; isTyping: boolean }) => {
+            if (data.threadId !== threadId) return;
+            if (data.typingUserId === currentUserId) return; // Kendi typing'ini gösterme
+
+            if (data.isTyping) {
+                setTypingUsers(prev => new Set([...prev, data.typingUserId]));
+            } else {
+                setTypingUsers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(data.typingUserId);
+                    return newSet;
+                });
+            }
+        };
+
+        connection.on("chat.typing", handleTyping);
+
+        return () => {
+            if (connection) {
+                connection.off("chat.typing", handleTyping);
+            }
+        };
+    }, [threadId, currentUserId]); // connectionRef bir ref olduğu için dependency'ye eklenmez
+
+    // Mesaj yazarken typing indicator gönder
+    const handleTextChange = useCallback((text: string) => {
+        setMessageText(text);
+
+        // Typing indicator gönder (debounce ile)
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        const shouldNotifyTyping = text.trim().length > 0 && canSendMessage && isConnected;
+
+        if (shouldNotifyTyping && !lastTypingNotificationRef.current) {
+            // Typing başladı
+            notifyTyping({ threadId, isTyping: true });
+            lastTypingNotificationRef.current = true;
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+            // 2 saniye sonra typing bitti
+            if (lastTypingNotificationRef.current) {
+                notifyTyping({ threadId, isTyping: false });
+                lastTypingNotificationRef.current = false;
+            }
+        }, 2000);
+    }, [threadId, canSendMessage, isConnected, notifyTyping]);
+
+    const handleSend = useCallback(async () => {
+        if (!messageText.trim() || !threadId || isSending) return;
+
+        // Kontroller
         if (!canSendMessage) {
-            Alert.alert(
-                'Mesaj Gönderilemez',
-                'Sadece bekleyen veya onaylanmış randevularda mesaj gönderebilirsiniz.'
-            );
+            if (!isConnected) {
+                Alert.alert('Bağlantı Hatası', 'Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.');
+            } else {
+                Alert.alert(
+                    'Mesaj Gönderilemez',
+                    'Bu thread için mesaj gönderemezsiniz.'
+                );
+            }
             return;
+        }
+
+        // Typing indicator'ü kapat
+        if (lastTypingNotificationRef.current) {
+            notifyTyping({ threadId, isTyping: false });
+            lastTypingNotificationRef.current = false;
+        }
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
         }
 
         const text = messageText.trim();
         setMessageText('');
 
         try {
-            await sendMessage({ appointmentId, text }).unwrap();
+            // Randevu thread'i ise appointmentId ile gönder, favori thread ise threadId ile
+            if (currentThread?.isFavoriteThread || !currentThread?.appointmentId) {
+                await sendMessageByThread({ threadId, text }).unwrap();
+            } else {
+                await sendMessageByAppointment({ appointmentId: currentThread.appointmentId, text }).unwrap();
+            }
             refetch();
         } catch (e: any) {
             setMessageText(text); // Restore text on error
             logger.error('Send message error:', e);
             Alert.alert('Hata', e?.data?.message || e?.message || 'Mesaj gönderilemedi');
         }
-    }, [messageText, appointmentId, isSending, canSendMessage, sendMessage, refetch]);
+    }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, refetch, notifyTyping]);
 
     const formatMessageTime = (dateStr: string) => {
         try {
@@ -164,25 +233,88 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentI
         );
     }
 
+    if (!currentThread) {
+        return (
+            <View className="flex-1 bg-[#151618] items-center justify-center">
+                <Text className="text-gray-400">Thread bulunamadı</Text>
+                <TouchableOpacity onPress={() => router.back()} className="mt-4">
+                    <Text className="text-green-500">Geri Dön</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     return (
         <KeyboardAvoidingView
             className="flex-1 bg-[#151618]"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-            {/* Header */}
-            <View className="bg-gray-800 px-4 py-3 flex-row items-center justify-between border-b border-gray-700">
-                <TouchableOpacity onPress={() => router.back()} className="mr-3">
-                    <Icon source="chevron-left" size={24} color="white" />
-                </TouchableOpacity>
-                <View className="flex-1">
-                    <Text className="text-white font-ibm-plex-sans-bold text-lg" numberOfLines={1}>
-                        {currentThread?.title || 'Sohbet'}
-                    </Text>
-                    <Text className="text-gray-400 text-xs">
-                        {currentThread?.status === 1 ? 'Onaylandı' : 'Beklemede'}
-                    </Text>
+            {/* Header with Participants Tab */}
+            <View className="bg-gray-800 border-b border-gray-700">
+                <View className="px-4 py-3 flex-row items-center justify-between">
+                    <TouchableOpacity onPress={() => router.back()} className="mr-3">
+                        <Icon source="chevron-left" size={24} color="white" />
+                    </TouchableOpacity>
+                    <View className="flex-1">
+                        <Text className="text-white font-ibm-plex-sans-bold text-lg" numberOfLines={1}>
+                            {currentThread.title}
+                        </Text>
+                        {currentThread.status && (
+                            <Text className="text-gray-400 text-xs">
+                                {currentThread.status === AppointmentStatus.Approved ? 'Onaylandı' :
+                                    currentThread.status === AppointmentStatus.Pending ? 'Beklemede' : ''}
+                            </Text>
+                        )}
+                    </View>
                 </View>
+
+                {/* Participants Tab */}
+                {currentThread.participants.length > 0 && (
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        className="px-4 py-2 border-t border-gray-700"
+                    >
+                        {currentThread.participants.map((participant) => (
+                            <View key={participant.userId} className="flex-row items-center mr-4">
+                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
+                                    {participant.imageUrl ? (
+                                        <Image
+                                            source={{ uri: participant.imageUrl }}
+                                            className="w-full h-full"
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <Icon
+                                            source={
+                                                participant.userType === UserType.BarberStore
+                                                    ? "store"
+                                                    : participant.userType === UserType.FreeBarber
+                                                        ? "account-supervisor"
+                                                        : "account"
+                                            }
+                                            size={20}
+                                            color="white"
+                                        />
+                                    )}
+                                </View>
+                                <View>
+                                    <Text className="text-white text-sm font-ibm-plex-sans-medium" numberOfLines={1}>
+                                        {participant.displayName}
+                                    </Text>
+                                    {participant.barberType !== undefined && participant.barberType !== null && (
+                                        <Text className="text-gray-500 text-xs">
+                                            {participant.barberType === BarberType.MaleHairdresser ? "Erkek Kuaförü" :
+                                                participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                                    "Güzellik Salonu"}
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
             </View>
 
             {/* Messages List */}
@@ -194,21 +326,27 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentI
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
                 renderItem={({ item }: { item: ChatMessageItemDto }) => {
                     const isMe = item.senderUserId === currentUserId;
-                    const senderInfo = getUserInfo(item.senderUserId);
+                    const senderParticipant = currentThread.participants.find(p => p.userId === item.senderUserId);
 
                     return (
                         <View className={`flex-row items-end gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
                                 <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
-                                    {senderInfo?.avatar ? (
+                                    {senderParticipant?.imageUrl ? (
                                         <Image
-                                            source={{ uri: senderInfo.avatar }}
+                                            source={{ uri: senderParticipant.imageUrl }}
                                             className="w-full h-full"
                                             resizeMode="cover"
                                         />
                                     ) : (
                                         <Icon
-                                            source={senderInfo?.isStore ? "store" : "account"}
+                                            source={
+                                                senderParticipant?.userType === UserType.BarberStore
+                                                    ? "store"
+                                                    : senderParticipant?.userType === UserType.FreeBarber
+                                                        ? "account-supervisor"
+                                                        : "account"
+                                            }
                                             size={20}
                                             color="white"
                                         />
@@ -217,15 +355,15 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentI
                             )}
 
                             <View className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                {!isMe && senderInfo && (
+                                {!isMe && senderParticipant && (
                                     <Text className="text-gray-400 text-xs mb-1 px-2">
-                                        {senderInfo.name}
+                                        {senderParticipant.displayName}
                                     </Text>
                                 )}
                                 <View
                                     className={`rounded-2xl px-4 py-2.5 ${isMe
-                                            ? 'bg-green-600 rounded-tr-sm'
-                                            : 'bg-gray-700 rounded-tl-sm'
+                                        ? 'bg-green-600 rounded-tr-sm'
+                                        : 'bg-gray-700 rounded-tl-sm'
                                         }`}
                                 >
                                     <Text className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}>
@@ -251,21 +389,40 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ appointmentI
                         <Text className="text-gray-500 text-xs mt-2">İlk mesajı siz gönderin</Text>
                     </View>
                 }
+                ListFooterComponent={
+                    typingUsers.size > 0 ? (
+                        <View className="flex-row items-center px-4 py-2">
+                            <Text className="text-gray-500 text-xs italic">
+                                {Array.from(typingUsers).map(userId => {
+                                    const user = currentThread.participants.find(p => p.userId === userId);
+                                    return user?.displayName || 'Birisi';
+                                }).join(', ')} yazıyor...
+                            </Text>
+                        </View>
+                    ) : null
+                }
             />
 
             {/* Input */}
             <View className="bg-gray-800 border-t border-gray-700 px-4 py-3">
-                {!canSendMessage && (
+                {!isConnected && (
+                    <View className="bg-red-900/20 border border-red-800/30 rounded-lg px-3 py-2 mb-2">
+                        <Text className="text-red-400 text-xs text-center">
+                            Sunucuya bağlanılamıyor. Mesaj gönderemezsiniz.
+                        </Text>
+                    </View>
+                )}
+                {!canSendMessage && isConnected && (
                     <View className="bg-yellow-900/20 border border-yellow-800/30 rounded-lg px-3 py-2 mb-2">
                         <Text className="text-yellow-400 text-xs text-center">
-                            Bu randevu için mesaj gönderemezsiniz
+                            Bu thread için mesaj gönderemezsiniz
                         </Text>
                     </View>
                 )}
                 <View className="flex-row items-center gap-2">
                     <TextInput
                         value={messageText}
-                        onChangeText={setMessageText}
+                        onChangeText={handleTextChange}
                         placeholder={canSendMessage ? "Mesaj yazın..." : "Mesaj gönderilemez"}
                         placeholderTextColor="#6b7280"
                         className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 font-ibm-plex-sans-regular"

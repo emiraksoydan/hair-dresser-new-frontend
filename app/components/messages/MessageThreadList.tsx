@@ -4,11 +4,11 @@
  */
 
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
-import { ChatThreadListItemDto, AppointmentStatus } from '../../types';
+import { ChatThreadListItemDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { LottieViewComponent } from '../common/lottieview';
 import { SkeletonComponent } from '../common/skeleton';
 import { useFormatTime } from '../../utils/time/time-formatter';
@@ -26,71 +26,98 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     const { data: threads, isLoading, refetch, isFetching } = useGetChatThreadsQuery();
     const formatTime = useFormatTime();
 
-    // Backend zaten Pending/Approved filtreliyor ama frontend'de de kontrol edelim
-    const filteredThreads = useMemo(() => {
-        if (!threads) return [];
-        return threads.filter(t =>
-            t.status === AppointmentStatus.Pending ||
-            t.status === AppointmentStatus.Approved
-        );
-    }, [threads]);
-
-    if (isLoading) {
-        return (
-            <View className="flex-1 bg-[#151618] pt-4">
-                {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
-            </View>
-        );
-    }
-
-    // Boş durum kontrolü: filteredThreads undefined, null veya boş array ise
-    const hasNoThreads = !filteredThreads || (Array.isArray(filteredThreads) && filteredThreads.length === 0);
-
-    if (hasNoThreads) {
-        return (
-            <View className="flex-1 bg-[#151618]">
-                <LottieViewComponent message={MESSAGES.EMPTY_STATE.NO_MESSAGES} />
-            </View>
-        );
-    }
+    // Backend zaten Pending/Approved filtreliyor ve favori thread'leri aktif favorilere göre filtreliyor
+    // Frontend'de ekstra kontrol gerekmiyor, sadece threads'i kullanıyoruz
 
     const renderItem = useCallback(({ item }: { item: ChatThreadListItemDto }) => {
         const hasUnread = item.unreadCount > 0;
-        const statusColor = getAppointmentStatusColor(item.status);
+        const statusColor = item.status ? getAppointmentStatusColor(item.status) : undefined;
         const statusText = item.status === AppointmentStatus.Approved
             ? MESSAGES.APPOINTMENT_STATUS.APPROVED
-            : MESSAGES.APPOINTMENT_STATUS.PENDING;
+            : item.status === AppointmentStatus.Pending
+                ? MESSAGES.APPOINTMENT_STATUS.PENDING
+                : null;
 
         const handlePress = () => {
             // Route prefix'e göre detail sayfasına yönlendir
+            // ThreadId kullanarak yönlendirme yapıyoruz
             if (routePrefix.includes('(barberstoretabs)')) {
-                router.push(`/(barberstoretabs)/(messages)/(details)/${item.appointmentId}`);
+                router.push(`/(barberstoretabs)/(messages)/(details)/${item.threadId}`);
             } else if (routePrefix.includes('(customertabs)')) {
-                router.push(`/(customertabs)/(messages)/${item.appointmentId}`);
+                router.push(`/(customertabs)/(messages)/${item.threadId}`);
             } else if (routePrefix.includes('(freebarbertabs)')) {
-                router.push(`/(freebarbertabs)/(messages)/${item.appointmentId}`);
+                router.push(`/(freebarbertabs)/(messages)/${item.threadId}`);
             } else {
-                router.push(`${routePrefix}/${item.appointmentId}`);
+                router.push(`${routePrefix}/${item.threadId}`);
             }
+        };
+
+        // Participant'ları render et
+        const renderParticipant = (participant: ChatThreadParticipantDto, index: number) => {
+            const isFirst = index === 0;
+            return (
+                <View key={participant.userId} className={`flex-row items-center ${!isFirst ? 'ml-2' : ''}`}>
+                    <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
+                        {participant.imageUrl ? (
+                            <Image
+                                source={{ uri: participant.imageUrl }}
+                                className="w-full h-full"
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <Icon
+                                source={
+                                    participant.userType === UserType.BarberStore
+                                        ? "store"
+                                        : participant.userType === UserType.FreeBarber
+                                            ? "account-supervisor"
+                                            : "account"
+                                }
+                                size={20}
+                                color="white"
+                            />
+                        )}
+                    </View>
+                    <View className="ml-2">
+                        <Text className="text-white text-xs font-ibm-plex-sans-medium" numberOfLines={1}>
+                            {participant.displayName}
+                        </Text>
+                        {participant.barberType !== undefined && participant.barberType !== null && (
+                            <Text className="text-gray-500 text-xs">
+                                {participant.barberType === BarberType.MaleHairdresser ? "Erkek Kuaförü" :
+                                    participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                        "Güzellik Salonu"}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+            );
         };
 
         return (
             <TouchableOpacity
                 onPress={handlePress}
-                className="bg-gray-800 rounded-xl p-4"
+                className="bg-gray-800 rounded-xl p-4 mb-3"
             >
                 <View className="flex-row items-start gap-3">
-                    <View className="w-12 h-12 rounded-full bg-gray-700 items-center justify-center">
-                        <Icon source={iconSource} size={24} color="white" />
-                    </View>
+                    {/* Participants Row */}
+                    {item.participants.length > 0 ? (
+                        <View className="flex-row items-center">
+                            {item.participants.map((p, idx) => renderParticipant(p, idx))}
+                        </View>
+                    ) : (
+                        <View className="w-12 h-12 rounded-full bg-gray-700 items-center justify-center">
+                            <Icon source={iconSource} size={24} color="white" />
+                        </View>
+                    )}
 
                     <View className="flex-1">
                         <View className="flex-row items-center justify-between mb-1">
-                            <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1}>
+                            <Text className="text-white font-ibm-plex-sans-bold text-base flex-1" numberOfLines={1}>
                                 {item.title}
                             </Text>
                             {item.lastMessageAt && (
-                                <Text className="text-gray-500 text-xs">
+                                <Text className="text-gray-500 text-xs ml-2">
                                     {formatTime(item.lastMessageAt)}
                                 </Text>
                             )}
@@ -105,20 +132,29 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             </Text>
                         )}
 
-                        <View className="flex-row items-center gap-2">
-                            <View
-                                className="px-2 py-1 rounded"
-                                style={{ backgroundColor: statusColor + COLORS.OPACITY.LIGHT }}
-                            >
-                                <Text
-                                    className="text-xs font-ibm-plex-sans-medium"
-                                    style={{ color: statusColor }}
+                        <View className="flex-row items-center gap-2 flex-wrap">
+                            {statusText && statusColor && (
+                                <View
+                                    className="px-2 py-1 rounded"
+                                    style={{ backgroundColor: statusColor + COLORS.OPACITY.LIGHT }}
                                 >
-                                    {statusText}
-                                </Text>
-                            </View>
+                                    <Text
+                                        className="text-xs font-ibm-plex-sans-medium"
+                                        style={{ color: statusColor }}
+                                    >
+                                        {statusText}
+                                    </Text>
+                                </View>
+                            )}
+                            {item.isFavoriteThread && (
+                                <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30">
+                                    <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium">
+                                        Favori
+                                    </Text>
+                                </View>
+                            )}
                             {hasUnread && (
-                                <View className="bg-green-500 rounded-full px-2 py-0.5">
+                                <View className="bg-green-500 rounded-full px-2 py-0.5 ml-auto">
                                     <Text className="text-white text-xs font-ibm-plex-sans-bold">
                                         {item.unreadCount > MESSAGES.UNREAD_BADGE.MAX_DISPLAY
                                             ? MESSAGES.UNREAD_BADGE.MAX_DISPLAY_TEXT
@@ -133,11 +169,31 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         );
     }, [router, routePrefix, iconSource, formatTime]);
 
+    // Loading durumu
+    if (isLoading) {
+        return (
+            <View className="flex-1 bg-[#151618] pt-4">
+                {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
+            </View>
+        );
+    }
+
+    // Boş durum kontrolü
+    const hasNoThreads = !threads || (Array.isArray(threads) && threads.length === 0);
+
+    if (hasNoThreads) {
+        return (
+            <View className="flex-1 bg-[#151618]">
+                <LottieViewComponent message={MESSAGES.EMPTY_STATE.NO_MESSAGES} />
+            </View>
+        );
+    }
+
     return (
         <View className="flex-1 bg-[#151618]">
             <FlatList
-                data={filteredThreads}
-                keyExtractor={(item) => item.appointmentId}
+                data={threads}
+                keyExtractor={(item) => item.threadId}
                 contentContainerStyle={{ padding: 16, gap: 12 }}
                 refreshControl={
                     <RefreshControl
@@ -151,4 +207,3 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         </View>
     );
 };
-

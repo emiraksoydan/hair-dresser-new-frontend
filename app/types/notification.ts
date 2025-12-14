@@ -43,6 +43,7 @@ export interface NotificationPayload {
     pricingType?: number; // PricingType enum
     pricingValue?: number;
     rating?: number;
+    isInFavorites?: boolean; // Bu dükkan favorilerde mi?
   };
   customer?: {
     userId: string;
@@ -51,6 +52,7 @@ export interface NotificationPayload {
     roleHint: string;
     type?: number; // FreeBarber için BarberType
     rating?: number; // FreeBarber için rating
+    isInFavorites?: boolean; // Bu müşteri favorilerde mi?
   };
   freeBarber?: {
     userId: string;
@@ -59,6 +61,7 @@ export interface NotificationPayload {
     roleHint: string;
     type?: number; // BarberType: 0 = MaleHairdresser, 1 = FemaleHairdresser, 2 = BeautySalon
     rating?: number;
+    isInFavorites?: boolean; // Bu serbest berber favorilerde mi?
   };
   chair?: {
     chairId: string;

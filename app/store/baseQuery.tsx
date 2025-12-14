@@ -83,7 +83,7 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
       // Logger'a kaydedilir, kullanıcıya gösterilmez (component seviyesinde gösterilebilir)
       const { logger } = await import('../utils/common/logger');
       logger.error('API request failed:', error);
-      
+
       // Return error in RTK Query format
       return {
         error: {

@@ -38,13 +38,21 @@ export const NotificationItem = React.memo(({
         }
     } catch { }
 
-    const status = (payload?.status as AppointmentStatus | undefined) ?? AppointmentStatus.Pending;
+    // Payload'dan status al, eğer yoksa varsayılan olarak Pending
+    // item.payloadJson değiştiğinde component yeniden render olmalı
+    const status = React.useMemo(() => {
+        if (payload?.status !== undefined) {
+            return payload.status as AppointmentStatus;
+        }
+        return AppointmentStatus.Pending;
+    }, [item.payloadJson]); // payload?.status yerine item.payloadJson kullan
     const recipientRole = payload?.recipientRole;
     const hasStore = !!payload?.store;
     const hasFreeBarber = !!payload?.freeBarber;
 
     // Buton gösterme kuralları
-    const showDecisionButtons = item.type === NotificationType.AppointmentCreated &&
+    // ÖNEMLİ: AppointmentUnanswered notification'ında da buton gösterilmemeli (status Unanswered olduğu için)
+    const showDecisionButtons = (item.type === NotificationType.AppointmentCreated || item.type === NotificationType.AppointmentUnanswered) &&
         status === AppointmentStatus.Pending &&
         userType !== null &&
         ((userType === UserType.BarberStore && (recipientRole === 'store' || (hasStore && !hasFreeBarber))) ||
@@ -72,10 +80,24 @@ export const NotificationItem = React.memo(({
 
     const isApproved = status === AppointmentStatus.Approved;
     const isRejected = status === AppointmentStatus.Rejected;
-    const showDecisionStatus = (isApproved || isRejected) && item.type === NotificationType.AppointmentCreated;
+    const isCancelled = status === AppointmentStatus.Cancelled;
+    const isCompleted = status === AppointmentStatus.Completed;
+    const isUnanswered = status === AppointmentStatus.Unanswered;
+
+    // Durum gösterimi: Approved, Rejected, Cancelled, Completed, Unanswered durumlarında durum gösterilmeli
+    const showDecisionStatus = (isApproved || isRejected || isCancelled || isCompleted || isUnanswered) &&
+        (item.type === NotificationType.AppointmentCreated ||
+            item.type === NotificationType.AppointmentCancelled ||
+            item.type === NotificationType.AppointmentCompleted ||
+            item.type === NotificationType.AppointmentUnanswered);
 
     // Karar verilmesi gereken (Pending) bir bildirim mi?
-    const isCreatedType = item.type === NotificationType.AppointmentCreated && status === AppointmentStatus.Pending;
+    const isCreatedType = (item.type === NotificationType.AppointmentCreated && status === AppointmentStatus.Pending) ||
+        (item.type === NotificationType.AppointmentUnanswered && status === AppointmentStatus.Pending);
+
+    // Butonlar sadece Pending durumunda VE durum gösterilmediğinde gösterilmeli
+    // Cancelled, Completed veya Unanswered durumunda butonlar gösterilmemeli
+    const shouldShowButtons = showDecisionButtons && !showDecisionStatus && !isCancelled && !isCompleted && !isUnanswered;
 
     const serviceOfferings = payload?.serviceOfferings || [];
 
@@ -139,7 +161,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
-                                                {payload.isCustomerInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {(payload.customer?.isInFavorites || payload.isCustomerInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -150,7 +172,7 @@ export const NotificationItem = React.memo(({
                                                 <View className="flex-1">
                                                     <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
                                                     <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
-                                                    {payload.isFreeBarberInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                    {(payload.freeBarber?.isInFavorites || payload.isFreeBarberInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                                 </View>
                                             </View>
                                         ) : payload.chair?.manuelBarberId ? (
@@ -181,7 +203,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.store.storeName}</Text>
-                                                {payload.isStoreInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {(payload.store?.isInFavorites || payload.isStoreInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -194,7 +216,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
-                                                {payload.isCustomerInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {(payload.customer?.isInFavorites || payload.isCustomerInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -220,7 +242,7 @@ export const NotificationItem = React.memo(({
                                                         <Text className="text-[#fbbf24] text-xs ml-1">{formatRating(payload.store.rating)}</Text>
                                                     </View>
                                                 )}
-                                                {payload.isStoreInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {(payload.store?.isInFavorites || payload.isStoreInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -233,7 +255,7 @@ export const NotificationItem = React.memo(({
                                                     <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
                                                     <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
                                                     {payload.freeBarber?.rating !== undefined && <View className="flex-row items-center mt-0.5"><Icon source="star" size={12} color="#fbbf24" /><Text className="text-[#fbbf24] text-xs ml-1">{formatRating(payload.freeBarber.rating)}</Text></View>}
-                                                    {payload.isFreeBarberInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                    {(payload.freeBarber?.isInFavorites || payload.isFreeBarberInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                                 </View>
                                             </View>
                                         ) : payload.chair?.manuelBarberId ? (
@@ -272,42 +294,80 @@ export const NotificationItem = React.memo(({
                             </View>
                         )}
 
-                        {/* DURUM ALANI (Kabul Edildi / Reddedildi) */}
+                        {/* DURUM ALANI (Kabul Edildi / Reddedildi / İptal Edildi / Tamamlandı) */}
                         {showDecisionStatus && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
-                                <View className={`p-3 rounded-lg border ${isApproved ? 'bg-green-900/20 border-green-800/30' : 'bg-red-900/20 border-red-800/30'}`}>
+                                <View className={`p-3 rounded-lg border ${isApproved ? 'bg-green-900/20 border-green-800/30' :
+                                    isRejected ? 'bg-red-900/20 border-red-800/30' :
+                                        isCancelled ? 'bg-orange-900/20 border-orange-800/30' :
+                                            isCompleted ? 'bg-blue-900/20 border-blue-800/30' :
+                                                isUnanswered ? 'bg-yellow-900/20 border-yellow-800/30' :
+                                                    'bg-gray-900/20 border-gray-800/30'
+                                    }`}>
                                     <View className="flex-row items-center justify-center">
-                                        <Icon source={isApproved ? "check-circle" : "close-circle"} size={20} color={isApproved ? "#10b981" : "#ef4444"} />
-                                        <Text className={`text-xs text-center font-semibold ml-2 ${isApproved ? 'text-green-400' : 'text-red-400'}`}>
-                                            {isApproved ? "Kabul edildi" : "Reddedildi"}
+                                        <Icon
+                                            source={
+                                                isApproved ? "check-circle" :
+                                                    isRejected ? "close-circle" :
+                                                        isCancelled ? "cancel" :
+                                                            isCompleted ? "check-all" :
+                                                                isUnanswered ? "clock-alert" :
+                                                                    "information"
+                                            }
+                                            size={20}
+                                            color={
+                                                isApproved ? "#10b981" :
+                                                    isRejected ? "#ef4444" :
+                                                        isCancelled ? "#f97316" :
+                                                            isCompleted ? "#3b82f6" :
+                                                                isUnanswered ? "#fbbf24" :
+                                                                    "#9ca3af"
+                                            }
+                                        />
+                                        <Text className={`text-xs text-center font-semibold ml-2 ${isApproved ? 'text-green-400' :
+                                            isRejected ? 'text-red-400' :
+                                                isCancelled ? 'text-orange-400' :
+                                                    isCompleted ? 'text-blue-400' :
+                                                        isUnanswered ? 'text-yellow-400' :
+                                                            'text-gray-400'
+                                            }`}>
+                                            {isApproved ? "Kabul edildi" :
+                                                isRejected ? "Reddedildi" :
+                                                    isCancelled ? "İptal edildi" :
+                                                        isCompleted ? "Tamamlandı" :
+                                                            isUnanswered ? "Cevaplanmadı" :
+                                                                "Bilinmeyen durum"}
                                         </Text>
                                     </View>
                                 </View>
                             </View>
                         )}
 
-                        {/* BUTONLAR VEYA SÜRE DOLDU */}
-                        {showDecisionButtons && (
+                        {/* BUTONLAR - Sadece Pending durumunda ve durum gösterilmediğinde */}
+                        {shouldShowButtons && !isExpired && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
-                                {isExpired ? (
-                                    <View className="p-3 bg-red-900/20 rounded-lg border border-red-800/30">
-                                        <Text className="text-red-400 text-xs text-center font-semibold">⏰ Süre Doldu</Text>
-                                        <Text className="text-[#9ca3af] text-xs text-center mt-1">Randevu kararı için süre dolmuş.</Text>
-                                    </View>
-                                ) : (
-                                    <View className="flex-row gap-2">
-                                        <TouchableOpacity onPress={() => onDecision(item, false)} disabled={isProcessing} className={`flex-1 bg-red-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
-                                            {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
-                                                <View className="items-center"><Icon source="close-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Reddet</Text></View>
-                                            )}
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => onDecision(item, true)} disabled={isProcessing} className={`flex-1 bg-green-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
-                                            {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
-                                                <View className="items-center"><Icon source="check-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Onayla</Text></View>
-                                            )}
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
+                                <View className="flex-row gap-2">
+                                    <TouchableOpacity onPress={() => onDecision(item, false)} disabled={isProcessing} className={`flex-1 bg-red-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
+                                        {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
+                                            <View className="items-center"><Icon source="close-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Reddet</Text></View>
+                                        )}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => onDecision(item, true)} disabled={isProcessing} className={`flex-1 bg-green-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
+                                        {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
+                                            <View className="items-center"><Icon source="check-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Onayla</Text></View>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* SÜRE DOLDU - Sadece Unanswered durumunda göster */}
+                        {isUnanswered && (
+                            <View className="mt-3 pt-3 border-t border-[#2a2c30]">
+                                <View className="p-3 bg-red-900/20 rounded-lg border border-red-800/30">
+                                    <Text className="text-red-400 text-xs text-center font-semibold">⏰ Süre Doldu</Text>
+                                    <Text className="text-[#9ca3af] text-xs text-center mt-1">Randevu kararı için süre dolmuş.</Text>
+                                </View>
                             </View>
                         )}
                     </View>

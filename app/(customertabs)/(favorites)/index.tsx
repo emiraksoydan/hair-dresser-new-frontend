@@ -1,25 +1,20 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useMemo } from 'react';
+import { View, Text, FlatList, Dimensions, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { useGetMyFavoritesQuery } from '../../store/api';
 import { FavoriteGetDto, FavoriteTargetType } from '../../types';
 import { StoreCardInner } from '../../components/store/storecard';
 import { FreeBarberCardInner } from '../../components/freebarber/freebarbercard';
 import { useRouter } from 'expo-router';
 import { BarberStoreGetDto, FreeBarGetDto } from '../../types';
-import { EmptyState } from '../../components/common/emptystateresult';
 import { Icon } from 'react-native-paper';
 
 const Index = () => {
-    const insets = useSafeAreaInsets();
     const { data: favorites, isLoading, refetch, isFetching } = useGetMyFavoritesQuery();
     const router = useRouter();
-    const [expanded, setExpanded] = useState(true);
-    const [isList, setIsList] = useState(true);
 
     const screenWidth = Dimensions.get("window").width;
-    const cardWidthStore = useMemo(() => (expanded ? screenWidth * 0.92 : screenWidth * 0.94), [expanded, screenWidth]);
-    const cardWidthFreeBarber = useMemo(() => (expanded ? screenWidth * 0.92 : screenWidth * 0.94), [expanded, screenWidth]);
+    const cardWidthStore = screenWidth * 0.92;
+    const cardWidthFreeBarber = screenWidth * 0.92;
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
@@ -35,7 +30,7 @@ const Index = () => {
         });
     }, [router]);
 
-    // Store ve FreeBarber favorilerini ayır
+    // Store, FreeBarber, Customer ve ManuelBarber favorilerini ayır
     const storeFavorites = useMemo(() => {
         return favorites?.filter(f => f.targetType === FavoriteTargetType.Store && f.store) || [];
     }, [favorites]);
@@ -44,53 +39,138 @@ const Index = () => {
         return favorites?.filter(f => f.targetType === FavoriteTargetType.FreeBarber && f.freeBarber) || [];
     }, [favorites]);
 
+    const customerFavorites = useMemo(() => {
+        return favorites?.filter(f => f.targetType === FavoriteTargetType.Customer && f.customer) || [];
+    }, [favorites]);
+
+    const manuelBarberFavorites = useMemo(() => {
+        return favorites?.filter(f => f.targetType === FavoriteTargetType.ManuelBarber && f.manuelBarber) || [];
+    }, [favorites]);
+
     const allFavorites = useMemo(() => {
-        return [...storeFavorites, ...freeBarberFavorites];
-    }, [storeFavorites, freeBarberFavorites]);
+        return [...storeFavorites, ...freeBarberFavorites, ...customerFavorites, ...manuelBarberFavorites];
+    }, [storeFavorites, freeBarberFavorites, customerFavorites, manuelBarberFavorites]);
+
+    // Tip etiketi için fonksiyon
+    const getTargetTypeLabel = useCallback((targetType: FavoriteTargetType) => {
+        switch (targetType) {
+            case FavoriteTargetType.Store:
+                return 'Dükkan';
+            case FavoriteTargetType.FreeBarber:
+                return 'Serbest Berber';
+            case FavoriteTargetType.Customer:
+                return 'Müşteri';
+            case FavoriteTargetType.ManuelBarber:
+                return 'Manuel Berber';
+            default:
+                return 'Bilinmeyen';
+        }
+    }, []);
 
     const renderItem = useCallback(({ item }: { item: FavoriteGetDto }) => {
+        const typeLabel = getTargetTypeLabel(item.targetType);
+
         if (item.targetType === FavoriteTargetType.Store && item.store) {
             return (
-                <StoreCardInner
-                    store={item.store}
-                    isList={isList}
-                    expanded={expanded}
-                    cardWidthStore={cardWidthStore}
-                    onPressUpdate={goStoreDetail}
-                />
+                <View>
+                    <View className="flex-row items-center mb-2 px-1">
+                        <View className="bg-blue-500 px-2 py-1 rounded-lg">
+                            <Text className="text-white text-xs font-ibm-plex-sans-medium">{typeLabel}</Text>
+                        </View>
+                    </View>
+                    <StoreCardInner
+                        store={item.store}
+                        isList={true}
+                        expanded={true}
+                        cardWidthStore={cardWidthStore}
+                        onPressUpdate={goStoreDetail}
+                    />
+                </View>
             );
         } else if (item.targetType === FavoriteTargetType.FreeBarber && item.freeBarber) {
             return (
-                <FreeBarberCardInner
-                    freeBarber={item.freeBarber}
-                    isList={isList}
-                    expanded={expanded}
-                    cardWidthFreeBarber={cardWidthFreeBarber}
-                    onPressUpdate={goFreeBarberDetail}
-                />
+                <View>
+                    <View className="flex-row items-center mb-2 px-1">
+                        <View className="bg-green-500 px-2 py-1 rounded-lg">
+                            <Text className="text-white text-xs font-ibm-plex-sans-medium">{typeLabel}</Text>
+                        </View>
+                    </View>
+                    <FreeBarberCardInner
+                        freeBarber={item.freeBarber}
+                        isList={true}
+                        expanded={true}
+                        cardWidthFreeBarber={cardWidthFreeBarber}
+                        onPressUpdate={goFreeBarberDetail}
+                    />
+                </View>
+            );
+        } else if (item.targetType === FavoriteTargetType.Customer && item.customer) {
+            return (
+                <View className="bg-[#202123] rounded-lg p-4 mb-4">
+                    <View className="flex-row items-center mb-2">
+                        <View className="bg-purple-500 px-2 py-1 rounded-lg mr-2">
+                            <Text className="text-white text-xs font-ibm-plex-sans-medium">{typeLabel}</Text>
+                        </View>
+                    </View>
+                    <View className="flex-row items-center">
+                        {item.customer.imageUrl ? (
+                            <Image source={{ uri: item.customer.imageUrl }} className="w-12 h-12 rounded-full mr-3" />
+                        ) : (
+                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
+                                <Icon source="account" size={24} color="#6b7280" />
+                            </View>
+                        )}
+                        <View className="flex-1">
+                            <Text className="text-white text-base font-ibm-plex-sans-semibold">
+                                {item.customer.firstName} {item.customer.lastName}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            );
+        } else if (item.targetType === FavoriteTargetType.ManuelBarber && item.manuelBarber) {
+            return (
+                <View className="bg-[#202123] rounded-lg p-4 mb-4">
+                    <View className="flex-row items-center mb-2">
+                        <View className="bg-orange-500 px-2 py-1 rounded-lg mr-2">
+                            <Text className="text-white text-xs font-ibm-plex-sans-medium">{typeLabel}</Text>
+                        </View>
+                    </View>
+                    <View className="flex-row items-center">
+                        {item.manuelBarber.imageUrl ? (
+                            <Image source={{ uri: item.manuelBarber.imageUrl }} className="w-12 h-12 rounded-full mr-3" />
+                        ) : (
+                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
+                                <Icon source="account" size={24} color="#6b7280" />
+                            </View>
+                        )}
+                        <View className="flex-1">
+                            <Text className="text-white text-base font-ibm-plex-sans-semibold">
+                                {item.manuelBarber.fullName}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
             );
         }
         return null;
-    }, [isList, expanded, cardWidthStore, cardWidthFreeBarber, goStoreDetail, goFreeBarberDetail]);
+    }, [cardWidthStore, cardWidthFreeBarber, goStoreDetail, goFreeBarberDetail, getTargetTypeLabel]);
 
     if (isLoading) {
         return (
-            <View className="flex-1 bg-[#151618] justify-center items-center" style={{ paddingTop: insets.top }}>
+            <View className="flex-1 bg-[#151618] justify-center items-center">
                 <ActivityIndicator size="large" color="#f05e23" />
             </View>
         );
     }
 
     return (
-        <View className="flex-1 bg-[#151618]" style={{ paddingTop: insets.top }}>
+        <View className="flex-1 bg-[#151618]">
             <FlatList
                 data={allFavorites}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, paddingTop: 10 }}
-                refreshControl={
-                    <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor="#f05e23" />
-                }
                 ListEmptyComponent={
                     <View className="items-center justify-center mt-20 p-5">
                         <Icon source="heart-outline" size={48} color="#2a2c30" />

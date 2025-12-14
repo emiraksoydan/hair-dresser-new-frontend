@@ -67,11 +67,31 @@ export function NotificationsSheet({
                                     found.payloadJson = JSON.stringify(p);
                                 }
                             } catch (e) {
-                                console.error("Payload update error", e);
+                                // Payload update error - silently handle
                             }
+                        }
+
+                        // Aynı appointmentId'ye sahip diğer notification'ları da güncelle
+                        if (notification.appointmentId) {
+                            draft?.forEach(n => {
+                                if (n.appointmentId === notification.appointmentId && n.id !== notification.id) {
+                                    try {
+                                        if (n.payloadJson) {
+                                            const p = JSON.parse(n.payloadJson);
+                                            p.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
+                                            n.payloadJson = JSON.stringify(p);
+                                        }
+                                    } catch {
+                                        // Ignore parse errors
+                                    }
+                                }
+                            });
                         }
                     })
                 );
+
+                // Badge count'u invalidate et
+                dispatch(api.util.invalidateTags(['Badge', 'Notification']));
 
                 Alert.alert("Başarılı", approve ? "Randevu onaylandı." : "Randevu reddedildi.");
             } else {
@@ -80,7 +100,7 @@ export function NotificationsSheet({
         } catch (error: any) {
             Alert.alert("Hata", error?.data?.message || error?.message || "İşlem başarısız.");
         }
-    }, [userType, storeDecision, freeBarberDecision, dispatch]);
+    }, [userType, storeDecision, freeBarberDecision, dispatch, refetch]);
 
     // Helper functions
     const formatTime = useCallback((timeStr?: string) => {

@@ -60,8 +60,15 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
-                    : [{ type: 'MineStores' as const, id: 'LIST' }],
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'MineStores' as const, id })),
+                        { type: 'MineStores' as const, id: 'LIST' },
+                        { type: 'MineStores' as const, id: 'NEARBY' },
+                    ]
+                    : [
+                        { type: 'MineStores' as const, id: 'LIST' },
+                        { type: 'MineStores' as const, id: 'NEARBY' },
+                    ],
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
@@ -107,8 +114,15 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: 'MineFreeBarberPanel' as const, id })), { type: 'MineFreeBarberPanel' as const, id: 'LIST' }]
-                    : [{ type: 'MineFreeBarberPanel' as const, id: 'LIST' }],
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'MineFreeBarberPanel' as const, id })),
+                        { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                        { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+                    ]
+                    : [
+                        { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                        { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+                    ],
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
@@ -235,7 +249,9 @@ export const api = createApi({
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId }, // O randevuyu güncelle
                 { type: 'Appointment', id: 'LIST' }, // Listeyi yenile (statü değişti)
-                'Badge', 'Notification',
+                'Badge',
+                'Notification', // Bildirim listesini invalidate et
+                { type: 'Notification' as const, id: 'LIST' }, // Tüm bildirimleri invalidate et
                 { type: 'Appointment', id: 'availability' }
             ],
         }),
@@ -248,7 +264,9 @@ export const api = createApi({
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                'Badge', 'Notification',
+                'Badge',
+                'Notification', // Bildirim listesini invalidate et
+                { type: 'Notification' as const, id: 'LIST' }, // Tüm bildirimleri invalidate et
                 { type: 'Appointment', id: 'availability' }
             ],
         }),
@@ -344,6 +362,14 @@ export const api = createApi({
             }),
             keepUnusedDataFor: 0,
         }),
+        getChatMessagesByThread: builder.query<ChatMessageItemDto[], { threadId: string; before?: string }>({
+            query: ({ threadId, before }) => ({
+                url: `Chat/thread/${threadId}/messages`,
+                method: 'GET',
+                params: before ? { before } : undefined,
+            }),
+            keepUnusedDataFor: 0,
+        }),
         sendChatMessage: builder.mutation<ApiResponse<ChatMessageDto>, { appointmentId: string; text: string }>({
             query: ({ appointmentId, text }) => ({
                 url: `Chat/${appointmentId}/message`,
@@ -352,12 +378,41 @@ export const api = createApi({
             }),
             invalidatesTags: ['Chat', 'Badge'],
         }),
+        sendChatMessageByThread: builder.mutation<ApiResponse<ChatMessageDto>, { threadId: string; text: string }>({
+            query: ({ threadId, text }) => ({
+                url: `Chat/thread/${threadId}/message`,
+                method: 'POST',
+                body: { text },
+            }),
+            invalidatesTags: ['Chat', 'Badge'],
+        }),
         markChatThreadRead: builder.mutation<ApiResponse<boolean>, string>({
+            query: (threadId) => ({
+                url: `Chat/thread/${threadId}/read`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['Chat', 'Badge'],
+        }),
+        markChatThreadReadByAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (appointmentId) => ({
                 url: `Chat/${appointmentId}/read`,
                 method: 'POST',
             }),
             invalidatesTags: ['Chat', 'Badge'],
+        }),
+        markChatThreadReadByThread: builder.mutation<ApiResponse<boolean>, string>({
+            query: (threadId) => ({
+                url: `Chat/thread/${threadId}/read`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['Chat', 'Badge'],
+        }),
+        notifyTyping: builder.mutation<ApiResponse<boolean>, { threadId: string; isTyping: boolean }>({
+            query: ({ threadId, isTyping }) => ({
+                url: `Chat/thread/${threadId}/typing`,
+                method: 'POST',
+                body: { isTyping },
+            }),
         }),
 
         // --- RATING API ---
@@ -387,23 +442,18 @@ export const api = createApi({
             query: (body) => ({ url: 'Favorite/toggle', method: 'POST', body }),
             invalidatesTags: (result, error, arg) => [
                 'Appointment',
-                'MineStores',
-                'MineFreeBarberPanel',
                 'Favorite',
+                // Store ve FreeBarber için spesifik item ve list tag'leri
+                { type: 'MineStores' as const, id: arg.targetId },
+                { type: 'MineStores' as const, id: 'LIST' },
+                { type: 'MineStores' as const, id: 'NEARBY' },
+                { type: 'MineFreeBarberPanel' as const, id: arg.targetId },
+                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+                // IsFavorite query'si için
                 { type: 'IsFavorite' as const, id: arg.targetId },
                 { type: 'IsFavorite' as const, id: 'LIST' },
-                { type: 'MineStores' as const, id: 'LIST' },
-                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
             ],
-            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-                try {
-                    await queryFulfilled;
-                    // Mutation başarılı olduktan sonra, ilgili query'leri refetch et
-                    // Bu sayede backend'den güncel favoriteCount değerleri gelir
-                } catch (error) {
-                    // Hata durumunda optimistic update zaten geri alınacak
-                }
-            },
             transformResponse: (response: any) => {
                 // Backend'den IDataResult<bool> dönüyor: { success: boolean, data: boolean, message?: string }
                 if (response?.success !== undefined && response?.data !== undefined) {
@@ -489,8 +539,12 @@ export const {
     useCompleteAppointmentMutation,
     useGetChatThreadsQuery,
     useGetChatMessagesQuery,
+    useGetChatMessagesByThreadQuery,
     useSendChatMessageMutation,
+    useSendChatMessageByThreadMutation,
     useMarkChatThreadReadMutation,
+    useMarkChatThreadReadByThreadMutation,
+    useNotifyTypingMutation,
     useCreateRatingMutation,
     useDeleteRatingMutation,
     useGetRatingByIdQuery,

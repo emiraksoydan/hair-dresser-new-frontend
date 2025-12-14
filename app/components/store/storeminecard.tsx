@@ -18,9 +18,9 @@ type Props = {
 
 const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
-    const { userId } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData, isLoading: isLoadingFavorite } = useIsFavoriteQuery(store.id, { skip: !userId });
+    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
 
@@ -30,10 +30,10 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
 
     // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
     useEffect(() => {
-        if (!isLoadingFavorite && isFavoriteData !== undefined) {
+        if (isFavoriteData !== undefined) {
             setIsFavorite(isFavoriteData);
         }
-    }, [isFavoriteData, isLoadingFavorite]);
+    }, [isFavoriteData]);
 
     // store.favoriteCount değiştiğinde state'i güncelle
     useEffect(() => {
@@ -41,8 +41,8 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
     }, [store.favoriteCount]);
 
     const handleToggleFavorite = useCallback(async () => {
-        if (!userId) {
-            console.log('[StoreMineCard] handleToggleFavorite: userId yok');
+        if (!isAuthenticated) {
+            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
             return;
         }
 
@@ -50,24 +50,28 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
         const previousFavoriteCount = favoriteCount;
 
         // Optimistic update: hemen UI'ı güncelle
-        setIsFavorite(!isFavorite);
-        setFavoriteCount(prev => isFavorite ? Math.max(0, prev - 1) : prev + 1);
+        const newIsFavorite = !isFavorite;
+        setIsFavorite(newIsFavorite);
+        // Zaten beğenmişse azalt, beğenmemişse artır
+        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
 
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId: store.id,
                 appointmentId: null,
             }).unwrap();
 
-            console.log('[StoreMineCard] handleToggleFavorite: Başarılı', result);
+            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            if (refetchIsFavorite) {
+                refetchIsFavorite();
+            }
         } catch (error: any) {
-            console.error('[StoreMineCard] handleToggleFavorite: Hata', error);
             // Hata durumunda eski değerlere geri dön
             setIsFavorite(previousIsFavorite);
             setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [userId, store.id, toggleFavorite, isFavorite, favoriteCount]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
 
     return (
         <View

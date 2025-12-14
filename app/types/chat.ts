@@ -3,14 +3,26 @@
  */
 
 import { AppointmentStatus } from './appointment';
+import { UserType, BarberType } from './index';
 
 export type ChatThreadListItemDto = {
-  appointmentId: string;
-  status: AppointmentStatus;
+  threadId: string; // Her thread için unique ID (hem randevu hem favori için)
+  appointmentId?: string | null; // Nullable: favori thread'lerde null
+  status?: AppointmentStatus | null; // Nullable: favori thread'lerde null
+  isFavoriteThread: boolean;
   title: string;
   lastMessagePreview?: string | null;
   lastMessageAt?: string | null;
   unreadCount: number;
+  participants: ChatThreadParticipantDto[];
+};
+
+export type ChatThreadParticipantDto = {
+  userId: string;
+  displayName: string;
+  imageUrl?: string | null;
+  userType: UserType;
+  barberType?: BarberType | null; // Store veya FreeBarber için
 };
 
 export type ChatMessageItemDto = {
@@ -21,10 +33,10 @@ export type ChatMessageItemDto = {
 };
 
 export type ChatMessageDto = {
-  appointmentId: string;
+  threadId: string;
+  appointmentId?: string | null; // Nullable: favori thread'lerde null
   messageId: string;
   senderUserId: string;
   text: string;
   createdAt: string;
 };
-

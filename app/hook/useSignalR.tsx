@@ -1,21 +1,26 @@
 import "react-native-url-polyfill/auto";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as SignalR from "@microsoft/signalr";
 import { useDispatch } from "react-redux";
 import { api } from "../store/api";
 import { tokenStore } from "../lib/tokenStore";
 import type { AppDispatch } from "../store/redux-store";
 import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto } from "../types";
+import { AppointmentStatus } from "../types/appointment";
+import { NotificationType } from "../types";
 import { API_CONFIG } from "../constants/api";
 import { useAuth } from "./useAuth";
-import { logger } from "../utils/common/logger";
 
 const HUB_URL = API_CONFIG.SIGNALR_HUB_URL;
 
 export const useSignalR = () => {
     const dispatch = useDispatch<AppDispatch>();
     const connectionRef = useRef<SignalR.HubConnection | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const maxReconnectAttempts = 10;
     const { token } = useAuth();
+    const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         let stopped = false;
@@ -42,200 +47,343 @@ export const useSignalR = () => {
                     },
                 })
                 .withAutomaticReconnect([0, 2000, 10000, 30000])
-                .configureLogging(SignalR.LogLevel.Information)
+                .configureLogging(SignalR.LogLevel.None) // Production'da log yok
                 .build();
 
-            connection.on("badge.updated", (data: any) => {
-                // Backend'den gelen data büyük harfle (UnreadNotifications, UnreadMessages) veya küçük harfle (unreadNotifications, unreadMessages) olabilir
-                // Her iki durumu da destekle
-                const unreadNotifications = data?.unreadNotifications ?? data?.UnreadNotifications ?? 0;
-                const unreadMessages = data?.unreadMessages ?? data?.UnreadMessages ?? 0;
+            // Event handler'ları ekleme fonksiyonu (yeniden bağlanma için kullanılacak)
+            const setupEventHandlers = (conn: SignalR.HubConnection) => {
+                conn.on("badge.updated", (data: any) => {
+                    // Backend'den gelen data büyük harfle (UnreadNotifications, UnreadMessages) veya küçük harfle (unreadNotifications, unreadMessages) olabilir
+                    // Her iki durumu da destekle
+                    const unreadNotifications = data?.unreadNotifications ?? data?.UnreadNotifications ?? 0;
+                    const unreadMessages = data?.unreadMessages ?? data?.UnreadMessages ?? 0;
 
-                // Sadece updateQueryData yap, invalidateTags gereksiz (zaten güncelleniyor)
-                dispatch(
-                    api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                        if (!draft) {
-                            return { unreadNotifications, unreadMessages };
-                        }
-                        draft.unreadMessages = unreadMessages;
-                        draft.unreadNotifications = unreadNotifications;
-                    })
-                );
-            });
-            connection.on("notification.received", (dto: NotificationDto) => {
-                // Notification'ı listeye ekle veya güncelle
-                dispatch(
-                    api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
-                        if (!draft) return;
-
-                        // Duplicate kontrolü: Aynı appointmentId ve type'a sahip notification var mı?
-                        // Eğer varsa ve aynı userId'ye aitse, eski notification'ı kaldır (backend'den gelen duplicate'ları önlemek için)
-                        if (dto.appointmentId && dto.type) {
-                            const duplicateIndex = draft.findIndex(n =>
-                                n.appointmentId === dto.appointmentId &&
-                                n.type === dto.type &&
-                                n.id !== dto.id
-                            );
-                            if (duplicateIndex >= 0) {
-                                // Eski duplicate notification'ı kaldır
-                                draft.splice(duplicateIndex, 1);
+                    // Sadece updateQueryData yap, invalidateTags gereksiz (zaten güncelleniyor)
+                    dispatch(
+                        api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                            if (!draft) {
+                                return { unreadNotifications, unreadMessages };
                             }
-                        }
+                            draft.unreadMessages = unreadMessages;
+                            draft.unreadNotifications = unreadNotifications;
+                        })
+                    );
+                });
 
-                        // Eğer aynı notification zaten varsa güncelle
-                        const existingIndex = draft.findIndex(n => n.id === dto.id);
-                        if (existingIndex >= 0) {
-                            // Mevcut notification'ı tamamen güncelle (payload dahil)
-                            draft[existingIndex] = { ...dto };
-                        } else {
-                            // Yeni notification'ı başa ekle
-                            draft.unshift(dto);
-                        }
+                conn.on("notification.received", (dto: NotificationDto) => {
+                    // Notification'ı listeye ekle veya güncelle
+                    dispatch(
+                        api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+                            if (!draft) return;
 
-                        // Appointment-related notification'lar için: Aynı appointmentId'ye sahip 
-                        // diğer notification'ların payload'larını da güncelle (status değişikliği için)
-                        if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
-                            try {
-                                const newPayload = JSON.parse(dto.payloadJson);
-                                if (newPayload && typeof newPayload === 'object') {
-                                    const newStatus = newPayload?.status;
-                                    const newStoreDecision = newPayload?.storeDecision;
-                                    const newFreeBarberDecision = newPayload?.freeBarberDecision;
-
-                                    // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
-                                    draft.forEach((notification) => {
-                                        if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
-                                            try {
-                                                if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
-                                                    const currentPayload = JSON.parse(notification.payloadJson);
-                                                    if (currentPayload && typeof currentPayload === 'object') {
-                                                        // Status ve decision bilgilerini güncelle
-                                                        if (newStatus !== undefined) {
-                                                            currentPayload.status = newStatus;
-                                                        }
-                                                        if (newStoreDecision !== undefined) {
-                                                            currentPayload.storeDecision = newStoreDecision;
-                                                        }
-                                                        if (newFreeBarberDecision !== undefined) {
-                                                            currentPayload.freeBarberDecision = newFreeBarberDecision;
-                                                        }
-                                                        notification.payloadJson = JSON.stringify(currentPayload);
-                                                    }
-                                                }
-                                            } catch {
-                                                // Payload parse edilemezse atla
-                                            }
+                            // Duplicate kontrolü: Aynı appointmentId ve type'a sahip notification var mı?
+                            // ÖNEMLİ: AppointmentUnanswered durumunda eski AppointmentCreated notification'ı kaldırmalıyız
+                            // Çünkü background service type'ı AppointmentUnanswered'e çeviriyor
+                            if (dto.appointmentId && dto.type) {
+                                // Eğer yeni notification AppointmentUnanswered ise, eski AppointmentCreated notification'ları kaldır
+                                if (dto.type === NotificationType.AppointmentUnanswered) {
+                                    const oldCreatedIndexes: number[] = [];
+                                    draft.forEach((n, idx) => {
+                                        if (n.appointmentId === dto.appointmentId &&
+                                            n.type === NotificationType.AppointmentCreated &&
+                                            n.id !== dto.id) {
+                                            oldCreatedIndexes.push(idx);
                                         }
                                     });
+                                    // Tersten kaldır (indeksler bozulmasın diye)
+                                    oldCreatedIndexes.reverse().forEach(idx => draft.splice(idx, 1));
                                 }
-                            } catch {
-                                // Yeni payload parse edilemezse atla
-                            }
-                        }
-                    })
-                );
 
-                // Appointment status değiştiğinde slot availability'yi güncelle
-                if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
-                    try {
-                        const payload = JSON.parse(dto.payloadJson);
-                        if (payload && typeof payload === 'object') {
-                            const status = payload?.status;
-                            // Status değişikliği varsa (Pending, Approved, Rejected, Cancelled, Completed)
-                            // ve storeId varsa availability'yi invalidate et
-                            if (status !== undefined && payload?.store?.storeId) {
-                                const storeId = payload.store.storeId;
-                                const date = payload.date;
-                                if (storeId && date) {
-                                    dispatch(api.util.invalidateTags([
-                                        { type: 'Appointment', id: `availability-${storeId}-${date}` },
-                                        { type: 'Appointment', id: 'availability' },
-                                    ]));
+                                // Aynı appointmentId ve type'a sahip notification var mı? (genel duplicate kontrolü)
+                                const duplicateIndex = draft.findIndex(n =>
+                                    n.appointmentId === dto.appointmentId &&
+                                    n.type === dto.type &&
+                                    n.id !== dto.id
+                                );
+                                if (duplicateIndex >= 0) {
+                                    // Eski duplicate notification'ı kaldır
+                                    draft.splice(duplicateIndex, 1);
                                 }
                             }
+
+                            // Eğer aynı notification zaten varsa güncelle
+                            const existingIndex = draft.findIndex(n => n.id === dto.id);
+                            if (existingIndex >= 0) {
+                                // Mevcut notification'ı tamamen güncelle (payload dahil)
+                                draft[existingIndex] = { ...dto };
+                            } else {
+                                // Yeni notification'ı başa ekle
+                                draft.unshift(dto);
+                            }
+
+                            // Appointment-related notification'lar için: Aynı appointmentId'ye sahip 
+                            // diğer notification'ların payload'larını da güncelle (status değişikliği için)
+                            if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
+                                try {
+                                    const newPayload = JSON.parse(dto.payloadJson);
+                                    if (newPayload && typeof newPayload === 'object') {
+                                        const newStatus = newPayload?.status;
+                                        const newStoreDecision = newPayload?.storeDecision;
+                                        const newFreeBarberDecision = newPayload?.freeBarberDecision;
+
+                                        // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
+                                        draft.forEach((notification) => {
+                                            if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
+                                                try {
+                                                    if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
+                                                        const currentPayload = JSON.parse(notification.payloadJson);
+                                                        if (currentPayload && typeof currentPayload === 'object') {
+                                                            // Status ve decision bilgilerini güncelle
+                                                            if (newStatus !== undefined) {
+                                                                currentPayload.status = newStatus;
+                                                            }
+                                                            if (newStoreDecision !== undefined) {
+                                                                currentPayload.storeDecision = newStoreDecision;
+                                                            }
+                                                            if (newFreeBarberDecision !== undefined) {
+                                                                currentPayload.freeBarberDecision = newFreeBarberDecision;
+                                                            }
+                                                            notification.payloadJson = JSON.stringify(currentPayload);
+                                                        }
+                                                    }
+                                                } catch {
+                                                    // Payload parse edilemezse atla
+                                                }
+                                            }
+                                        });
+                                    }
+                                } catch {
+                                    // Yeni payload parse edilemezse atla
+                                }
+                            }
+                        })
+                    );
+
+                    // Appointment status değiştiğinde slot availability'yi güncelle
+                    if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
+                        try {
+                            const payload = JSON.parse(dto.payloadJson);
+                            if (payload && typeof payload === 'object') {
+                                const status = payload?.status;
+                                // Status değişikliği varsa (Pending, Approved, Rejected, Cancelled, Completed)
+                                // ve storeId varsa availability'yi invalidate et
+                                if (status !== undefined && payload?.store?.storeId) {
+                                    const storeId = payload.store.storeId;
+                                    const date = payload.date;
+                                    if (storeId && date) {
+                                        dispatch(api.util.invalidateTags([
+                                            { type: 'Appointment', id: `availability-${storeId}-${date}` },
+                                            { type: 'Appointment', id: 'availability' },
+                                        ]));
+                                    }
+                                }
+                            }
+                        } catch {
+                            // Payload parse edilemezse atla
                         }
-                    } catch {
-                        // Payload parse edilemezse atla
                     }
-                }
 
-                // Badge count'u invalidate et - backend'den badge.updated event'i gelecek
-                // Backend'de CreateAndPushAsync içinde badge count hesaplanıp badge.updated event'i gönderiliyor
-                // Bu yüzden burada sadece invalidate etmek yeterli, manuel artırmaya gerek yok
-                dispatch(api.util.invalidateTags(["Badge"]));
-            });
+                    // Badge count'u invalidate et - backend'den badge.updated event'i gelecek
+                    // Backend'de CreateAndPushAsync içinde badge count hesaplanıp badge.updated event'i gönderiliyor
+                    // Bu yüzden burada sadece invalidate etmek yeterli, manuel artırmaya gerek yok
+                    dispatch(api.util.invalidateTags(["Badge"]));
+                });
 
+                conn.on("chat.message", (dto: ChatMessageDto) => {
+                    // Thread listesindeki lastMessagePreview'ı güncelle (ThreadId ile)
+                    dispatch(
+                        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                            if (!draft) return;
+                            const thread = draft.find(t => t.threadId === dto.threadId);
+                            if (thread) {
+                                thread.lastMessagePreview = dto.text.length > 60 ? dto.text.substring(0, 60) : dto.text;
+                                thread.lastMessageAt = dto.createdAt;
+                                // Sender dışındaki kullanıcılar için unread count artacak (backend'de yapılıyor)
+                            }
+                        })
+                    );
 
-            connection.on("chat.message", (dto: ChatMessageDto) => {
-                // Thread listesindeki lastMessagePreview'ı güncelle
-                dispatch(
-                    api.util.updateQueryData("getChatThreads", undefined, (draft) => {
-                        if (!draft) return;
-                        const thread = draft.find(t => t.appointmentId === dto.appointmentId);
-                        if (thread) {
-                            thread.lastMessagePreview = dto.text.length > 60 ? dto.text.substring(0, 60) : dto.text;
-                            thread.lastMessageAt = dto.createdAt;
-                            // Sender dışındaki kullanıcılar için unread count artacak (backend'de yapılıyor)
+                    // Mesaj listesini güncelle (eğer o appointment'ın mesajları açıksa)
+                    // AppointmentId null olabilir (favori thread'lerde)
+                    if (dto.appointmentId) {
+                        dispatch(
+                            api.util.updateQueryData("getChatMessages", { appointmentId: dto.appointmentId }, (draft) => {
+                                if (!draft) return;
+                                // Eğer aynı mesaj yoksa ekle
+                                const existingMessage = draft.find(m => m.messageId === dto.messageId);
+                                if (!existingMessage) {
+                                    const newMessage: ChatMessageItemDto = {
+                                        messageId: dto.messageId,
+                                        senderUserId: dto.senderUserId,
+                                        text: dto.text,
+                                        createdAt: dto.createdAt,
+                                    };
+                                    draft.push(newMessage);
+                                    // Tarihe göre sırala (en eski en başta)
+                                    draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                }
+                            })
+                        );
+                    }
+
+                    // ThreadId ile mesajları da güncelle (favori thread'ler için)
+                    dispatch(
+                        api.util.updateQueryData("getChatMessagesByThread", { threadId: dto.threadId }, (draft) => {
+                            if (!draft) return;
+                            const existingMessage = draft.find(m => m.messageId === dto.messageId);
+                            if (!existingMessage) {
+                                const newMessage: ChatMessageItemDto = {
+                                    messageId: dto.messageId,
+                                    senderUserId: dto.senderUserId,
+                                    text: dto.text,
+                                    createdAt: dto.createdAt,
+                                };
+                                draft.push(newMessage);
+                                // Tarihe göre sırala (en eski en başta)
+                                draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                            }
+                        })
+                    );
+
+                    // Badge count backend'den badge.updated event'i ile gelecek, burada sadece invalidate et
+                    dispatch(api.util.invalidateTags(["Badge"]));
+                });
+
+                conn.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
+                    // Yeni chat thread oluşturulduğunda listeyi güncelle
+                    dispatch(
+                        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                            if (!draft) return;
+                            // Eğer zaten varsa güncelle, yoksa başa ekle (ThreadId ile kontrol)
+                            const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
+                            if (existingIndex >= 0) {
+                                draft[existingIndex] = dto;
+                            } else {
+                                draft.unshift(dto);
+                            }
+                        })
+                    );
+                    dispatch(api.util.invalidateTags(["Badge"]));
+                });
+
+                conn.on("chat.threadUpdated", (dto: ChatThreadListItemDto) => {
+                    // Thread güncellendiğinde (randevu durumu değiştiğinde) listeyi güncelle
+                    dispatch(
+                        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                            if (!draft) return;
+                            const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
+                            if (existingIndex >= 0) {
+                                // Randevu durumu artık Pending/Approved değilse thread'i kaldır
+                                if (!dto.isFavoriteThread && dto.status !== undefined &&
+                                    dto.status !== AppointmentStatus.Pending &&
+                                    dto.status !== AppointmentStatus.Approved) {
+                                    draft.splice(existingIndex, 1);
+                                } else {
+                                    // Thread'i güncelle
+                                    draft[existingIndex] = dto;
+                                }
+                            }
+                        })
+                    );
+                    dispatch(api.util.invalidateTags(["Badge"]));
+                });
+
+                conn.on("chat.threadRemoved", (threadId: string | null | undefined) => {
+                    // Thread kaldırıldığında (randevu iptal/tamamlandığında) listeyi güncelle
+                    if (!threadId) return;
+                    dispatch(
+                        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                            if (!draft) return;
+                            const existingIndex = draft.findIndex(t => t.threadId === threadId);
+                            if (existingIndex >= 0) {
+                                draft.splice(existingIndex, 1);
+                            }
+                        })
+                    );
+                    dispatch(api.util.invalidateTags(["Badge"]));
+                });
+
+                // Typing indicator event handler
+                // Bu event ChatDetailScreen component'inde handle edilecek (callback prop ile)
+                conn.on("chat.typing", (data: { threadId: string; typingUserId: string; typingUserName: string; isTyping: boolean }) => {
+                    // Typing indicator'ü handle etmek için bir callback mekanizması gerekebilir
+                    // Şimdilik sadece event'i dinliyoruz, ChatDetailScreen'de typing state'i yönetilecek
+                });
+            };
+
+            // İlk bağlantı için event handler'ları ekle
+            setupEventHandlers(connection);
+
+            // Bağlantı durumu event'leri - arka planda sessizce yeniden bağlanma
+            connection.onclose(async (error?: Error) => {
+                if (stopped) return;
+                setIsConnected(false);
+
+                // Otomatik yeniden bağlanma mekanizması
+                const attemptReconnect = async () => {
+                    if (stopped || reconnectAttemptsRef.current >= maxReconnectAttempts) {
+                        reconnectAttemptsRef.current = 0;
+                        return;
+                    }
+
+                    reconnectAttemptsRef.current++;
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000); // Exponential backoff, max 30s
+
+                    reconnectTimeoutRef.current = setTimeout(async () => {
+                        if (stopped) return;
+
+                        try {
+                            const currentToken = tokenStore.access;
+                            if (!currentToken) {
+                                reconnectAttemptsRef.current = 0;
+                                return;
+                            }
+
+                            // Yeni bağlantı oluştur ve başlat
+                            const newConnection = new SignalR.HubConnectionBuilder()
+                                .withUrl(HUB_URL, {
+                                    transport: SignalR.HttpTransportType.WebSockets,
+                                    skipNegotiation: true,
+                                    accessTokenFactory: async () => {
+                                        const token = tokenStore.access;
+                                        if (!token) throw new Error('No access token');
+                                        return token;
+                                    },
+                                })
+                                .withAutomaticReconnect([0, 2000, 10000, 30000])
+                                .configureLogging(SignalR.LogLevel.None) // Production'da log yok
+                                .build();
+
+                            // Event handler'ları tekrar ekle
+                            setupEventHandlers(newConnection);
+
+                            await newConnection.start();
+                            if (!stopped) {
+                                connectionRef.current = newConnection;
+                                reconnectAttemptsRef.current = 0; // Başarılı bağlantı
+                                setIsConnected(true);
+                                dispatch(api.util.invalidateTags(['Badge', 'Chat', 'Notification']));
+                            } else {
+                                await newConnection.stop();
+                            }
+                        } catch (e) {
+                            // Sessizce tekrar dene
+                            attemptReconnect();
                         }
-                    })
-                );
+                    }, delay);
+                };
 
-                // Mesaj listesini güncelle (eğer o appointment'ın mesajları açıksa)
-                dispatch(
-                    api.util.updateQueryData("getChatMessages", { appointmentId: dto.appointmentId }, (draft) => {
-                        if (!draft) return;
-                        // Eğer aynı mesaj yoksa ekle
-                        const existingMessage = draft.find(m => m.messageId === dto.messageId);
-                        if (!existingMessage) {
-                            const newMessage: ChatMessageItemDto = {
-                                messageId: dto.messageId,
-                                senderUserId: dto.senderUserId,
-                                text: dto.text,
-                                createdAt: dto.createdAt,
-                            };
-                            draft.push(newMessage);
-                            // Tarihe göre sırala (en eski en başta)
-                            draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                        }
-                    })
-                );
-
-                // Badge count backend'den badge.updated event'i ile gelecek, burada sadece invalidate et
-                dispatch(api.util.invalidateTags(["Badge"]));
+                // İlk yeniden bağlanma denemesi
+                attemptReconnect();
             });
 
-            connection.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
-                // Yeni chat thread oluşturulduğunda listeyi güncelle
-                dispatch(
-                    api.util.updateQueryData("getChatThreads", undefined, (draft) => {
-                        if (!draft) return;
-                        // Eğer zaten varsa güncelle, yoksa başa ekle
-                        const existingIndex = draft.findIndex(t => t.appointmentId === dto.appointmentId);
-                        if (existingIndex >= 0) {
-                            draft[existingIndex] = dto;
-                        } else {
-                            draft.unshift(dto);
-                        }
-                    })
-                );
-                dispatch(api.util.invalidateTags(["Badge"]));
+            connection.onreconnecting(() => {
+                // Arka planda yeniden bağlanıyor - kullanıcıya gösterme
             });
 
-            // Bağlantı durumu event'leri
-            connection.onclose((error) => {
-                if (error) {
-                    logger.warn('SignalR connection closed with error:', error);
-                }
-                // Bağlantı kapandığında cache'i invalidate et (yeniden bağlanınca güncel veri gelsin)
-                dispatch(api.util.invalidateTags(['Badge', 'Chat', 'Notification']));
-            });
-
-            connection.onreconnecting((error) => {
-                logger.info('SignalR reconnecting...', error);
-            });
-
-            connection.onreconnected((connectionId) => {
-                logger.info('SignalR reconnected:', connectionId);
+            connection.onreconnected(() => {
+                reconnectAttemptsRef.current = 0; // Başarılı yeniden bağlantı
+                setIsConnected(true);
                 // Yeniden bağlandığında güncel verileri çek
                 dispatch(api.util.invalidateTags(['Badge', 'Chat', 'Notification']));
             });
@@ -247,13 +395,14 @@ export const useSignalR = () => {
                     return;
                 }
                 connectionRef.current = connection;
+                reconnectAttemptsRef.current = 0; // Başarılı bağlantı
+                setIsConnected(true);
                 // Bağlantı kurulduğunda badge count'u fetch et
                 dispatch(api.util.invalidateTags(['Badge']));
             } catch (e) {
-                // Error logging will be handled by logger if needed
                 // SignalR connection errors are expected during network issues
-                // Bağlantı kurulamazsa DB'den veri çek
-                logger.error('SignalR connection failed:', e);
+                // Arka planda otomatik yeniden bağlanma mekanizması devreye girecek
+                setIsConnected(false);
                 dispatch(api.util.invalidateTags(['Notification', 'Badge', 'Chat']));
             }
         };
@@ -262,13 +411,27 @@ export const useSignalR = () => {
 
         return () => {
             stopped = true;
+
+            // Reconnect timeout'u temizle
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+
             const c = connectionRef.current;
             c?.off("badge.updated");
             c?.off("notification.received");
             c?.off("chat.message");
             c?.off("chat.threadCreated");
+            c?.off("chat.threadUpdated");
+            c?.off("chat.threadRemoved");
+            c?.off("chat.typing");
             c?.stop();
             connectionRef.current = null;
+            reconnectAttemptsRef.current = 0;
+            setIsConnected(false);
         };
     }, [dispatch, token]); // Token değiştiğinde bağlantıyı yeniden kur
+
+    return { isConnected, connectionRef };
 };

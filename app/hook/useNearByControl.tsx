@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
 import type { Pos, LocationStatus, UseNearbyControlParams } from "../types";
 
@@ -142,6 +143,49 @@ export function useNearbyControl({
 
         return () => clearInterval(id);
     }, [enabled, locationStatus, hardRefreshMs]);
+
+    // AppState listener: Uygulama foreground'a geldiğinde lokasyon iznini kontrol et ve hard refresh yap
+    useEffect(() => {
+        if (!enabled) return;
+
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            // Uygulama foreground'a geldiğinde (active)
+            if (nextAppState === "active") {
+                // Lokasyon iznini kontrol et
+                const permissionStatus = await Location.getForegroundPermissionsAsync();
+
+                if (permissionStatus.granted) {
+                    // Watch aktif değilse veya daha önce denied idi ise, durumu güncelle ve fetch yap
+                    if (!watchRef.current) {
+                        setLocationStatus("granted");
+                        setLocationMessage("");
+                        await startWatching();
+                    }
+
+                    // Eğer son bilinen pozisyon varsa hemen fetch yap (hard refresh)
+                    // Ayarlardan döndüğünde veri güncellemesi için
+                    if (lastKnownPos.current && savedFetchHandler.current) {
+                        await savedFetchHandler.current(
+                            lastKnownPos.current.lat,
+                            lastKnownPos.current.lon
+                        );
+                    }
+                } else {
+                    // İzin yoksa durumu güncelle ve watch'i durdur
+                    setLocationStatus("denied");
+                    setLocationMessage("Konum izni verilmedi.");
+                    watchRef.current?.remove();
+                    watchRef.current = null;
+                }
+            }
+        };
+
+        const subscription = AppState.addEventListener("change", handleAppStateChange);
+
+        return () => {
+            subscription.remove();
+        };
+    }, [enabled]); // locationStatus'i dependency'den çıkardık çünkü handler içinde kontrol ediyoruz
 
     const retryPermission = async () => {
         if (!enabled) return;

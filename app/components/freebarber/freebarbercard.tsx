@@ -19,9 +19,9 @@ type Props = {
 
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
-    const { userId } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData, isLoading: isLoadingFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !userId });
+    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
 
@@ -32,10 +32,10 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
 
     // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
     useEffect(() => {
-        if (!isLoadingFavorite && isFavoriteData !== undefined) {
+        if (isFavoriteData !== undefined) {
             setIsFavorite(isFavoriteData);
         }
-    }, [isFavoriteData, isLoadingFavorite]);
+    }, [isFavoriteData]);
 
     // freeBarber.favoriteCount değiştiğinde state'i güncelle
     useEffect(() => {
@@ -43,8 +43,8 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     }, [freeBarber.favoriteCount]);
 
     const handleToggleFavorite = useCallback(async () => {
-        if (!userId) {
-            console.log('[FreeBarberCard] handleToggleFavorite: userId yok');
+        if (!isAuthenticated) {
+            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
             return;
         }
 
@@ -52,24 +52,28 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         const previousFavoriteCount = favoriteCount;
 
         // Optimistic update: hemen UI'ı güncelle
-        setIsFavorite(!isFavorite);
-        setFavoriteCount(prev => isFavorite ? Math.max(0, prev - 1) : prev + 1);
+        const newIsFavorite = !isFavorite;
+        setIsFavorite(newIsFavorite);
+        // Zaten beğenmişse azalt, beğenmemişse artır
+        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
 
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId: freeBarber.id,
                 appointmentId: null,
             }).unwrap();
 
-            console.log('[FreeBarberCard] handleToggleFavorite: Başarılı', result);
+            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            if (refetchIsFavorite) {
+                refetchIsFavorite();
+            }
         } catch (error: any) {
-            console.error('[FreeBarberCard] handleToggleFavorite: Hata', error);
             // Hata durumunda eski değerlere geri dön
             setIsFavorite(previousIsFavorite);
             setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [userId, freeBarber.id, toggleFavorite, isFavorite, favoriteCount]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
     return (
         <View
             style={{ width: cardWidthFreeBarber }}
