@@ -2,7 +2,8 @@
  * Appointment-related types
  */
 
-import { ServiceOfferingGetDto } from './common';
+import { BarberType, ServiceOfferingGetDto } from './common';
+import { PricingType } from './store';
 
 export enum AppointmentStatus {
   Pending = 0,
@@ -56,6 +57,7 @@ export type AppointmentServiceDto = {
 export type AppointmentGetDto = {
   id: string;
   chairId?: string;
+  chairName?: string;
   startTime: string; // "14:30:00"
   endTime: string;
   appointmentDate: string; // "2025-12-14"
@@ -65,14 +67,19 @@ export type AppointmentGetDto = {
   // YENİ: Hizmetler ve Fiyat
   services: AppointmentServiceDto[];
   totalPrice: number;
+  pricingType: PricingType;
+  pricingValue: number;
+  appointmentRequester: AppointmentRequester
 
   // Store
   barberStoreId?: string;
   storeName?: string;
   storeImage?: string;
   isStoreFavorite: boolean;
+  storeType: BarberType;
   myRatingForStore?: number;
   myCommentForStore?: string;
+  storeAverageRating?: number; // Store'un ortalama rating'i
 
   // FreeBarber
   freeBarberId?: string;
@@ -81,6 +88,7 @@ export type AppointmentGetDto = {
   isFreeBarberFavorite: boolean;
   myRatingForFreeBarber?: number;
   myCommentForFreeBarber?: string;
+  freeBarberAverageRating?: number; // FreeBarber'ın ortalama rating'i
 
   // ManuelBarber
   manuelBarberId?: string;
@@ -88,6 +96,7 @@ export type AppointmentGetDto = {
   manuelBarberImage?: string;
   myRatingForManuelBarber?: number;
   myCommentForManuelBarber?: string;
+  manuelBarberAverageRating?: number; // ManuelBarber'ın ortalama rating'i
 
   // Customer
   customerUserId?: string;
@@ -96,6 +105,7 @@ export type AppointmentGetDto = {
   isCustomerFavorite: boolean;
   myRatingForCustomer?: number;
   myCommentForCustomer?: string;
+  customerAverageRating?: number; // Customer'ın ortalama rating'i
 }
 
 export type SlotDto = {

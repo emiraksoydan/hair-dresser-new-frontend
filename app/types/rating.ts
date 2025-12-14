@@ -1,0 +1,23 @@
+/**
+ * Rating-related types
+ */
+
+export type CreateRatingDto = {
+  appointmentId: string;
+  targetId: string;
+  score: number; // 1-5
+  comment?: string | null;
+};
+
+export type RatingGetDto = {
+  id: string;
+  targetId: string;
+  ratedFromId: string;
+  ratedFromName?: string | null;
+  ratedFromImage?: string | null;
+  score: number;
+  comment?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  appointmentId: string;
+};

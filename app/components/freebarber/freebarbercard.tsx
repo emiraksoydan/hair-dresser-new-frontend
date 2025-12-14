@@ -1,9 +1,11 @@
 // app/components/StoreCard.tsx
-import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
+import React, { useCallback, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, FreeBarGetDto } from '../../types';
+import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
+import { useAuth } from '../../hook/useAuth';
 
 type Props = {
     freeBarber: FreeBarGetDto;
@@ -17,11 +19,57 @@ type Props = {
 
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
+    const { userId } = useAuth();
+    const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
+    const { data: isFavoriteData, isLoading: isLoadingFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !userId });
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
 
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(freeBarber);
     }, [onPressUpdate, freeBarber]);
+
+    // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
+    useEffect(() => {
+        if (!isLoadingFavorite && isFavoriteData !== undefined) {
+            setIsFavorite(isFavoriteData);
+        }
+    }, [isFavoriteData, isLoadingFavorite]);
+
+    // freeBarber.favoriteCount değiştiğinde state'i güncelle
+    useEffect(() => {
+        setFavoriteCount(freeBarber.favoriteCount || 0);
+    }, [freeBarber.favoriteCount]);
+
+    const handleToggleFavorite = useCallback(async () => {
+        if (!userId) {
+            console.log('[FreeBarberCard] handleToggleFavorite: userId yok');
+            return;
+        }
+
+        const previousIsFavorite = isFavorite;
+        const previousFavoriteCount = favoriteCount;
+
+        // Optimistic update: hemen UI'ı güncelle
+        setIsFavorite(!isFavorite);
+        setFavoriteCount(prev => isFavorite ? Math.max(0, prev - 1) : prev + 1);
+
+        try {
+            const result = await toggleFavorite({
+                targetId: freeBarber.id,
+                appointmentId: null,
+            }).unwrap();
+
+            console.log('[FreeBarberCard] handleToggleFavorite: Başarılı', result);
+        } catch (error: any) {
+            console.error('[FreeBarberCard] handleToggleFavorite: Hata', error);
+            // Hata durumunda eski değerlere geri dön
+            setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousFavoriteCount);
+            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+        }
+    }, [userId, freeBarber.id, toggleFavorite, isFavorite, favoriteCount]);
     return (
         <View
             style={{ width: cardWidthFreeBarber }}
@@ -121,19 +169,20 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             <View className="flex-row items-center">
                                 <IconButton
                                     size={25}
-                                    iconColor="gray"
-                                    icon="heart"
+                                    iconColor={isFavorite ? "red" : "gray"}
+                                    icon={isFavorite ? "heart" : "heart-outline"}
                                     style={{
                                         marginTop: !isList ? -5 : 0,
                                         marginRight: !isList ? 0 : -8,
                                     }}
-                                    onPress={() => { }}
+                                    onPress={handleToggleFavorite}
+                                    disabled={isTogglingFavorite}
                                 />
                                 <Text
                                     className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
                                         }`}
                                 >
-                                    ({freeBarber.favoriteCount})
+                                    ({favoriteCount})
                                 </Text>
                             </View>
                         )}
@@ -141,18 +190,22 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                     {!isList && (
                         <View className="flex-row  justify-between pr-2 ">
                             <Text className='text-base text-gray-500'>{freeBarber.type === BarberType.MaleHairdresser ? "Erkek" : 'Kadın'}</Text>
-                            <View className="flex-row items-center gap-1">
+                            <TouchableOpacity
+                                onPress={handleToggleFavorite}
+                                disabled={isTogglingFavorite}
+                                className="flex-row items-center gap-1"
+                            >
                                 <Icon
                                     size={25}
-                                    color="gray"
-                                    source={"heart"}
+                                    color={isFavorite ? "red" : "gray"}
+                                    source={isFavorite ? "heart" : "heart-outline"}
                                 />
                                 <Text
                                     className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
                                 >
-                                    ({freeBarber.favoriteCount})
+                                    ({favoriteCount})
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     )}
 

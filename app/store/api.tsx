@@ -9,13 +9,15 @@ import {
     OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto,
     ChatThreadListItemDto, ChatMessageItemDto, ChatMessageDto,
     // YENİ EKLENEN TİPLER:
-    AppointmentGetDto, AppointmentFilter
+    AppointmentGetDto, AppointmentFilter,
+    CreateRatingDto, RatingGetDto,
+    ToggleFavoriteDto, FavoriteGetDto
 } from '../types';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite"],
     refetchOnReconnect: true,
     refetchOnFocus: false,
     endpoints: (builder) => ({
@@ -53,14 +55,21 @@ export const api = createApi({
             query: ({ lat, lon, radiusKm = 1 }) => ({
                 url: 'BarberStore/nearby',
                 method: 'GET',
-                params: { lat, lon, radiusKm },
+                params: { lat, lon, distance: radiusKm },
             }),
             keepUnusedDataFor: 0,
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
+                    : [{ type: 'MineStores' as const, id: 'LIST' }],
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
             keepUnusedDataFor: 0,
-            providesTags: ['MineStores'],
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
+                    : [{ type: 'MineStores' as const, id: 'LIST' }],
         }),
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
@@ -93,9 +102,13 @@ export const api = createApi({
             query: ({ lat, lon, radiusKm = 1 }) => ({
                 url: 'FreeBarber/nearby',
                 method: 'GET',
-                params: { lat, lon, radiusKm },
+                params: { lat, lon, distance: radiusKm },
             }),
             keepUnusedDataFor: 0,
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({ id }) => ({ type: 'MineFreeBarberPanel' as const, id })), { type: 'MineFreeBarberPanel' as const, id: 'LIST' }]
+                    : [{ type: 'MineFreeBarberPanel' as const, id: 'LIST' }],
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
@@ -347,6 +360,89 @@ export const api = createApi({
             invalidatesTags: ['Chat', 'Badge'],
         }),
 
+        // --- RATING API ---
+        createRating: builder.mutation<ApiResponse<RatingGetDto>, CreateRatingDto>({
+            query: (body) => ({ url: 'Rating/create', method: 'POST', body }),
+            invalidatesTags: ['Appointment'],
+        }),
+        deleteRating: builder.mutation<ApiResponse<boolean>, string>({
+            query: (ratingId) => ({ url: `Rating/${ratingId}`, method: 'DELETE' }),
+            invalidatesTags: ['Appointment'],
+        }),
+        getRatingById: builder.query<RatingGetDto, string>({
+            query: (ratingId) => `Rating/${ratingId}`,
+            keepUnusedDataFor: 0,
+        }),
+        getRatingsByTarget: builder.query<RatingGetDto[], string>({
+            query: (targetId) => `Rating/target/${targetId}`,
+            keepUnusedDataFor: 0,
+        }),
+        getMyRatingForAppointment: builder.query<RatingGetDto, { appointmentId: string; targetId: string }>({
+            query: ({ appointmentId, targetId }) => `Rating/appointment/${appointmentId}/target/${targetId}`,
+            keepUnusedDataFor: 0,
+        }),
+
+        // --- FAVORITE API ---
+        toggleFavorite: builder.mutation<ApiResponse<boolean>, ToggleFavoriteDto>({
+            query: (body) => ({ url: 'Favorite/toggle', method: 'POST', body }),
+            invalidatesTags: (result, error, arg) => [
+                'Appointment',
+                'MineStores',
+                'MineFreeBarberPanel',
+                'Favorite',
+                { type: 'IsFavorite' as const, id: arg.targetId },
+                { type: 'IsFavorite' as const, id: 'LIST' },
+                { type: 'MineStores' as const, id: 'LIST' },
+                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+            ],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    // Mutation başarılı olduktan sonra, ilgili query'leri refetch et
+                    // Bu sayede backend'den güncel favoriteCount değerleri gelir
+                } catch (error) {
+                    // Hata durumunda optimistic update zaten geri alınacak
+                }
+            },
+            transformResponse: (response: any) => {
+                // Backend'den IDataResult<bool> dönüyor: { success: boolean, data: boolean, message?: string }
+                if (response?.success !== undefined && response?.data !== undefined) {
+                    return response;
+                }
+                if (response?.Success !== undefined && response?.Data !== undefined) {
+                    return { success: response.Success, data: response.Data, message: response.Message };
+                }
+                return response;
+            },
+        }),
+        isFavorite: builder.query<boolean, string>({
+            query: (targetId) => `Favorite/check/${targetId}`,
+            keepUnusedDataFor: 0,
+            providesTags: (result, error, targetId) => [{ type: 'IsFavorite' as const, id: targetId }],
+            transformResponse: (response: any) => {
+                // Backend'den IDataResult<bool> dönüyor: { success: boolean, data: boolean, message?: string }
+                if (typeof response === 'boolean') return response;
+                if (response?.data !== undefined) return response.data;
+                if (response?.Data !== undefined) return response.Data;
+                return false;
+            },
+        }),
+        getMyFavorites: builder.query<FavoriteGetDto[], void>({
+            query: () => 'Favorite/my-favorites',
+            keepUnusedDataFor: 0,
+            providesTags: ['Favorite'],
+            transformResponse: (response: any) => {
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                if (Array.isArray(response?.Data)) return response.Data;
+                return [];
+            },
+        }),
+        removeFavorite: builder.mutation<ApiResponse<boolean>, string>({
+            query: (targetId) => ({ url: `Favorite/${targetId}`, method: 'DELETE' }),
+            invalidatesTags: ['Appointment', 'MineStores', 'MineFreeBarberPanel'],
+        }),
+
     }),
 });
 
@@ -395,4 +491,13 @@ export const {
     useGetChatMessagesQuery,
     useSendChatMessageMutation,
     useMarkChatThreadReadMutation,
+    useCreateRatingMutation,
+    useDeleteRatingMutation,
+    useGetRatingByIdQuery,
+    useGetRatingsByTargetQuery,
+    useGetMyRatingForAppointmentQuery,
+    useToggleFavoriteMutation,
+    useIsFavoriteQuery,
+    useGetMyFavoritesQuery,
+    useRemoveFavoriteMutation,
 } = api;

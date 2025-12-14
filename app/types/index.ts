@@ -14,6 +14,8 @@ export * from './freebarber';
 export * from './notification';
 export * from './chat';
 export * from './location';
+export * from './rating';
+export * from './favorite';
 
 // UI and Form types
 export * from './ui';
