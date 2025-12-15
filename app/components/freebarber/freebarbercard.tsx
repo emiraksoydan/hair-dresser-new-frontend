@@ -14,16 +14,17 @@ type Props = {
     cardWidthFreeBarber: number;
     onPressUpdate?: (freeBarber: FreeBarGetDto) => void;
     mode?: 'default' | 'barbershop';
-
+    onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', }) => {
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', onPressRatings }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
+    // favoriteCount'u direkt freeBarber prop'undan al, optimistic update yapma
+    const favoriteCount = freeBarber.favoriteCount || 0;
 
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
@@ -37,11 +38,6 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         }
     }, [isFavoriteData]);
 
-    // freeBarber.favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        setFavoriteCount(freeBarber.favoriteCount || 0);
-    }, [freeBarber.favoriteCount]);
-
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -49,13 +45,9 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         }
 
         const previousIsFavorite = isFavorite;
-        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update: hemen UI'ı güncelle
-        const newIsFavorite = !isFavorite;
-        setIsFavorite(newIsFavorite);
-        // Zaten beğenmişse azalt, beğenmemişse artır
-        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
+        // Optimistic update sadece isFavorite için (UI feedback için)
+        setIsFavorite(!isFavorite);
 
         try {
             await toggleFavorite({
@@ -63,17 +55,18 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            // Mutation başarılı olduktan sonra:
+            // isFavorite query'sini refetch et
+            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
         } catch (error: any) {
-            // Hata durumunda eski değerlere geri dön
+            // Hata durumunda eski değere geri dön
             setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, refetchIsFavorite]);
     return (
         <View
             style={{ width: cardWidthFreeBarber }}
@@ -224,7 +217,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                 starStyle={{ marginHorizontal: 0 }}
                             />
                             <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                            <TouchableOpacity onPress={() => { }}>
+                            <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
                                 <Text className="text-white underline mr-1 mb-0 text-xs">
                                     Yorumlar ({freeBarber.reviewCount})
                                 </Text>

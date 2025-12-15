@@ -52,43 +52,9 @@ export function NotificationsSheet({
             }
 
             if (result.success) {
-                // Cache'i güncelle: Hem okundu yap, hem de JSON içindeki statüsü değiştir.
-                dispatch(
-                    api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
-                        const found = draft?.find((x) => x.id === notification.id);
-                        if (found) {
-                            found.isRead = true;
-                            // Payload JSON'ı parse et, statüsü güncelle ve geri yaz
-                            try {
-                                if (found.payloadJson) {
-                                    const p = JSON.parse(found.payloadJson);
-                                    // Status'ü güncelle ki butonlar kaybolup yeşil/kırmızı kutu gelsin
-                                    p.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
-                                    found.payloadJson = JSON.stringify(p);
-                                }
-                            } catch (e) {
-                                // Payload update error - silently handle
-                            }
-                        }
-
-                        // Aynı appointmentId'ye sahip diğer notification'ları da güncelle
-                        if (notification.appointmentId) {
-                            draft?.forEach(n => {
-                                if (n.appointmentId === notification.appointmentId && n.id !== notification.id) {
-                                    try {
-                                        if (n.payloadJson) {
-                                            const p = JSON.parse(n.payloadJson);
-                                            p.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
-                                            n.payloadJson = JSON.stringify(p);
-                                        }
-                                    } catch {
-                                        // Ignore parse errors
-                                    }
-                                }
-                            });
-                        }
-                    })
-                );
+                // Notification listesini refetch et - backend'den güncel status'ü almak için
+                // Bu sayede decision yapıldıktan sonra status doğru şekilde güncellenir
+                refetch();
 
                 // Badge count'u invalidate et
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));

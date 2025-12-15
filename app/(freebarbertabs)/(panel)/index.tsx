@@ -25,12 +25,15 @@ import { safeCoord } from '../../utils/location/geo';
 import StoreBookingContent from '../../components/store/storebooking';
 import { useGetFreeBarberMinePanelQuery } from '../../store/api';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
+import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 
 const Index = () => {
 
     const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce } = useNearbyStores(true);
+    // useTrackFreeBarberLocation zaten hard refresh yapıyor (30 saniyede bir) ve updateFreeBarberLocation mutation'ı MineFreeBarberPanel tag'ini invalidate ediyor
+    // Bu yüzden ayrı polling interval'a gerek yok
     const { data: freeBarber, isLoading, isError, error } = useGetFreeBarberMinePanelQuery(undefined, {
-        skip: !hasLocation
+        skip: !hasLocation,
     });
 
     const router = useRouter();
@@ -47,7 +50,9 @@ const Index = () => {
     const [expandedStoreBarber, setExpandedStoreBarber] = useState(true);
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present: freeBarberPanel } = useSheet('freeBarberMinePanel');
+    const { present: presentRatings } = useSheet('ratings');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
 
     const { list: selectedServices, toggle: toggleService, has: hasService, } = useToggleList<string>([]);
     const [freeBarberId, setFreeBarberId] = useState<string | null>(null);
@@ -65,6 +70,11 @@ const Index = () => {
         setFreeBarberId(id);
         freeBarberPanel();
     }, [freeBarberPanel]);
+
+    const handlePressRatings = useCallback((targetId: string, targetName: string) => {
+        setSelectedRatingsTarget({ targetId, targetName });
+        presentRatings();
+    }, [presentRatings]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
@@ -303,6 +313,31 @@ const Index = () => {
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                     {selectedMapItem && <StoreBookingContent storeId={(selectedMapItem as any).id} isBottomSheet={true} isFreeBarber={true} />}
                 </BottomSheetView>
+            </BottomSheetModal>
+
+            {/* Yorumlar Bottom Sheet */}
+            <BottomSheetModal
+                ref={(inst) => setRef("ratings", inst)}
+                snapPoints={["50%", "85%"]}
+                enablePanDownToClose={true}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                onChange={(index) => {
+                    if (index < 0) {
+                        setSelectedRatingsTarget(null);
+                    }
+                }}
+            >
+                {selectedRatingsTarget && (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                        }}
+                    />
+                )}
             </BottomSheetModal>
         </View>
     )

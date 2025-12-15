@@ -1,8 +1,5 @@
-import { logger } from '../common/logger';
-
 export function pathByUserType(userType?: string | null) {
     if (!userType) {
-        logger.warn('pathByUserType: userType is null or undefined');
         return '/(auth)';
     }
 
@@ -22,7 +19,6 @@ export function pathByUserType(userType?: string | null) {
         case '2':
             return '/(barberstoretabs)';
         default:
-            logger.error('pathByUserType: Unknown userType:', userType, 'normalized:', normalized, 'type:', typeof userType);
             return '/(auth)';
     }
 }

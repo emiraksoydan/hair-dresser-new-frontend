@@ -4,8 +4,8 @@
  */
 
 export const API_CONSTANTS = {
-    BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.101:5149/api/',
-    SIGNALR_HUB_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://192.168.1.101:5149/hubs/app',
+    BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.109:5149/api/',
+    SIGNALR_HUB_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://192.168.1.109:5149/hubs/app',
 
     // Timeouts
     REQUEST_TIMEOUT_MS: 30000,

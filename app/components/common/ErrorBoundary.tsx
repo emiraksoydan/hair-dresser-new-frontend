@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { logger } from '../../utils/common/logger';
 import { MESSAGES } from '../../constants/messages';
 
 interface Props {
@@ -28,8 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        logger.error('ErrorBoundary caught an error:', error, errorInfo);
-        // TODO: Send to error tracking service (Sentry, etc.)
+        // Error caught silently
     }
 
     handleReset = () => {

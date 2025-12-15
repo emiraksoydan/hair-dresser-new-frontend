@@ -4,7 +4,6 @@ import { Avatar, Button, Divider, IconButton } from 'react-native-paper';
 import { useRevokeMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
 import { clearStoredTokens } from '../../lib/tokenStorage';
-import { logger } from '../../utils/common/logger';
 
 const Index = () => {
     const expoRouter = useRouter();
@@ -69,8 +68,8 @@ const Index = () => {
                                     });
 
                             }
-                        } catch (error) {
-                            logger.error('Profile error:', error);
+                        } catch {
+                            // Error handled silently
                         }
 
 

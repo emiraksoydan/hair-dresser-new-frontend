@@ -4,8 +4,9 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } fr
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreMineDto } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
+import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { useDispatch } from 'react-redux';
 
 type Props = {
     store: BarberStoreMineDto;
@@ -13,16 +14,18 @@ type Props = {
     expanded: boolean;
     cardWidthStore: number;
     onPressUpdate?: (store: BarberStoreMineDto) => void;
-
+    onPressRatings?: (storeId: string, storeName: string) => void;
 };
 
-const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate }) => {
+const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate, onPressRatings }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
+    const dispatch = useDispatch();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
+    // favoriteCount'u direkt store prop'undan al, optimistic update yapma
+    const favoriteCount = store.favoriteCount || 0;
 
     const handlePressCard = () => {
         onPressUpdate?.(store);
@@ -35,11 +38,6 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
         }
     }, [isFavoriteData]);
 
-    // store.favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        setFavoriteCount(store.favoriteCount || 0);
-    }, [store.favoriteCount]);
-
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -47,13 +45,9 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
         }
 
         const previousIsFavorite = isFavorite;
-        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update: hemen UI'ı güncelle
-        const newIsFavorite = !isFavorite;
-        setIsFavorite(newIsFavorite);
-        // Zaten beğenmişse azalt, beğenmemişse artır
-        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
+        // Optimistic update sadece isFavorite için (UI feedback için)
+        setIsFavorite(!isFavorite);
 
         try {
             await toggleFavorite({
@@ -61,17 +55,25 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            // Mutation başarılı olduktan sonra:
+            // 1. isFavorite query'sini refetch et
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
+            
+            // 2. Parent query'leri invalidate et (favoriteCount güncellenmesi için)
+            dispatch(api.util.invalidateTags([
+                { type: 'MineStores' as const, id: store.id },
+                { type: 'MineStores' as const, id: 'LIST' },
+                { type: 'GetStoreById' as const, id: store.id },
+                { type: 'StoreForUsers' as const, id: store.id },
+            ]));
         } catch (error: any) {
-            // Hata durumunda eski değerlere geri dön
+            // Hata durumunda eski değere geri dön
             setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, refetchIsFavorite, dispatch]);
 
     return (
         <View
@@ -162,7 +164,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                             <Text className="text-white">{store.rating}</Text>
                         </View>
                         {isList && (
-                            <TouchableOpacity onPress={() => { }}>
+                            <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)}>
                                 <Text className="text-white underline mr-1 mb-1 text-xs">
                                     Yorumlar ({store.reviewCount})
                                 </Text>
@@ -187,7 +189,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                                     ({favoriteCount})
                                 </Text>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => { }}>
+                            <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)}>
                                 <Text className="text-white underline mr-1 mb-1 text-xs">
                                     Yorumlar ({store.reviewCount})
                                 </Text>

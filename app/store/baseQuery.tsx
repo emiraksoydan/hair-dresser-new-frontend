@@ -79,11 +79,6 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
       }
       return res;
     } catch (error) {
-      // Global error handler - tüm hatalar burada yakalanır
-      // Logger'a kaydedilir, kullanıcıya gösterilmez (component seviyesinde gösterilebilir)
-      const { logger } = await import('../utils/common/logger');
-      logger.error('API request failed:', error);
-
       // Return error in RTK Query format
       return {
         error: {

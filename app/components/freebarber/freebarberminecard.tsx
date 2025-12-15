@@ -4,8 +4,9 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } fr
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreMineDto, FreeBarberPanelDto } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
+import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { useDispatch } from 'react-redux';
 
 type Props = {
     freeBarber: FreeBarberPanelDto;
@@ -13,16 +14,18 @@ type Props = {
     expanded: boolean;
     cardWidthFreeBarber: number;
     onPressUpdate?: (store: FreeBarberPanelDto) => void;
-
+    onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
 };
 
-const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate }) => {
+const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, onPressRatings }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
+    const dispatch = useDispatch();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
+    // favoriteCount'u direkt freeBarber prop'undan al, optimistic update yapma
+    const favoriteCount = freeBarber.favoriteCount || 0;
 
     const handlePressCard = () => {
         onPressUpdate?.(freeBarber);
@@ -35,11 +38,6 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
         }
     }, [isFavoriteData]);
 
-    // freeBarber.favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        setFavoriteCount(freeBarber.favoriteCount || 0);
-    }, [freeBarber.favoriteCount]);
-
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -47,13 +45,9 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
         }
 
         const previousIsFavorite = isFavorite;
-        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update: hemen UI'ı güncelle
-        const newIsFavorite = !isFavorite;
-        setIsFavorite(newIsFavorite);
-        // Zaten beğenmişse azalt, beğenmemişse artır
-        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
+        // Optimistic update sadece isFavorite için (UI feedback için)
+        setIsFavorite(!isFavorite);
 
         try {
             await toggleFavorite({
@@ -61,17 +55,24 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            // Mutation başarılı olduktan sonra:
+            // 1. isFavorite query'sini refetch et
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
+            
+            // 2. Parent query'leri invalidate et (favoriteCount güncellenmesi için)
+            dispatch(api.util.invalidateTags([
+                { type: 'MineFreeBarberPanel' as const, id: freeBarber.id },
+                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                { type: 'FreeBarberForUsers' as const, id: freeBarber.id },
+            ]));
         } catch (error: any) {
-            // Hata durumunda eski değerlere geri dön
+            // Hata durumunda eski değere geri dön
             setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, refetchIsFavorite, dispatch]);
 
     return (
         <View
@@ -206,7 +207,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                 starStyle={{ marginHorizontal: 0 }}
                             />
                             <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                            <TouchableOpacity onPress={() => { }}>
+                            <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
                                 <Text className="text-white underline mr-1 mb-0 text-xs">
                                     Yorumlar ({freeBarber.reviewCount})
                                 </Text>

@@ -23,9 +23,13 @@ import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
 import { safeCoord } from "../../utils/location/geo";
 import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi
 import { BarberMarker } from "../../components/freebarber/barbermarker";
+import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 
 const Index = () => {
-    const { data: stores = [], isLoading: storeLoading } = useGetMineStoresQuery();
+    // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
+    const { data: stores = [], isLoading: storeLoading } = useGetMineStoresQuery(undefined, {
+        pollingInterval: 30_000, // 30 saniye
+    });
     const {
         freeBarbers,
         isLoading: isFreeLoading,
@@ -45,6 +49,7 @@ const Index = () => {
     const { present: presentFilter } = useSheet("filter");
     const { present: presentMapDetail } = useSheet("mapDetail");
     const { present: updateStore } = useSheet("updateStoreMine");
+    const { present: presentRatings } = useSheet("ratings");
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isList, setIsList] = useState(true);
@@ -59,6 +64,8 @@ const Index = () => {
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
     const [storeId, setStoreId] = useState<string>("");
+    const [ratingsSheetOpen, setRatingsSheetOpen] = useState(false);
+    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
 
     const screenWidth = Dimensions.get("window").width;
 
@@ -90,6 +97,11 @@ const Index = () => {
         [presentMapDetail]
     );
 
+    const handlePressRatings = useCallback((targetId: string, targetName: string) => {
+        setSelectedRatingsTarget({ targetId, targetName });
+        presentRatings();
+    }, [presentRatings]);
+
     const renderStoreItem = useCallback(
         ({ item }: { item: BarberStoreMineDto }) => (
             <StoreMineCardComp
@@ -98,9 +110,10 @@ const Index = () => {
                 expanded={expandedStores}
                 cardWidthStore={cardWidthStore}
                 onPressUpdate={handlePressUpdateStore}
+                onPressRatings={handlePressRatings}
             />
         ),
-        [isList, expandedStores, cardWidthStore, handlePressUpdateStore]
+        [isList, expandedStores, cardWidthStore, handlePressUpdateStore, handlePressRatings]
     );
 
     const renderFreeBarberItem = useCallback(
@@ -327,6 +340,33 @@ const Index = () => {
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                     {selectedMapItem && <FreeBarberBookingContent barberId={(selectedMapItem as any).id} isBottomSheet={true} isBarberMode={true} />}
                 </BottomSheetView>
+            </BottomSheetModal>
+
+            {/* Yorumlar Bottom Sheet */}
+            <BottomSheetModal
+                ref={(inst) => setRef("ratings", inst)}
+                snapPoints={["50%", "85%"]}
+                enablePanDownToClose={true}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                onChange={(index) => {
+                    if (index < 0) {
+                        setRatingsSheetOpen(false);
+                        setSelectedRatingsTarget(null);
+                    }
+                }}
+            >
+                {selectedRatingsTarget && (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setRatingsSheetOpen(false);
+                            setSelectedRatingsTarget(null);
+                        }}
+                    />
+                )}
             </BottomSheetModal>
         </View>
     );

@@ -37,8 +37,9 @@ export const useAuth = (): AuthResult => {
         if (!token) return null;
         try {
             const decoded = jwtDecode<JwtPayload>(token);
-            // Try multiple possible fields for userId
-            return (decoded as any).sub || (decoded as any).userId || decoded.identifier || null;
+            // Backend'de hem "identifier" hem de "sub" (ClaimTypes.NameIdentifier) claim'i ekleniyor
+            // Frontend'deki JwtPayload type'ında "identifier" required olduğu için öncelikli kontrol ediyoruz
+            return decoded.identifier || (decoded as any).sub || (decoded as any).userId || null;
         } catch {
             return null;
         }

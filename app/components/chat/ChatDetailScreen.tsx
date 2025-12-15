@@ -13,7 +13,6 @@ import {
 } from '../../store/api';
 import { ChatMessageItemDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
-import { logger } from '../../utils/common/logger';
 import { useSignalR } from '../../hook/useSignalR';
 
 interface ChatDetailScreenProps {
@@ -198,7 +197,6 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             refetch();
         } catch (e: any) {
             setMessageText(text); // Restore text on error
-            logger.error('Send message error:', e);
             Alert.alert('Hata', e?.data?.message || e?.message || 'Mesaj gönderilemedi');
         }
     }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, refetch, notifyTyping]);
@@ -222,7 +220,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     // Reverse messages (oldest first, newest last)
     const sortedMessages = useMemo(() => {
         if (!messages) return [];
-        return [...messages].reverse();
+        // Array kontrolü ekle - iterator hatasını önlemek için
+        if (!Array.isArray(messages)) return [];
+        try {
+            return [...messages].reverse();
+        } catch {
+            return [];
+        }
     }, [messages]);
 
     if (isLoading) {

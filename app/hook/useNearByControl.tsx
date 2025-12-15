@@ -21,7 +21,7 @@ export function useNearbyControl({
     enabled,
     moveThresholdM = 150,
     staleMs = 15_000,
-    hardRefreshMs = 30_000,
+    hardRefreshMs = 15_000, // Default değeri useNearby.ts ile tutarlı hale getir
     onFetch,
 }: UseNearbyControlParams) {
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");

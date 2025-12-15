@@ -135,14 +135,11 @@ export default function SharedAppointmentScreen() {
         canRateNow: boolean;
         onRatePress: () => void;
     }) => {
-        // Rating gösterimi: Ortalama rating her zaman gösterilmeli (tamamlandı/iptal durumunda da)
+        // Rating gösterimi: Tamamlanan/iptal durumlarında her zaman gösterilmeli
+        // Ortalama rating her zaman gösterilmeli (eğer varsa)
         // Kullanıcının kendi rating'i de her zaman gösterilmeli (eğer varsa)
         const hasAnyRating = (averageRating !== undefined && averageRating !== null) ||
             (myRating !== undefined && myRating > 0);
-
-        if (!hasAnyRating && !canRateNow) {
-            return null; // Rating yok ve rating yapılamazsa hiçbir şey gösterme
-        }
 
         return (
             <View className="mt-1">
@@ -203,8 +200,25 @@ export default function SharedAppointmentScreen() {
             showCancelButton = true;
         }
 
+        // Tamamlanan/iptal durumlarında kart tasarımını iyileştir
+        const isCompletedOrCancelled = activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled;
+        
         return (
-            <View className="bg-[#151618] rounded-xl p-4 mb-3 border border-[#1f2023]">
+            <View className={`bg-[#151618] rounded-xl p-4 mb-3 border ${isCompletedOrCancelled ? 'border-[#2a2c30]' : 'border-[#1f2023]'}`}>
+                {isCompletedOrCancelled && (
+                    <View className="mb-3 pb-3 border-b border-[#2a2c30]">
+                        <View className="flex-row items-center gap-2">
+                            <Icon 
+                                source={activeFilter === AppointmentFilter.Completed ? "check-circle" : "close-circle"} 
+                                size={16} 
+                                color={activeFilter === AppointmentFilter.Completed ? "#22c55e" : "#ef4444"} 
+                            />
+                            <Text className={`text-sm font-semibold ${activeFilter === AppointmentFilter.Completed ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                {activeFilter === AppointmentFilter.Completed ? 'Tamamlandı' : 'İptal Edildi'}
+                            </Text>
+                        </View>
+                    </View>
+                )}
                 <View className="flex-row justify-between items-start mb-3">
                     {item.appointmentRequester != AppointmentRequester.Store && userType != UserType.FreeBarber && (
                         <View className="flex-row items-center mb-3">
@@ -268,13 +282,18 @@ export default function SharedAppointmentScreen() {
                                         <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                         <Text className="text-white text-sm font-semibold">{item.customerName}</Text>
                                         {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <TouchableOpacity
-                                                onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
-                                                disabled={isTogglingFavorite}
-                                                className="flex-row items-center mt-0.5"
-                                            >
-                                                <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "red" : "gray"} />
-                                            </TouchableOpacity>
+                                            <View className="flex-row items-center gap-2 mt-1">
+                                                <TouchableOpacity
+                                                    onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
+                                                    disabled={isTogglingFavorite}
+                                                    className="flex-row items-center"
+                                                >
+                                                    <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={16} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
+                                                    <Text className={`text-xs ml-1 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                        {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )}
                                         <RatingDisplay
                                             myRating={item.myRatingForCustomer}
@@ -329,6 +348,7 @@ export default function SharedAppointmentScreen() {
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
                                             <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>
+                                            {/* Manuel barber için like durumu yok */}
                                             <RatingDisplay
                                                 myRating={item.myRatingForManuelBarber}
                                                 myComment={item.myCommentForManuelBarber}
@@ -367,13 +387,18 @@ export default function SharedAppointmentScreen() {
                                         <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                                         <Text className="text-white text-sm font-semibold">{item.storeName}</Text>
                                         {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <TouchableOpacity
-                                                onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
-                                                disabled={isTogglingFavorite}
-                                                className="flex-row items-center mt-0.5"
-                                            >
-                                                <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "red" : "gray"} />
-                                            </TouchableOpacity>
+                                            <View className="flex-row items-center gap-2 mt-1">
+                                                <TouchableOpacity
+                                                    onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
+                                                    disabled={isTogglingFavorite}
+                                                    className="flex-row items-center"
+                                                >
+                                                    <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={16} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
+                                                    <Text className={`text-xs ml-1 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                        {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )}
                                         <RatingDisplay
                                             myRating={item.myRatingForStore}
@@ -405,13 +430,18 @@ export default function SharedAppointmentScreen() {
                                         <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                         <Text className="text-white text-sm font-semibold">{item.customerName || 'Müşteri'}</Text>
                                         {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <TouchableOpacity
-                                                onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
-                                                disabled={isTogglingFavorite}
-                                                className="flex-row items-center mt-0.5"
-                                            >
-                                                <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "red" : "gray"} />
-                                            </TouchableOpacity>
+                                            <View className="flex-row items-center gap-2 mt-1">
+                                                <TouchableOpacity
+                                                    onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
+                                                    disabled={isTogglingFavorite}
+                                                    className="flex-row items-center"
+                                                >
+                                                    <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={16} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
+                                                    <Text className={`text-xs ml-1 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                        {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )}
                                         <RatingDisplay
                                             myRating={item.myRatingForCustomer}
@@ -446,13 +476,18 @@ export default function SharedAppointmentScreen() {
                                             </Text>
                                         )}
                                         {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <TouchableOpacity
-                                                onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
-                                                disabled={isTogglingFavorite}
-                                                className="flex-row items-center mt-0.5"
-                                            >
-                                                <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "red" : "gray"} />
-                                            </TouchableOpacity>
+                                            <View className="flex-row items-center gap-2 mt-1">
+                                                <TouchableOpacity
+                                                    onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
+                                                    disabled={isTogglingFavorite}
+                                                    className="flex-row items-center"
+                                                >
+                                                    <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={16} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
+                                                    <Text className={`text-xs ml-1 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                        {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )}
                                         <RatingDisplay
                                             myRating={item.myRatingForStore}
@@ -508,6 +543,7 @@ export default function SharedAppointmentScreen() {
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">Manuel Berber</Text>
                                             <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>
+                                            {/* Manuel barber için like durumu yok */}
                                             <RatingDisplay
                                                 myRating={item.myRatingForManuelBarber}
                                                 myComment={item.myCommentForManuelBarber}

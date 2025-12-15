@@ -11,12 +11,11 @@ import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation, api } fr
 import { OtpInput } from "react-native-otp-entry";
 import { tokenStore } from '../lib/tokenStore';
 import { loadTokens, saveTokens } from '../lib/tokenStorage';
-import { jwtDecode } from 'jwt-decode';
-import { logger } from '../utils/common/logger';
-import { JwtPayload, OtpPurpose, UserType } from '../types';
+import { OtpPurpose, UserType } from '../types';
 import { useRouter } from 'expo-router';
 import { pathByUserType } from '../utils/auth/redirect-by-user-type';
 import { useAppDispatch } from '../store/hook';
+import { getUserTypeFromToken } from '../utils/auth/auth';
 
 const PdfAssetSchema = z.object({
     uri: z.string().min(1),
@@ -175,10 +174,10 @@ const Index = () => {
                 });
                 // Login sonrası badge count'u invalidate et - böylece giriş yaptığında bildirim sayısı görünecek
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));
+                // Token'ı set ettikten sonra useAuth hook'u ile userType'ı al
+                // Ancak burada hook kullanamayız, token'ı direkt decode etmeliyiz
                 const t = await loadTokens();
-                const decoded = jwtDecode<JwtPayload>(t.accessToken);
-                // JWT'den gelen userType direkt kullanılmalı (örn: "Customer", "FreeBarber", "BarberStore")
-                const userTypeFromToken = decoded.userType;
+                const userTypeFromToken = getUserTypeFromToken(t.accessToken);
                 const targetPath = pathByUserType(userTypeFromToken);
                 route.replace(targetPath);
             } else {

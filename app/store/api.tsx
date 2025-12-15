@@ -17,7 +17,7 @@ import {
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers"],
     refetchOnReconnect: true,
     refetchOnFocus: false,
     endpoints: (builder) => ({
@@ -81,11 +81,12 @@ export const api = createApi({
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
             keepUnusedDataFor: 0,
-            providesTags: ['GetStoreById'],
+            providesTags: (result, error, id) => [{ type: 'GetStoreById' as const, id }],
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
             query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
             keepUnusedDataFor: 0,
+            providesTags: (result, error, storeId) => [{ type: 'StoreForUsers' as const, id: storeId }],
         }),
 
         // --- FREE BARBER API ---
@@ -132,10 +133,12 @@ export const api = createApi({
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
             query: (id) => `FreeBarber/${id}`,
             keepUnusedDataFor: 0,
+            providesTags: (result, error, id) => [{ type: 'MineFreeBarberPanel' as const, id }],
         }),
         getFreeBarberForUsers: builder.query<FreeBarberPanelDto, string>({
             query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
             keepUnusedDataFor: 0,
+            providesTags: (result, error, freeBarberId) => [{ type: 'FreeBarberForUsers' as const, id: freeBarberId }],
         }),
 
         // --- MANUEL BARBER API ---
@@ -307,7 +310,6 @@ export const api = createApi({
             transformResponse: (res: any) => {
                 if (Array.isArray(res)) return res;
                 if (Array.isArray(res?.data)) return res.data;
-                if (Array.isArray(res?.Data)) return res.Data;
                 return [];
             },
             keepUnusedDataFor: 0,
@@ -369,6 +371,11 @@ export const api = createApi({
                 params: before ? { before } : undefined,
             }),
             keepUnusedDataFor: 0,
+            transformResponse: (response: any) => {
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
         }),
         sendChatMessage: builder.mutation<ApiResponse<ChatMessageDto>, { appointmentId: string; text: string }>({
             query: ({ appointmentId, text }) => ({
@@ -431,6 +438,11 @@ export const api = createApi({
         getRatingsByTarget: builder.query<RatingGetDto[], string>({
             query: (targetId) => `Rating/target/${targetId}`,
             keepUnusedDataFor: 0,
+            transformResponse: (response: any) => {
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
         }),
         getMyRatingForAppointment: builder.query<RatingGetDto, { appointmentId: string; targetId: string }>({
             query: ({ appointmentId, targetId }) => `Rating/appointment/${appointmentId}/target/${targetId}`,
@@ -443,13 +455,17 @@ export const api = createApi({
             invalidatesTags: (result, error, arg) => [
                 'Appointment',
                 'Favorite',
+                'Chat', // Thread listesini güncelle
                 // Store ve FreeBarber için spesifik item ve list tag'leri
                 { type: 'MineStores' as const, id: arg.targetId },
                 { type: 'MineStores' as const, id: 'LIST' },
                 { type: 'MineStores' as const, id: 'NEARBY' },
+                { type: 'GetStoreById' as const, id: arg.targetId }, // Store detay sayfası için
+                { type: 'StoreForUsers' as const, id: arg.targetId }, // Store detay sayfası (müşteri görünümü) için
                 { type: 'MineFreeBarberPanel' as const, id: arg.targetId },
                 { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
                 { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+                { type: 'FreeBarberForUsers' as const, id: arg.targetId }, // FreeBarber detay sayfası (müşteri görünümü) için
                 // IsFavorite query'si için
                 { type: 'IsFavorite' as const, id: arg.targetId },
                 { type: 'IsFavorite' as const, id: 'LIST' },

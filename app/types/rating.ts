@@ -15,6 +15,8 @@ export type RatingGetDto = {
   ratedFromId: string;
   ratedFromName?: string | null;
   ratedFromImage?: string | null;
+  ratedFromUserType?: UserType | null;
+  ratedFromBarberType?: BarberType | null;
   score: number;
   comment?: string | null;
   createdAt: string;

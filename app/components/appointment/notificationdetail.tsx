@@ -52,8 +52,21 @@ export const NotificationItem = React.memo(({
 
     // Buton gösterme kuralları
     // ÖNEMLİ: AppointmentUnanswered notification'ında da buton gösterilmemeli (status Unanswered olduğu için)
+    // Approved, Rejected, Cancelled, Completed durumlarında butonlar gösterilmemeli (decision zaten verilmiş veya randevu sonlandırılmış)
+    const isApproved = status === AppointmentStatus.Approved;
+    const isRejected = status === AppointmentStatus.Rejected;
+    const isCancelled = status === AppointmentStatus.Cancelled;
+    const isCompleted = status === AppointmentStatus.Completed;
+    const isUnanswered = status === AppointmentStatus.Unanswered;
+    
+    // Decision butonları sadece Pending durumunda ve kullanıcı karar verebilecek durumda gösterilmeli
     const showDecisionButtons = (item.type === NotificationType.AppointmentCreated || item.type === NotificationType.AppointmentUnanswered) &&
         status === AppointmentStatus.Pending &&
+        !isApproved &&
+        !isRejected &&
+        !isCancelled &&
+        !isCompleted &&
+        !isUnanswered &&
         userType !== null &&
         ((userType === UserType.BarberStore && (recipientRole === 'store' || (hasStore && !hasFreeBarber))) ||
             (userType === UserType.FreeBarber && (recipientRole === 'freebarber' || (hasFreeBarber && !hasStore))));
@@ -77,12 +90,6 @@ export const NotificationItem = React.memo(({
 
     const now = new Date();
     const isExpired = expiresAt ? now.getTime() > expiresAt.getTime() : false;
-
-    const isApproved = status === AppointmentStatus.Approved;
-    const isRejected = status === AppointmentStatus.Rejected;
-    const isCancelled = status === AppointmentStatus.Cancelled;
-    const isCompleted = status === AppointmentStatus.Completed;
-    const isUnanswered = status === AppointmentStatus.Unanswered;
 
     // Durum gösterimi: Approved, Rejected, Cancelled, Completed, Unanswered durumlarında durum gösterilmeli
     const showDecisionStatus = (isApproved || isRejected || isCancelled || isCompleted || isUnanswered) &&

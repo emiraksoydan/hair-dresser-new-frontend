@@ -14,16 +14,17 @@ type Props = {
     cardWidthStore: number;
     isViewerFromFreeBr?: boolean;
     onPressUpdate?: (store: BarberStoreGetDto) => void;
-
+    onPressRatings?: (storeId: string, storeName: string) => void;
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, onPressUpdate }) => {
+const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, onPressUpdate, onPressRatings }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
+    // favoriteCount'u direkt store prop'undan al, optimistic update yapma
+    const favoriteCount = store.favoriteCount || 0;
 
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(store);
@@ -36,11 +37,6 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         }
     }, [isFavoriteData]);
 
-    // store.favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        setFavoriteCount(store.favoriteCount || 0);
-    }, [store.favoriteCount]);
-
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -48,13 +44,9 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         }
 
         const previousIsFavorite = isFavorite;
-        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update: hemen UI'ı güncelle
-        const newIsFavorite = !isFavorite;
-        setIsFavorite(newIsFavorite);
-        // Zaten beğenmişse azalt, beğenmemişse artır
-        setFavoriteCount(prev => previousIsFavorite ? Math.max(0, prev - 1) : prev + 1);
+        // Optimistic update sadece isFavorite için (UI feedback için)
+        setIsFavorite(!isFavorite);
 
         try {
             await toggleFavorite({
@@ -62,17 +54,18 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra isFavorite query'sini refetch et
+            // Mutation başarılı olduktan sonra:
+            // isFavorite query'sini refetch et
+            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
         } catch (error: any) {
-            // Hata durumunda eski değerlere geri dön
+            // Hata durumunda eski değere geri dön
             setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, refetchIsFavorite]);
 
     return (
         <View
@@ -208,7 +201,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                 starStyle={{ marginHorizontal: 0 }}
                             />
                             <Text className="text-white flex-1">{store.rating}</Text>
-                            <TouchableOpacity onPress={() => { }}>
+                            <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)}>
                                 <Text className="text-white underline mr-1 mb-0 text-xs">
                                     Yorumlar ({store.reviewCount})
                                 </Text>

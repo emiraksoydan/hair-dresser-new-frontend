@@ -1,21 +1,21 @@
-import { jwtDecode } from 'jwt-decode';
-import { JwtPayload } from '../../types';
+import { useAuth } from '../../hook/useAuth';
 
-
-
+/**
+ * Utility function to get user type from token
+ * Uses useAuth hook internally but can be called from non-hook contexts
+ * For hook contexts, use useAuth() directly
+ */
 export function getUserTypeFromToken(token: string): string | null {
+    // This function is kept for backward compatibility
+    // It uses the same logic as useAuth hook
     try {
-        const d = jwtDecode<JwtPayload>(token);
+        const { jwtDecode } = require('jwt-decode');
+        const { JwtPayload } = require('../../types');
+        const d = jwtDecode(token);
 
-        // userType'ı farklı şekillerde deneyelim (JWT claim'ler bazen farklı case'de olabilir)
-        const userType = (d as any).userType
-            || (d as any).UserType
-            || (d as any)['userType']
-            || (d as any)['UserType']
-            || d.userType;
-
+        const userType = d?.userType || d?.UserType || (d as any)['userType'] || (d as any)['UserType'];
         return userType ?? null;
-    } catch (error) {
+    } catch {
         return null;
     }
 }

@@ -22,6 +22,7 @@ import { safeCoord } from "../../utils/location/geo"; // Geo yardımcı fonksiyo
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import StoreBookingContent from "../../components/store/storebooking";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
+import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 
 const Index = () => {
     const { stores, loading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(true);
@@ -55,6 +56,8 @@ const Index = () => {
 
     const [isMapMode, setIsMapMode] = useState(false);
     const [selectedMapItem, setSelectedMapItem] = useState<{ type: 'store' | 'freeBarber', data: any } | null>(null);
+    const { present: presentRatings } = useSheet("ratings");
+    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
@@ -74,6 +77,11 @@ const Index = () => {
         setSelectedMapItem({ type, data: item });
         presentMapDetail(); // Sheet'i aç
     }, [presentMapDetail]);
+
+    const handlePressRatings = useCallback((targetId: string, targetName: string) => {
+        setSelectedRatingsTarget({ targetId, targetName });
+        presentRatings();
+    }, [presentRatings]);
 
     const storeMarkers = useMemo(() => {
         if (!hasStores) return null;
@@ -160,8 +168,9 @@ const Index = () => {
             expanded={expanded}
             cardWidthStore={cardWidthStore}
             onPressUpdate={goStoreDetail}
+            onPressRatings={handlePressRatings}
         />
-    ), [isList, expanded, cardWidthStore, goStoreDetail]);
+    ), [isList, expanded, cardWidthStore, goStoreDetail, handlePressRatings]);
 
     const renderFreeBarberItem = useCallback(({ item }: { item: FreeBarGetDto }) => (
         <FreeBarberCardInner
@@ -170,8 +179,9 @@ const Index = () => {
             expanded={expandedFreeBarber}
             cardWidthFreeBarber={cardWidthFreeBarber}
             onPressUpdate={goFreeBarberDetail}
+            onPressRatings={handlePressRatings}
         />
-    ), [isList, expandedFreeBarber, cardWidthFreeBarber, goFreeBarberDetail]);
+    ), [isList, expandedFreeBarber, cardWidthFreeBarber, goFreeBarberDetail, handlePressRatings]);
 
     return (
         <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
@@ -319,6 +329,31 @@ const Index = () => {
                         <FreeBarberBookingContent barberId={selectedMapItem.data.id} isBottomSheet={true} />
                     )}
                 </BottomSheetView>
+            </BottomSheetModal>
+
+            {/* Yorumlar Bottom Sheet */}
+            <BottomSheetModal
+                ref={(inst) => setRef("ratings", inst)}
+                snapPoints={["50%", "85%"]}
+                enablePanDownToClose={true}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                onChange={(index) => {
+                    if (index < 0) {
+                        setSelectedRatingsTarget(null);
+                    }
+                }}
+            >
+                {selectedRatingsTarget && (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                        }}
+                    />
+                )}
             </BottomSheetModal>
         </View>
     );

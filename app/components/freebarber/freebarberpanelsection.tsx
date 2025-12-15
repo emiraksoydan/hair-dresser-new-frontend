@@ -16,6 +16,7 @@ interface Props {
     locationStatus: string;
     locationMessage: string | null;
     onOpenPanel: (id: string | null) => void;
+    onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
     screenWidth: number;
     freeBarber?: FreeBarberPanelDto;
     isLoading: boolean;
@@ -26,7 +27,7 @@ interface Props {
 }
 
 // React.memo ile sarmaladık. Sadece props değişirse render olur.
-export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMessage, onOpenPanel,
+export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMessage, onOpenPanel, onPressRatings,
     screenWidth,
     freeBarber,
     isLoading,
@@ -90,6 +91,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
                         expanded={expandedMineStore}
                         cardWidthFreeBarber={cardWidthFreeBarber}
                         onPressUpdate={(barber) => onOpenPanel(barber.id)}
+                        onPressRatings={onPressRatings}
                     />
                 </View>
 

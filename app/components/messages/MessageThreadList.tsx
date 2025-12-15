@@ -97,7 +97,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         return (
             <TouchableOpacity
                 onPress={handlePress}
-                className="bg-gray-800 rounded-xl p-4 mb-3"
+                className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700/50"
             >
                 <View className="flex-row items-start gap-3">
                     {/* Participants Row */}
@@ -116,11 +116,24 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             <Text className="text-white font-ibm-plex-sans-bold text-base flex-1" numberOfLines={1}>
                                 {item.title}
                             </Text>
-                            {item.lastMessageAt && (
-                                <Text className="text-gray-500 text-xs ml-2">
-                                    {formatTime(item.lastMessageAt)}
-                                </Text>
-                            )}
+                            <View className="flex-row items-center gap-2">
+                                {/* Mesaj ikonu - her zaman göster, unread varsa badge ile */}
+                                <View className="relative">
+                                    <Icon source="message-text" size={18} color={hasUnread ? "#22c55e" : "#6b7280"} />
+                                    {hasUnread && item.unreadCount > 0 && (
+                                        <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                                            <Text className="text-white text-[8px] font-bold">
+                                                {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+                                {item.lastMessageAt && (
+                                    <Text className="text-gray-500 text-xs">
+                                        {formatTime(item.lastMessageAt)}
+                                    </Text>
+                                )}
+                            </View>
                         </View>
 
                         {item.lastMessagePreview && (
@@ -147,18 +160,10 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                                 </View>
                             )}
                             {item.isFavoriteThread && (
-                                <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30">
-                                    <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium">
+                                <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center">
+                                    <Icon source="heart" size={12} color="#fbbf24" />
+                                    <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium ml-1">
                                         Favori
-                                    </Text>
-                                </View>
-                            )}
-                            {hasUnread && (
-                                <View className="bg-green-500 rounded-full px-2 py-0.5 ml-auto">
-                                    <Text className="text-white text-xs font-ibm-plex-sans-bold">
-                                        {item.unreadCount > MESSAGES.UNREAD_BADGE.MAX_DISPLAY
-                                            ? MESSAGES.UNREAD_BADGE.MAX_DISPLAY_TEXT
-                                            : item.unreadCount}
                                     </Text>
                                 </View>
                             )}

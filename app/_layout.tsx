@@ -19,7 +19,6 @@ import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
 import { useSignalR } from './hook/useSignalR';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { logger } from './utils/common/logger';
 
 
 SplashScreen.preventAutoHideAsync();
@@ -30,15 +29,13 @@ const RootLayout = () => {
       try {
         await rehydrateTokens();
         setReady(true);
-      } catch (error) {
-        logger.error('Error during initialization:', error);
+      } catch {
         setReady(true);
       } finally {
         try {
           await SplashScreen.hideAsync();
-        } catch (error) {
+        } catch {
           // Ignore splash screen errors
-          logger.warn('SplashScreen hide error:', error);
         }
       }
     })();
