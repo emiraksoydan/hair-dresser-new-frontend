@@ -452,10 +452,255 @@ export const api = createApi({
         // --- FAVORITE API ---
         toggleFavorite: builder.mutation<ApiResponse<boolean>, ToggleFavoriteDto>({
             query: (body) => ({ url: 'Favorite/toggle', method: 'POST', body }),
+            async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
+                // Optimistic update: Tüm query cache'lerindeki ilgili item'ın favoriteCount'unu güncelle
+                // Bu sayede UI anında güncellenir, backend'den gelen değerle override edilecek
+
+                const targetId = arg.targetId;
+                const state = getState() as any;
+
+                // Önce mevcut isFavorite durumunu kontrol et (hangi yönde toggle yapılacağını bilmek için)
+                const isFavoriteQuery = api.endpoints.isFavorite.select(targetId)(state);
+                const currentIsFavorite = isFavoriteQuery?.data ?? false;
+                const delta = currentIsFavorite ? -1 : 1; // Toggle yönü: false -> true = +1, true -> false = -1
+                const newIsFavorite = !currentIsFavorite; // Yeni favori durumu
+
+                // Helper function: Tüm cache entry'lerini iterate et ve güncelle
+                const updateAllCacheEntries = (endpointName: string, updateFn: (draft: any) => void) => {
+                    try {
+                        // RTK Query cache'ini direkt olarak iterate etmek için state'ten al
+                        const apiState = (state as any).api;
+                        if (!apiState?.queries) return;
+
+                        // Tüm query cache key'lerini kontrol et
+                        Object.keys(apiState.queries).forEach((queryKey) => {
+                            const queryState = apiState.queries[queryKey];
+                            if (queryState?.endpointName === endpointName && queryState?.data) {
+                                try {
+                                    // Query arg'larını al (originalArgs veya queryCacheKey'den parse et)
+                                    let queryArgs = queryState.originalArgs;
+
+                                    // Eğer originalArgs yoksa, queryCacheKey'den parse etmeyi dene
+                                    if (!queryArgs && queryState.queryCacheKey) {
+                                        // Query cache key formatı: "endpointName(arg1,arg2,...)"
+                                        // Örnek: "getNearbyFreeBarber({\"lat\":41.0082,\"lon\":28.9784,\"radiusKm\":1})"
+                                        const match = queryState.queryCacheKey.match(/\((.+)\)$/);
+                                        if (match) {
+                                            try {
+                                                queryArgs = JSON.parse(match[1]);
+                                            } catch (e) {
+                                                // Parse edilemezse atla
+                                            }
+                                        }
+                                    }
+
+                                    if (queryArgs) {
+                                        // Cache'i güncelle
+                                        dispatch(
+                                            api.util.updateQueryData(endpointName as any, queryArgs, updateFn)
+                                        );
+                                    } else {
+                                        // originalArgs yoksa, cache'i direkt güncelle (daha agresif yaklaşım)
+                                        // Bu lazy query'ler için önemli
+                                        if (Array.isArray(queryState.data)) {
+                                            // Array ise, direkt güncelle
+                                            const updatedData = queryState.data.map((item: any) => {
+                                                if (item.id === targetId) {
+                                                    return { ...item, favoriteCount: Math.max(0, (item.favoriteCount || 0) + delta) };
+                                                }
+                                                return item;
+                                            });
+                                            // Cache'i direkt güncelle (queryKey kullanarak)
+                                            try {
+                                                dispatch(
+                                                    api.util.updateQueryData(endpointName as any, queryKey as any, () => updatedData)
+                                                );
+                                            } catch (e) {
+                                                // Hata durumunda sessizce devam et
+                                            }
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Query arg parse edilemezse atla
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        // Hata durumunda sessizce devam et
+                    }
+                };
+
+                // Store için tüm nearby ve mine query cache'lerini güncelle
+                // ÖNEMLİ: Lazy query'ler için tüm cache entry'lerini güncelle
+                updateAllCacheEntries('getNearbyStores', (draft) => {
+                    if (!draft || !Array.isArray(draft)) return;
+                    const item = draft.find((s: any) => s.id === targetId);
+                    if (item) {
+                        item.favoriteCount = Math.max(0, (item.favoriteCount || 0) + delta);
+                    }
+                });
+
+                updateAllCacheEntries('getMineStores', (draft) => {
+                    if (!draft || !Array.isArray(draft)) return;
+                    const item = draft.find((s: any) => s.id === targetId);
+                    if (item) {
+                        item.favoriteCount = Math.max(0, (item.favoriteCount || 0) + delta);
+                    }
+                });
+
+                // Ek olarak: Store için tüm cache entry'lerini manuel olarak iterate et (lazy query'ler için)
+                try {
+                    const apiState = (state as any).api;
+                    if (apiState?.queries) {
+                        Object.keys(apiState.queries).forEach((queryKey) => {
+                            const queryState = apiState.queries[queryKey];
+                            if (queryState?.endpointName === 'getNearbyStores' && queryState?.data && Array.isArray(queryState.data)) {
+                                const item = queryState.data.find((s: any) => s.id === targetId);
+                                if (item && queryState.originalArgs) {
+                                    // Cache'i direkt güncelle
+                                    dispatch(
+                                        api.util.updateQueryData('getNearbyStores', queryState.originalArgs, (draft) => {
+                                            if (!draft || !Array.isArray(draft)) return;
+                                            const draftItem = draft.find((s: any) => s.id === targetId);
+                                            if (draftItem) {
+                                                draftItem.favoriteCount = Math.max(0, (draftItem.favoriteCount || 0) + delta);
+                                            }
+                                        })
+                                    );
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Hata durumunda sessizce devam et
+                }
+
+                // FreeBarber için tüm nearby ve mine query cache'lerini güncelle
+                // ÖNEMLİ: Lazy query'ler için tüm cache entry'lerini güncelle
+                updateAllCacheEntries('getNearbyFreeBarber', (draft) => {
+                    if (!draft || !Array.isArray(draft)) return;
+                    const item = draft.find((fb: any) => fb.id === targetId);
+                    if (item) {
+                        item.favoriteCount = Math.max(0, (item.favoriteCount || 0) + delta);
+                    }
+                });
+
+                // Ek olarak: Tüm cache entry'lerini manuel olarak iterate et (lazy query'ler için)
+                try {
+                    const apiState = (state as any).api;
+                    if (apiState?.queries) {
+                        Object.keys(apiState.queries).forEach((queryKey) => {
+                            const queryState = apiState.queries[queryKey];
+                            if (queryState?.endpointName === 'getNearbyFreeBarber' && queryState?.data && Array.isArray(queryState.data)) {
+                                const item = queryState.data.find((fb: any) => fb.id === targetId);
+                                if (item && queryState.originalArgs) {
+                                    // Cache'i direkt güncelle
+                                    dispatch(
+                                        api.util.updateQueryData('getNearbyFreeBarber', queryState.originalArgs, (draft) => {
+                                            if (!draft || !Array.isArray(draft)) return;
+                                            const draftItem = draft.find((fb: any) => fb.id === targetId);
+                                            if (draftItem) {
+                                                draftItem.favoriteCount = Math.max(0, (draftItem.favoriteCount || 0) + delta);
+                                            }
+                                        })
+                                    );
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Hata durumunda sessizce devam et
+                }
+
+                updateAllCacheEntries('getFreeBarberMinePanel', (draft) => {
+                    if (draft && draft.id === targetId) {
+                        draft.favoriteCount = Math.max(0, (draft.favoriteCount || 0) + delta);
+                    }
+                });
+
+                // StoreForUsers ve FreeBarberForUsers cache'lerini güncelle
+                try {
+                    dispatch(
+                        api.util.updateQueryData('getStoreForUsers', targetId, (draft) => {
+                            if (draft && draft.id === targetId && 'favoriteCount' in draft) {
+                                (draft as any).favoriteCount = Math.max(0, ((draft as any).favoriteCount || 0) + delta);
+                            }
+                        })
+                    );
+                } catch (e) {
+                    // Cache entry yoksa atla
+                }
+
+                try {
+                    dispatch(
+                        api.util.updateQueryData('getFreeBarberForUsers', targetId, (draft) => {
+                            if (draft && draft.id === targetId) {
+                                draft.favoriteCount = Math.max(0, (draft.favoriteCount || 0) + delta);
+                            }
+                        })
+                    );
+                } catch (e) {
+                    // Cache entry yoksa atla
+                }
+
+                // Appointment listesi için optimistic update (isCustomerFavorite, isStoreFavorite, isFreeBarberFavorite)
+                // Tüm appointment filter query'lerini güncelle
+                try {
+                    const apiState = (state as any).api;
+                    if (apiState?.queries) {
+                        Object.keys(apiState.queries).forEach((queryKey) => {
+                            const queryState = apiState.queries[queryKey];
+                            if (queryState?.endpointName === 'getAllAppointmentByFilter' && queryState?.data && Array.isArray(queryState.data)) {
+                                // Appointment listesindeki ilgili appointment'ı bul ve güncelle
+                                const appointment = queryState.data.find((apt: any) =>
+                                    apt.customerUserId === targetId ||
+                                    apt.barberStoreId === targetId ||
+                                    apt.freeBarberId === targetId
+                                );
+
+                                if (appointment && queryState.originalArgs !== undefined) {
+                                    dispatch(
+                                        api.util.updateQueryData('getAllAppointmentByFilter', queryState.originalArgs, (draft) => {
+                                            if (!draft || !Array.isArray(draft)) return;
+                                            const draftAppointment = draft.find((apt: any) =>
+                                                apt.customerUserId === targetId ||
+                                                apt.barberStoreId === targetId ||
+                                                apt.freeBarberId === targetId
+                                            );
+                                            if (draftAppointment) {
+                                                // Hangi entity'ye ait olduğunu kontrol et ve ilgili favorite flag'ini güncelle
+                                                if (draftAppointment.customerUserId === targetId) {
+                                                    draftAppointment.isCustomerFavorite = newIsFavorite;
+                                                }
+                                                if (draftAppointment.barberStoreId === targetId) {
+                                                    draftAppointment.isStoreFavorite = newIsFavorite;
+                                                }
+                                                if (draftAppointment.freeBarberId === targetId) {
+                                                    draftAppointment.isFreeBarberFavorite = newIsFavorite;
+                                                }
+                                            }
+                                        })
+                                    );
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Hata durumunda sessizce devam et
+                }
+
+                // Hata durumunda geri almak için queryFulfilled'i bekle
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // Hata durumunda invalidatesTags zaten cache'i temizleyecek ve refetch yapacak
+                }
+            },
             invalidatesTags: (result, error, arg) => [
                 'Appointment',
                 'Favorite',
                 'Chat', // Thread listesini güncelle
+                'Notification', // Notification'lardaki favori durumlarını güncelle
                 // Store ve FreeBarber için spesifik item ve list tag'leri
                 { type: 'MineStores' as const, id: arg.targetId },
                 { type: 'MineStores' as const, id: 'LIST' },

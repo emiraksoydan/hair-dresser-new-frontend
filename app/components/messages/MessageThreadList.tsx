@@ -26,8 +26,25 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     const { data: threads, isLoading, refetch, isFetching } = useGetChatThreadsQuery();
     const formatTime = useFormatTime();
 
-    // Backend zaten Pending/Approved filtreliyor ve favori thread'leri aktif favorilere göre filtreliyor
-    // Frontend'de ekstra kontrol gerekmiyor, sadece threads'i kullanıyoruz
+    // Backend zaten filtreliyor ama frontend'de de ekstra güvenlik kontrolü yapıyoruz
+    // Favori thread'ler: Backend'den gelen thread zaten görünür (en az 1 aktif favori var)
+    // Randevu thread'leri: Sadece Pending/Approved durumunda görünür olmalı
+    const filteredThreads = useMemo(() => {
+        if (!threads) return [];
+        return threads.filter(thread => {
+            if (thread.isFavoriteThread) {
+                // Favori thread: Backend'den gelen thread zaten görünür (aktif favori var)
+                return true;
+            } else {
+                // Randevu thread'i: Sadece Pending/Approved durumunda görünür
+                if (thread.status !== undefined && thread.status !== null) {
+                    return thread.status === AppointmentStatus.Pending || thread.status === AppointmentStatus.Approved;
+                }
+                // Status yoksa (null/undefined) görünür olmamalı
+                return false;
+            }
+        });
+    }, [threads]);
 
     const renderItem = useCallback(({ item }: { item: ChatThreadListItemDto }) => {
         const hasUnread = item.unreadCount > 0;
@@ -55,6 +72,12 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         // Participant'ları render et
         const renderParticipant = (participant: ChatThreadParticipantDto, index: number) => {
             const isFirst = index === 0;
+            // Fallback: Eğer displayName veya imageUrl yoksa, userType'a göre varsayılan göster
+            const displayName = participant.displayName ||
+                (participant.userType === UserType.BarberStore ? "Dükkan" :
+                    participant.userType === UserType.FreeBarber ? "Serbest Berber" :
+                        "Kullanıcı");
+
             return (
                 <View key={participant.userId} className={`flex-row items-center ${!isFirst ? 'ml-2' : ''}`}>
                     <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
@@ -80,13 +103,16 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                     </View>
                     <View className="ml-2">
                         <Text className="text-white text-xs font-ibm-plex-sans-medium" numberOfLines={1}>
-                            {participant.displayName}
+                            {displayName}
                         </Text>
                         {participant.barberType !== undefined && participant.barberType !== null && (
                             <Text className="text-gray-500 text-xs">
-                                {participant.barberType === BarberType.MaleHairdresser ? "Erkek Kuaförü" :
-                                    participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
-                                        "Güzellik Salonu"}
+                                {participant.userType === UserType.FreeBarber
+                                    ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
+                                    : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
+                                        participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                            "Güzellik Salonu")
+                                }
                             </Text>
                         )}
                     </View>
@@ -197,7 +223,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     return (
         <View className="flex-1 bg-[#151618]">
             <FlatList
-                data={threads}
+                data={filteredThreads}
                 keyExtractor={(item) => item.threadId}
                 contentContainerStyle={{ padding: 16, gap: 12 }}
                 refreshControl={

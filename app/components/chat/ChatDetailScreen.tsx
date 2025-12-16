@@ -34,11 +34,21 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     // SignalR bağlantı kontrolü
     const { isConnected, connectionRef } = useSignalR();
 
-    const { data: threads } = useGetChatThreadsQuery();
+    const { data: threads, isLoading: isLoadingThreads, refetch: refetchThreads } = useGetChatThreadsQuery();
     const currentThread = useMemo(() =>
         threads?.find(t => t.threadId === threadId),
         [threads, threadId]
     );
+
+    // Thread bulunamadı hatası için kontrol
+    useEffect(() => {
+        if (!isLoadingThreads && threads && !currentThread && threadId) {
+            // Thread bulunamadı, yeniden yükle
+            setTimeout(() => {
+                refetchThreads();
+            }, 1000);
+        }
+    }, [isLoadingThreads, threads, currentThread, threadId, refetchThreads]);
 
     // Mesajları ThreadId ile getir
     const { data: messages, isLoading, refetch } = useGetChatMessagesByThreadQuery(
@@ -52,9 +62,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         if (!isConnected) return false; // SignalR bağlantısı yoksa mesaj gönderilemez
 
         // Randevu thread'i için: Pending veya Approved
-        if (!currentThread.isFavoriteThread && currentThread.status) {
-            return currentThread.status === AppointmentStatus.Pending ||
-                currentThread.status === AppointmentStatus.Approved;
+        if (!currentThread.isFavoriteThread && currentThread.status !== null && currentThread.status !== undefined) {
+            const status = currentThread.status;
+            return status === AppointmentStatus.Pending ||
+                status === AppointmentStatus.Approved;
         }
 
         // Favori thread için: her zaman gönderilebilir (aktif favori kontrolü backend'de)
@@ -257,17 +268,28 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             {/* Header with Participants Tab */}
             <View className="bg-gray-800 border-b border-gray-700">
                 <View className="px-4 py-3 flex-row items-center justify-between">
-                    <TouchableOpacity onPress={() => router.back()} className="mr-3">
-                        <Icon source="chevron-left" size={24} color="white" />
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        className="mr-3 flex-row items-center"
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Icon source="chevron-left" size={28} color="white" />
+                        <Text className="text-white font-ibm-plex-sans-medium text-base ml-1">
+                            Geri
+                        </Text>
                     </TouchableOpacity>
-                    <View className="flex-1">
+                    <View className="flex-1 ml-2">
                         <Text className="text-white font-ibm-plex-sans-bold text-lg" numberOfLines={1}>
                             {currentThread.title}
                         </Text>
-                        {currentThread.status && (
+                        {currentThread.status !== null && currentThread.status !== undefined && (
                             <Text className="text-gray-400 text-xs">
-                                {currentThread.status === AppointmentStatus.Approved ? 'Onaylandı' :
-                                    currentThread.status === AppointmentStatus.Pending ? 'Beklemede' : ''}
+                                {(() => {
+                                    const status = currentThread.status;
+                                    if (status === AppointmentStatus.Approved) return 'Onaylandı';
+                                    if (status === AppointmentStatus.Pending) return 'Beklemede';
+                                    return '';
+                                })()}
                             </Text>
                         )}
                     </View>
@@ -305,13 +327,19 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                 </View>
                                 <View>
                                     <Text className="text-white text-sm font-ibm-plex-sans-medium" numberOfLines={1}>
-                                        {participant.displayName}
+                                        {participant.displayName ||
+                                            (participant.userType === UserType.BarberStore ? "Dükkan" :
+                                                participant.userType === UserType.FreeBarber ? "Serbest Berber" :
+                                                    "Kullanıcı")}
                                     </Text>
                                     {participant.barberType !== undefined && participant.barberType !== null && (
                                         <Text className="text-gray-500 text-xs">
-                                            {participant.barberType === BarberType.MaleHairdresser ? "Erkek Kuaförü" :
-                                                participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
-                                                    "Güzellik Salonu"}
+                                            {participant.userType === UserType.FreeBarber
+                                                ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
+                                                : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
+                                                    participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                                        "Güzellik Salonu")
+                                            }
                                         </Text>
                                     )}
                                 </View>

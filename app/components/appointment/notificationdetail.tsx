@@ -5,6 +5,8 @@ import { NotificationType, AppointmentStatus } from "../../types";
 import { UserType, BarberType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import React from "react";
+import { useIsFavoriteQuery } from "../../store/api";
+import { useAuth } from "../../hook/useAuth";
 
 // ---------------------------------------------------------------------------
 // 1. NotificationItem Bileşeni
@@ -31,12 +33,27 @@ export const NotificationItem = React.memo(({
     formatRating: (r?: number) => any;
 }) => {
     const unread = !item.isRead;
+    const { isAuthenticated } = useAuth();
     let payload: NotificationPayload | null = null;
     try {
         if (item.payloadJson && item.payloadJson.trim() !== '' && item.payloadJson !== '{}') {
             payload = JSON.parse(item.payloadJson);
         }
     } catch { }
+
+    // Favori durumlarını query'den al (payload'daki değerler güncellenmeyebilir)
+    const storeId = payload?.store?.storeId;
+    const freeBarberId = payload?.freeBarber?.userId;
+    const customerId = payload?.customer?.userId;
+
+    const { data: isStoreFavorite } = useIsFavoriteQuery(storeId || '', { skip: !isAuthenticated || !storeId });
+    const { data: isFreeBarberFavorite } = useIsFavoriteQuery(freeBarberId || '', { skip: !isAuthenticated || !freeBarberId });
+    const { data: isCustomerFavorite } = useIsFavoriteQuery(customerId || '', { skip: !isAuthenticated || !customerId });
+
+    // Favori durumlarını belirle (query'den gelen değerler öncelikli, yoksa payload'dan)
+    const isStoreInFavorites = isStoreFavorite !== undefined ? isStoreFavorite : (payload?.store?.isInFavorites || payload?.isStoreInFavorites);
+    const isFreeBarberInFavorites = isFreeBarberFavorite !== undefined ? isFreeBarberFavorite : (payload?.freeBarber?.isInFavorites || payload?.isFreeBarberInFavorites);
+    const isCustomerInFavorites = isCustomerFavorite !== undefined ? isCustomerFavorite : (payload?.customer?.isInFavorites || payload?.isCustomerInFavorites);
 
     // Payload'dan status al, eğer yoksa varsayılan olarak Pending
     // item.payloadJson değiştiğinde component yeniden render olmalı
@@ -58,7 +75,7 @@ export const NotificationItem = React.memo(({
     const isCancelled = status === AppointmentStatus.Cancelled;
     const isCompleted = status === AppointmentStatus.Completed;
     const isUnanswered = status === AppointmentStatus.Unanswered;
-    
+
     // Decision butonları sadece Pending durumunda ve kullanıcı karar verebilecek durumda gösterilmeli
     const showDecisionButtons = (item.type === NotificationType.AppointmentCreated || item.type === NotificationType.AppointmentUnanswered) &&
         status === AppointmentStatus.Pending &&
@@ -168,7 +185,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
-                                                {(payload.customer?.isInFavorites || payload.isCustomerInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {isCustomerInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -179,7 +196,7 @@ export const NotificationItem = React.memo(({
                                                 <View className="flex-1">
                                                     <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
                                                     <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
-                                                    {(payload.freeBarber?.isInFavorites || payload.isFreeBarberInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                    {isFreeBarberInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                                 </View>
                                             </View>
                                         ) : payload.chair?.manuelBarberId ? (
@@ -210,7 +227,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.store.storeName}</Text>
-                                                {(payload.store?.isInFavorites || payload.isStoreInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {isStoreInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -223,7 +240,7 @@ export const NotificationItem = React.memo(({
                                             <View className="flex-1">
                                                 <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                                                 <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
-                                                {(payload.customer?.isInFavorites || payload.isCustomerInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {isCustomerInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -249,7 +266,7 @@ export const NotificationItem = React.memo(({
                                                         <Text className="text-[#fbbf24] text-xs ml-1">{formatRating(payload.store.rating)}</Text>
                                                     </View>
                                                 )}
-                                                {(payload.store?.isInFavorites || payload.isStoreInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                {isStoreInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                             </View>
                                         </View>
                                     )}
@@ -262,7 +279,7 @@ export const NotificationItem = React.memo(({
                                                     <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
                                                     <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
                                                     {payload.freeBarber?.rating !== undefined && <View className="flex-row items-center mt-0.5"><Icon source="star" size={12} color="#fbbf24" /><Text className="text-[#fbbf24] text-xs ml-1">{formatRating(payload.freeBarber.rating)}</Text></View>}
-                                                    {(payload.freeBarber?.isInFavorites || payload.isFreeBarberInFavorites) && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
+                                                    {isFreeBarberInFavorites && <View className="flex-row items-center mt-0.5"><Icon source="heart" size={12} color="#f05e23" /><Text className="text-[#f05e23] text-xs ml-1">Favorilerinizde</Text></View>}
                                                 </View>
                                             </View>
                                         ) : payload.chair?.manuelBarberId ? (

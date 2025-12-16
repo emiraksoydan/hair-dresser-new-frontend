@@ -13,18 +13,20 @@ type Props = {
     expanded: boolean;
     cardWidthStore: number;
     isViewerFromFreeBr?: boolean;
+    typeLabel?: string;
+    typeLabelColor?: string;
     onPressUpdate?: (store: BarberStoreGetDto) => void;
     onPressRatings?: (storeId: string, storeName: string) => void;
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, onPressUpdate, onPressRatings }) => {
+const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    // favoriteCount'u direkt store prop'undan al, optimistic update yapma
-    const favoriteCount = store.favoriteCount || 0;
+    const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
+    const [isToggling, setIsToggling] = useState(false);
 
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(store);
@@ -37,6 +39,17 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         }
     }, [isFavoriteData]);
 
+    // store.favoriteCount değiştiğinde state'i güncelle
+    // ÖNEMLİ: Cache'den gelen değer her zaman öncelikli (backend'den gelen gerçek değer)
+    useEffect(() => {
+        // Cache güncellemesi geldiğinde direkt kullan (optimistic update'i override et)
+        if (store.favoriteCount !== undefined && store.favoriteCount !== null) {
+            setFavoriteCount(store.favoriteCount);
+            // Cache güncellemesi geldi, toggle flag'ini kaldır
+            setIsToggling(false);
+        }
+    }, [store.favoriteCount]);
+
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -44,9 +57,17 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         }
 
         const previousIsFavorite = isFavorite;
+        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update sadece isFavorite için (UI feedback için)
-        setIsFavorite(!isFavorite);
+        // Optimistic update: hem isFavorite hem de favoriteCount için
+        // API.tsx'teki optimistic update ile birlikte çalışacak
+        const newIsFavorite = !isFavorite;
+        const delta = newIsFavorite ? 1 : -1;
+        const newFavoriteCount = Math.max(0, (favoriteCount || 0) + delta);
+
+        setIsToggling(true);
+        setIsFavorite(newIsFavorite);
+        setFavoriteCount(newFavoriteCount); // Optimistic update
 
         try {
             await toggleFavorite({
@@ -57,15 +78,21 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
             // Mutation başarılı olduktan sonra:
             // isFavorite query'sini refetch et
             // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
+            // API.tsx'teki optimistic update cache'i güncelleyecek
+            // useEffect'te store.favoriteCount değiştiğinde state güncellenecek
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
+
+            // Cache güncellemesi useEffect'te handle edilecek (backend'den gelen değerle override)
         } catch (error: any) {
-            // Hata durumunda eski değere geri dön
+            // Hata durumunda eski değerlere geri dön
+            setIsToggling(false);
             setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, refetchIsFavorite]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
 
     return (
         <View
@@ -96,6 +123,13 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                     />
                     {isList && (
                         <View className="absolute top-3 right-3 flex-row gap-2 z-10">
+                            {typeLabel && (
+                                <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
+                                    <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                        {typeLabel}
+                                    </Text>
+                                </View>
+                            )}
                             <View className={`px-2 py-1 rounded-xl flex-row items-center justify-center ${store.type === BarberType.MaleHairdresser ? 'bg-blue-500' : 'bg-pink-500'}`}>
                                 <Icon
                                     source={store.type === BarberType.MaleHairdresser ? 'face-man' : store.type === BarberType.FemaleHairdresser ? 'face-woman' : 'store'}
@@ -249,8 +283,10 @@ export const StoreCardInner = React.memo(
     StoreCard,
     (prev, next) =>
         prev.store.id === next.store.id &&
+        prev.store.favoriteCount === next.store.favoriteCount &&
         (prev.isViewerFromFreeBr ?? false) === (next.isViewerFromFreeBr ?? false) &&
         prev.isList === next.isList &&
         prev.expanded === next.expanded &&
-        prev.cardWidthStore === next.cardWidthStore
+        prev.cardWidthStore === next.cardWidthStore &&
+        prev.typeLabel === next.typeLabel
 );

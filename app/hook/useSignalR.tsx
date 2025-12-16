@@ -254,12 +254,29 @@ export const useSignalR = () => {
                     dispatch(
                         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
                             if (!draft) return;
-                            // Eğer zaten varsa güncelle, yoksa başa ekle (ThreadId ile kontrol)
-                            const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
-                            if (existingIndex >= 0) {
-                                draft[existingIndex] = dto;
+
+                            // Favori thread kontrolü: Backend'den gelen thread zaten filtrelenmiş durumda
+                            // (en az bir aktif favori varsa görünür)
+                            if (dto.isFavoriteThread) {
+                                // Favori thread: Backend'den gelen thread görünür demektir (aktif favori var)
+                                const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
+                                if (existingIndex >= 0) {
+                                    draft[existingIndex] = dto;
+                                } else {
+                                    draft.unshift(dto);
+                                }
                             } else {
-                                draft.unshift(dto);
+                                // Randevu thread'i: Sadece Pending veya Approved durumunda görünür olmalı
+                                if (dto.status !== undefined &&
+                                    (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
+                                    const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
+                                    if (existingIndex >= 0) {
+                                        draft[existingIndex] = dto;
+                                    } else {
+                                        draft.unshift(dto);
+                                    }
+                                }
+                                // Status Pending/Approved değilse thread'i ekleme (görünür olmamalı)
                             }
                         })
                     );
@@ -267,20 +284,41 @@ export const useSignalR = () => {
                 });
 
                 conn.on("chat.threadUpdated", (dto: ChatThreadListItemDto) => {
-                    // Thread güncellendiğinde (randevu durumu değiştiğinde) listeyi güncelle
+                    // Thread güncellendiğinde (randevu durumu değiştiğinde veya favori durumu değiştiğinde) listeyi güncelle
                     dispatch(
                         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
                             if (!draft) return;
                             const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
+
                             if (existingIndex >= 0) {
-                                // Randevu durumu artık Pending/Approved değilse thread'i kaldır
-                                if (!dto.isFavoriteThread && dto.status !== undefined &&
-                                    dto.status !== AppointmentStatus.Pending &&
-                                    dto.status !== AppointmentStatus.Approved) {
-                                    draft.splice(existingIndex, 1);
-                                } else {
-                                    // Thread'i güncelle
+                                // Thread zaten listede var
+                                if (dto.isFavoriteThread) {
+                                    // Favori thread: Backend'den gelen thread görünür demektir (en az bir aktif favori var)
+                                    // Eğer backend thread'i gönderiyorsa, görünür olmalı - güncelle
                                     draft[existingIndex] = dto;
+                                } else {
+                                    // Randevu thread'i: Sadece Pending/Approved durumunda görünür olmalı
+                                    if (dto.status !== undefined &&
+                                        (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
+                                        // Status hala Pending/Approved - thread'i güncelle
+                                        draft[existingIndex] = dto;
+                                    } else {
+                                        // Status artık Pending/Approved değil - thread'i kaldır (görünür olmamalı)
+                                        draft.splice(existingIndex, 1);
+                                    }
+                                }
+                            } else {
+                                // Thread listede yok - yeni ekleniyor
+                                if (dto.isFavoriteThread) {
+                                    // Favori thread: Backend'den gelen thread görünür demektir (aktif favori var)
+                                    draft.unshift(dto);
+                                } else {
+                                    // Randevu thread'i: Sadece Pending/Approved durumunda ekle
+                                    if (dto.status !== undefined &&
+                                        (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
+                                        draft.unshift(dto);
+                                    }
+                                    // Status Pending/Approved değilse thread'i ekleme (görünür olmamalı)
                                 }
                             }
                         })
@@ -289,13 +327,16 @@ export const useSignalR = () => {
                 });
 
                 conn.on("chat.threadRemoved", (threadId: string | null | undefined) => {
-                    // Thread kaldırıldığında (randevu iptal/tamamlandığında) listeyi güncelle
+                    // Thread kaldırıldığında (randevu iptal/tamamlandığında veya favori pasif olduğunda) listeyi güncelle
+                    // ÖNEMLİ: Backend'den gelen threadRemoved event'i her iki tarafa da gönderilmeli
+                    // (favori thread'ler için: aktif favori kalmadığında thread kaldırılmalı)
                     if (!threadId) return;
                     dispatch(
                         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
                             if (!draft) return;
                             const existingIndex = draft.findIndex(t => t.threadId === threadId);
                             if (existingIndex >= 0) {
+                                // Thread'i kaldır (favori pasif oldu veya randevu sonlandı)
                                 draft.splice(existingIndex, 1);
                             }
                         })

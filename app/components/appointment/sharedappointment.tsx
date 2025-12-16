@@ -202,19 +202,19 @@ export default function SharedAppointmentScreen() {
 
         // Tamamlanan/iptal durumlarında kart tasarımını iyileştir
         const isCompletedOrCancelled = activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled;
-        
+
         return (
             <View className={`bg-[#151618] rounded-xl p-4 mb-3 border ${isCompletedOrCancelled ? 'border-[#2a2c30]' : 'border-[#1f2023]'}`}>
                 {isCompletedOrCancelled && (
                     <View className="mb-3 pb-3 border-b border-[#2a2c30]">
                         <View className="flex-row items-center gap-2">
-                            <Icon 
-                                source={activeFilter === AppointmentFilter.Completed ? "check-circle" : "close-circle"} 
-                                size={16} 
-                                color={activeFilter === AppointmentFilter.Completed ? "#22c55e" : "#ef4444"} 
+                            <Icon
+                                source={activeFilter === AppointmentFilter.Completed ? "check-circle" : "close-circle"}
+                                size={16}
+                                color={activeFilter === AppointmentFilter.Completed ? "#22c55e" : "#ef4444"}
                             />
                             <Text className={`text-sm font-semibold ${activeFilter === AppointmentFilter.Completed ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                                {activeFilter === AppointmentFilter.Completed ? 'Tamamlandı' : 'İptal Edildi'}
+                                {activeFilter === AppointmentFilter.Completed ? 'Tamamlandı' : item.status === AppointmentStatus.Rejected ? 'Reddedildi' : item.status === AppointmentStatus.Unanswered ? 'Cevaplanmadı' : 'İptal Edildi'}
                             </Text>
                         </View>
                     </View>

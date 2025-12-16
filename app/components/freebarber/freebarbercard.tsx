@@ -12,19 +12,21 @@ type Props = {
     isList: boolean;
     expanded: boolean;
     cardWidthFreeBarber: number;
+    typeLabel?: string;
+    typeLabelColor?: string;
     onPressUpdate?: (freeBarber: FreeBarGetDto) => void;
     mode?: 'default' | 'barbershop';
     onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, mode = 'default', onPressRatings }) => {
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    // favoriteCount'u direkt freeBarber prop'undan al, optimistic update yapma
-    const favoriteCount = freeBarber.favoriteCount || 0;
+    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
+    const [isToggling, setIsToggling] = useState(false);
 
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
@@ -38,6 +40,17 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         }
     }, [isFavoriteData]);
 
+    // freeBarber.favoriteCount değiştiğinde state'i güncelle
+    // ÖNEMLİ: Cache'den gelen değer her zaman öncelikli (backend'den gelen gerçek değer)
+    useEffect(() => {
+        // Cache güncellemesi geldiğinde direkt kullan (optimistic update'i override et)
+        if (freeBarber.favoriteCount !== undefined && freeBarber.favoriteCount !== null) {
+            setFavoriteCount(freeBarber.favoriteCount);
+            // Cache güncellemesi geldi, toggle flag'ini kaldır
+            setIsToggling(false);
+        }
+    }, [freeBarber.favoriteCount]);
+
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
@@ -45,9 +58,17 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         }
 
         const previousIsFavorite = isFavorite;
+        const previousFavoriteCount = favoriteCount;
 
-        // Optimistic update sadece isFavorite için (UI feedback için)
-        setIsFavorite(!isFavorite);
+        // Optimistic update: hem isFavorite hem de favoriteCount için
+        // API.tsx'teki optimistic update ile birlikte çalışacak
+        const newIsFavorite = !isFavorite;
+        const delta = newIsFavorite ? 1 : -1;
+        const newFavoriteCount = Math.max(0, (favoriteCount || 0) + delta);
+
+        setIsToggling(true);
+        setIsFavorite(newIsFavorite);
+        setFavoriteCount(newFavoriteCount); // Optimistic update
 
         try {
             await toggleFavorite({
@@ -58,15 +79,21 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             // Mutation başarılı olduktan sonra:
             // isFavorite query'sini refetch et
             // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
+            // API.tsx'teki optimistic update cache'i güncelleyecek
+            // useEffect'te freeBarber.favoriteCount değiştiğinde state güncellenecek
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
+
+            // Cache güncellemesi useEffect'te handle edilecek (backend'den gelen değerle override)
         } catch (error: any) {
-            // Hata durumunda eski değere geri dön
+            // Hata durumunda eski değerlere geri dön
+            setIsToggling(false);
             setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, refetchIsFavorite]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
     return (
         <View
             style={{ width: cardWidthFreeBarber }}
@@ -96,6 +123,13 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                     />
                     {isList && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
+                            {typeLabel && (
+                                <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
+                                    <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                        {typeLabel}
+                                    </Text>
+                                </View>
+                            )}
                             <TouchableOpacity
                                 onPress={() => { }}
                                 className={` ${freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7]' : 'bg-[#ff69b4]'}  flex-row items-center px-2 py-2 rounded-full shadow-sm`}
@@ -257,7 +291,9 @@ export const FreeBarberCardInner = React.memo(
     FreeBarberCard,
     (prev, next) =>
         prev.freeBarber.id === next.freeBarber.id &&
+        prev.freeBarber.favoriteCount === next.freeBarber.favoriteCount &&
         prev.isList === next.isList &&
         prev.expanded === next.expanded &&
-        prev.cardWidthFreeBarber === next.cardWidthFreeBarber
+        prev.cardWidthFreeBarber === next.cardWidthFreeBarber &&
+        prev.typeLabel === next.typeLabel
 );

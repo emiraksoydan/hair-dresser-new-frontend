@@ -41,6 +41,24 @@ export function NotificationsSheet({
     const handleDecision = useCallback(async (notification: NotificationDto, approve: boolean) => {
         if (!notification.appointmentId) return;
 
+        // Optimistic update: Notification'ın status'unu hemen güncelle
+        const patchResult = dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+            if (!draft) return;
+            const found = draft.find((n) => n.id === notification.id);
+            if (found && found.payloadJson && found.payloadJson.trim() !== '' && found.payloadJson !== '{}') {
+                try {
+                    const payload = JSON.parse(found.payloadJson);
+                    if (payload && typeof payload === 'object') {
+                        // Status'ü güncelle
+                        payload.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
+                        found.payloadJson = JSON.stringify(payload);
+                    }
+                } catch {
+                    // Parse hatası durumunda devam et
+                }
+            }
+        }));
+
         try {
             let result;
             if (userType === UserType.BarberStore) {
@@ -52,21 +70,23 @@ export function NotificationsSheet({
             }
 
             if (result.success) {
-                // Notification listesini refetch et - backend'den güncel status'ü almak için
-                // Bu sayede decision yapıldıktan sonra status doğru şekilde güncellenir
-                refetch();
-
-                // Badge count'u invalidate et
+                // refetch() yerine sadece invalidateTags kullan
+                // SignalR'dan gelen notification.received event'i zaten notification'ı güncelleyecek
+                // Bu sayede race condition olmaz
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));
 
                 Alert.alert("Başarılı", approve ? "Randevu onaylandı." : "Randevu reddedildi.");
             } else {
+                // Hata durumunda optimistic update'i geri al
+                patchResult.undo();
                 Alert.alert("Hata", result.message || "İşlem başarısız.");
             }
         } catch (error: any) {
+            // Hata durumunda optimistic update'i geri al
+            patchResult.undo();
             Alert.alert("Hata", error?.data?.message || error?.message || "İşlem başarısız.");
         }
-    }, [userType, storeDecision, freeBarberDecision, dispatch, refetch]);
+    }, [userType, storeDecision, freeBarberDecision, dispatch]);
 
     // Helper functions
     const formatTime = useCallback((timeStr?: string) => {
