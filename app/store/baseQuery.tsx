@@ -53,6 +53,20 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
   async (args, api, extra) => {
     try {
       let res = await raw(args, api, extra);
+
+      // Backend'den gelen error response'u normalize et
+      if (res.error) {
+        // Backend'den gelen error data'sını kontrol et (IDataResult formatında olabilir)
+        const errorData = res.error.data as any;
+        if (errorData) {
+          // Backend'den gelen message'ı kullan (PascalCase veya camelCase olabilir)
+          const errorMessage = errorData.message || errorData.Message || errorData.data?.message || errorData.Data?.message;
+          if (errorMessage) {
+            res.error.data = { message: errorMessage };
+          }
+        }
+      }
+
       // Fix operator precedence: && has higher precedence than || 
       if ((res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498) && tokenStore.refresh) {
         if (!refreshing) {
@@ -78,12 +92,13 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
         if (ok) res = await raw(args, api, extra);
       }
       return res;
-    } catch (error) {
-      // Return error in RTK Query format
+    } catch (error: any) {
+      // Network error veya diğer beklenmeyen hatalar
+      const errorMessage = error?.message || 'Beklenmeyen bir hata oluştu';
       return {
         error: {
           status: 'FETCH_ERROR',
-          data: { message: 'Beklenmeyen bir hata oluştu' }
+          data: { message: errorMessage }
         }
       } as any;
     }

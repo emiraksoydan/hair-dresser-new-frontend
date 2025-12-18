@@ -10,6 +10,11 @@ export type ToggleFavoriteDto = {
   appointmentId?: string | null; // Opsiyonel: Randevu sayfasından geliyorsa appointmentId gönderilir
 };
 
+export type ToggleFavoriteResponseDto = {
+  isFavorite: boolean;
+  favoriteCount: number;
+};
+
 export enum FavoriteTargetType {
   Store = 1,
   FreeBarber = 2,

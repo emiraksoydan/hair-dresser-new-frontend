@@ -24,12 +24,42 @@ export const useSignalR = () => {
 
     useEffect(() => {
         let stopped = false;
+        let previousToken: string | null = null;
 
         const start = async () => {
             const currentToken = tokenStore.access;
+
+            // Token değiştiyse (refresh edildiyse) mevcut bağlantıyı kapat ve yeniden başlat
+            if (previousToken && previousToken !== currentToken && connectionRef.current) {
+                try {
+                    await connectionRef.current.stop();
+                    connectionRef.current = null;
+                    setIsConnected(false);
+                } catch (e) {
+                    // Hata durumunda sessizce devam et
+                }
+            }
+
+            previousToken = currentToken;
+
             if (!currentToken) {
+                // Token yoksa mevcut bağlantıyı kapat
+                if (connectionRef.current) {
+                    try {
+                        await connectionRef.current.stop();
+                        connectionRef.current = null;
+                    } catch (e) {
+                        // Hata durumunda sessizce devam et
+                    }
+                }
+                setIsConnected(false);
                 // Token yoksa badge count'u invalidate et (login olmamış kullanıcı için)
                 dispatch(api.util.invalidateTags(['Badge']));
+                return;
+            }
+
+            // Zaten bağlıysa ve token aynıysa yeniden bağlanma
+            if (connectionRef.current && connectionRef.current.state === SignalR.HubConnectionState.Connected) {
                 return;
             }
 
@@ -534,6 +564,7 @@ export const useSignalR = () => {
             connectionRef.current = null;
             reconnectAttemptsRef.current = 0;
             setIsConnected(false);
+            previousToken = null;
         };
     }, [dispatch, token]); // Token değiştiğinde bağlantıyı yeniden kur
 
