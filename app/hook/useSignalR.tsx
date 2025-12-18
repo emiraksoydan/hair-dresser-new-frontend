@@ -5,8 +5,8 @@ import { useDispatch } from "react-redux";
 import { api } from "../store/api";
 import { tokenStore } from "../lib/tokenStore";
 import type { AppDispatch } from "../store/redux-store";
-import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto } from "../types";
-import { AppointmentStatus } from "../types/appointment";
+import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto, AppointmentGetDto } from "../types";
+import { AppointmentStatus, AppointmentFilter } from "../types/appointment";
 import { NotificationType } from "../types";
 import { API_CONFIG } from "../constants/api";
 import { useAuth } from "./useAuth";
@@ -261,8 +261,10 @@ export const useSignalR = () => {
                                 // Favori thread: Backend'den gelen thread görünür demektir (aktif favori var)
                                 const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
                                 if (existingIndex >= 0) {
+                                    // Mevcut thread'i güncelle
                                     draft[existingIndex] = dto;
                                 } else {
+                                    // Yeni thread'i başa ekle
                                     draft.unshift(dto);
                                 }
                             } else {
@@ -271,8 +273,10 @@ export const useSignalR = () => {
                                     (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
                                     const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
                                     if (existingIndex >= 0) {
+                                        // Mevcut thread'i güncelle
                                         draft[existingIndex] = dto;
                                     } else {
+                                        // Yeni thread'i başa ekle
                                         draft.unshift(dto);
                                     }
                                 }
@@ -290,35 +294,32 @@ export const useSignalR = () => {
                             if (!draft) return;
                             const existingIndex = draft.findIndex(t => t.threadId === dto.threadId);
 
-                            if (existingIndex >= 0) {
-                                // Thread zaten listede var
-                                if (dto.isFavoriteThread) {
-                                    // Favori thread: Backend'den gelen thread görünür demektir (en az bir aktif favori var)
-                                    // Eğer backend thread'i gönderiyorsa, görünür olmalı - güncelle
+                            if (dto.isFavoriteThread) {
+                                // Favori thread: Backend'den gelen thread görünür demektir (en az bir aktif favori var)
+                                if (existingIndex >= 0) {
+                                    // Mevcut thread'i güncelle
                                     draft[existingIndex] = dto;
                                 } else {
-                                    // Randevu thread'i: Sadece Pending/Approved durumunda görünür olmalı
-                                    if (dto.status !== undefined &&
-                                        (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
-                                        // Status hala Pending/Approved - thread'i güncelle
-                                        draft[existingIndex] = dto;
-                                    } else {
-                                        // Status artık Pending/Approved değil - thread'i kaldır (görünür olmamalı)
-                                        draft.splice(existingIndex, 1);
-                                    }
+                                    // Yeni thread'i başa ekle
+                                    draft.unshift(dto);
                                 }
                             } else {
-                                // Thread listede yok - yeni ekleniyor
-                                if (dto.isFavoriteThread) {
-                                    // Favori thread: Backend'den gelen thread görünür demektir (aktif favori var)
-                                    draft.unshift(dto);
-                                } else {
-                                    // Randevu thread'i: Sadece Pending/Approved durumunda ekle
-                                    if (dto.status !== undefined &&
-                                        (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
+                                // Randevu thread'i: Sadece Pending/Approved durumunda görünür olmalı
+                                if (dto.status !== undefined &&
+                                    (dto.status === AppointmentStatus.Pending || dto.status === AppointmentStatus.Approved)) {
+                                    // Status Pending/Approved - thread görünür olmalı
+                                    if (existingIndex >= 0) {
+                                        // Mevcut thread'i güncelle
+                                        draft[existingIndex] = dto;
+                                    } else {
+                                        // Yeni thread'i başa ekle
                                         draft.unshift(dto);
                                     }
-                                    // Status Pending/Approved değilse thread'i ekleme (görünür olmamalı)
+                                } else {
+                                    // Status artık Pending/Approved değil - thread'i kaldır (görünür olmamalı)
+                                    if (existingIndex >= 0) {
+                                        draft.splice(existingIndex, 1);
+                                    }
                                 }
                             }
                         })
@@ -349,6 +350,67 @@ export const useSignalR = () => {
                 conn.on("chat.typing", (data: { threadId: string; typingUserId: string; typingUserName: string; isTyping: boolean }) => {
                     // Typing indicator'ü handle etmek için bir callback mekanizması gerekebilir
                     // Şimdilik sadece event'i dinliyoruz, ChatDetailScreen'de typing state'i yönetilecek
+                });
+
+                // Appointment updated event handler
+                // Randevu durumu değiştiğinde (onay/red/tamamlandı/iptal) appointment listesini güncelle
+                conn.on("appointment.updated", (appointment: AppointmentGetDto) => {
+                    // Tüm filter'lardaki appointment listelerini kontrol et ve güncelle
+                    const filters = [AppointmentFilter.Active, AppointmentFilter.Completed, AppointmentFilter.Cancelled];
+
+                    filters.forEach((filter) => {
+                        dispatch(
+                            api.util.updateQueryData("getAllAppointmentByFilter", { filter }, (draft) => {
+                                if (!draft || !Array.isArray(draft)) return;
+
+                                const existingIndex = draft.findIndex(a => a.id === appointment.id);
+
+                                // Status'e göre hangi filter'da olması gerektiğini kontrol et
+                                const shouldBeInThisFilter =
+                                    (filter === AppointmentFilter.Active && (appointment.status === AppointmentStatus.Pending || appointment.status === AppointmentStatus.Approved)) ||
+                                    (filter === AppointmentFilter.Completed && appointment.status === AppointmentStatus.Completed) ||
+                                    (filter === AppointmentFilter.Cancelled && (appointment.status === AppointmentStatus.Cancelled || appointment.status === AppointmentStatus.Rejected || appointment.status === AppointmentStatus.Unanswered));
+
+                                if (existingIndex >= 0) {
+                                    if (shouldBeInThisFilter) {
+                                        // Mevcut appointment'ı güncelle
+                                        draft[existingIndex] = appointment;
+                                        // Tarihe göre yeniden sırala
+                                        draft.sort((a, b) => {
+                                            try {
+                                                const dateA = new Date(a.appointmentDate + 'T' + a.startTime).getTime();
+                                                const dateB = new Date(b.appointmentDate + 'T' + b.startTime).getTime();
+                                                return dateA - dateB;
+                                            } catch {
+                                                return 0;
+                                            }
+                                        });
+                                    } else {
+                                        // Appointment artık bu filter'da olmamalı - kaldır
+                                        draft.splice(existingIndex, 1);
+                                    }
+                                } else if (shouldBeInThisFilter) {
+                                    // Yeni appointment'ı ekle (tarihe göre sıralı)
+                                    draft.push(appointment);
+                                    draft.sort((a, b) => {
+                                        try {
+                                            const dateA = new Date(a.appointmentDate + 'T' + a.startTime).getTime();
+                                            const dateB = new Date(b.appointmentDate + 'T' + b.startTime).getTime();
+                                            return dateA - dateB;
+                                        } catch {
+                                            return 0;
+                                        }
+                                    });
+                                }
+                            })
+                        );
+                    });
+
+                    // Ayrıca invalidate et (güvenlik için - eğer updateQueryData başarısız olursa)
+                    dispatch(api.util.invalidateTags([
+                        { type: 'Appointment', id: appointment.id },
+                        { type: 'Appointment', id: 'LIST' }
+                    ]));
                 });
             };
 
@@ -467,6 +529,7 @@ export const useSignalR = () => {
             c?.off("chat.threadUpdated");
             c?.off("chat.threadRemoved");
             c?.off("chat.typing");
+            c?.off("appointment.updated");
             c?.stop();
             connectionRef.current = null;
             reconnectAttemptsRef.current = 0;

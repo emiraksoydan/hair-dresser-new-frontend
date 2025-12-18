@@ -4,12 +4,15 @@ import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, 
 import { ActivityIndicator, Icon } from "react-native-paper";
 import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation } from "../../store/api";
 import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
-import { ChairSlotDto, UserType } from "../../types";
+import { ChairSlotDto, UserType, PricingType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import FilterChip from "../common/filter-chip";
 import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../../utils/time/time-helper";
 import { useAuth } from "../../hook/useAuth";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
+import { useAppointmentBooking } from "../../hook/useAppointmentBooking";
+import { useAppointmentPricing } from "../../hook/useAppointmentPricing";
+import { getUserFriendlyErrorMessage, isDuplicateSlotError } from "../../utils/common/error";
 
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
 interface Props {
@@ -38,11 +41,6 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
     // day selection
     const days = useMemo(() => build7Days(), []);
     const [selectedDateOnly, setSelectedDateOnly] = useState(() => fmtDateOnly(days[0]));
-    const onChangeDay = useCallback((d: string) => {
-        setSelectedDateOnly(d);
-        setSelectedChairId(null);
-        setSelectedSlotKeys([]);
-    }, []);
 
     const normalizeDow = (dow: number) => {
         if (dow === 7) return 0;
@@ -63,19 +61,6 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         return closedByDow.get(jsDow) === true;
     };
 
-    const [selectedChairId, setSelectedChairId] = useState<string | null>(null);
-    const [selectedSlotKeys, setSelectedSlotKeys] = useState<string[]>([]); // "HH:mm"
-    const [selectedServices, setSelectedServices] = useState<string[]>(preselectedServices ?? []);
-    const toggleService = useCallback((id: string) => {
-        setSelectedServices(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
-    }, []);
-
-    // Preselected services varsa, bunları başlangıçta seçili yap
-    useEffect(() => {
-        if (preselectedServices && preselectedServices.length > 0) {
-            setSelectedServices(preselectedServices);
-        }
-    }, [preselectedServices]);
     const { data, isFetching, isLoading, refetch } = useGetAvailabilityQuery({
         storeId,
         dateOnly: selectedDateOnly,
@@ -89,10 +74,23 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         return [];
     }, [data]);
 
-    // Gün değiştiğinde veya chairs değiştiğinde ilk koltuk seç
+    // Use custom hooks for booking logic
+    const {
+        selectedChairId,
+        setSelectedChairId,
+        selectedSlotKeys,
+        setSelectedSlotKeys,
+        selectedServices,
+        toggleService,
+        selectedChair,
+        onToggleSlot,
+        startHHmm,
+        endHHmm,
+    } = useAppointmentBooking({ chairs, preselectedServices });
+
+    // Update selectedChairId when date changes
     useEffect(() => {
         if (chairs.length > 0) {
-            // Eğer seçili koltuk yeni listede yoksa veya hiç seçili değilse, ilk koltuğu seç
             const currentChairExists = selectedChairId && chairs.some(c => c.chairId === selectedChairId);
             if (!currentChairExists) {
                 setSelectedChairId(chairs[0].chairId);
@@ -100,68 +98,30 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         } else {
             setSelectedChairId(null);
         }
-    }, [chairs, selectedDateOnly, selectedChairId]);
+    }, [chairs, selectedDateOnly, selectedChairId, setSelectedChairId]);
 
-    const selectedChair = useMemo(
-        () => chairs.find((c) => c.chairId === selectedChairId) ?? null,
-        [chairs, selectedChairId]
-    );
-
-    useEffect(() => {
+    // Day change handler
+    const onChangeDay = useCallback((d: string) => {
+        setSelectedDateOnly(d);
+        setSelectedChairId(null);
         setSelectedSlotKeys([]);
-    }, [selectedChairId]);
+    }, [setSelectedChairId, setSelectedSlotKeys]);
 
-
-    const onToggleSlot = useCallback((slot: { start: string }, isBooked: boolean, isPast: boolean) => {
-        if (isBooked || isPast) return;
-        const key = normalizeTime(slot.start); // "HH:mm"
-
-        setSelectedSlotKeys((prev) => {
-            if (prev.includes(key)) return prev.filter((k) => k !== key); // remove
-
-            const next = [...prev, key];
-            if (!areHourlyContiguous(next)) {
-                Alert.alert("Uyarı", "Sadece art arda (boşluksuz) saatleri seçebilirsin.");
-                return prev;
-            }
-            return next;
-        });
-    }, []);
-
-    const startHHmm = useMemo(() => {
-        if (selectedSlotKeys.length === 0) return null;
-        return [...selectedSlotKeys].sort()[0];
-    }, [selectedSlotKeys]);
-
-    const endHHmm = useMemo(() => {
-        if (!startHHmm) return null;
-        return addMinutesToHHmm(startHHmm, selectedSlotKeys.length * APPOINTMENT_CONSTANTS.SLOT_DURATION_MINUTES);
-    }, [startHHmm, selectedSlotKeys.length]);
-
-    const pricingValue = useMemo(() => Number(storeData?.pricingValue ?? 0), [storeData?.pricingValue]);
-    const pricingTypeKey = useMemo(() => {
-        const pt: any = storeData?.pricingType;
-        if (typeof pt === "string") return pt.toLowerCase();
-        return "unknown";
-    }, [storeData?.pricingType]);
-
-    const isHourlyFree = isFreeBarber && pricingTypeKey === "rent";
-    const isPercentFree = isFreeBarber && pricingTypeKey === "percent";
-
-    const totalPrice = useMemo(() => {
-        const servicesTotal =
-            (storeData?.serviceOfferings ?? [])
-                .filter(x => selectedServices.includes(x.id))
-                .reduce((sum, x) => sum + Number(x.price ?? 0), 0);
-
-        if (isHourlyFree) {
-            return Number((pricingValue * selectedSlotKeys.length).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
-        }
-        if (isPercentFree) {
-            return Number((servicesTotal * (pricingValue / APPOINTMENT_CONSTANTS.PERCENTAGE_DIVISOR)).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
-        }
-        return Number(servicesTotal.toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
-    }, [storeData?.serviceOfferings, selectedServices, isHourlyFree, isPercentFree, pricingValue, selectedSlotKeys.length,]);
+    // Use custom hook for pricing calculations
+    const {
+        pricingTypeKey,
+        isHourlyFree,
+        isPercentFree,
+        totalPrice,
+        pricingValue,
+    } = useAppointmentPricing({
+        pricingType: storeData?.pricingType,
+        pricingValue: storeData?.pricingValue,
+        serviceOfferings: storeData?.serviceOfferings,
+        selectedServices,
+        selectedSlotKeys,
+        isFreeBarber,
+    });
 
     const canSubmit = useMemo(() => {
         const baseReady = !!selectedChairId && selectedSlotKeys.length > 0;
@@ -506,47 +466,13 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 } else {
                                     Alert.alert("Hata", result.message ?? "Randevu oluşturulamadı.");
                                 }
-                            } catch (e: any) {
-                                // Duplicate key hatası için özel mesaj - SQL Server exception formatını da yakala
-                                // Hata mesajını farklı katmanlardan al
-                                const errorMessage =
-                                    e?.data?.message ??
-                                    e?.data?.error ??
-                                    e?.error?.message ??
-                                    e?.error?.data?.message ??
-                                    e?.message ??
-                                    e?.error ??
-                                    String(e) ??
-                                    "İşlem başarısız.";
+                            } catch (error: unknown) {
+                                const errorMessage = getUserFriendlyErrorMessage(error);
 
-                                const errorString = String(errorMessage).toLowerCase();
-
-                                // Hata nesnesinin tamamını string'e çevirip kontrol et (nested hatalar için)
-                                const fullErrorString = JSON.stringify(e).toLowerCase();
-
-                                // SQL Server duplicate key hatalarını yakala
-                                const isDuplicateError =
-                                    errorString.includes("duplicate key") ||
-                                    errorString.includes("ix_appointments") ||
-                                    errorString.includes("cannot insert duplicate") ||
-                                    errorString.includes("unique index") ||
-                                    errorString.includes("sqlexception") ||
-                                    errorString.includes("sql exception") ||
-                                    errorString.includes("alındı") ||
-                                    errorString.includes("slot taken") ||
-                                    errorString.includes("slottaken") ||
-                                    errorString.includes("already booked") ||
-                                    errorString.includes("already reserved") ||
-                                    fullErrorString.includes("duplicate key") ||
-                                    fullErrorString.includes("ix_appointments") ||
-                                    fullErrorString.includes("cannot insert duplicate") ||
-                                    fullErrorString.includes("unique index") ||
-                                    fullErrorString.includes("sqlexception");
-
-                                if (isDuplicateError) {
+                                if (isDuplicateSlotError(error)) {
                                     Alert.alert(
                                         "Uyarı",
-                                        "Bu randevu zamanı başka bir kullanıcı tarafından alındı. Lütfen başka bir saat seçin.",
+                                        errorMessage,
                                         [
                                             {
                                                 text: "Yenile",

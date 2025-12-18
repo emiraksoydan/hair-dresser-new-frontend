@@ -2,6 +2,8 @@
  * Rating-related types
  */
 
+import { UserType, BarberType } from './index';
+
 export type CreateRatingDto = {
   appointmentId: string;
   targetId: string;

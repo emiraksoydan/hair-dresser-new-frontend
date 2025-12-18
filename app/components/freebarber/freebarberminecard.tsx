@@ -44,11 +44,8 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
             return;
         }
 
-        const previousIsFavorite = isFavorite;
-
-        // Optimistic update sadece isFavorite için (UI feedback için)
-        setIsFavorite(!isFavorite);
-
+        // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
+        // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
         try {
             await toggleFavorite({
                 targetId: freeBarber.id,
@@ -60,19 +57,21 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
-            
+
             // 2. Parent query'leri invalidate et (favoriteCount güncellenmesi için)
+            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor
+            // Burada ekstra invalidate etmeye gerek yok, ama güvenlik için yapıyoruz
             dispatch(api.util.invalidateTags([
                 { type: 'MineFreeBarberPanel' as const, id: freeBarber.id },
                 { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
                 { type: 'FreeBarberForUsers' as const, id: freeBarber.id },
             ]));
         } catch (error: any) {
-            // Hata durumunda eski değere geri dön
-            setIsFavorite(previousIsFavorite);
+            // Hata durumunda sadece alert göster
+            // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, refetchIsFavorite, dispatch]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite, dispatch]);
 
     return (
         <View

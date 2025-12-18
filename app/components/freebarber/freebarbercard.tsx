@@ -57,18 +57,9 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             return;
         }
 
-        const previousIsFavorite = isFavorite;
-        const previousFavoriteCount = favoriteCount;
-
-        // Optimistic update: hem isFavorite hem de favoriteCount için
-        // API.tsx'teki optimistic update ile birlikte çalışacak
-        const newIsFavorite = !isFavorite;
-        const delta = newIsFavorite ? 1 : -1;
-        const newFavoriteCount = Math.max(0, (favoriteCount || 0) + delta);
-
+        // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
+        // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
         setIsToggling(true);
-        setIsFavorite(newIsFavorite);
-        setFavoriteCount(newFavoriteCount); // Optimistic update
 
         try {
             await toggleFavorite({
@@ -80,20 +71,21 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             // isFavorite query'sini refetch et
             // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
             // API.tsx'teki optimistic update cache'i güncelleyecek
-            // useEffect'te freeBarber.favoriteCount değiştiğinde state güncellenecek
+            // useEffect'te freeBarber.favoriteCount ve isFavoriteData değiştiğinde state güncellenecek
             if (refetchIsFavorite) {
                 refetchIsFavorite();
             }
 
             // Cache güncellemesi useEffect'te handle edilecek (backend'den gelen değerle override)
         } catch (error: any) {
-            // Hata durumunda eski değerlere geri dön
+            // Hata durumunda sadece toggle flag'ini kaldır
+            // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
             setIsToggling(false);
-            setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousFavoriteCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+        } finally {
+            setIsToggling(false);
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount, refetchIsFavorite]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite]);
     return (
         <View
             style={{ width: cardWidthFreeBarber }}

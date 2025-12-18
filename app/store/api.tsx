@@ -460,8 +460,26 @@ export const api = createApi({
                 const state = getState() as any;
 
                 // Önce mevcut isFavorite durumunu kontrol et (hangi yönde toggle yapılacağını bilmek için)
+                // ÖNEMLİ: isFavorite query'si henüz güncellenmemiş olabilir, bu yüzden daha güvenli bir yaklaşım kullan
                 const isFavoriteQuery = api.endpoints.isFavorite.select(targetId)(state);
-                const currentIsFavorite = isFavoriteQuery?.data ?? false;
+                let currentIsFavorite = isFavoriteQuery?.data ?? false;
+
+                // Eğer query henüz yüklenmemişse, cache'den kontrol et
+                if (isFavoriteQuery?.status === 'uninitialized' || isFavoriteQuery?.status === 'pending') {
+                    // Cache'den kontrol et - daha önce toggle edilmiş olabilir
+                    const cachedQueries = (state as any).api?.queries;
+                    if (cachedQueries) {
+                        Object.keys(cachedQueries).forEach((key) => {
+                            const query = cachedQueries[key];
+                            if (query?.endpointName === 'isFavorite' && query?.originalArgs === targetId) {
+                                if (query?.data !== undefined) {
+                                    currentIsFavorite = query.data;
+                                }
+                            }
+                        });
+                    }
+                }
+
                 const delta = currentIsFavorite ? -1 : 1; // Toggle yönü: false -> true = +1, true -> false = -1
                 const newIsFavorite = !currentIsFavorite; // Yeni favori durumu
 

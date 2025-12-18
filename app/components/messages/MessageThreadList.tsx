@@ -8,7 +8,7 @@ import { View, Text, FlatList, TouchableOpacity, RefreshControl, Image, ScrollVi
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
-import { ChatThreadListItemDto, AppointmentStatus, UserType, BarberType } from '../../types';
+import { ChatThreadListItemDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { LottieViewComponent } from '../common/lottieview';
 import { SkeletonComponent } from '../common/skeleton';
 import { useFormatTime } from '../../utils/time/time-formatter';
