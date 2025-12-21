@@ -14,6 +14,7 @@ export type ChatThreadListItemDto = {
   lastMessagePreview?: string | null;
   lastMessageAt?: string | null;
   unreadCount: number;
+  currentUserImageUrl?: string | null; // Mevcut kullanıcının profil resmi (mesaj balonlarında göstermek için)
   participants: ChatThreadParticipantDto[];
 };
 

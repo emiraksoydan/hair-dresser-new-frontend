@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView, RefreshControl } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
 import SearchBar from "../../components/common/searchbar";
@@ -8,22 +8,18 @@ import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useToggleList } from "../../utils/common/service-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
-import MotiViewExpand from "../../components/common/motiviewexpand";
-import { toggleExpand } from "../../utils/common/expand-toggle";
-import { SkeletonComponent } from "../../components/common/skeleton";
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
 import { useGetMineStoresQuery } from "../../store/api";
 import { FilterBottomSheet } from "../../components/common/filterbottomsheet";
 import FormStoreUpdate from "../../components/store/formstoreupdate";
 import { StoreMineCardComp } from "../../components/store/storeminecard";
-import { EmptyState } from "../../components/common/emptystateresult";
 import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
 import { safeCoord } from "../../utils/location/geo";
-import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi
 import { BarberMarker } from "../../components/freebarber/barbermarker";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
+import { StoresSection, FreeBarbersSection } from '../../components/panel/PanelSections';
 
 const Index = () => {
     // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
@@ -44,6 +40,20 @@ const Index = () => {
         hardRefreshMs: 15000,
         radiusKm: 1,
     });
+
+    const [refreshing, setRefreshing] = useState(false);
+    const isRefreshingRef = React.useRef(false);
+    const onRefresh = useCallback(async () => {
+        if (isRefreshingRef.current) return;
+        try {
+            isRefreshingRef.current = true;
+            setRefreshing(true);
+            if (manualFetch) await manualFetch();
+        } finally {
+            setRefreshing(false);
+            isRefreshingRef.current = false;
+        }
+    }, [manualFetch]);
 
     const [isMapMode, setIsMapMode] = useState(false);
     const [selectedMapItem, setSelectedMapItem] = useState<FreeBarGetDto | null>(null);
@@ -80,8 +90,33 @@ const Index = () => {
         [expandedFreeBarbers, screenWidth]
     );
 
-    const hasStores = !storeLoading && stores.length > 0;
-    const hasFreeBarbers = (freeBarbers?.length ?? 0) > 0;
+    // Önceki data'yı tutarak flicker'ı önle
+    const [previousStores, setPreviousStores] = useState<BarberStoreMineDto[]>([]);
+    const [previousFreeBarbers, setPreviousFreeBarbers] = useState<FreeBarGetDto[]>([]);
+
+    // Data değiştiğinde önceki data'yı güncelle (sadece dolu data geldiğinde)
+    useEffect(() => {
+        if (stores && stores.length > 0) {
+            setPreviousStores(stores);
+        }
+    }, [stores]);
+
+    useEffect(() => {
+        if (freeBarbers && freeBarbers.length > 0) {
+            setPreviousFreeBarbers(freeBarbers);
+        }
+    }, [freeBarbers]);
+
+    // Display için: loading ise önceki data'yı göster, yoksa yeni data'yı göster
+    const displayStores = storeLoading && previousStores.length > 0 ? previousStores : (stores ?? []);
+    const displayFreeBarbers = isFreeLoading && previousFreeBarbers.length > 0 ? previousFreeBarbers : (freeBarbers ?? []);
+
+    // Loading state'i: sadece ilk yükleme veya data yoksa true
+    const isStoresLoading = storeLoading && previousStores.length === 0;
+    const isFreeBarbersLoading = isFreeLoading && previousFreeBarbers.length === 0;
+
+    const hasStores = displayStores.length > 0;
+    const hasFreeBarbers = displayFreeBarbers.length > 0;
 
     const handlePressUpdateStore = useCallback(
         (store: BarberStoreMineDto) => {
@@ -132,51 +167,10 @@ const Index = () => {
         [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings]
     );
 
-    // FlatList için tüm item'ları birleştir
-    const listData = useMemo(() => {
-        const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal'; data?: any }> = [];
-
-        // Stores section
-        items.push({ id: 'stores-header', type: 'stores-header' });
-        if (storeLoading) {
-            items.push({ id: 'stores-loading', type: 'stores-loading' });
-        } else if (hasStores) {
-            if (expandedStores) {
-                // Vertical modda: her store'u ayrı item olarak ekle
-                stores.forEach((store) => {
-                    items.push({ id: `store-${store.id}`, type: 'store', data: store });
-                });
-            } else {
-                // Horizontal modda: tek bir content item
-                items.push({ id: 'stores-content-horizontal', type: 'stores-content-horizontal', data: stores });
-            }
-        } else {
-            items.push({ id: 'stores-empty', type: 'stores-empty' });
-        }
-
-        // FreeBarbers section
-        items.push({ id: 'freebarbers-header', type: 'freebarbers-header' });
-        if (isFreeLoading && !hasFreeBarbers) {
-            items.push({ id: 'freebarbers-loading', type: 'freebarbers-loading' });
-        } else if (hasFreeBarbers) {
-            if (expandedFreeBarbers) {
-                // Vertical modda: her freebarber'ı ayrı item olarak ekle
-                freeBarbers.forEach((fb) => {
-                    items.push({ id: `freebarber-${fb.id}`, type: 'freebarber', data: fb });
-                });
-            } else {
-                // Horizontal modda: tek bir content item
-                items.push({ id: 'freebarbers-content-horizontal', type: 'freebarbers-content-horizontal', data: freeBarbers });
-            }
-        } else {
-            items.push({ id: 'freebarbers-empty', type: 'freebarbers-empty' });
-        }
-
-        return items;
-    }, [storeLoading, isFreeLoading, hasStores, hasFreeBarbers, stores, freeBarbers, expandedStores, expandedFreeBarbers]);
+    // Basitleştirilmiş render: ScrollView içinde ayrı sekmeler (Stores / FreeBarbers)
 
     const mapInitialRegion = useMemo(() => {
-        const storeCandidate = stores
+        const storeCandidate = displayStores
             .map((s) => safeCoord(s.latitude, s.longitude))
             .find(Boolean);
 
@@ -194,20 +188,20 @@ const Index = () => {
             latitudeDelta: 0.08,
             longitudeDelta: 0.08,
         };
-    }, [stores]);
+    }, [displayStores]);
     const freeBarberMarkers = useMemo(() => {
-        return (freeBarbers ?? []).map((barber) => (
+        return displayFreeBarbers.map((barber) => (
             <BarberMarker
                 key={(barber as any).id}
                 barber={barber}
                 onPress={handleMarkerPress}
             />
         ));
-    }, [freeBarbers, handleMarkerPress]); // Sadece liste değişirse render et
+    }, [displayFreeBarbers, handleMarkerPress]); // Sadece liste değişirse render et
 
     const storeMarkers = useMemo(() => {
         if (!hasStores) return null;
-        return stores.map((store) => {
+        return displayStores.map((store) => {
             const c = safeCoord(store.latitude, store.longitude);
             if (!c) return null;
 
@@ -239,7 +233,7 @@ const Index = () => {
                 </View>
             </Marker>;
         });
-    }, [stores, hasStores, handlePressUpdateStore]);
+    }, [displayStores, hasStores, handlePressUpdateStore]);
 
     return (
         <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
@@ -261,123 +255,29 @@ const Index = () => {
                     </MapView>
                 </View>
             ) : (
-                <FlatList
-                    data={listData}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ paddingBottom: 16 }}
-                    showsVerticalScrollIndicator={false}
-                    renderItem={({ item }) => {
-                        if (item.type === 'stores-header') {
-                            return (
-                                <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">İşletmelerim</Text>
-                                    {hasStores && <MotiViewExpand expanded={expandedStores} onPress={() => toggleExpand(expandedStores, setExpandedStores)} />}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'stores-loading') {
-                            return (
-                                <View className="pt-4">{Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}</View>
-                            );
-                        }
-                        if (item.type === 'stores-empty') {
-                            return (
-                                <View style={{ minHeight: 200, maxHeight: 400 }}>
-                                    <EmptyState
-                                        loading={storeLoading}
-                                        hasLocation={hasLocation}
-                                        locationStatus={locationStatus}
-                                        fetchedOnce={true}
-                                        hasData={hasStores}
-                                        noResultText="Eklenmiş berber dükkanınız bulunmuyor."
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'store') {
-                            return (
-                                <StoreMineCardComp
-                                    store={item.data}
-                                    isList={isList}
-                                    expanded={expandedStores}
-                                    cardWidthStore={cardWidthStore}
-                                    onPressUpdate={handlePressUpdateStore}
-                                    onPressRatings={handlePressRatings}
-                                />
-                            );
-                        }
-                        if (item.type === 'stores-content-horizontal') {
-                            return (
-                                <View style={{ overflow: 'hidden', minHeight: 200 }}>
-                                    <FlatList
-                                        data={item.data}
-                                        keyExtractor={(store) => store.id}
-                                        renderItem={renderStoreItem}
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={{ gap: 12, paddingTop: 8 }}
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-header') {
-                            return (
-                                <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">Serbest Berberler</Text>
-                                    {hasFreeBarbers && (
-                                        <MotiViewExpand expanded={expandedFreeBarbers} onPress={() => toggleExpand(expandedFreeBarbers, setExpandedFreeBarbers)} />
-                                    )}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-loading') {
-                            return (
-                                <View className="pt-4">{Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}</View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-empty') {
-                            return (
-                                <View style={{ minHeight: 200, maxHeight: 400 }}>
-                                    <EmptyState
-                                        loading={isFreeLoading}
-                                        hasLocation={hasLocation}
-                                        locationStatus={locationStatus}
-                                        fetchedOnce={true}
-                                        hasData={hasFreeBarbers}
-                                        noResultText="Yakınınızda serbest berber bulunamadı"
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarber') {
-                            return (
-                                <FreeBarberCardInner
-                                    freeBarber={item.data}
-                                    isList={isList}
-                                    expanded={expandedFreeBarbers}
-                                    cardWidthFreeBarber={cardWidthFreeBarber}
-                                    mode="barbershop"
-                                    onPressRatings={handlePressRatings}
-                                />
-                            );
-                        }
-                        if (item.type === 'freebarbers-content-horizontal') {
-                            return (
-                                <View style={{ overflow: 'hidden', minHeight: 200 }}>
-                                    <FlatList
-                                        data={item.data}
-                                        keyExtractor={(fb: FreeBarGetDto) => (fb as any).id}
-                                        renderItem={renderFreeBarberItem}
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={{ gap: 12, paddingTop: 8 }}
-                                    />
-                                </View>
-                            );
-                        }
-                        return null;
-                    }}
-                />
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f05e23" />}>
+                    <StoresSection
+                        stores={displayStores}
+                        loading={isStoresLoading}
+                        hasLocation={hasLocation}
+                        locationStatus={locationStatus}
+                        fetchedOnce={true}
+                        isList={isList}
+                        onPressStore={handlePressUpdateStore}
+                        onPressRatings={handlePressRatings}
+                    />
+
+                    <FreeBarbersSection
+                        freeBarbers={displayFreeBarbers}
+                        loading={isFreeBarbersLoading}
+                        hasLocation={hasLocation}
+                        locationStatus={locationStatus}
+                        fetchedOnce={true}
+                        isList={isList}
+                        onPressFreeBarber={handleMarkerPress}
+                        onPressRatings={handlePressRatings}
+                    />
+                </ScrollView>
             )}
 
             <TouchableOpacity

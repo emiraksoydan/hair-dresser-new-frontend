@@ -203,7 +203,7 @@ export const NotificationItem = React.memo(({
                             <View className="mb-3 pb-2 border-b border-[#2a2c30]">
                                 <View className="flex-row items-center gap-2">
                                     <Icon source="tag" size={14} color="#6b7280" />
-                                    <Text className="text-[#6b7280] text-xs">Randevu ID: {item.appointmentId.substring(0, 8)}...</Text>
+                                    <Text className="text-[#6b7280] text-xs">Randevu ID: {item.appointmentId}</Text>
                                 </View>
                             </View>
                         )}
@@ -238,11 +238,11 @@ export const NotificationItem = React.memo(({
 
                         {/* Hizmetler */}
                         {serviceOfferings.length > 0 && (
-                            <View className="mb-2 mt-2 flex-row items-center">
+                            <View className="mb-2 mt-2  flex-row items-center">
                                 <Text className="text-[#9ca3af] text-xs mb-1 font-semibold">Hizmetler:</Text>
-                                <ScrollView className="gap-1.5" horizontal showsHorizontalScrollIndicator={false}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {serviceOfferings.map((service) => (
-                                        <View key={service.id} className="bg-[#2a2c30] rounded-lg px-2 py-1">
+                                        <View key={service.id} className="bg-[#2a2c30] rounded-lg px-2 ml-1  py-1">
                                             <Text className="text-white text-sm">{service.serviceName} ₺{Number(service.price).toFixed(0)}</Text>
                                         </View>
                                     ))}

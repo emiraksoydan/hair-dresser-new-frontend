@@ -309,6 +309,7 @@ export const api = createApi({
         getWorkingHoursByTarget: builder.query<WorkingHourGetDto[], string>({
             query: (targetId) => `Working/${targetId}`,
             transformResponse: (res: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(res)) return res;
                 if (Array.isArray(res?.data)) return res.data;
                 return [];
@@ -320,8 +321,9 @@ export const api = createApi({
         getBadgeCounts: builder.query<BadgeCount, void>({
             query: () => 'Badge',
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece data wrapper kontrolü yap
                 if (response?.unreadNotifications !== undefined && response?.unreadMessages !== undefined) return response;
-                if (response?.data && response.data.unreadNotifications !== undefined && response.data.unreadMessages !== undefined) return response.data;
+                if (response?.data?.unreadNotifications !== undefined && response?.data?.unreadMessages !== undefined) return response.data;
                 return { unreadNotifications: 0, unreadMessages: 0 };
             },
             providesTags: ['Badge'],
@@ -329,6 +331,7 @@ export const api = createApi({
         getAllNotifications: builder.query<NotificationDto[], void>({
             query: () => 'Notification',
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
                 return [];
@@ -350,6 +353,7 @@ export const api = createApi({
         getChatThreads: builder.query<ChatThreadListItemDto[], void>({
             query: () => 'Chat/threads',
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
                 return [];
@@ -373,6 +377,7 @@ export const api = createApi({
             }),
             keepUnusedDataFor: 0,
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
                 return [];
@@ -448,6 +453,7 @@ export const api = createApi({
             query: (targetId) => `Rating/target/${targetId}`,
             keepUnusedDataFor: 0,
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
                 return [];
@@ -604,12 +610,9 @@ export const api = createApi({
                 { type: 'IsFavorite' as const, id: 'LIST' },
             ],
             transformResponse: (response: any) => {
-                // Backend'den IDataResult<ToggleFavoriteResponseDto> dönüyor: { success: boolean, data: { isFavorite: boolean, favoriteCount: number }, message?: string }
+                // Backend zaten camelCase döndürüyor: { success: boolean, data: { isFavorite: boolean, favoriteCount: number }, message?: string }
                 if (response?.success !== undefined && response?.data !== undefined) {
                     return response;
-                }
-                if (response?.Success !== undefined && response?.Data !== undefined) {
-                    return { success: response.Success, data: response.Data, message: response.Message };
                 }
                 return response;
             },
@@ -619,10 +622,9 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: (result, error, targetId) => [{ type: 'IsFavorite' as const, id: targetId }],
             transformResponse: (response: any) => {
-                // Backend'den IDataResult<bool> dönüyor: { success: boolean, data: boolean, message?: string }
+                // Backend zaten camelCase döndürüyor: { success: boolean, data: boolean, message?: string }
                 if (typeof response === 'boolean') return response;
                 if (response?.data !== undefined) return response.data;
-                if (response?.Data !== undefined) return response.Data;
                 return false;
             },
         }),
@@ -631,9 +633,9 @@ export const api = createApi({
             keepUnusedDataFor: 0,
             providesTags: ['Favorite'],
             transformResponse: (response: any) => {
+                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
-                if (Array.isArray(response?.Data)) return response.Data;
                 return [];
             },
         }),

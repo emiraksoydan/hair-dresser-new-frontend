@@ -38,7 +38,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
         return (
             <View className="flex-row gap-3">
                 {payload.customer && (
-                    <View className="flex-1 flex-row items-center">
+                    <View className="flex-1 flex-row items-start">
                         {payload.customer.avatarUrl ? (
                             <Image source={{ uri: payload.customer.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                         ) : (
@@ -60,7 +60,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                 )}
                 <View className="flex-1">
                     {payload.freeBarber ? (
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-start">
                             {payload.freeBarber.avatarUrl ? (
                                 <Image source={{ uri: payload.freeBarber.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (
@@ -80,7 +80,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             </View>
                         </View>
                     ) : payload.chair?.manuelBarberId ? (
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-start">
                             {payload.chair.manuelBarberImageUrl ? (
                                 <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (
@@ -112,7 +112,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
         return (
             <View>
                 {payload.store && (
-                    <View className="flex-row items-center mb-2">
+                    <View className="flex-row items-start mb-2">
                         {payload.store.imageUrl ? (
                             <Image source={{ uri: payload.store.imageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                         ) : (
@@ -141,7 +141,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                     </View>
                 )}
                 {payload.customer && (
-                    <View className="flex-row items-center">
+                    <View className="flex-row items-start">
                         {payload.customer.avatarUrl ? (
                             <Image source={{ uri: payload.customer.avatarUrl }} className="w-10 h-10 rounded-full mr-2" resizeMode="cover" />
                         ) : (
@@ -169,7 +169,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
         return (
             <View className="flex-row gap-3">
                 {payload.store && (
-                    <View className="flex-1 flex-row items-center">
+                    <View className="flex-1 flex-row items-start">
                         {payload.store.imageUrl ? (
                             <Image source={{ uri: payload.store.imageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                         ) : (
@@ -211,7 +211,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
 
                 <View className="flex-1">
                     {payload.freeBarber ? (
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-start">
                             {payload.freeBarber.avatarUrl ? (
                                 <Image source={{ uri: payload.freeBarber.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (
@@ -237,7 +237,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             </View>
                         </View>
                     ) : payload.chair?.manuelBarberId ? (
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-start">
                             {payload.chair.manuelBarberImageUrl ? (
                                 <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (

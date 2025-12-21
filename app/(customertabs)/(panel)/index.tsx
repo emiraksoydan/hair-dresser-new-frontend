@@ -1,63 +1,81 @@
-import { Text, View, Dimensions, FlatList, TouchableOpacity, Image, ScrollView } from "react-native";
-import { useCallback, useMemo, useState } from "react";
+import { Text, View, Dimensions, TouchableOpacity, Image, RefreshControl, FlatList, ScrollView } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
-import { SkeletonComponent } from "../../components/common/skeleton";
 import SearchBar from "../../components/common/searchbar";
-import { toggleExpand } from "../../utils/common/expand-toggle";
 import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
 import { useToggleList } from "../../utils/common/service-toggle";
 import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
 import { StoreCardInner } from "../../components/store/storecard";
 import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
-import MotiViewExpand from "../../components/common/motiviewexpand";
 import { FilterBottomSheet } from "../../components/common/filterbottomsheet";
 import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard";
-import { EmptyState } from "../../components/common/emptystateresult";
 import { useRouter } from "expo-router";
 import { Icon, IconButton } from "react-native-paper";
-import MapView, { Marker } from "react-native-maps"; // Harita importları
-import { safeCoord } from "../../utils/location/geo"; // Geo yardımcı fonksiyon
+import MapView, { Marker } from "react-native-maps";
+import { safeCoord } from "../../utils/location/geo";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import StoreBookingContent from "../../components/store/storebooking";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
+import MotiViewExpand from "../../components/common/motiviewexpand";
+import { SkeletonComponent } from "../../components/common/skeleton";
+import { EmptyState } from "../../components/common/emptystateresult";
+import { StoresSection, FreeBarbersSection } from '../../components/panel/PanelSections';
 
+// ✅ Main Component
 const Index = () => {
-    const { stores, loading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(true);
+    const router = useRouter();
+
+    // ✅ RTK Query ile data çekme - keepUnusedDataFor ile cache süresi ayarlanır
     const {
-        freeBarbers,
-        loading: freeLoading,
-        locationStatus: freeStatus,
-        hasLocation: freeHasLocation,
-        fetchedOnce: freeFetchedOnce
+        stores = [],
+        loading: storesLoading,
+        locationStatus: storesLocationStatus,
+        hasLocation: storesHasLocation,
+        fetchedOnce: storesFetchedOnce,
+        manualFetch: manualFetchStores
+    } = useNearbyStores(true);
+
+    const {
+        freeBarbers = [],
+        loading: freeBarbersLoading,
+        locationStatus: freeBarbersLocationStatus,
+        hasLocation: freeBarbersHasLocation,
+        fetchedOnce: freeBarbersFetchedOnce,
+        manualFetch: manualFetchFreeBarbers
     } = useNearbyFreeBarber(true);
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [expanded, setExpanded] = useState(true);
-    const [expandedFreeBarber, setExpandedFreeBarber] = useState(false);
     const [isList, setIsList] = useState(true);
-    const { present } = useSheet("addFilter");
-    const { present: presentMapDetail } = useSheet("mapDetail"); // ✅ Harita Detay Sheet'i
+    const [isMapMode, setIsMapMode] = useState(false);
+    const [selectedMapItem, setSelectedMapItem] = useState<{ type: 'store' | 'freeBarber', data: any } | null>(null);
+    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
+
+    const { present: presentFilter } = useSheet("addFilter");
+    const { present: presentMapDetail } = useSheet("mapDetail");
+    const { present: presentRatings } = useSheet("ratings");
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
 
     const [selectedType, setSelectedType] = useState<string>("Hepsi");
     const [selectedRating, setSelectedRating] = useState<string | number | null>("Hepsi");
     const { list: selectedServices, toggle: toggleService, has: hasService } = useToggleList<string>([]);
 
-    const screenWidth = Dimensions.get("window").width;
-    const cardWidthStore = useMemo(() => (expanded ? screenWidth * 0.92 : screenWidth * 0.94), [expanded, screenWidth]);
-    const cardWidthFreeBarber = useMemo(() => (expandedFreeBarber ? screenWidth * 0.92 : screenWidth * 0.94), [expandedFreeBarber, screenWidth]);
-
-    const hasStores = (stores ?? []).length > 0;
-    const hasFreeBarbers = (freeBarbers ?? []).length > 0;
-    const router = useRouter();
-
-    const [isMapMode, setIsMapMode] = useState(false);
-    const [selectedMapItem, setSelectedMapItem] = useState<{ type: 'store' | 'freeBarber', data: any } | null>(null);
-    const { present: presentRatings } = useSheet("ratings");
-    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
+    // ✅ Refresh handler - her iki list'i de yenile (concurrency guarded)
+    const [refreshing, setRefreshing] = useState(false);
+    const isRefreshingRef = useRef(false);
+    const onRefresh = useCallback(async () => {
+        if (isRefreshingRef.current) return;
+        try {
+            isRefreshingRef.current = true;
+            setRefreshing(true);
+            await Promise.all([manualFetchStores(), manualFetchFreeBarbers()]);
+        } finally {
+            setRefreshing(false);
+            isRefreshingRef.current = false;
+        }
+    }, [manualFetchStores, manualFetchFreeBarbers]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
@@ -75,7 +93,7 @@ const Index = () => {
 
     const handleMapItemPress = useCallback((item: any, type: 'store' | 'freeBarber') => {
         setSelectedMapItem({ type, data: item });
-        presentMapDetail(); // Sheet'i aç
+        presentMapDetail();
     }, [presentMapDetail]);
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
@@ -83,14 +101,14 @@ const Index = () => {
         presentRatings();
     }, [presentRatings]);
 
+    // ✅ Map markers
     const storeMarkers = useMemo(() => {
-        if (!hasStores) return null;
         return stores.map((store) => {
             const c = safeCoord(store.latitude, store.longitude);
             if (!c) return null;
 
             const avatarUrl = store?.imageList?.[0]?.imageUrl;
-            const bg = store.type == 0 ? "#2563e" : store.type == 1 ? "#db2777" : "#16a34a";
+            const bg = store.type == 0 ? "#2563eb" : store.type == 1 ? "#db2777" : "#16a34a";
             const iconName = store.type == 2 ? "store" : store.type == 0 ? "face-man" : "face-woman";
 
             return (
@@ -120,17 +138,15 @@ const Index = () => {
                 </Marker>
             );
         });
-    }, [stores, hasStores, goStoreDetail]);
+    }, [stores, handleMapItemPress]);
 
     const freeBarberMarkers = useMemo(() => {
-        if (!hasFreeBarbers) return null;
         return freeBarbers.map((barber) => {
             const c = safeCoord((barber as any).latitude, (barber as any).longitude);
             if (!c) return null;
 
             const avatarUrl = (barber as any)?.imageList?.[0]?.imageUrl;
             const bg = (barber as any).type == 0 ? "#db2777" : "#16a34a";
-
             const iconName = (barber as any).type == 0 ? "face-man-profile" : "face-woman-profile";
 
             return (
@@ -156,84 +172,25 @@ const Index = () => {
                             <Icon source={iconName} color="white" size={18} />
                         )}
                     </View>
-                </Marker >
+                </Marker>
             );
         });
-    }, [freeBarbers, hasFreeBarbers, goFreeBarberDetail]);
-
-    const renderStoreItem = useCallback(({ item }: { item: BarberStoreGetDto }) => (
-        <StoreCardInner
-            store={item}
-            isList={isList}
-            expanded={expanded}
-            cardWidthStore={cardWidthStore}
-            onPressUpdate={goStoreDetail}
-            onPressRatings={handlePressRatings}
-        />
-    ), [isList, expanded, cardWidthStore, goStoreDetail, handlePressRatings]);
-
-    const renderFreeBarberItem = useCallback(({ item }: { item: FreeBarGetDto }) => (
-        <FreeBarberCardInner
-            freeBarber={item}
-            isList={isList}
-            expanded={expandedFreeBarber}
-            cardWidthFreeBarber={cardWidthFreeBarber}
-            onPressUpdate={goFreeBarberDetail}
-            onPressRatings={handlePressRatings}
-        />
-    ), [isList, expandedFreeBarber, cardWidthFreeBarber, goFreeBarberDetail, handlePressRatings]);
-
-    // FlatList için tüm item'ları birleştir
-    const listData = useMemo(() => {
-        const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal'; data?: any }> = [];
-
-        items.push({ id: 'stores-header', type: 'stores-header' });
-        if (loading) {
-            items.push({ id: 'stores-loading', type: 'stores-loading' });
-        } else if (hasStores) {
-            if (expanded) {
-                stores.forEach((store) => {
-                    items.push({ id: `store-${store.id}`, type: 'store', data: store });
-                });
-            } else {
-                items.push({ id: 'stores-content-horizontal', type: 'stores-content-horizontal', data: stores });
-            }
-        } else {
-            items.push({ id: 'stores-empty', type: 'stores-empty' });
-        }
-
-        items.push({ id: 'freebarbers-header', type: 'freebarbers-header' });
-        if (freeLoading) {
-            items.push({ id: 'freebarbers-loading', type: 'freebarbers-loading' });
-        } else if (hasFreeBarbers) {
-            if (expandedFreeBarber) {
-                // Vertical modda: her freebarber'ı ayrı item olarak ekle
-                freeBarbers.forEach((fb) => {
-                    items.push({ id: `freebarber-${fb.id}`, type: 'freebarber', data: fb });
-                });
-            } else {
-                // Horizontal modda: tek bir content item
-                items.push({ id: 'freebarbers-content-horizontal', type: 'freebarbers-content-horizontal', data: freeBarbers });
-            }
-        } else {
-            items.push({ id: 'freebarbers-empty', type: 'freebarbers-empty' });
-        }
-
-        return items;
-    }, [loading, freeLoading, hasStores, hasFreeBarbers, stores, freeBarbers, expanded, expandedFreeBarber]);
+    }, [freeBarbers, handleMapItemPress]);
 
     return (
         <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
-            <View className={isMapMode ? "absolute top-0 left-0 right-0 z-10 px-4 pt-0 pb-2 bg-transparent " : ""}>
+            {/* Search Bar */}
+            <View className={isMapMode ? "absolute top-0 left-0 right-0 z-10 px-4 pt-0 pb-2 bg-transparent" : ""}>
                 <View className="flex flex-row items-center gap-2 mt-2">
                     <View className="flex flex-1">
                         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                     </View>
                     <FormatListButton isList={isList} setIsList={setIsList} />
-                    <FilterButton onPress={present} />
+                    <FilterButton onPress={presentFilter} />
                 </View>
             </View>
 
+            {/* Map or List View */}
             {isMapMode ? (
                 <View className="absolute inset-0 z-0">
                     <MapView style={{ flex: 1 }} userInterfaceStyle="dark" showsUserLocation={true}>
@@ -242,141 +199,42 @@ const Index = () => {
                     </MapView>
                 </View>
             ) : (
-                <FlatList
-                    data={listData}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ paddingBottom: 16 }}
+                <ScrollView
                     showsVerticalScrollIndicator={false}
-                    renderItem={({ item }) => {
-                        if (item.type === 'stores-header') {
-                            return (
-                                <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">İşletmeler</Text>
-                                    {hasStores && (
-                                        <MotiViewExpand
-                                            expanded={expanded}
-                                            onPress={() => toggleExpand(expanded, setExpanded)}
-                                        />
-                                    )}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'stores-loading') {
-                            return (
-                                <View className="pt-4">
-                                    {Array.from({ length: 2 }).map((_, i) => (
-                                        <SkeletonComponent key={i} />
-                                    ))}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'stores-empty') {
-                            return (
-                                <View style={{ minHeight: 200, maxHeight: 400 }}>
-                                    <EmptyState
-                                        loading={loading}
-                                        locationStatus={locationStatus}
-                                        hasLocation={hasLocation}
-                                        fetchedOnce={fetchedOnce}
-                                        hasData={hasStores}
-                                        noResultText="Yakınında şu an listelenecek işletme bulunamadı"
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'store') {
-                            return (
-                                <StoreCardInner
-                                    store={item.data}
-                                    isList={isList}
-                                    expanded={expanded}
-                                    cardWidthStore={cardWidthStore}
-                                    onPressUpdate={goStoreDetail}
-                                    onPressRatings={handlePressRatings}
-                                />
-                            );
-                        }
-                        if (item.type === 'stores-content-horizontal') {
-                            return (
-                                <View style={{ overflow: 'hidden', minHeight: 200 }}>
-                                    <FlatList
-                                        data={item.data}
-                                        keyExtractor={(store) => store.id}
-                                        renderItem={renderStoreItem}
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={{ gap: 12, paddingTop: 8 }}
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-header') {
-                            return (
-                                <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">Serbest Berberler</Text>
-                                    {hasFreeBarbers && (
-                                        <MotiViewExpand
-                                            expanded={expandedFreeBarber}
-                                            onPress={() => toggleExpand(expandedFreeBarber, setExpandedFreeBarber)}
-                                        />
-                                    )}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-loading') {
-                            return (
-                                <View className="pt-4">
-                                    {Array.from({ length: 2 }).map((_, i) => (
-                                        <SkeletonComponent key={i} />
-                                    ))}
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarbers-empty') {
-                            return (
-                                <View style={{ minHeight: 200, maxHeight: 400 }}>
-                                    <EmptyState
-                                        loading={freeLoading}
-                                        locationStatus={freeStatus}
-                                        hasLocation={freeHasLocation}
-                                        fetchedOnce={freeFetchedOnce}
-                                        hasData={hasFreeBarbers}
-                                        noResultText="Yakınında şu an listelenecek serbest berber bulunamadı"
-                                    />
-                                </View>
-                            );
-                        }
-                        if (item.type === 'freebarber') {
-                            return (
-                                <FreeBarberCardInner
-                                    freeBarber={item.data}
-                                    isList={isList}
-                                    expanded={expandedFreeBarber}
-                                    cardWidthFreeBarber={cardWidthFreeBarber}
-                                    onPressUpdate={goFreeBarberDetail}
-                                    onPressRatings={handlePressRatings}
-                                />
-                            );
-                        }
-                        if (item.type === 'freebarbers-content-horizontal') {
-                            return (
-                                <View style={{ overflow: 'hidden', minHeight: 200 }}>
-                                    <FlatList
-                                        data={item.data}
-                                        keyExtractor={(fb) => fb.id}
-                                        renderItem={renderFreeBarberItem}
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 8 }}
-                                    />
-                                </View>
-                            );
-                        }
-                        return null;
-                    }}
-                />
+                    contentContainerStyle={{ paddingBottom: 80 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#f05e23"
+                        />
+                    }
+                >
+                    <StoresSection
+                        stores={stores}
+                        loading={storesLoading}
+                        hasLocation={storesHasLocation}
+                        locationStatus={storesLocationStatus}
+                        fetchedOnce={storesFetchedOnce}
+                        isList={isList}
+                        onPressStore={goStoreDetail}
+                        onPressRatings={handlePressRatings}
+                    />
+
+                    <FreeBarbersSection
+                        freeBarbers={freeBarbers}
+                        loading={freeBarbersLoading}
+                        hasLocation={freeBarbersHasLocation}
+                        locationStatus={freeBarbersLocationStatus}
+                        fetchedOnce={freeBarbersFetchedOnce}
+                        isList={isList}
+                        onPressFreeBarber={goFreeBarberDetail}
+                        onPressRatings={handlePressRatings}
+                    />
+                </ScrollView>
             )}
 
+            {/* Map Toggle Button */}
             <TouchableOpacity
                 onPress={() => setIsMapMode(!isMapMode)}
                 className="absolute right-4 bottom-6 w-14 h-14 bg-[#38393b] rounded-full items-center justify-center z-20 shadow-lg border border-[#47494e]"
@@ -385,6 +243,7 @@ const Index = () => {
                 <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={28} style={{ margin: 0 }} />
             </TouchableOpacity>
 
+            {/* Bottom Sheets */}
             <FilterBottomSheet
                 sheetKey="addFilter"
                 selectedType={selectedType}
@@ -395,6 +254,7 @@ const Index = () => {
                 hasService={hasService}
                 toggleService={toggleService}
             />
+
             <BottomSheetModal
                 ref={(inst) => setRef("mapDetail", inst)}
                 snapPoints={isMapMode ? ["75%", "100%"] : ["100%"]}
@@ -414,7 +274,6 @@ const Index = () => {
                 </BottomSheetView>
             </BottomSheetModal>
 
-            {/* Yorumlar Bottom Sheet */}
             <BottomSheetModal
                 ref={(inst) => setRef("ratings", inst)}
                 snapPoints={["50%", "85%"]}
@@ -432,9 +291,7 @@ const Index = () => {
                     <RatingsBottomSheet
                         targetId={selectedRatingsTarget.targetId}
                         targetName={selectedRatingsTarget.targetName}
-                        onClose={() => {
-                            setSelectedRatingsTarget(null);
-                        }}
+                        onClose={() => setSelectedRatingsTarget(null)}
                     />
                 )}
             </BottomSheetModal>

@@ -11,7 +11,7 @@ import {
     useGetBadgeCountsQuery,
     useNotifyTypingMutation
 } from '../../store/api';
-import { ChatMessageItemDto, ChatMessageDto, AppointmentStatus, UserType, BarberType } from '../../types';
+import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,17 +29,18 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const router = useRouter();
     const [messageText, setMessageText] = useState('');
     const flatListRef = useRef<FlatList>(null);
-    const { userId: currentUserId } = useAuth();
+    const { userId: currentUserId, userType: currentUserType } = useAuth();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
 
     // SignalR bağlantı kontrolü
     const { isConnected, connectionRef } = useSignalR();
 
     const { data: threads, isLoading: isLoadingThreads, refetch: refetchThreads } = useGetChatThreadsQuery();
-    const currentThread = useMemo(() =>
-        threads?.find(t => t.threadId === threadId),
-        [threads, threadId]
-    );
+    const currentThread = useMemo(() => {
+        const thread = threads?.find(t => t.threadId === threadId);
+        console.log('📋 Current thread participants count:', thread?.participants?.length || 0);
+        return thread;
+    }, [threads, threadId]);
 
     // Thread bulunamadı hatası için kontrol
     useEffect(() => {
@@ -262,6 +263,61 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         }
     }, [messages]);
 
+    // Participants'ı Map'e çevir - hızlı lookup için (senderParticipant undefined sorununu çözer)
+    // Normalize edilmiş userId ile lookup yapıyoruz (trim, toLowerCase) - backend'den gelen verilerde farklılık olabilir
+    const participantsMap = useMemo(() => {
+        if (!currentThread?.participants || !Array.isArray(currentThread.participants)) {
+            return new Map<string, ChatThreadParticipantDto>();
+        }
+        const map = new Map<string, ChatThreadParticipantDto>();
+        currentThread.participants.forEach(p => {
+            if (p.userId) {
+                // Normalize edilmiş key ile kaydet
+                const normalizedKey = p.userId.trim().toLowerCase();
+                map.set(normalizedKey, p);
+                // Orijinal key ile de kaydet (her iki durumda da çalışsın)
+                map.set(p.userId, p);
+            }
+        });
+        return map;
+    }, [currentThread?.participants]);
+
+    // Thread participants'ı mesajlar geldiğinde güncelle (yeni mesaj gönderen kullanıcılar için)
+    const [hasRefetched, setHasRefetched] = useState(false);
+
+    useEffect(() => {
+        if (messages && messages.length > 0 && currentThread && !hasRefetched) {
+            // Mesajlardaki tüm unique senderUserId'leri topla
+            const messageSenderIds = new Set<string>();
+            messages.forEach(msg => {
+                if (msg.senderUserId) {
+                    messageSenderIds.add(msg.senderUserId);
+                }
+            });
+
+            // Thread participants'ında olmayan sender'lar varsa thread'i refetch et
+            const participantIds = new Set(currentThread.participants.map(p => p.userId));
+            const missingSenders = Array.from(messageSenderIds).filter(id => !participantIds.has(id));
+
+            console.log('=== PARTICIPANT CHECK ===');
+            console.log('Message sender IDs:', Array.from(messageSenderIds));
+            console.log('Participant IDs:', Array.from(participantIds));
+            console.log('Missing senders:', missingSenders);
+            console.log('Current participants:', currentThread.participants);
+
+            if (missingSenders.length > 0) {
+                console.log('⚠️ Missing participants detected, refetching threads...');
+                setHasRefetched(true);
+                refetchThreads().then(() => {
+                    console.log('✅ Threads refetched successfully');
+                }).catch((error) => {
+                    console.error('❌ Refetch error:', error);
+                    setHasRefetched(false); // Hata olursa tekrar denesin
+                });
+            }
+        }
+    }, [messages, currentThread?.participants, refetchThreads, hasRefetched]);
+
     // Auto-scroll to bottom when new messages arrive (inverted FlatList: scroll to index 0 = visual bottom)
     useEffect(() => {
         if (sortedMessages && sortedMessages.length > 0) {
@@ -307,60 +363,96 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                         <Icon source="chevron-left" size={28} color="white" />
                     </TouchableOpacity>
                     <View className="flex-1 ml-0">
-                        {/* Participants Tab */}
+                        {/* Participants Tab - kullanıcı türüne göre görünüm */}
                         {currentThread.participants.length > 0 && (
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
                                 className="px-2 py-2"
                             >
-                                {currentThread.participants.map((participant) => (
-                                    <View key={participant.userId} className="flex-row items-center mr-4">
-                                        <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
-                                            {participant.imageUrl ? (
-                                                <Image
-                                                    source={{ uri: participant.imageUrl }}
-                                                    className="w-full h-full"
-                                                    resizeMode="cover"
-                                                />
-                                            ) : (
-                                                <Icon
-                                                    source={
-                                                        participant.userType === UserType.BarberStore
-                                                            ? "store"
-                                                            : participant.userType === UserType.FreeBarber
-                                                                ? "account-supervisor"
-                                                                : "account"
-                                                    }
-                                                    size={20}
-                                                    color="white"
-                                                />
-                                            )}
-                                        </View>
-                                        <View>
-                                            <Text className="text-white text-base font-ibm-plex-sans-medium" numberOfLines={1}>
-                                                {participant.displayName}
-                                            </Text>
+                                {currentThread.participants.map((participant) => {
+                                    // Kullanıcı türüne göre participant etiketi belirle
+                                    const getParticipantLabel = () => {
+                                        // Eğer participant kendi türümüzle aynıysa, tür etiketi gösterme
+                                        if (participant.userType === currentUserType) {
+                                            return null;
+                                        }
 
-                                            {participant.barberType !== undefined && participant.barberType !== null && (
-                                                <View className='flex-row items-center'>
-                                                    <Text className='text-gray-500 text-xs font-ibm-plex-sans-medium'>{(participant.userType === UserType.BarberStore ? "Dükkan" :
-                                                        participant.userType === UserType.FreeBarber ? "Serbest Berber" :
-                                                            "Müşteri")} - </Text>
-                                                    <Text className="text-gray-500 text-xs">
-                                                        {participant.userType === UserType.FreeBarber
-                                                            ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
-                                                            : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
-                                                                participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
-                                                                    "Güzellik Salonu")
+                                        // Participant'ın türüne göre etiket
+                                        if (participant.userType === UserType.BarberStore) {
+                                            return 'Dükkan';
+                                        } else if (participant.userType === UserType.FreeBarber) {
+                                            return 'Serbest Berber';
+                                        } else if (participant.userType === UserType.Customer) {
+                                            return 'Müşteri';
+                                        }
+                                        return null;
+                                    };
+
+                                    const participantLabel = getParticipantLabel();
+
+                                    // BarberType bilgisini göster (eğer varsa)
+                                    const getBarberTypeLabel = () => {
+                                        if (participant.barberType === undefined || participant.barberType === null) {
+                                            return null;
+                                        }
+
+                                        if (participant.userType === UserType.FreeBarber) {
+                                            return participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın";
+                                        } else if (participant.userType === UserType.BarberStore) {
+                                            if (participant.barberType === BarberType.MaleHairdresser) return "Erkek Berberi";
+                                            if (participant.barberType === BarberType.FemaleHairdresser) return "Kadın Kuaförü";
+                                            return "Güzellik Salonu";
+                                        }
+                                        return null;
+                                    };
+
+                                    const barberTypeLabel = getBarberTypeLabel();
+
+                                    return (
+                                        <View key={participant.userId} className="flex-row items-center mr-4">
+                                            <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
+                                                {participant.imageUrl ? (
+                                                    <Image
+                                                        source={{ uri: participant.imageUrl }}
+                                                        className="w-full h-full"
+                                                        resizeMode="cover"
+                                                    />
+                                                ) : (
+                                                    <Icon
+                                                        source={
+                                                            participant.userType === UserType.BarberStore
+                                                                ? "store"
+                                                                : participant.userType === UserType.FreeBarber
+                                                                    ? "account-supervisor"
+                                                                    : "account"
                                                         }
+                                                        size={20}
+                                                        color="white"
+                                                    />
+                                                )}
+                                            </View>
+                                            <View>
+                                                <View className="flex-row items-center gap-1 flex-wrap">
+                                                    <Text className="text-white text-base font-ibm-plex-sans-medium" numberOfLines={1}>
+                                                        {participant.displayName} -
                                                     </Text>
+                                                    {participantLabel && (
+                                                        <Text className="text-gray-400 text-xs font-ibm-plex-sans-medium">
+                                                            {participantLabel}
+                                                        </Text>
+                                                    )}
                                                 </View>
 
-                                            )}
+                                                {barberTypeLabel && (
+                                                    <Text className="text-gray-500 text-xs">
+                                                        {barberTypeLabel}
+                                                    </Text>
+                                                )}
+                                            </View>
                                         </View>
-                                    </View>
-                                ))}
+                                    );
+                                })}
                             </ScrollView>
                         )}
                         {currentThread.status !== null && currentThread.status !== undefined && (
@@ -397,24 +489,39 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                 }}
                 renderItem={({ item }: { item: ChatMessageItemDto }) => {
                     const isMe = item.senderUserId === currentUserId;
-                    const senderParticipant = currentThread.participants.find(p => p.userId === item.senderUserId);
+
+                    // Participants Map'inden lookup
+                    let senderParticipant: ChatThreadParticipantDto | null = null;
+                    if (item.senderUserId) {
+                        const normalizedKey = item.senderUserId.trim().toLowerCase();
+                        senderParticipant = participantsMap.get(normalizedKey) || participantsMap.get(item.senderUserId) || null;
+                    }
+
+                    // Fallback: Eğer participant bulunamadıysa, mesajdan bilgi oluştur
+                    const displayInfo = senderParticipant || {
+                        userId: item.senderUserId,
+                        displayName: item.senderUserId?.substring(0, 8) || 'Bilinmeyen',
+                        userType: UserType.Customer, // Default
+                        imageUrl: null,
+                        barberType: null
+                    };
 
                     return (
                         <View className={`flex-row items-start gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
-                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-start justify-start">
-                                    {senderParticipant?.imageUrl ? (
+                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
+                                    {displayInfo.imageUrl ? (
                                         <Image
-                                            source={{ uri: senderParticipant.imageUrl }}
+                                            source={{ uri: displayInfo.imageUrl }}
                                             className="w-full h-full"
                                             resizeMode="cover"
                                         />
                                     ) : (
                                         <Icon
                                             source={
-                                                senderParticipant?.userType === UserType.BarberStore
+                                                displayInfo.userType === UserType.BarberStore
                                                     ? "store"
-                                                    : senderParticipant?.userType === UserType.FreeBarber
+                                                    : displayInfo.userType === UserType.FreeBarber
                                                         ? "account-supervisor"
                                                         : "account"
                                             }
@@ -432,10 +539,23 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                         : 'bg-gray-700 rounded-tl-sm'
                                         }`}
                                 >
-                                    {!isMe && senderParticipant && (
-                                        <Text className="text-gray-300 text-xs mb-1 font-ibm-plex-sans-medium">
-                                            {senderParticipant.displayName}
-                                        </Text>
+                                    {!isMe && (
+                                        <View className="flex-row items-center gap-1 mb-1">
+                                            <Text className="text-gray-300 text-xs font-ibm-plex-sans-medium">
+                                                {displayInfo.displayName} -
+                                            </Text>
+                                            {/* Kullanıcı türüne göre sender etiketi - sadece kendi türümüzden farklıysa göster */}
+                                            {senderParticipant && senderParticipant.userType !== currentUserType && (
+                                                <Text className="text-gray-400 text-xs font-ibm-plex-sans-regular">
+                                                    {senderParticipant.userType === UserType.BarberStore ? 'Dükkan' :
+                                                        senderParticipant.userType === UserType.FreeBarber ? 'Serbest Berber' :
+                                                            'Müşteri'}
+                                                </Text>
+                                            )}
+                                            {!senderParticipant && (
+                                                <Text className="text-gray-500 text-xs"> (yükleniyor...)</Text>
+                                            )}
+                                        </View>
                                     )}
                                     <Text className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}>
                                         {item.text}
@@ -448,7 +568,25 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
                             {isMe && (
                                 <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
-                                    <Icon source="account" size={20} color="white" />
+                                    {currentThread?.currentUserImageUrl ? (
+                                        <Image
+                                            source={{ uri: currentThread.currentUserImageUrl }}
+                                            className="w-full h-full"
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <Icon
+                                            source={
+                                                currentUserType === UserType.BarberStore
+                                                    ? "store"
+                                                    : currentUserType === UserType.FreeBarber
+                                                        ? "account-supervisor"
+                                                        : "account"
+                                            }
+                                            size={20}
+                                            color="white"
+                                        />
+                                    )}
                                 </View>
                             )}
                         </View>
