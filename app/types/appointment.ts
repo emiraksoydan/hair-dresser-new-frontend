@@ -80,6 +80,7 @@ export type AppointmentGetDto = {
   myRatingForStore?: number;
   myCommentForStore?: string;
   storeAverageRating?: number; // Store'un ortalama rating'i
+  storeAddressDescription?: string; // Dükkan adres açıklaması
 
   // FreeBarber
   freeBarberId?: string;

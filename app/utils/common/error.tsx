@@ -21,6 +21,16 @@ interface ApiError {
  * Extracts error message from various error formats
  */
 export const extractErrorMessage = (error: unknown): string => {
+    // Handle null/undefined
+    if (error == null) {
+        return 'İşlem başarısız.';
+    }
+
+    // Handle string errors
+    if (typeof error === 'string') {
+        return error;
+    }
+
     const e = error as ApiError;
 
     return (
@@ -29,7 +39,7 @@ export const extractErrorMessage = (error: unknown): string => {
         e?.error?.message ??
         e?.error?.data?.message ??
         e?.message ??
-        (typeof error === 'string' ? error : 'İşlem başarısız.')
+        'İşlem başarısız.'
     );
 };
 
@@ -37,21 +47,40 @@ export const extractErrorMessage = (error: unknown): string => {
  * Checks if error is a duplicate/slot taken error
  */
 export const isDuplicateSlotError = (error: unknown): boolean => {
-    const errorMessage = extractErrorMessage(error).toLowerCase();
-    const fullErrorString = JSON.stringify(error).toLowerCase();
+    // Handle null/undefined errors
+    if (error == null) {
+        return false;
+    }
+
+    const errorMessage = extractErrorMessage(error);
+    if (!errorMessage || typeof errorMessage !== 'string') {
+        return false;
+    }
+
+    const lowerErrorMessage = errorMessage.toLowerCase();
+
+    // Safely stringify error for full text search
+    let fullErrorString = '';
+    try {
+        const stringified = JSON.stringify(error);
+        fullErrorString = stringified ? stringified.toLowerCase() : '';
+    } catch {
+        // If stringify fails, just use empty string
+        fullErrorString = '';
+    }
 
     return (
-        errorMessage.includes("duplicate key") ||
-        errorMessage.includes("ix_appointments") ||
-        errorMessage.includes("cannot insert duplicate") ||
-        errorMessage.includes("unique index") ||
-        errorMessage.includes("sqlexception") ||
-        errorMessage.includes("sql exception") ||
-        errorMessage.includes("alındı") ||
-        errorMessage.includes("slot taken") ||
-        errorMessage.includes("slottaken") ||
-        errorMessage.includes("already booked") ||
-        errorMessage.includes("already reserved") ||
+        lowerErrorMessage.includes("duplicate key") ||
+        lowerErrorMessage.includes("ix_appointments") ||
+        lowerErrorMessage.includes("cannot insert duplicate") ||
+        lowerErrorMessage.includes("unique index") ||
+        lowerErrorMessage.includes("sqlexception") ||
+        lowerErrorMessage.includes("sql exception") ||
+        lowerErrorMessage.includes("alındı") ||
+        lowerErrorMessage.includes("slot taken") ||
+        lowerErrorMessage.includes("slottaken") ||
+        lowerErrorMessage.includes("already booked") ||
+        lowerErrorMessage.includes("already reserved") ||
         fullErrorString.includes("duplicate key") ||
         fullErrorString.includes("ix_appointments") ||
         fullErrorString.includes("cannot insert duplicate") ||

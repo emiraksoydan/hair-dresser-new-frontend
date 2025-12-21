@@ -5,6 +5,7 @@
 
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
+import { LegendList } from '@legendapp/list';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
@@ -56,30 +57,18 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 : null;
 
         const handlePress = () => {
-            // Route prefix'e göre detail sayfasına yönlendir
-            // ThreadId kullanarak yönlendirme yapıyoruz
-            if (routePrefix.includes('(barberstoretabs)')) {
-                router.push(`/(barberstoretabs)/(messages)/(details)/${item.threadId}`);
-            } else if (routePrefix.includes('(customertabs)')) {
-                router.push(`/(customertabs)/(messages)/${item.threadId}`);
-            } else if (routePrefix.includes('(freebarbertabs)')) {
-                router.push(`/(freebarbertabs)/(messages)/${item.threadId}`);
-            } else {
-                router.push(`${routePrefix}/${item.threadId}`);
-            }
+            // Screens klasöründeki chat sayfasına yönlendir
+            router.push(`/(screens)/chat/${item.threadId}`);
         };
 
         // Participant'ları render et
         const renderParticipant = (participant: ChatThreadParticipantDto, index: number) => {
             const isFirst = index === 0;
             // Fallback: Eğer displayName veya imageUrl yoksa, userType'a göre varsayılan göster
-            const displayName = participant.displayName ||
-                (participant.userType === UserType.BarberStore ? "Dükkan" :
-                    participant.userType === UserType.FreeBarber ? "Serbest Berber" :
-                        "Kullanıcı");
+            const displayName = participant.displayName;
 
             return (
-                <View key={participant.userId} className={`flex-row items-center ${!isFirst ? 'ml-2' : ''}`}>
+                <View key={participant.userId} className={`flex-row items-start ${!isFirst ? 'ml-2' : ''}`}>
                     <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
                         {participant.imageUrl ? (
                             <Image
@@ -101,20 +90,50 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             />
                         )}
                     </View>
-                    <View className="ml-2">
-                        <Text className="text-white text-xs font-ibm-plex-sans-medium" numberOfLines={1}>
-                            {displayName}
-                        </Text>
-                        {participant.barberType !== undefined && participant.barberType !== null && (
-                            <Text className="text-gray-500 text-xs">
-                                {participant.userType === UserType.FreeBarber
-                                    ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
-                                    : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
-                                        participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
-                                            "Güzellik Salonu")
-                                }
+                    <View className="ml-2 gap-1">
+                        <View className='flex-row gap-2 items-center'>
+                            <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1}>
+                                {displayName} -
                             </Text>
+                            {item.isFavoriteThread && (
+                                <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center">
+                                    <Icon source="heart" size={12} color="#fbbf24" />
+                                    <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium ml-1">
+                                        Favori
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {participant.barberType !== undefined && participant.barberType !== null && (
+                            <View className='flex-row'>
+                                <Text className="text-gray-500 text-xs">
+                                    {participant.userType === UserType.FreeBarber
+                                        ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
+                                        : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
+                                            participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                                "Güzellik Salonu")
+                                    } -
+                                </Text>
+                                <Text className="text-gray-500 text-xs"> {(participant.userType === UserType.BarberStore ? "Dükkan" :
+                                    participant.userType === UserType.FreeBarber ? "Serbest Berber" :
+                                        "Kullanıcı")}</Text>
+                            </View>
+
                         )}
+                        {item.lastMessagePreview && (
+                            <View className='flex-row items-center gap-2 mt-0'>
+                                <Icon source="message-text" size={12} color={hasUnread ? "#22c55e" : "#6b7280"} />
+                                <Text
+                                    className={`text-sm mb-0 ${hasUnread ? 'text-white font-ibm-plex-sans-medium' : 'text-gray-400 font-ibm-plex-sans-regular'}`}
+                                    numberOfLines={2}
+                                >
+                                    {item.lastMessagePreview}
+                                </Text>
+                            </View>
+
+                        )}
+
                     </View>
                 </View>
             );
@@ -123,9 +142,24 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         return (
             <TouchableOpacity
                 onPress={handlePress}
-                className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700/50"
+                className="bg-gray-800 rounded-xl pt-2 p-4 mb-3 border border-gray-700/50"
             >
-                <View className="flex-row items-start gap-3">
+                {statusText && statusColor && (
+                    <View className="flex-row items-center mb-2 justify-end">
+                        <View
+                            className="px-2 py-1 rounded"
+                            style={{ backgroundColor: statusColor + COLORS.OPACITY.LIGHT }}
+                        >
+                            <Text
+                                className="text-xs font-ibm-plex-sans-medium"
+                                style={{ color: statusColor }}
+                            >
+                                {statusText}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+                <View className="flex-row justify-between">
                     {/* Participants Row */}
                     {item.participants.length > 0 ? (
                         <View className="flex-row items-center">
@@ -138,60 +172,28 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                     )}
 
                     <View className="flex-1">
-                        <View className="flex-row items-center justify-between mb-1">
-                            <Text className="text-white font-ibm-plex-sans-bold text-base flex-1" numberOfLines={1}>
-                                {item.title}
-                            </Text>
-                            <View className="flex-row items-center gap-2">
-                                {/* Mesaj ikonu - her zaman göster, unread varsa badge ile */}
-                                <View className="relative">
-                                    <Icon source="message-text" size={18} color={hasUnread ? "#22c55e" : "#6b7280"} />
-                                    {hasUnread && item.unreadCount > 0 && (
-                                        <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                                            <Text className="text-white text-[8px] font-bold">
-                                                {item.unreadCount > 9 ? '9+' : item.unreadCount}
-                                            </Text>
-                                        </View>
-                                    )}
-                                </View>
-                                {item.lastMessageAt && (
-                                    <Text className="text-gray-500 text-xs">
-                                        {formatTime(item.lastMessageAt)}
-                                    </Text>
+                        <View className="items-end gap-2">
+                            {/* Mesaj ikonu - her zaman göster, unread varsa badge ile */}
+                            <View className="relative items-center justify-center">
+                                <Icon source="message-text" size={18} color={hasUnread ? "#22c55e" : "#6b7280"} />
+                                {hasUnread && item.unreadCount > 0 && (
+                                    <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                                        <Text className="text-white text-[8px] font-bold">
+                                            {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                                        </Text>
+                                    </View>
                                 )}
                             </View>
-                        </View>
-
-                        {item.lastMessagePreview && (
-                            <Text
-                                className={`text-sm mb-2 ${hasUnread ? 'text-white font-ibm-plex-sans-medium' : 'text-gray-400 font-ibm-plex-sans-regular'}`}
-                                numberOfLines={2}
-                            >
-                                {item.lastMessagePreview}
-                            </Text>
-                        )}
-
-                        <View className="flex-row items-center gap-2 flex-wrap">
-                            {statusText && statusColor && (
-                                <View
-                                    className="px-2 py-1 rounded"
-                                    style={{ backgroundColor: statusColor + COLORS.OPACITY.LIGHT }}
-                                >
-                                    <Text
-                                        className="text-xs font-ibm-plex-sans-medium"
-                                        style={{ color: statusColor }}
-                                    >
-                                        {statusText}
-                                    </Text>
-                                </View>
-                            )}
-                            {item.isFavoriteThread && (
-                                <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center">
-                                    <Icon source="heart" size={12} color="#fbbf24" />
-                                    <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium ml-1">
-                                        Favori
-                                    </Text>
-                                </View>
+                            {item.lastMessageAt && (
+                                <Text className="text-gray-500 text-xs">
+                                    {new Date(item.lastMessageAt).toLocaleString('tr-TR', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </Text>
                             )}
                         </View>
                     </View>
@@ -222,15 +224,16 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
 
     return (
         <View className="flex-1 bg-[#151618]">
-            <FlatList
+            <LegendList
                 data={filteredThreads}
                 keyExtractor={(item) => item.threadId}
+                estimatedItemSize={100}
                 contentContainerStyle={{ padding: 16, gap: 12 }}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isFetching}
+                        refreshing={isFetching && !isLoading}
                         onRefresh={refetch}
-                        tintColor={COLORS.UI.ACCENT}
+                        tintColor="#f05e23"
                     />
                 }
                 renderItem={renderItem}

@@ -62,51 +62,46 @@ export const NotificationItem = React.memo(({
         if (payload?.status !== undefined) {
             return payload.status as AppointmentStatus;
         }
+        // Eğer notification type AppointmentUnanswered ise, status Unanswered olmalı
+        if (item.type === NotificationType.AppointmentUnanswered) {
+            return AppointmentStatus.Unanswered;
+        }
         return AppointmentStatus.Pending;
-    }, [item.payloadJson]); // payload?.status yerine item.payloadJson kullan
+    }, [item.payloadJson, item.type]); // item.type da dependency'ye eklendi
     const recipientRole = payload?.recipientRole;
-    const hasStore = !!payload?.store;
-    const hasFreeBarber = !!payload?.freeBarber;
+    // Store kontrolü: store objesi var mı ve içinde storeId veya storeOwnerUserId var mı?
+    // FreeBarber kontrolü: freeBarber objesi var mı ve içinde userId var mı?
 
-    // Buton gösterme kuralları
-    // ÖNEMLİ: AppointmentUnanswered notification'ında da buton gösterilmemeli (status Unanswered olduğu için)
-    // Approved, Rejected, Cancelled, Completed durumlarında butonlar gösterilmemeli (decision zaten verilmiş veya randevu sonlandırılmış)
+    // Status durumları
+    const isPending = status === AppointmentStatus.Pending;
     const isApproved = status === AppointmentStatus.Approved;
     const isRejected = status === AppointmentStatus.Rejected;
     const isCancelled = status === AppointmentStatus.Cancelled;
     const isCompleted = status === AppointmentStatus.Completed;
     const isUnanswered = status === AppointmentStatus.Unanswered;
 
-    // Decision butonları sadece Pending durumunda ve kullanıcı karar verebilecek durumda gösterilmeli
-    // ÖNEMLİ: Payload'daki status'a göre kontrol et (backend'den gelen güncel status)
-    // Decision verildikten sonra payload güncellenir ve butonlar otomatik gizlenir
-    const showDecisionButtons = (item.type === NotificationType.AppointmentCreated || item.type === NotificationType.AppointmentUnanswered) &&
-        status === AppointmentStatus.Pending &&
-        !isApproved &&
-        !isRejected &&
-        !isCancelled &&
-        !isCompleted &&
-        !isUnanswered &&
-        userType !== null &&
-        ((userType === UserType.BarberStore && (recipientRole === 'store' || (hasStore && !hasFreeBarber))) ||
-            (userType === UserType.FreeBarber && (recipientRole === 'freebarber' || (hasFreeBarber && !hasStore))));
-
     // Decision verilip verilmediğini kontrol et (payload'daki decision'lara göre)
-    // ÖNEMLİ: Decision'lar number olarak geliyor (DecisionStatus enum değeri)
-    const storeDecision = payload?.storeDecision as number | undefined;
-    const freeBarberDecision = payload?.freeBarberDecision as number | undefined;
-    const hasStoreDecision = storeDecision !== undefined &&
-        storeDecision !== DecisionStatus.Pending &&
-        storeDecision !== DecisionStatus.NoAnswer;
-    const hasFreeBarberDecision = freeBarberDecision !== undefined &&
-        freeBarberDecision !== DecisionStatus.Pending &&
-        freeBarberDecision !== DecisionStatus.NoAnswer;
+    // ÖNEMLİ: Backend'den decision'lar bazen boolean (true/false) bazen number (0,1,2,3) olarak gelebilir
+    // DecisionStatus: 0=Pending, 1=Approved, 2=Rejected, 3=NoAnswer
+    // Boolean değerler backend bug'ı olabilir, bu durumda decision verilmemiş sayıyoruz
 
-    // Eğer decision verilmişse butonları gösterme
-    const decisionAlreadyGiven = (recipientRole === 'store' && hasStoreDecision) ||
-        (recipientRole === 'freebarber' && hasFreeBarberDecision);
+    // Decision değerini normalize et: sadece geçerli number değerlerini kabul et
 
-    // Süre (Expires) Hesaplama
+
+    const storeDecision = payload?.storeDecision;
+    const freeBarberDecision = payload?.freeBarberDecision;
+
+    // Butonları göstermek için decision kontrolü:
+    // - Decision undefined ise → butonlar gösterilir (henüz karar verilmemiş)
+    // - Decision Pending (0) ise → butonlar gösterilir (karar bekleniyor)
+    // - Decision Approved (1), Rejected (2) veya NoAnswer (3) ise → butonlar gösterilmez
+    const canShowStoreButtons = storeDecision !== undefined &&
+        storeDecision === DecisionStatus.Pending;
+
+    const canShowFreeBarberButtons = freeBarberDecision !== undefined &&
+        freeBarberDecision === DecisionStatus.Pending;
+
+    // Süre (Expires) Hesaplama - Decision butonları için kritik
     let expiresAt: Date | null = null;
     if (payload?.pendingExpiresAt) {
         let dateStr = payload.pendingExpiresAt;
@@ -114,7 +109,8 @@ export const NotificationItem = React.memo(({
             dateStr += 'Z';
         }
         expiresAt = new Date(dateStr);
-    } else {
+    } else if (isPending) {
+        // Eğer pendingExpiresAt yoksa ama status Pending ise, createdAt + 5 dakika
         let createdStr = item.createdAt;
         if (typeof createdStr === 'string' && !createdStr.endsWith('Z') && !createdStr.includes('+')) {
             createdStr += 'Z';
@@ -126,26 +122,45 @@ export const NotificationItem = React.memo(({
     const now = new Date();
     const isExpired = expiresAt ? now.getTime() > expiresAt.getTime() : false;
 
+
+
+
+    // Decision butonları gösterilme koşulları:
+    // 1. Notification type AppointmentCreated olmalı (AppointmentUnanswered'da buton gösterilmez - süre dolmuş)
+    // 2. Status Pending olmalı (Approved, Rejected, Cancelled, Completed, Unanswered durumlarında gösterilmez)
+    // 3. İlgili kullanıcının decision'ı verilmemiş olmalı (Pending veya NoAnswer)
+    // 4. Süre dolmamış olmalı
+    // 5. Kullanıcı tipi BarberStore veya FreeBarber olmalı
+    const showDecisionButtons = item.type === NotificationType.AppointmentCreated && // Sadece AppointmentCreated'da buton göster
+        isPending && // Status Pending olmalı
+        !isExpired && // Süre dolmamış olmalı
+        userType !== null &&
+        // BarberStore kullanıcısı için: payload'da store varsa ve decision Pending/undefined ise
+        ((userType === UserType.BarberStore && canShowStoreButtons) ||
+            // FreeBarber kullanıcısı için: payload'da freeBarber varsa ve decision Pending/undefined ise
+            (userType === UserType.FreeBarber && canShowFreeBarberButtons));
+
+
+
     // Durum gösterimi: Approved, Rejected, Cancelled, Completed, Unanswered durumlarında durum gösterilmeli
+    // Pending durumunda durum gösterilmez (butonlar gösterilir)
     const showDecisionStatus = (isApproved || isRejected || isCancelled || isCompleted || isUnanswered) &&
         (item.type === NotificationType.AppointmentCreated ||
+            item.type === NotificationType.AppointmentApproved ||
+            item.type === NotificationType.AppointmentRejected ||
             item.type === NotificationType.AppointmentCancelled ||
             item.type === NotificationType.AppointmentCompleted ||
             item.type === NotificationType.AppointmentUnanswered);
 
     // Karar verilmesi gereken (Pending) bir bildirim mi?
-    const isCreatedType = (item.type === NotificationType.AppointmentCreated && status === AppointmentStatus.Pending) ||
-        (item.type === NotificationType.AppointmentUnanswered && status === AppointmentStatus.Pending);
+    // AppointmentCreated notification'ında ve status Pending ise karar bekleniyor demektir
+    const isCreatedType = item.type === NotificationType.AppointmentCreated && isPending;
 
-    // Butonlar sadece Pending durumunda VE durum gösterilmediğinde VE decision verilmemişse gösterilmeli
-    // Cancelled, Completed veya Unanswered durumunda butonlar gösterilmemeli
-    // Decision verilmişse (Approved/Rejected) butonlar gösterilmemeli
-    const shouldShowButtons = showDecisionButtons &&
-        !showDecisionStatus &&
-        !isCancelled &&
-        !isCompleted &&
-        !isUnanswered &&
-        !decisionAlreadyGiven;
+    // Butonlar gösterilme koşulları:
+    // 1. showDecisionButtons true olmalı (yukarıdaki tüm koşullar sağlanmalı)
+    // 2. Durum gösterilmemeli (Pending durumunda durum gösterilmez)
+    // 3. Status Pending olmalı (zaten showDecisionButtons'da kontrol ediliyor ama ekstra güvenlik)
+    const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending;
 
     const serviceOfferings = Array.isArray(payload?.serviceOfferings) ? payload.serviceOfferings : [];
 
@@ -183,6 +198,15 @@ export const NotificationItem = React.memo(({
 
                 {payload && (
                     <View className="mt-2 pt-3 border-t border-[#2a2c30]">
+                        {/* Randevu ID */}
+                        {item.appointmentId && (
+                            <View className="mb-3 pb-2 border-b border-[#2a2c30]">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon source="tag" size={14} color="#6b7280" />
+                                    <Text className="text-[#6b7280] text-xs">Randevu ID: {item.appointmentId.substring(0, 8)}...</Text>
+                                </View>
+                            </View>
+                        )}
 
                         {/* Tarih ve Saat */}
                         {payload.date && payload.startTime && payload.endTime && (
@@ -275,8 +299,8 @@ export const NotificationItem = React.memo(({
                             </View>
                         )}
 
-                        {/* BUTONLAR - Sadece Pending durumunda ve durum gösterilmediğinde */}
-                        {shouldShowButtons && !isExpired && (
+                        {/* BUTONLAR - Sadece Pending durumunda, süre dolmamışsa ve decision verilmemişse */}
+                        {shouldShowButtons && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
                                 <View className="flex-row gap-2">
                                     <TouchableOpacity onPress={() => onDecision(item, false)} disabled={isProcessing} className={`flex-1 bg-red-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
@@ -293,12 +317,12 @@ export const NotificationItem = React.memo(({
                             </View>
                         )}
 
-                        {/* SÜRE DOLDU - Sadece Unanswered durumunda göster */}
+                        {/* UNANSWERED DURUMU - Status Unanswered ise (süre dolmuş ve backend tarafından Unanswered'a geçirilmiş) */}
                         {isUnanswered && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
                                 <View className="p-3 bg-red-900/20 rounded-lg border border-red-800/30">
-                                    <Text className="text-red-400 text-xs text-center font-semibold">⏰ Süre Doldu</Text>
-                                    <Text className="text-[#9ca3af] text-xs text-center mt-1">Randevu kararı için süre dolmuş.</Text>
+                                    <Text className="text-red-400 text-xs text-center font-semibold">⏰ Cevaplanmadı</Text>
+                                    <Text className="text-[#9ca3af] text-xs text-center mt-1">Randevu kararı için süre doldu ve cevaplanmadı olarak işaretlendi.</Text>
                                 </View>
                             </View>
                         )}

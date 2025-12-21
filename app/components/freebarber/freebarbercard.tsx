@@ -88,7 +88,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite]);
     return (
         <View
-            style={{ width: cardWidthFreeBarber }}
+            style={{ width: cardWidthFreeBarber, overflow: 'hidden' }}
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >

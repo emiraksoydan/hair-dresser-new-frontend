@@ -17,7 +17,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
     animationSize = 120,
 }) => {
     return (
-        <View className="items-center justify-center pt-4" style={style}>
+        <View className="items-center justify-center py-8 px-4" style={[{ minHeight: 200, maxHeight: 400 }, style]}>
             <LottieView
                 source={animationSource}
                 autoPlay
@@ -33,7 +33,8 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
                     loop: true,
                     repeatReverse: true,
                 }}
-                className="mt-0 text-white text-lg text-center"
+                className="mt-2 text-white text-base text-center px-4"
+                numberOfLines={3}
             >
                 {message}
             </MotiText>

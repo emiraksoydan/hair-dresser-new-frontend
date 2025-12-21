@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { LegendList } from '@legendapp/list';
 import { useGetMyFavoritesQuery } from '../../store/api';
 import { FavoriteGetDto, FavoriteTargetType } from '../../types';
 import { StoreCardInner } from '../store/storecard';
@@ -18,7 +19,7 @@ type FavoritesListProps = {
 };
 
 const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
-    const { data: favorites, isLoading } = useGetMyFavoritesQuery();
+    const { data: favorites, isLoading, refetch, isFetching } = useGetMyFavoritesQuery();
     const router = useRouter();
     const { setRef, makeBackdrop } = useBottomSheetRegistry();
     const { present: presentRatings } = useSheet("ratings");
@@ -184,11 +185,19 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 
     return (
         <View className="flex-1 bg-[#151618]">
-            <FlatList
+            <LegendList
                 data={allFavorites}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
+                estimatedItemSize={200}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, paddingTop: 10 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isFetching && !isLoading}
+                        onRefresh={refetch}
+                        tintColor="#f05e23"
+                    />
+                }
                 ListEmptyComponent={
                     <View className="items-center justify-center mt-20 p-5">
                         <Icon source="heart-outline" size={48} color="#2a2c30" />

@@ -30,7 +30,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
     const handlePressCard = () => {
         onPressUpdate?.(store);
     };
-
+    console.log(isList, expanded);
     // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
     useEffect(() => {
         if (isFavoriteData !== undefined) {
@@ -76,7 +76,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
 
     return (
         <View
-            style={{ width: cardWidthStore }}
+            style={{ width: cardWidthStore, overflow: 'hidden' }}
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >

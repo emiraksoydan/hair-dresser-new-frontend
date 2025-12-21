@@ -88,7 +88,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
     return (
         <View
-            style={{ width: cardWidthStore }}
+            style={{ width: cardWidthStore, overflow: 'hidden' }}
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >

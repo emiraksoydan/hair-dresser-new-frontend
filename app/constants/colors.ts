@@ -11,6 +11,7 @@ export const COLORS = {
         COMPLETED: '#3b82f6',     // blue
         CANCELLED: '#ef4444',     // red
         REJECTED: '#ef4444',      // red
+        UNANSWERED: '#f59e0b',    // amber (timeout durumu)
         DEFAULT: '#6b7280',       // gray
     },
 

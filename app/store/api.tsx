@@ -73,6 +73,7 @@ export const api = createApi({
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
             keepUnusedDataFor: 0,
+            // refetchOnMountOrArgChange hook seviyesinde kullanılır, endpoint tanımında değil
             providesTags: (result) =>
                 result
                     ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
@@ -425,7 +426,15 @@ export const api = createApi({
         // --- RATING API ---
         createRating: builder.mutation<ApiResponse<RatingGetDto>, CreateRatingDto>({
             query: (body) => ({ url: 'Rating/create', method: 'POST', body }),
-            invalidatesTags: ['Appointment'],
+            invalidatesTags: (result, error, arg) => [
+                'Appointment',
+                // Store veya FreeBarber'a rating yapıldığında nearby listelerini de güncelle
+                { type: 'StoreForUsers' as const, id: arg.targetId },
+                { type: 'FreeBarberForUsers' as const, id: arg.targetId },
+                // Nearby listeler için genel tag'leri invalidate et
+                { type: 'MineStores' as const, id: 'NEARBY' },
+                { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+            ],
         }),
         deleteRating: builder.mutation<ApiResponse<boolean>, string>({
             query: (ratingId) => ({ url: `Rating/${ratingId}`, method: 'DELETE' }),

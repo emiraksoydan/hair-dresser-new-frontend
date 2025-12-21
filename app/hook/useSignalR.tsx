@@ -390,14 +390,15 @@ export const useSignalR = () => {
 
                     filters.forEach((filter) => {
                         dispatch(
-                            api.util.updateQueryData("getAllAppointmentByFilter", { filter }, (draft) => {
+                            api.util.updateQueryData("getAllAppointmentByFilter", filter, (draft) => {
                                 if (!draft || !Array.isArray(draft)) return;
 
                                 const existingIndex = draft.findIndex(a => a.id === appointment.id);
 
                                 // Status'e göre hangi filter'da olması gerektiğini kontrol et
+                                // Active tab'ında sadece Approved randevular görünür (Pending sadece notification'larda)
                                 const shouldBeInThisFilter =
-                                    (filter === AppointmentFilter.Active && (appointment.status === AppointmentStatus.Pending || appointment.status === AppointmentStatus.Approved)) ||
+                                    (filter === AppointmentFilter.Active && appointment.status === AppointmentStatus.Approved) ||
                                     (filter === AppointmentFilter.Completed && appointment.status === AppointmentStatus.Completed) ||
                                     (filter === AppointmentFilter.Cancelled && (appointment.status === AppointmentStatus.Cancelled || appointment.status === AppointmentStatus.Rejected || appointment.status === AppointmentStatus.Unanswered));
 
@@ -441,6 +442,41 @@ export const useSignalR = () => {
                         { type: 'Appointment', id: appointment.id },
                         { type: 'Appointment', id: 'LIST' }
                     ]));
+
+                    // ÖNEMLİ: Randevu durumu değiştiğinde thread listesini de güncelle
+                    // Thread görünürlüğü randevu durumuna bağlı (Pending/Approved = görünür, diğerleri = görünmez)
+                    // Backend'den chat.threadUpdated event'i de gelecek, ama burada da anlık güncelleme yapıyoruz
+                    dispatch(
+                        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                            if (!draft) return;
+
+                            // AppointmentId ile thread'i bul
+                            const threadIndex = draft.findIndex(t => t.appointmentId === appointment.id);
+
+                            // Randevu durumuna göre thread görünürlüğünü kontrol et
+                            const shouldBeVisible = appointment.status === AppointmentStatus.Pending ||
+                                appointment.status === AppointmentStatus.Approved;
+
+                            if (threadIndex >= 0) {
+                                // Thread mevcut
+                                if (shouldBeVisible) {
+                                    // Thread görünür olmalı - status'i güncelle (anlık güncelleme)
+                                    draft[threadIndex].status = appointment.status;
+                                    // Not: Backend'den chat.threadUpdated event'i de gelecek ve tam bilgileri güncelleyecek
+                                } else {
+                                    // Thread görünmez olmalı - anlık olarak kaldır
+                                    draft.splice(threadIndex, 1);
+                                }
+                            }
+                            // Thread yoksa ve görünür olmalıysa, backend'den chat.threadUpdated event'i gelecek
+                            // Bu yüzden burada bir şey yapmıyoruz
+                        })
+                    );
+
+                    // Thread listesini de invalidate et (backend'den güncel thread listesi çekilsin)
+                    // Bu, appointment durumu değiştiğinde thread'in anlık olarak görünmesi/kaybolması için gerekli
+                    // Ayrıca backend'den chat.threadUpdated event'i de gelecek ve tam bilgileri güncelleyecek
+                    dispatch(api.util.invalidateTags(["Chat"]));
                 });
             };
 

@@ -11,9 +11,10 @@ import {
     useGetBadgeCountsQuery,
     useNotifyTypingMutation
 } from '../../store/api';
-import { ChatMessageItemDto, AppointmentStatus, UserType, BarberType } from '../../types';
+import { ChatMessageItemDto, ChatMessageDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ChatDetailScreenProps {
     threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
@@ -95,14 +96,34 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         }
     }, [threadId, currentThread?.unreadCount, markRead]);
 
-    // Auto-scroll to bottom when new messages arrive
+    // ÖNEMLİ: ChatDetailScreen açıkken yeni mesaj geldiğinde otomatik read yap
+    // Eğer kullanıcı sohbet odasında ise, mesaj geldiğinde otomatik okundu işaretlenmeli
     useEffect(() => {
-        if (messages && messages.length > 0) {
-            setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-        }
-    }, [messages]);
+        const connection = connectionRef?.current;
+        if (!connection || !threadId || !currentUserId) return;
+
+        const handleNewMessage = async (dto: ChatMessageDto) => {
+            // Bu thread için gelen mesaj mı?
+            if (dto.threadId !== threadId) return;
+
+            // Kendi gönderdiğimiz mesaj değilse (başkasından geldiyse) otomatik read yap
+            if (dto.senderUserId !== currentUserId) {
+                try {
+                    await markRead(threadId).unwrap();
+                } catch (error) {
+                    // Hata durumunda sessizce devam et
+                }
+            }
+        };
+
+        connection.on("chat.message", handleNewMessage);
+
+        return () => {
+            if (connection) {
+                connection.off("chat.message", handleNewMessage);
+            }
+        };
+    }, [threadId, currentUserId, markRead, connectionRef]);
 
     // Typing indicator timeout
     useEffect(() => {
@@ -215,20 +236,21 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const formatMessageTime = (dateStr: string) => {
         try {
             const date = new Date(dateStr);
-            const now = new Date();
-            const diffMs = now.getTime() - date.getTime();
-            const diffMins = Math.floor(diffMs / 60000);
-
-            if (diffMins < 1) return 'Şimdi';
-            if (diffMins < 60) return `${diffMins} dk önce`;
-            if (diffMins < 1440) return `${Math.floor(diffMins / 60)} sa önce`;
-            return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleString('tr-TR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         } catch {
             return '';
         }
     };
 
-    // Reverse messages (oldest first, newest last)
+    // Messages from backend are oldest first, newest last
+    // Reverse for inverted FlatList: newest first (will appear at bottom visually)
+    // WhatsApp style: oldest at top, newest at bottom, new messages added at bottom
     const sortedMessages = useMemo(() => {
         if (!messages) return [];
         // Array kontrolü ekle - iterator hatasını önlemek için
@@ -239,6 +261,15 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             return [];
         }
     }, [messages]);
+
+    // Auto-scroll to bottom when new messages arrive (inverted FlatList: scroll to index 0 = visual bottom)
+    useEffect(() => {
+        if (sortedMessages && sortedMessages.length > 0) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+            }, 100);
+        }
+    }, [sortedMessages]);
 
     if (isLoading) {
         return (
@@ -251,7 +282,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     if (!currentThread) {
         return (
             <View className="flex-1 bg-[#151618] items-center justify-center">
-                <Text className="text-gray-400">Thread bulunamadı</Text>
+                <Text className="text-gray-400">Sohbet bulunamadı</Text>
                 <TouchableOpacity onPress={() => router.back()} className="mt-4">
                     <Text className="text-green-500">Geri Dön</Text>
                 </TouchableOpacity>
@@ -263,25 +294,75 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         <KeyboardAvoidingView
             className="flex-1 bg-[#151618]"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
             {/* Header with Participants Tab */}
-            <View className="bg-gray-800 border-b border-gray-700">
-                <View className="px-4 py-3 flex-row items-center justify-between">
+            <SafeAreaView className="bg-gray-800">
+                <View className="px-4 py-3 flex-row items-center">
                     <TouchableOpacity
                         onPress={() => router.back()}
-                        className="mr-3 flex-row items-center"
+                        className="mr-0 flex-row items-center"
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         <Icon source="chevron-left" size={28} color="white" />
-                        <Text className="text-white font-ibm-plex-sans-medium text-base ml-1">
-                            Geri
-                        </Text>
                     </TouchableOpacity>
-                    <View className="flex-1 ml-2">
-                        <Text className="text-white font-ibm-plex-sans-bold text-lg" numberOfLines={1}>
-                            {currentThread.title}
-                        </Text>
+                    <View className="flex-1 ml-0">
+                        {/* Participants Tab */}
+                        {currentThread.participants.length > 0 && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                className="px-2 py-2"
+                            >
+                                {currentThread.participants.map((participant) => (
+                                    <View key={participant.userId} className="flex-row items-center mr-4">
+                                        <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
+                                            {participant.imageUrl ? (
+                                                <Image
+                                                    source={{ uri: participant.imageUrl }}
+                                                    className="w-full h-full"
+                                                    resizeMode="cover"
+                                                />
+                                            ) : (
+                                                <Icon
+                                                    source={
+                                                        participant.userType === UserType.BarberStore
+                                                            ? "store"
+                                                            : participant.userType === UserType.FreeBarber
+                                                                ? "account-supervisor"
+                                                                : "account"
+                                                    }
+                                                    size={20}
+                                                    color="white"
+                                                />
+                                            )}
+                                        </View>
+                                        <View>
+                                            <Text className="text-white text-base font-ibm-plex-sans-medium" numberOfLines={1}>
+                                                {participant.displayName}
+                                            </Text>
+
+                                            {participant.barberType !== undefined && participant.barberType !== null && (
+                                                <View className='flex-row items-center'>
+                                                    <Text className='text-gray-500 text-xs font-ibm-plex-sans-medium'>{(participant.userType === UserType.BarberStore ? "Dükkan" :
+                                                        participant.userType === UserType.FreeBarber ? "Serbest Berber" :
+                                                            "Müşteri")} - </Text>
+                                                    <Text className="text-gray-500 text-xs">
+                                                        {participant.userType === UserType.FreeBarber
+                                                            ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
+                                                            : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
+                                                                participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
+                                                                    "Güzellik Salonu")
+                                                        }
+                                                    </Text>
+                                                </View>
+
+                                            )}
+                                        </View>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        )}
                         {currentThread.status !== null && currentThread.status !== undefined && (
                             <Text className="text-gray-400 text-xs">
                                 {(() => {
@@ -295,75 +376,33 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                     </View>
                 </View>
 
-                {/* Participants Tab */}
-                {currentThread.participants.length > 0 && (
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        className="px-4 py-2 border-t border-gray-700"
-                    >
-                        {currentThread.participants.map((participant) => (
-                            <View key={participant.userId} className="flex-row items-center mr-4">
-                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
-                                    {participant.imageUrl ? (
-                                        <Image
-                                            source={{ uri: participant.imageUrl }}
-                                            className="w-full h-full"
-                                            resizeMode="cover"
-                                        />
-                                    ) : (
-                                        <Icon
-                                            source={
-                                                participant.userType === UserType.BarberStore
-                                                    ? "store"
-                                                    : participant.userType === UserType.FreeBarber
-                                                        ? "account-supervisor"
-                                                        : "account"
-                                            }
-                                            size={20}
-                                            color="white"
-                                        />
-                                    )}
-                                </View>
-                                <View>
-                                    <Text className="text-white text-sm font-ibm-plex-sans-medium" numberOfLines={1}>
-                                        {participant.displayName ||
-                                            (participant.userType === UserType.BarberStore ? "Dükkan" :
-                                                participant.userType === UserType.FreeBarber ? "Serbest Berber" :
-                                                    "Kullanıcı")}
-                                    </Text>
-                                    {participant.barberType !== undefined && participant.barberType !== null && (
-                                        <Text className="text-gray-500 text-xs">
-                                            {participant.userType === UserType.FreeBarber
-                                                ? (participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın")
-                                                : (participant.barberType === BarberType.MaleHairdresser ? "Erkek Berberi" :
-                                                    participant.barberType === BarberType.FemaleHairdresser ? "Kadın Kuaförü" :
-                                                        "Güzellik Salonu")
-                                            }
-                                        </Text>
-                                    )}
-                                </View>
-                            </View>
-                        ))}
-                    </ScrollView>
-                )}
-            </View>
 
-            {/* Messages List */}
+            </SafeAreaView>
+
+            {/* Messages List - WhatsApp style: inverted FlatList for bottom-aligned messages */}
             <FlatList
                 ref={flatListRef}
                 data={sortedMessages}
                 keyExtractor={(item) => item.messageId}
                 contentContainerStyle={{ padding: 16, gap: 12 }}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+                inverted={true}
+                maintainVisibleContentPosition={{
+                    minIndexForVisible: 0,
+                }}
+                onScrollToIndexFailed={(info) => {
+                    // Fallback: scroll to end if index scroll fails
+                    setTimeout(() => {
+                        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                    }, 100);
+                }}
                 renderItem={({ item }: { item: ChatMessageItemDto }) => {
                     const isMe = item.senderUserId === currentUserId;
                     const senderParticipant = currentThread.participants.find(p => p.userId === item.senderUserId);
 
                     return (
-                        <View className={`flex-row items-end gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <View className={`flex-row items-start gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
-                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
+                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-start justify-start">
                                     {senderParticipant?.imageUrl ? (
                                         <Image
                                             source={{ uri: senderParticipant.imageUrl }}
@@ -387,17 +426,17 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                             )}
 
                             <View className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                {!isMe && senderParticipant && (
-                                    <Text className="text-gray-400 text-xs mb-1 px-2">
-                                        {senderParticipant.displayName}
-                                    </Text>
-                                )}
                                 <View
                                     className={`rounded-2xl px-4 py-2.5 ${isMe
                                         ? 'bg-green-600 rounded-tr-sm'
                                         : 'bg-gray-700 rounded-tl-sm'
                                         }`}
                                 >
+                                    {!isMe && senderParticipant && (
+                                        <Text className="text-gray-300 text-xs mb-1 font-ibm-plex-sans-medium">
+                                            {senderParticipant.displayName}
+                                        </Text>
+                                    )}
                                     <Text className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}>
                                         {item.text}
                                     </Text>

@@ -76,7 +76,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                 {/* Üst kısım: Kullanıcı bilgileri */}
                 <View className="flex-row items-start">
                     {/* Profil fotoğrafı */}
-                    <View className="relative mr-3">
+                    <View className="relative mr-3 mt-1">
                         <Image
                             source={
                                 imageUrl
@@ -122,6 +122,15 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                         <Text className="text-[#9ca3af] text-sm">
                             {formatDateTime(item.createdAt)}
                         </Text>
+                        {/* Yorum metni */}
+
+                        {item.comment && (
+                            <View className="mt-2">
+                                <Text className="text-white text-sm font-ibm-plex-sans-regular leading-5">
+                                    {item.comment}
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Rating badge - sağ tarafta */}
@@ -130,14 +139,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                     </View>
                 </View>
 
-                {/* Yorum metni */}
-                {item.comment && (
-                    <View className="mt-3 ml-[60px]">
-                        <Text className="text-white text-sm font-ibm-plex-sans-regular leading-5">
-                            {item.comment}
-                        </Text>
-                    </View>
-                )}
+
             </View>
         );
     };

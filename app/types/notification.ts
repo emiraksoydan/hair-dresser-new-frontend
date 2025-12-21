@@ -44,6 +44,7 @@ export interface NotificationPayload {
     pricingValue?: number;
     rating?: number;
     isInFavorites?: boolean; // Bu dükkan favorilerde mi?
+    addressDescription?: string; // Dükkan adres açıklaması
   };
   customer?: {
     userId: string;

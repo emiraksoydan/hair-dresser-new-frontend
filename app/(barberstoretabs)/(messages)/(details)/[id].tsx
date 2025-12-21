@@ -1,20 +1,21 @@
-import React from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { ChatDetailScreen } from '../../../components/chat/ChatDetailScreen';
+import React, { useEffect } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 /**
  * BarberStore message detail page
- * Uses the shared ChatDetailScreen component
- * Now uses threadId instead of appointmentId
+ * Redirects to screens/chat route to avoid bottom tab and header
  */
 const ChatDetailPage = () => {
     const { id: threadId } = useLocalSearchParams<{ id: string }>();
+    const router = useRouter();
 
-    if (!threadId) {
-        return null;
-    }
+    useEffect(() => {
+        if (threadId) {
+            router.replace(`/(screens)/chat/${threadId}`);
+        }
+    }, [threadId, router]);
 
-    return <ChatDetailScreen threadId={threadId} />;
+    return null;
 };
 
 export default ChatDetailPage;

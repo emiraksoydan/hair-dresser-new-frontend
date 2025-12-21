@@ -22,6 +22,8 @@ export const getAppointmentStatusColor = (status: AppointmentStatus): string => 
             return COLORS.STATUS.CANCELLED;
         case AppointmentStatus.Rejected:
             return COLORS.STATUS.REJECTED;
+        case AppointmentStatus.Unanswered:
+            return COLORS.STATUS.UNANSWERED;
         default:
             return COLORS.STATUS.DEFAULT;
     }

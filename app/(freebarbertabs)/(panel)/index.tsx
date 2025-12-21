@@ -1,4 +1,4 @@
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
+import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from 'react-native'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
 import { useToggleList } from '../../utils/common/service-toggle';
@@ -92,10 +92,41 @@ const Index = () => {
                 cardWidthStore={cardWidthStores}
                 isViewerFromFreeBr={true}
                 onPressUpdate={goStoreDetail}
+                onPressRatings={handlePressRatings}
             />
         ),
-        [isList, expandedStoreBarber, cardWidthStores]
+        [isList, expandedStoreBarber, cardWidthStores, goStoreDetail, handlePressRatings]
     );
+
+    // FlatList için tüm item'ları birleştir
+    const listData = useMemo(() => {
+        const items: Array<{ id: string; type: 'freebarber-section' | 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-error' | 'stores-content-horizontal'; data?: any }> = [];
+        
+        // FreeBarberPanelSection - bu bir section olarak ekleniyor
+        items.push({ id: 'freebarber-section', type: 'freebarber-section' });
+        
+        // Stores section
+        items.push({ id: 'stores-header', type: 'stores-header' });
+        if (loading) {
+            items.push({ id: 'stores-loading', type: 'stores-loading' });
+        } else if (storeError) {
+            items.push({ id: 'stores-error', type: 'stores-error' });
+        } else if (hasStoreBarbers) {
+            if (expandedStoreBarber) {
+                // Vertical modda: her store'u ayrı item olarak ekle
+                stores.forEach((store) => {
+                    items.push({ id: `store-${store.id}`, type: 'store', data: store });
+                });
+            } else {
+                // Horizontal modda: tek bir content item
+                items.push({ id: 'stores-content-horizontal', type: 'stores-content-horizontal', data: stores });
+            }
+        } else {
+            items.push({ id: 'stores-empty', type: 'stores-empty' });
+        }
+        
+        return items;
+    }, [loading, storeError, hasStoreBarbers, stores, expandedStoreBarber]);
 
     const handleMarkerPress = useCallback(
         (item: BarberStoreGetDto) => {
@@ -197,72 +228,95 @@ const Index = () => {
                 </View>
             ) : (
                 <FlatList
-                    data={[]}
-                    keyExtractor={() => 'dummy'}
-                    renderItem={() => null}
+                    data={listData}
+                    keyExtractor={(item) => item.id}
                     contentContainerStyle={{ paddingBottom: 16 }}
-                    ListHeaderComponent={
-                        <>
-                            <FreeBarberPanelSection
-                                isList={isList}
-                                locationStatus={locationStatus}
-                                locationMessage={locationMessage}
-                                onOpenPanel={handleOpenPanel}
-                                screenWidth={screenWidth}
-                                freeBarber={freeBarber}
-                                isLoading={isLoading}
-                                isError={isError}
-                                error={error}
-                                isUpdating={isUpdating}
-                                isTracking={isTracking}
-                            />
-                            <View className="flex flex-row justify-between items-center mt-4">
-                                <Text className="font-ibm-plex-sans-regular text-xl text-white">
-                                    Çevremdeki Berber Dükkanları
-                                </Text>
-                                {stores && stores.length !== 0 && (
-                                    <MotiViewExpand
-                                        expanded={expandedStoreBarber}
-                                        onPress={() => toggleExpand(expandedStoreBarber, setExpandedStoreBarber)}
-                                    />
-                                )}
-                            </View>
-
-                            {loading ? (
-                                <View className="flex-1 pt-4">
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => {
+                        if (item.type === 'freebarber-section') {
+                            return (
+                                <FreeBarberPanelSection
+                                    isList={isList}
+                                    locationStatus={locationStatus}
+                                    locationMessage={locationMessage}
+                                    onOpenPanel={handleOpenPanel}
+                                    screenWidth={screenWidth}
+                                    freeBarber={freeBarber}
+                                    isLoading={isLoading}
+                                    isError={isError}
+                                    error={error}
+                                    isUpdating={isUpdating}
+                                    isTracking={isTracking}
+                                />
+                            );
+                        }
+                        if (item.type === 'stores-header') {
+                            return (
+                                <View className="flex flex-row justify-between items-center mt-4">
+                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">
+                                        Çevremdeki Berber Dükkanları
+                                    </Text>
+                                    {stores && stores.length !== 0 && (
+                                        <MotiViewExpand
+                                            expanded={expandedStoreBarber}
+                                            onPress={() => toggleExpand(expandedStoreBarber, setExpandedStoreBarber)}
+                                        />
+                                    )}
+                                </View>
+                            );
+                        }
+                        if (item.type === 'stores-loading') {
+                            return (
+                                <View className="pt-4">
                                     {Array.from({ length: 2 }).map((_, i) => (
                                         <SkeletonComponent key={i} />
                                     ))}
                                 </View>
-                            ) : storeError ? (
-                                <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(storeError)} ></LottieViewComponent>
-                            ) : (
-                                <FlatList
-                                    key="barberStoreList"
-                                    data={hasStoreBarbers ? stores : []}
-                                    keyExtractor={(item) => item.id}
-                                    renderItem={renderItem}
-                                    horizontal={!expandedStoreBarber}
-                                    nestedScrollEnabled
-                                    initialNumToRender={6}
-                                    maxToRenderPerBatch={6}
-                                    updateCellsBatchingPeriod={16}
-                                    windowSize={7}
-                                    removeClippedSubviews
-                                    showsHorizontalScrollIndicator={false}
-                                    showsVerticalScrollIndicator={false}
-                                    contentContainerStyle={{
-                                        gap: 12,
-                                        paddingTop: hasStoreBarbers ? 8 : 0,
-                                        paddingBottom: 8,
-                                    }}
-                                    ListEmptyComponent={() => (
-                                        <EmptyState loading={loading} hasLocation={hasLocation} locationStatus={locationStatus} fetchedOnce={fetchedOnce} hasData={hasStoreBarbers} noResultText="Yakınınızda dükkan bulunamadı" ></EmptyState>
-                                    )}
+                            );
+                        }
+                        if (item.type === 'stores-error') {
+                            return (
+                                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                    <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(storeError)} />
+                                </View>
+                            );
+                        }
+                        if (item.type === 'stores-empty') {
+                            return (
+                                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                    <EmptyState loading={loading} hasLocation={hasLocation} locationStatus={locationStatus} fetchedOnce={fetchedOnce} hasData={hasStoreBarbers} noResultText="Yakınınızda dükkan bulunamadı" />
+                                </View>
+                            );
+                        }
+                        if (item.type === 'store') {
+                            return (
+                                <StoreCardInner
+                                    store={item.data}
+                                    isList={isList}
+                                    expanded={expandedStoreBarber}
+                                    cardWidthStore={cardWidthStores}
+                                    isViewerFromFreeBr={true}
+                                    onPressUpdate={goStoreDetail}
+                                    onPressRatings={handlePressRatings}
                                 />
-                            )}
-                        </>
-                    }
+                            );
+                        }
+                        if (item.type === 'stores-content-horizontal') {
+                            return (
+                                <View style={{ overflow: 'hidden', minHeight: 200 }}>
+                                    <FlatList
+                                        data={item.data}
+                                        keyExtractor={(store) => store.id}
+                                        renderItem={renderItem}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 8 }}
+                                    />
+                                </View>
+                            );
+                        }
+                        return null;
+                    }}
                 />
             )}
 
