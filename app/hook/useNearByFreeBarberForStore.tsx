@@ -23,6 +23,7 @@ export function useNearbyStoresControl({
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
     const [freeBarbers, setFreeBarbers] = useState<FreeBarGetDto[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [location, setLocation] = useState<{ latitude: number; longitude: number } | undefined>(undefined);
 
     // Konum izni kontrolü
     useEffect(() => {
@@ -47,6 +48,10 @@ export function useNearbyStoresControl({
             const promises = stores.map(store => {
                 const c = safeCoord(store.latitude, store.longitude);
                 if (!c) return null;
+                // İlk store'un konumunu kaydet (filtreleme için)
+                if (!location && c) {
+                    setLocation({ latitude: c.lat, longitude: c.lon });
+                }
                 // RTK Query'nin 'trigger'ı her zaman güncel cache veya yeni veri getirir
                 return trigger({ lat: c.lat, lon: c.lon, radiusKm }, true).unwrap();
             }).filter(Boolean);
@@ -67,7 +72,7 @@ export function useNearbyStoresControl({
         } finally {
             setIsLoading(false);
         }
-    }, [enabled, stores, radiusKm, trigger]);
+    }, [enabled, stores, radiusKm, trigger, location]);
 
     // 1. Durum: Store listesi veya koordinatı değişirse ANINDA çek (Optimistic update burayı tetikler)
     useEffect(() => {
@@ -86,6 +91,7 @@ export function useNearbyStoresControl({
         isLoading,
         locationStatus,
         hasLocation: locationStatus === "granted",
+        location,
         manualFetch: fetchNearby, // İstersen elle çağırmak için
     };
 }

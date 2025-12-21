@@ -18,6 +18,8 @@ import {
     useAddFreeBarberPanelMutation,
     useLazyGetFreeBarberMinePanelDetailQuery,
     useUpdateFreeBarberPanelMutation,
+    useGetParentCategoriesQuery,
+    useLazyGetChildCategoriesQuery,
 } from "../../store/api";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 
@@ -65,7 +67,7 @@ const schema = z.object({
         })
         .optional(),
     type: z.string({ required_error: "İşletme türü zorunlu" }),
-    offerings: z.array(z.string()).min(1, "En az bir hizmet seçiniz"),
+    selectedCategories: z.array(z.string()).min(1, "En az bir kategori seçiniz"),
     prices: z.record(
         z.string(),
         z
@@ -82,7 +84,7 @@ export type FormFreeBarberValues = z.input<typeof schema>;
 
 type Props = { freeBarberId: string | null; enabled: boolean };
 
-export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
+export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Props) => {
     const isEdit = freeBarberId != null;
 
     const { showSnack, SnackbarComponent } = useSnackbar();
@@ -108,15 +110,36 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         defaultValues: {
             isAvailable: true,
             location: { latitude: 0, longitude: 0 },
-            offerings: [],
+            selectedCategories: [],
             prices: {},
         },
     });
 
     const image = watch("image");
     const selectedType = watch("type");
-    const selectedOfferings = watch("offerings");
+    const selectedCategories = watch("selectedCategories");
     const currentPrices = watch("prices");
+
+    // Category API hooks
+    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
+
+    // FreeBarber için sadece Erkek Berber ve Bayan Kuaför kategorilerini göster (Güzellik Salonu hariç)
+    const allowedParentCategories = React.useMemo(() => {
+        return parentCategories.filter((cat: any) => 
+            cat.name === "Erkek Berber" || cat.name === "Bayan Kuaför"
+        );
+    }, [parentCategories]);
+
+    // Seçilen parent kategoriye göre child kategorileri yükle
+    React.useEffect(() => {
+        if (selectedType && allowedParentCategories.length > 0) {
+            const parentCat = allowedParentCategories.find((cat: any) => cat.name === selectedType);
+            if (parentCat) {
+                triggerGetChildCategories(parentCat.id);
+            }
+        }
+    }, [selectedType, allowedParentCategories, triggerGetChildCategories]);
 
 
     // Edit ise panel detay çek
@@ -180,7 +203,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                     : `${extractedName}.pdf`;
             }
         }
-        const initialOfferings = (data?.offerings ?? []).map((s: any) => s.serviceName);
+        const initialCategories = (data?.offerings ?? []).map((s: any) => s.serviceName);
         const initialPrices = (data?.offerings ?? []).reduce((acc: Record<string, string>, s: any) => {
             acc[s.serviceName] = String(s.price);
             return acc;
@@ -211,7 +234,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                 latitude: (data as any)?.latitude ?? 0,
                 longitude: (data as any)?.longitude ?? 0
             },
-            offerings: initialOfferings,
+            selectedCategories: initialCategories,
             prices: initialPrices,
         });
         if (!data?.latitude || data.latitude === 0)
@@ -221,12 +244,12 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
 
     const effectiveType = selectedType ? selectedType : data?.type != null ? mapTypeToLabel(data.type) : undefined;
 
-    const serviceOptions = useMemo(
-        () => (effectiveType ? SERVICE_BY_TYPE[effectiveType] ?? [] : []),
-        [effectiveType]
+    const categoryOptions = useMemo(
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        [childCategories]
     );
 
-    // Tip değişince offering/price reset
+    // Tip değişince category/price reset
     const prevTypeRef = useRef<string | undefined>(undefined);
     useEffect(() => {
         if (isEdit) {
@@ -235,7 +258,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                 return;
             }
             if (selectedType && prevTypeRef.current && selectedType !== prevTypeRef.current) {
-                setValue("offerings", [], { shouldDirty: true, shouldValidate: true });
+                setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
                 setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
             }
             prevTypeRef.current = selectedType;
@@ -243,7 +266,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         }
 
         // create
-        setValue("offerings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
         setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
     }, [selectedType, setValue, isEdit]);
 
@@ -253,13 +276,13 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         let changed = false;
 
         Object.keys(next).forEach((k) => {
-            if (!selectedOfferings?.includes(k)) {
+            if (!selectedCategories?.includes(k)) {
                 delete next[k];
                 changed = true;
             }
         });
 
-        selectedOfferings?.forEach((k) => {
+        selectedCategories?.forEach((k) => {
             if (!(k in next)) {
                 next[k] = "";
                 changed = true;
@@ -267,9 +290,9 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         });
 
         if (changed) setValue("prices", next, { shouldDirty: true, shouldValidate: true });
-    }, [selectedOfferings, currentPrices, setValue]);
+    }, [selectedCategories, currentPrices, setValue]);
 
-    const OnSubmit = async (form: FormFreeBarberValues) => {
+    const OnSubmit = React.useCallback(async (form: FormFreeBarberValues) => {
         if (isEdit) {
             const ok = await setLocationNow();
             if (!ok) return;
@@ -285,20 +308,23 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         const existingImageId = data?.imageList?.[0]?.id;
         const existingOfferings = data?.offerings ?? [];
 
-        const offeringsMapped = (form.offerings ?? [])
-            .map((serviceKey) => {
-                const priceStr = form.prices?.[serviceKey] ?? "";
+        const offeringsMapped = (form.selectedCategories ?? [])
+            .map((categoryId) => {
+                const priceStr = form.prices?.[categoryId] ?? "";
                 const priceNum = parseTR(priceStr);
                 if (priceNum == null) return null;
 
+                // Category name'i bul
+                const categoryName = childCategories.find((cat: any) => cat.id === categoryId)?.name ?? categoryId;
+
                 if (!isEdit) {
-                    const dto: ServiceOfferingCreateDto = { serviceName: serviceKey, price: priceNum };
+                    const dto: ServiceOfferingCreateDto = { serviceName: categoryName, price: priceNum };
                     return dto;
                 } else {
-                    const existingId = (existingOfferings as any[]).find((o) => o.serviceName === serviceKey)?.id;
+                    const existingId = (existingOfferings as any[]).find((o) => o.serviceName === categoryName)?.id;
                     const dto: ServiceOfferingUpdateDto = {
                         id: existingId,
-                        serviceName: serviceKey,
+                        serviceName: categoryName,
                         price: priceNum,
                         ownerId: freeBarberId!,
                     };
@@ -350,10 +376,11 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
         } catch (error: any) {
             showSnack(resolveApiErrorMessage(error), true);
         }
-    };
-    const onErrors = (errors: any) => {
+    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, dismiss, getValues, setLocationNow]);
+
+    const onErrors = React.useCallback((errors: any) => {
         // Validation errors are displayed to user via form state
-    };
+    }, []);
 
     // Skeleton sadece edit + data gelene kadar
     const showSkeleton = isEdit && !data;
@@ -494,7 +521,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                             </View>
                         </View>
 
-                        {/* Type */}
+                        {/* Type - Ana Kategori Seçimi */}
                         <View className="px-4 mt-1">
                             <Controller
                                 control={control}
@@ -502,10 +529,10 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                                 render={({ field: { value, onChange }, fieldState: { error } }) => (
                                     <>
                                         <Dropdown
-                                            data={BUSINESS_TYPES as any}
+                                            data={allowedParentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }))}
                                             labelField="label"
                                             valueField="value"
-                                            placeholder="İş tanımı seç"
+                                            placeholder="Ana kategori seç (Erkek Berber / Bayan Kuaför)"
                                             value={value}
                                             onChange={(item: any) => onChange(item.value)}
                                             style={{
@@ -531,20 +558,19 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                             />
                         </View>
 
-                        {/* Offerings */}
-                        {selectedType ? (
+                        {/* Kategoriler - Alt Kategori Seçimi */}
+                        {selectedType && categoryOptions.length > 0 ? (
                             <View className="px-4 mt-1">
                                 <Text className="text-white text-xl mb-2">
-                                    Hizmetler ({BUSINESS_TYPES.find((t) => t.value === selectedType)?.label})
+                                    Hizmetler ({selectedType})
                                 </Text>
                                 <Controller
                                     control={control}
-                                    name="offerings"
+                                    name="selectedCategories"
                                     render={({ field: { value, onChange } }) => (
                                         <>
                                             <MultiSelect
-
-                                                data={serviceOptions}
+                                                data={categoryOptions}
                                                 labelField="label"
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
@@ -556,7 +582,7 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                                                 visibleSelectedItem
                                                 style={{
                                                     backgroundColor: "#1F2937",
-                                                    borderColor: errors.offerings ? "#b00020" : "#444",
+                                                    borderColor: errors.selectedCategories ? "#b00020" : "#444",
                                                     borderWidth: 1,
                                                     borderRadius: 10,
                                                     paddingHorizontal: 12,
@@ -568,7 +594,6 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                                                     borderColor: '#444',
                                                     borderRadius: 10,
                                                     overflow: 'hidden',
-
                                                 }}
                                                 placeholderStyle={{ color: "gray" }}
                                                 selectedTextStyle={{ color: "white" }}
@@ -583,11 +608,9 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                                                     margin: 0,
                                                 }}
                                                 selectedTextProps={{ numberOfLines: 1 }}
-
-
                                             />
-                                            <HelperText type="error" visible={!!errors.offerings}>
-                                                {errors.offerings?.message}
+                                            <HelperText type="error" visible={!!errors.selectedCategories}>
+                                                {errors.selectedCategories?.message}
                                             </HelperText>
                                         </>
                                     )}
@@ -596,19 +619,19 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
                         ) : null}
 
                         {/* Prices */}
-                        {(selectedOfferings ?? []).length > 0 && (
+                        {(selectedCategories ?? []).length > 0 && (
                             <View className="mt-3 mx-4 rounded-xl bg-gray-800 p-4">
-                                {(selectedOfferings ?? []).map((serviceKey) => {
-                                    const label = (serviceOptions as any[]).find((i) => i.value === serviceKey)?.label ?? serviceKey;
+                                {(selectedCategories ?? []).map((categoryId) => {
+                                    const label = categoryOptions.find((i) => i.value === categoryId)?.label ?? categoryId;
                                     return (
-                                        <View key={serviceKey} className="flex-row items-center justify-between mb-2">
+                                        <View key={categoryId} className="flex-row items-center justify-between mb-2">
                                             <Text className="text-white w-[40%]" numberOfLines={1}>
                                                 {label}
                                             </Text>
                                             <View className="w-[55%]">
                                                 <Controller
                                                     control={control}
-                                                    name={`prices.${serviceKey}` as const}
+                                                    name={`prices.${categoryId}` as const}
                                                     render={({ field: { value, onChange }, fieldState: { error } }) => (
                                                         <TextInput
                                                             mode="outlined"
@@ -675,4 +698,4 @@ export const FormFreeBarberOperation = ({ freeBarberId, enabled }: Props) => {
             <SnackbarComponent />
         </View>
     );
-};
+});

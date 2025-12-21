@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { handlePickImage, pickPdf, truncateFileName } from '../../utils/form/pick-document';
 import { useSheet } from '../../context/bottomsheet';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
-import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants'
+import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants';
+import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api'
 import 'react-native-get-random-values';
 import { v4 as uuid } from "uuid";
 import { LegendList } from '@legendapp/list';
@@ -25,25 +26,44 @@ import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 
 const ChairPricingSchema = z.object({
     mode: z.enum(["rent", "percent"]),
-    rent: z.string().regex(trMoneyRegex, 'Lütfen fiyatı türkiye standartlarında girin').optional(),
-    percent: z.coerce
-        .number({ required_error: 'Yüzde oranı gerekli' })
-        .int("Tam sayı olmalı")
-        .min(10, "En az %10")
-        .max(90, "En fazla %90")
-        .refine(v => v % 10 === 0, "10'un katı olmalı").optional()
+    rent: z.string().optional().nullable(),
+    percent: z.coerce.number().optional().nullable()
 }).superRefine((val, ctx) => {
     if (val.mode === "rent") {
-        const n = parseTR(val.rent);
-        if (n == undefined) {
+        // Rent modunda sadece rent validasyonu
+        if (!val.rent || val.rent.trim() === '') {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı gerekli" });
-        } else if (n <= 0) {
+            return;
+        }
+        if (!trMoneyRegex.test(val.rent)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Lütfen fiyatı türkiye standartlarında girin" });
+            return;
+        }
+        const n = parseTR(val.rent);
+        if (n == undefined || n <= 0) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı pozitif olmalı" });
         }
     }
-    else {
-        if (val.percent == null) {
+    else if (val.mode === "percent") {
+        // Percent modunda sadece percent validasyonu
+        if (val.percent == null || val.percent === undefined) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Yüzde oranı gerekli" });
+            return;
+        }
+        if (!Number.isInteger(val.percent)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Tam sayı olmalı" });
+            return;
+        }
+        if (val.percent < 10) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En az %10" });
+            return;
+        }
+        if (val.percent > 90) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En fazla %90" });
+            return;
+        }
+        if (val.percent % 10 !== 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "10'un katı olmalı" });
         }
     }
 });
@@ -135,7 +155,7 @@ const schema = z.object({
         }).optional(),
     storeName: z.string({ required_error: 'İşletme adı zorunlu' }).trim(),
     type: z.string({ required_error: 'İşletme türü zorunlu' }),
-    offerings: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
+    selectedCategories: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
     prices: z.record(
         z.string(),
         z.string({ required_error: 'Fiyat zorunlu' }).min(1, 'Fiyat zorunlu').regex(trMoneyRegex, 'Lütfen fiyatı türkiye standartlarında girin')
@@ -206,8 +226,8 @@ const FormStoreAdd = () => {
         mode: 'onChange',
         defaultValues: {
             holidayDays: [],
-            offerings: [],            // iyi olur
-            prices: {},               // iyi olur
+            selectedCategories: [],
+            prices: {},
             workingHours: DAYS_TR.map(d => ({
                 dayOfWeek: d.day,
                 isClosed: false,
@@ -231,8 +251,22 @@ const FormStoreAdd = () => {
     const [activeEnd, setActiveEnd] = useState(fromHHmm("18:00"));
     const image = watch("storeImageUrl");
     const selectedType = watch("type");
-    const selectedOfferings = watch('offerings');
+    const selectedCategories = watch('selectedCategories');
     const currentPrices = watch('prices');
+    
+    // Category API hooks
+    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
+
+    // Store tüm kategorileri seçebilir
+    React.useEffect(() => {
+        if (selectedType && parentCategories.length > 0) {
+            const parentCat = parentCategories.find((cat: any) => cat.name === selectedType);
+            if (parentCat) {
+                triggerGetChildCategories(parentCat.id);
+            }
+        }
+    }, [selectedType, parentCategories, triggerGetChildCategories]);
     const pricingMode = useWatch({ control, name: "pricingType.mode" });
     const holidayDays = watch("holidayDays");
     const working = watch("workingHours");
@@ -262,12 +296,16 @@ const FormStoreAdd = () => {
                     storeId: undefined,
                 };
             }),
-            offerings: (data.offerings ?? []).map((serviceKey) => {
-                const priceStr = data.prices?.[serviceKey] ?? "";
+            offerings: (data.selectedCategories ?? []).map((categoryId) => {
+                const priceStr = data.prices?.[categoryId] ?? "";
                 const priceNum = parseTR(priceStr);
                 if (priceNum == null) return null;
+                
+                // Category name'i bul
+                const categoryName = childCategories.find((cat: any) => cat.id === categoryId)?.name ?? categoryId;
+                
                 return {
-                    serviceName: serviceKey,
+                    serviceName: categoryName,
                     price: priceNum,
                 };
             }).filter((x): x is { serviceName: string; price: number } => x !== null),
@@ -366,27 +404,27 @@ const FormStoreAdd = () => {
         const file = await handlePickImage()
         if (file) setValue('storeImageUrl', file, { shouldDirty: true, shouldValidate: true })
     }
-    const serviceOptions = useMemo(
-        () => (selectedType ? SERVICE_BY_TYPE[selectedType] ?? [] : []),
-        [selectedType]
+    const categoryOptions = useMemo(
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        [childCategories]
     );
     const chairExtra = useMemo(
         () => `${barberNamesVersion}|${chairAssignVersion}`,
         [barberNamesVersion, chairAssignVersion]
     );
     useEffect(() => {
-        setValue("offerings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
     }, [selectedType, setValue]);
     useEffect(() => {
         const next = { ...(currentPrices ?? {}) };
         let changed = false;
         Object.keys(next).forEach((k) => {
-            if (!selectedOfferings?.includes(k)) {
+            if (!selectedCategories?.includes(k)) {
                 delete next[k];
                 changed = true;
             }
         });
-        (selectedOfferings ?? []).forEach((k) => {
+        (selectedCategories ?? []).forEach((k) => {
             if (!(k in next)) {
                 next[k] = '';
                 changed = true;
@@ -395,12 +433,12 @@ const FormStoreAdd = () => {
         if (changed) {
             setValue('prices', next, { shouldDirty: true, shouldValidate: true });
         }
-    }, [selectedOfferings]);
+    }, [selectedCategories]);
     useEffect(() => {
         if (pricingMode === "rent") {
-            setValue("pricingType.percent", undefined, { shouldValidate: true });
+            setValue("pricingType.percent", null, { shouldValidate: false, shouldDirty: false });
         } else if (pricingMode === "percent") {
-            setValue("pricingType.rent", '', { shouldValidate: true });
+            setValue("pricingType.rent", null, { shouldValidate: false, shouldDirty: false });
         }
     }, [pricingMode, setValue]);
     useEffect(() => {
@@ -590,10 +628,10 @@ const FormStoreAdd = () => {
                                 render={({ field: { value, onChange } }) => (
                                     <>
                                         <Dropdown
-                                            data={BUSINESS_TYPES as any}
+                                            data={parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }))}
                                             labelField="label"
                                             valueField="value"
-                                            placeholder="İşletme Türü Seç"
+                                            placeholder="Ana Kategori Seç"
                                             value={value}
                                             onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
                                             style={{
@@ -621,17 +659,17 @@ const FormStoreAdd = () => {
                             />
                         </View>
                     </View>
-                    {selectedType ? (
+                    {selectedType && categoryOptions.length > 0 ? (
                         <View className="mt-[-10x]">
-                            <Text className="text-white text-xl mb-2">Hizmetler ({BUSINESS_TYPES.find(t => t.value === selectedType)?.label})</Text>
+                            <Text className="text-white text-xl mb-2">Hizmetler ({selectedType})</Text>
                             <Controller
                                 control={control}
-                                name="offerings"
+                                name="selectedCategories"
                                 render={({ field: { value, onChange } }) => {
                                     return (
                                         <>
                                             <MultiSelect
-                                                data={serviceOptions}
+                                                data={categoryOptions}
                                                 labelField="label"
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
@@ -643,7 +681,7 @@ const FormStoreAdd = () => {
                                                 visibleSelectedItem
                                                 style={{
                                                     backgroundColor: "#1F2937",
-                                                    borderColor: errors.offerings ? "#b00020" : "#444",
+                                                    borderColor: errors.selectedCategories ? "#b00020" : "#444",
                                                     borderWidth: 1,
                                                     borderRadius: 10,
                                                     paddingHorizontal: 12,
@@ -671,8 +709,8 @@ const FormStoreAdd = () => {
                                                 }}
                                                 selectedTextProps={{ numberOfLines: 1 }}
                                             />
-                                            <HelperText type="error" visible={!!errors.offerings}>
-                                                {errors.offerings?.message}
+                                            <HelperText type="error" visible={!!errors.selectedCategories}>
+                                                {errors.selectedCategories?.message}
                                             </HelperText>
                                         </>
                                     )
@@ -680,18 +718,18 @@ const FormStoreAdd = () => {
                             />
                         </View>
                     ) : null}
-                    {selectedOfferings?.length > 0 && (
+                    {selectedCategories?.length > 0 && (
                         <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
-                            {selectedOfferings.map((serviceKey) => {
-                                const label = serviceOptions.find(i => i.value === serviceKey)?.label ?? serviceKey;
+                            {selectedCategories.map((categoryId) => {
+                                const label = categoryOptions.find(i => i.value === categoryId)?.label ?? categoryId;
                                 return (
-                                    <View key={serviceKey}>
+                                    <View key={categoryId}>
                                         <View className="flex-row items-center gap-2 mb-0">
                                             <Text className="text-white w-[35%]" >{label} :</Text>
                                             <View className='w-[65%]'>
                                                 <Controller
                                                     control={control}
-                                                    name={`prices.${serviceKey}` as const}
+                                                    name={`prices.${categoryId}` as const}
                                                     render={({ field: { value, onChange }, fieldState: { error } }) => (
                                                         <TextInput
                                                             mode="outlined"
@@ -718,8 +756,8 @@ const FormStoreAdd = () => {
                                                         />
                                                     )}
                                                 />
-                                                <HelperText type="error" visible={!!errors.prices?.[serviceKey]}>
-                                                    {errors.prices?.[serviceKey]?.message as string}
+                                                <HelperText type="error" visible={!!errors.prices?.[categoryId]}>
+                                                    {errors.prices?.[categoryId]?.message as string}
                                                 </HelperText>
                                             </View>
 

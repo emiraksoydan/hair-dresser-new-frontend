@@ -3,6 +3,7 @@ import { View, Text, Dimensions, FlatList } from 'react-native';
 import MotiViewExpand from '../../components/common/motiviewexpand';
 import { SkeletonComponent } from '../../components/common/skeleton';
 import { EmptyState } from '../../components/common/emptystateresult';
+import { LottieViewComponent } from '../../components/common/lottieview';
 import { StoreCardInner } from '../../components/store/storecard';
 import { FreeBarberCardInner } from '../../components/freebarber/freebarbercard';
 
@@ -34,15 +35,49 @@ export const EmptyStateFunc = ({ loading, hasData, hasLocation, locationStatus, 
     </View>
 );
 
-export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings }: any) => {
+export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters }: any) => {
     const [expanded, setExpanded] = useState(true);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
 
     if (loading && !stores.length) return <SkeletonList count={2} />;
-    if (!stores.length) return (
-        <EmptyStateFunc loading={loading} hasData={stores.length > 0} hasLocation={hasLocation} locationStatus={locationStatus} fetchedOnce={fetchedOnce} message="İşletme bulunamadı" />
-    );
+    if (!stores.length) {
+        // Filtre veya search aktif mi kontrol et
+        const hasActiveFilters = appliedFilters && (
+            appliedFilters.userType !== "Hepsi" ||
+            appliedFilters.mainCategory !== "Hepsi" || 
+            appliedFilters.services?.length > 0 || 
+            appliedFilters.priceSort !== 'none' ||
+            appliedFilters.minPrice !== '' ||
+            appliedFilters.maxPrice !== '' ||
+            appliedFilters.pricingType !== 'Hepsi' ||
+            appliedFilters.availability !== 'all' ||
+            appliedFilters.rating > 0 ||
+            appliedFilters.favoritesOnly
+        );
+        
+        const isFiltering = searchQuery || hasActiveFilters;
+        
+        return (
+            <View style={{ minHeight: 200, maxHeight: 400 }}>
+                {isFiltering ? (
+                    <LottieViewComponent 
+                        animationSource={require('../../../assets/animations/empty.json')} 
+                        message="Filtreleme kriterlerine uygun işletme bulunamadı" 
+                    />
+                ) : (
+                    <EmptyStateFunc 
+                        loading={loading} 
+                        hasData={stores.length > 0} 
+                        hasLocation={hasLocation} 
+                        locationStatus={locationStatus} 
+                        fetchedOnce={fetchedOnce} 
+                        message="İşletme bulunamadı" 
+                    />
+                )}
+            </View>
+        );
+    }
 
     return (
         <View>
@@ -75,15 +110,49 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
     );
 });
 
-export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings }: any) => {
+export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters }: any) => {
     const [expanded, setExpanded] = useState(false);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
 
     if (loading && !freeBarbers.length) return <SkeletonList count={2} />;
-    if (!freeBarbers.length) return (
-        <EmptyStateFunc loading={loading} hasData={freeBarbers.length > 0} hasLocation={hasLocation} locationStatus={locationStatus} fetchedOnce={fetchedOnce} message="Serbest berber bulunamadı" />
-    );
+    if (!freeBarbers.length) {
+        // Filtre veya search aktif mi kontrol et
+        const hasActiveFilters = appliedFilters && (
+            appliedFilters.userType !== "Hepsi" ||
+            appliedFilters.mainCategory !== "Hepsi" || 
+            appliedFilters.services?.length > 0 || 
+            appliedFilters.priceSort !== 'none' ||
+            appliedFilters.minPrice !== '' ||
+            appliedFilters.maxPrice !== '' ||
+            appliedFilters.pricingType !== 'Hepsi' ||
+            appliedFilters.availability !== 'all' ||
+            appliedFilters.rating > 0 ||
+            appliedFilters.favoritesOnly
+        );
+        
+        const isFiltering = searchQuery || hasActiveFilters;
+        
+        return (
+            <View style={{ minHeight: 200, maxHeight: 400 }}>
+                {isFiltering ? (
+                    <LottieViewComponent 
+                        animationSource={require('../../../assets/animations/empty.json')} 
+                        message="Filtreleme kriterlerine uygun serbest berber bulunamadı" 
+                    />
+                ) : (
+                    <EmptyStateFunc 
+                        loading={loading} 
+                        hasData={freeBarbers.length > 0} 
+                        hasLocation={hasLocation} 
+                        locationStatus={locationStatus} 
+                        fetchedOnce={fetchedOnce} 
+                        message="Serbest berber bulunamadı" 
+                    />
+                )}
+            </View>
+        );
+    }
 
     return (
         <View>

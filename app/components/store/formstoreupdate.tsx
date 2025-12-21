@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../../context/bottomsheet';
 import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
-import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation } from '../../store/api';
+import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation, useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
 import { pickImageAndSet, pickPdf, truncateFileName } from '../../utils/form/pick-document';
 import { LegendList } from '@legendapp/list';
@@ -29,25 +29,44 @@ import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 
 const ChairPricingSchema = z.object({
     mode: z.enum(["rent", "percent"]),
-    rent: z.string().regex(trMoneyRegex, 'Lütfen fiyatı türkiye standartlarında girin').optional(),
-    percent: z.coerce
-        .number({ required_error: 'Yüzde oranı gerekli' })
-        .int("Tam sayı olmalı")
-        .min(10, "En az %10")
-        .max(90, "En fazla %90")
-        .refine(v => v % 10 === 0, "10'un katı olmalı").optional()
+    rent: z.string().optional().nullable(),
+    percent: z.coerce.number().optional().nullable()
 }).superRefine((val, ctx) => {
     if (val.mode === "rent") {
-        const n = parseTR(val.rent);
-        if (n == undefined) {
+        // Rent modunda sadece rent validasyonu
+        if (!val.rent || val.rent.trim() === '') {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı gerekli" });
-        } else if (n <= 0) {
+            return;
+        }
+        if (!trMoneyRegex.test(val.rent)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Lütfen fiyatı türkiye standartlarında girin" });
+            return;
+        }
+        const n = parseTR(val.rent);
+        if (n == undefined || n <= 0) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı pozitif olmalı" });
         }
     }
-    else {
-        if (val.percent == null) {
+    else if (val.mode === "percent") {
+        // Percent modunda sadece percent validasyonu
+        if (val.percent == null || val.percent === undefined) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Yüzde oranı gerekli" });
+            return;
+        }
+        if (!Number.isInteger(val.percent)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Tam sayı olmalı" });
+            return;
+        }
+        if (val.percent < 10) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En az %10" });
+            return;
+        }
+        if (val.percent > 90) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En fazla %90" });
+            return;
+        }
+        if (val.percent % 10 !== 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "10'un katı olmalı" });
         }
     }
 });
@@ -147,7 +166,7 @@ const schema = z.object({
         }).optional(),
     storeName: z.string({ required_error: 'İşletme adı zorunlu' }).trim(),
     type: z.string({ required_error: 'İşletme türü zorunlu' }),
-    offerings: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
+    selectedCategories: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
     prices: z.record(
         z.string(),
         z.string({ required_error: 'Fiyat zorunlu' }).min(1, 'Fiyat zorunlu').regex(trMoneyRegex, 'Lütfen fiyatı türkiye standartlarında girin')
@@ -248,7 +267,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         const firstImage = data.imageList?.[0];
         const imageUrl = firstImage?.imageUrl;
         const taxPath = (data as any).taxDocumentFilePath as string | undefined;
-        const initialOfferings = (data.serviceOfferings ?? []).map(s => s.serviceName);
+        const initialCategories = (data.serviceOfferings ?? []).map(s => s.serviceName);
         const initialPrices = (data.serviceOfferings ?? []).reduce((acc, s) => {
             acc[s.serviceName] = String(s.price);
             return acc;
@@ -332,7 +351,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                 longitude: c0?.lon ?? 0,
                 addressDescription: data.addressDescription ?? "",
             },
-            offerings: initialOfferings,
+            selectedCategories: initialCategories,
             prices: initialPrices,
             barbers: initialBarbers,
             chairs: initialChairs,
@@ -391,12 +410,26 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     const [activeEnd, setActiveEnd] = useState<Date>(() => fromHHmm(working[0]?.endTime ?? "18:00"));
     const selectedType = watch("type");
     const currentPrices = watch("prices");
-    const selectedOfferings = watch("offerings") ?? [];
+    const selectedCategories = watch("selectedCategories") ?? [];
     const effectiveType = selectedType || (data?.type ?? undefined);
 
-    const serviceOptions = useMemo(
-        () => (effectiveType ? SERVICE_BY_TYPE[effectiveType] ?? [] : []),
-        [effectiveType]
+    // Category API hooks
+    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
+
+    // Store tüm kategorileri seçebilir
+    React.useEffect(() => {
+        if (selectedType && parentCategories.length > 0) {
+            const parentCat = parentCategories.find((cat: any) => cat.name === selectedType);
+            if (parentCat) {
+                triggerGetChildCategories(parentCat.id);
+            }
+        }
+    }, [selectedType, parentCategories, triggerGetChildCategories]);
+
+    const categoryOptions = useMemo(
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        [childCategories]
     );
 
     useEffect(() => {
@@ -563,12 +596,12 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         const next: Record<string, string> = { ...(currentPrices ?? {}) };
         let changed = false;
         Object.keys(next).forEach((k) => {
-            if (!selectedOfferings.includes(k)) {
+            if (!selectedCategories.includes(k)) {
                 delete next[k];
                 changed = true;
             }
         });
-        selectedOfferings.forEach((k) => {
+        selectedCategories.forEach((k) => {
             if (!(k in next)) {
                 next[k] = "";
                 changed = true;
@@ -580,7 +613,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                 shouldValidate: true,
             });
         }
-    }, [selectedOfferings, currentPrices, setValue]);
+    }, [selectedCategories, currentPrices, setValue]);
 
 
     const OnSubmit = async (form: FormUpdateValues) => {
@@ -611,18 +644,21 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                     storeId: storeId,
                 };
             }),
-            offerings: (form.offerings ?? [])
-                .map((serviceKey) => {
-                    const priceStr = form.prices?.[serviceKey] ?? "";
+            offerings: (form.selectedCategories ?? [])
+                .map((categoryId) => {
+                    const priceStr = form.prices?.[categoryId] ?? "";
                     const priceNum = parseTR(priceStr);
                     if (priceNum == null) return null;
 
+                    // Category name'i bul
+                    const categoryName = childCategories.find((cat: any) => cat.id === categoryId)?.name ?? categoryId;
+
                     const existingId = data?.serviceOfferings
-                        ?.find(o => o.serviceName === serviceKey)?.id;
+                        ?.find(o => o.serviceName === categoryName)?.id;
 
                     const dto: ServiceOfferingUpdateDto = {
                         id: existingId,
-                        serviceName: serviceKey,
+                        serviceName: categoryName,
                         price: priceNum,
                         ownerId: storeId,
                     };
@@ -765,10 +801,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                         render={({ field: { value, onChange } }) => (
                                             <>
                                                 <Dropdown
-                                                    data={BUSINESS_TYPES as any}
+                                                    data={parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }))}
                                                     labelField="label"
                                                     valueField="value"
-                                                    placeholder="İşletme Türü Seç"
+                                                    placeholder="Ana Kategori Seç"
                                                     value={value}
                                                     onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
                                                     style={{
@@ -796,17 +832,17 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                     />
                                 </View>
                             </View>
-                            {selectedType ? (
+                            {selectedType && categoryOptions.length > 0 ? (
                                 <View className="mt-[-10x]">
-                                    <Text className="text-white text-xl mb-2">Hizmetler  ({BUSINESS_TYPES.find(t => t.value === selectedType)?.label})</Text>
+                                    <Text className="text-white text-xl mb-2">Hizmetler ({selectedType})</Text>
                                     <Controller
                                         control={control}
-                                        name="offerings"
+                                        name="selectedCategories"
                                         render={({ field: { value, onChange } }) => {
                                             return (
                                                 <>
                                                     <MultiSelect
-                                                        data={serviceOptions}
+                                                        data={categoryOptions}
                                                         labelField="label"
                                                         valueField="value"
                                                         value={(value ?? []) as string[]}
@@ -818,7 +854,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                         visibleSelectedItem
                                                         style={{
                                                             backgroundColor: "#1F2937",
-                                                            borderColor: errors.offerings ? "#b00020" : "#444",
+                                                            borderColor: errors.selectedCategories ? "#b00020" : "#444",
                                                             borderWidth: 1,
                                                             borderRadius: 10,
                                                             paddingHorizontal: 12,
@@ -848,8 +884,8 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                     />
 
 
-                                                    <HelperText type="error" visible={!!errors.offerings}>
-                                                        {errors.offerings?.message}
+                                                    <HelperText type="error" visible={!!errors.selectedCategories}>
+                                                        {errors.selectedCategories?.message}
                                                     </HelperText>
                                                 </>
                                             )
@@ -857,18 +893,18 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                     />
                                 </View>
                             ) : null}
-                            {selectedOfferings.length > 0 && (
+                            {selectedCategories.length > 0 && (
                                 <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
-                                    {selectedOfferings.map((serviceKey) => {
-                                        const label = serviceOptions.find(i => i.value === serviceKey)?.label ?? serviceKey;
+                                    {selectedCategories.map((categoryId) => {
+                                        const label = categoryOptions.find(i => i.value === categoryId)?.label ?? categoryId;
                                         return (
-                                            <View key={serviceKey}>
+                                            <View key={categoryId}>
                                                 <View className="flex-row items-center gap-2 mb-0">
                                                     <Text className="text-white w-[35%]" >{label} :</Text>
                                                     <View className='w-[65%]'>
                                                         <Controller
                                                             control={control}
-                                                            name={`prices.${serviceKey}` as const}
+                                                            name={`prices.${categoryId}` as const}
                                                             render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
                                                                 <TextInput
                                                                     mode="outlined"
@@ -895,8 +931,8 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                                 />
                                                             )}
                                                         />
-                                                        <HelperText type="error" visible={!!errors.prices?.[serviceKey]}>
-                                                            {errors.prices?.[serviceKey]?.message as string}
+                                                        <HelperText type="error" visible={!!errors.prices?.[categoryId]}>
+                                                            {errors.prices?.[categoryId]?.message as string}
                                                         </HelperText>
                                                     </View>
                                                 </View>

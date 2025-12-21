@@ -270,6 +270,10 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 keyExtractor={(item) => item.threadId}
                 estimatedItemSize={100}
                 contentContainerStyle={{ padding: 16, gap: 12 }}
+                // Performance optimizations
+                recycleItems={true} // Item recycling için
+                drawDistance={250} // Render mesafesi
+                renderItem={renderItem}
                 refreshControl={
                     <RefreshControl
                         refreshing={isFetching && !isLoading}
@@ -277,7 +281,6 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                         tintColor="#f05e23"
                     />
                 }
-                renderItem={renderItem}
             />
         </View>
     );

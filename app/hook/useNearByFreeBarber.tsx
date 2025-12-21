@@ -19,6 +19,7 @@ export function useNearbyFreeBarber(enabled: boolean) {
         locationStatus: result.locationStatus,
         locationMessage: result.locationMessage,
         hasLocation: result.hasLocation,
+        location: result.location,
         manualFetch: result.manualFetch,
         retryPermission: result.retryPermission,
     };

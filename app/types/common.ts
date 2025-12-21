@@ -35,3 +35,9 @@ export interface ImageGetDto {
   id: string;
   imageUrl: string;
 }
+
+export interface CategoryDto {
+  id: string;
+  name: string;
+  parentId?: string | null;
+}

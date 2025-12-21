@@ -29,6 +29,7 @@ interface UseNearbyResult<T> {
     locationStatus: LocationStatus;
     locationMessage: string;
     hasLocation: boolean;
+    location?: { latitude: number; longitude: number };
     manualFetch: () => Promise<void>;
     retryPermission: () => Promise<void>;
 }
@@ -74,6 +75,7 @@ export function useNearby<T>(
         locationStatus: nearby.locationStatus,
         locationMessage: nearby.locationMessage,
         hasLocation: nearby.hasLocation,
+        location: nearby.location,
         manualFetch: nearby.manualFetch ?? (async () => { }),
         retryPermission: nearby.retryPermission,
     };

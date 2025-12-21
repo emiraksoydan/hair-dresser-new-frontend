@@ -199,6 +199,7 @@ export function useNearbyControl({
         locationStatus,
         locationMessage,
         hasLocation: locationStatus === "granted",
+        location: lastKnownPos.current ? { latitude: lastKnownPos.current.lat, longitude: lastKnownPos.current.lon } : undefined,
         fetchedOnce,
         initialLoading,
         manualFetch: async () => {
