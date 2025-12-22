@@ -286,7 +286,7 @@ const FormStoreAdd = () => {
             addressDescription: data.location.addressDescription,
             latitude: data.location.latitude,
             longitude: data.location.longitude,
-            pricingValue: data.pricingType.mode == 'percent' ? data.pricingType.percent! : parseTR(data.pricingType.rent)!,
+            pricingValue: data.pricingType.mode == 'percent' ? data.pricingType.percent! : (parseTR(data.pricingType.rent ?? undefined) ?? 0),
             taxDocumentFilePath: data.taxDocumentFilePath.uri,
             chairs: data.chairs!.map((c, index) => {
                 return {
@@ -405,7 +405,9 @@ const FormStoreAdd = () => {
         if (file) setValue('storeImageUrl', file, { shouldDirty: true, shouldValidate: true })
     }
     const categoryOptions = useMemo(
-        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        // Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
+        // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için en stabil yaklaşım.
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
     const chairExtra = useMemo(

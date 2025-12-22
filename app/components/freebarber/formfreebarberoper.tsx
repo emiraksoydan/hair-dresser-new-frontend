@@ -13,7 +13,7 @@ import { resolveApiErrorMessage } from "../../utils/common/error";
 import { BUSINESS_TYPES, SERVICE_BY_TYPE, trMoneyRegex } from "../../constants";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
 import { useSnackbar } from "../../hook/useSnackbar";
-import { mapBarberType, mapTypeToLabel } from "../../utils/form/form-mappers";
+import { mapBarberType, mapTypeToDisplayName } from "../../utils/form/form-mappers";
 import {
     useAddFreeBarberPanelMutation,
     useLazyGetFreeBarberMinePanelDetailQuery,
@@ -121,25 +121,41 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     const currentPrices = watch("prices");
 
     // Category API hooks
-    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
     const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
+
+    // Duplicate kategorileri filtrele (name bazında)
+    const parentCategories = React.useMemo(() => {
+        const seen = new Set<string>();
+        return parentCategoriesRaw.filter((cat: any) => {
+            if (seen.has(cat.name)) return false;
+            seen.add(cat.name);
+            return true;
+        });
+    }, [parentCategoriesRaw]);
 
     // FreeBarber için sadece Erkek Berber ve Bayan Kuaför kategorilerini göster (Güzellik Salonu hariç)
     const allowedParentCategories = React.useMemo(() => {
-        return parentCategories.filter((cat: any) => 
+        return parentCategories.filter((cat: any) =>
             cat.name === "Erkek Berber" || cat.name === "Bayan Kuaför"
         );
     }, [parentCategories]);
 
     // Seçilen parent kategoriye göre child kategorileri yükle
+    // Data yüklendiğinde de child kategorileri yükle
     React.useEffect(() => {
-        if (selectedType && allowedParentCategories.length > 0) {
-            const parentCat = allowedParentCategories.find((cat: any) => cat.name === selectedType);
+        // selectedType varsa onu kullan, yoksa data.type'ı display name'e çevir
+        const typeToLoad = selectedType || (data?.type != null ? mapTypeToDisplayName(data.type) : undefined);
+        if (typeToLoad && allowedParentCategories.length > 0) {
+            const parentCat = allowedParentCategories.find((cat: any) => cat.name === typeToLoad);
             if (parentCat) {
                 triggerGetChildCategories(parentCat.id);
             }
         }
-    }, [selectedType, allowedParentCategories, triggerGetChildCategories]);
+    }, [selectedType, data?.type, allowedParentCategories]);
+
+    // Not: Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
+    // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için name -> id dönüşümü yapmıyoruz.
 
 
     // Edit ise panel detay çek
@@ -209,7 +225,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             return acc;
         }, {});
 
-        const initialType = data?.type != null ? mapTypeToLabel(data.type) : "";
+        const initialType = data?.type != null ? mapTypeToDisplayName(data.type) : "";
         reset({
             ...getValues(),
             name: data?.firstName ?? "",
@@ -242,12 +258,13 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
 
     }, [data, isEdit, reset, getValues]);
 
-    const effectiveType = selectedType ? selectedType : data?.type != null ? mapTypeToLabel(data.type) : undefined;
+    const effectiveType = selectedType ? selectedType : data?.type != null ? mapTypeToDisplayName(data.type) : undefined;
 
     const categoryOptions = useMemo(
-        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
+
 
     // Tip değişince category/price reset
     const prevTypeRef = useRef<string | undefined>(undefined);
@@ -309,13 +326,11 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         const existingOfferings = data?.offerings ?? [];
 
         const offeringsMapped = (form.selectedCategories ?? [])
-            .map((categoryId) => {
-                const priceStr = form.prices?.[categoryId] ?? "";
+            .map((categoryName) => {
+                // selectedCategories artık direkt category name olarak tutuluyor (ID değil)
+                const priceStr = form.prices?.[categoryName] ?? "";
                 const priceNum = parseTR(priceStr);
                 if (priceNum == null) return null;
-
-                // Category name'i bul
-                const categoryName = childCategories.find((cat: any) => cat.id === categoryId)?.name ?? categoryId;
 
                 if (!isEdit) {
                     const dto: ServiceOfferingCreateDto = { serviceName: categoryName, price: priceNum };
@@ -526,35 +541,42 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                             <Controller
                                 control={control}
                                 name="type"
-                                render={({ field: { value, onChange }, fieldState: { error } }) => (
-                                    <>
-                                        <Dropdown
-                                            data={allowedParentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }))}
-                                            labelField="label"
-                                            valueField="value"
-                                            placeholder="Ana kategori seç (Erkek Berber / Bayan Kuaför)"
-                                            value={value}
-                                            onChange={(item: any) => onChange(item.value)}
-                                            style={{
-                                                height: 50,
-                                                borderRadius: 10,
-                                                paddingHorizontal: 12,
-                                                backgroundColor: "#1F2937",
-                                                borderWidth: 1,
-                                                borderColor: error ? "#b00020" : "#444",
-                                                marginTop: 6,
-                                            }}
-                                            placeholderStyle={{ color: "gray" }}
-                                            selectedTextStyle={{ color: "white" }}
-                                            itemTextStyle={{ color: "white" }}
-                                            containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10 }}
-                                            activeColor="#374151"
-                                        />
-                                        <HelperText type="error" visible={!!error}>
-                                            {errors?.type?.message as string}
-                                        </HelperText>
-                                    </>
-                                )}
+                                render={({ field: { value, onChange }, fieldState: { error } }) => {
+                                    // Dropdown data'sını memoize et
+                                    const dropdownData = allowedParentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }));
+                                    // Value'nun data'da olup olmadığını kontrol et
+                                    const isValueValid = value && dropdownData.some(item => item.value === value);
+
+                                    return (
+                                        <>
+                                            <Dropdown
+                                                data={dropdownData}
+                                                labelField="label"
+                                                valueField="value"
+                                                placeholder="Ana kategori seç (Erkek Berber / Bayan Kuaför)"
+                                                value={isValueValid ? value : null}
+                                                onChange={(item: any) => onChange(item.value)}
+                                                style={{
+                                                    height: 50,
+                                                    borderRadius: 10,
+                                                    paddingHorizontal: 12,
+                                                    backgroundColor: "#1F2937",
+                                                    borderWidth: 1,
+                                                    borderColor: error ? "#b00020" : "#444",
+                                                    marginTop: 6,
+                                                }}
+                                                placeholderStyle={{ color: "gray" }}
+                                                selectedTextStyle={{ color: "white" }}
+                                                itemTextStyle={{ color: "white" }}
+                                                containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10 }}
+                                                activeColor="#374151"
+                                            />
+                                            <HelperText type="error" visible={!!error}>
+                                                {errors?.type?.message as string}
+                                            </HelperText>
+                                        </>
+                                    );
+                                }}
                             />
                         </View>
 

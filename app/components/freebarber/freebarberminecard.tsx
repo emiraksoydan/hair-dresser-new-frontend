@@ -79,15 +79,6 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
                 }`}
         >
-            {!isList && (
-                <View className='flex-row justify-end px-2'>
-                    <View className={`${freeBarber.isAvailable ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                        <Text className="text-white text-sm font-ibm-plex-sans-medium">
-                            {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
-                        </Text>
-                    </View>
-                </View>
-            )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
                     <Image
@@ -98,28 +89,28 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                 ? { uri: coverImage }
                                 : require('../../../assets/images/empty.png')
                         }
-
                         resizeMode={'cover'}
                     />
-                    {isList && (
-                        <View className="absolute top-3 right-3 flex-row gap-2 z-10">
-                            <View className={`px-2 py-1 rounded-xl flex-row items-center justify-center ${freeBarber.type === BarberType.MaleHairdresser ? 'bg-blue-500' : 'bg-pink-500'}`}>
-                                <Icon
-                                    source={freeBarber.type === BarberType.MaleHairdresser ? 'face-man' : 'face-woman'}
-                                    color="white"
-                                    size={14}
-                                />
+                    {/* Image üzerinde bilgiler - hem list hem card modunda */}
+                    <View className={`absolute ${isList ? 'top-3 right-3' : 'top-1 right-1'} flex-row gap-2 z-10`}>
+                        <View className={`px-2 py-1 rounded-xl flex-row items-center justify-center ${freeBarber.type === BarberType.MaleHairdresser ? 'bg-blue-500' : 'bg-pink-500'}`}>
+                            <Icon
+                                source={freeBarber.type === BarberType.MaleHairdresser ? 'face-man' : 'face-woman'}
+                                color="white"
+                                size={isList ? 14 : 12}
+                            />
+                            {isList && (
                                 <Text className="text-white text-base font-ibm-plex-sans-medium ml-1">
                                     {freeBarber.type === BarberType.MaleHairdresser ? 'Erkek' : 'Kadın'}
                                 </Text>
-                            </View>
-                            <View className={`${freeBarber.isAvailable ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                <Text className="text-white text-base font-ibm-plex-sans-medium">
-                                    {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
-                                </Text>
-                            </View>
+                            )}
                         </View>
-                    )}
+                        <View className={`${freeBarber.isAvailable ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
+                            <Text className={`text-white font-ibm-plex-sans-medium ${isList ? 'text-base' : 'text-xs'}`}>
+                                {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
+                            </Text>
+                        </View>
+                    </View>
                 </TouchableOpacity>
                 <View className="flex-1 flex-col gap-2">
                     <View
@@ -228,7 +219,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                 >
                     {freeBarber.offerings.map((s) => (
                         <View
-                            key={s.id}
+                            key={(s as any).id ?? s.serviceName}
                             className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
                         >
                             <Text className="text-[#d1d5db] mr-1 text-sm">

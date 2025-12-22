@@ -23,7 +23,7 @@ import { resolveApiErrorMessage } from '../../utils/common/error';
 import { ChairEditModal } from './chaireditmodal';
 import { safeCoord } from '../../utils/location/geo';
 import { useSnackbar } from '../../hook/useSnackbar';
-import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
+import { mapBarberType, mapPricingType, mapTypeToDisplayName } from '../../utils/form/form-mappers';
 
 
 
@@ -267,6 +267,9 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         const firstImage = data.imageList?.[0];
         const imageUrl = firstImage?.imageUrl;
         const taxPath = (data as any).taxDocumentFilePath as string | undefined;
+
+        // Backend'den gelen serviceName aslında category name
+        // Bunu ID'ye çevirmek için child kategoriler yüklenene kadar name olarak tutacağız
         const initialCategories = (data.serviceOfferings ?? []).map(s => s.serviceName);
         const initialPrices = (data.serviceOfferings ?? []).reduce((acc, s) => {
             acc[s.serviceName] = String(s.price);
@@ -331,7 +334,8 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
         reset({
             storeName: data.storeName ?? "",
-            type: String(data.type),
+            // BarberStoreDetail.type backend'den string gelebilir (örn: "MaleHairdresser")
+            type: mapTypeToDisplayName(data.type as any),
             storeImageUrl: imageUrl
                 ? {
                     uri: imageUrl,
@@ -414,23 +418,42 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     const effectiveType = selectedType || (data?.type ?? undefined);
 
     // Category API hooks
-    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
+
+    // Duplicate kategorileri filtrele (name bazında)
+    const parentCategories = React.useMemo(() => {
+        if (!parentCategoriesRaw || parentCategoriesRaw.length === 0) return [];
+        const seen = new Set<string>();
+        return parentCategoriesRaw.filter((cat: any) => {
+            if (seen.has(cat.name)) return false;
+            seen.add(cat.name);
+            return true;
+        });
+    }, [parentCategoriesRaw]);
     const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
 
     // Store tüm kategorileri seçebilir
+    // Data yüklendiğinde de child kategorileri yükle
     React.useEffect(() => {
-        if (selectedType && parentCategories.length > 0) {
-            const parentCat = parentCategories.find((cat: any) => cat.name === selectedType);
+        // selectedType varsa onu kullan, yoksa data.type'ı display name'e çevir
+        const dataTypeName = data?.type != null ? mapTypeToDisplayName(data.type as any) : undefined;
+        const typeToLoad = selectedType || dataTypeName;
+
+        if (typeToLoad && parentCategories.length > 0) {
+            const parentCat = parentCategories.find((cat: any) => cat.name === typeToLoad);
             if (parentCat) {
                 triggerGetChildCategories(parentCat.id);
             }
         }
-    }, [selectedType, parentCategories, triggerGetChildCategories]);
+    }, [selectedType, data?.type, parentCategories]);
 
     const categoryOptions = useMemo(
-        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.id })),
+        // Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
+        // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için en stabil yaklaşım.
+        () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
+
 
     useEffect(() => {
         const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
@@ -586,7 +609,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             return;
         }
         if (selectedType && prevTypeRef.current && selectedType !== prevTypeRef.current) {
-            setValue("offerings", [], { shouldDirty: true, shouldValidate: true });
+            setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
             setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
         }
         prevTypeRef.current = selectedType;
@@ -634,7 +657,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             addressDescription: form.location.addressDescription,
             latitude: form.location.latitude,
             longitude: form.location.longitude,
-            pricingValue: form.pricingType.mode == 'percent' ? form.pricingType.percent! : parseTR(form.pricingType.rent)!,
+            pricingValue: form.pricingType.mode == 'percent' ? form.pricingType.percent! : (parseTR(form.pricingType.rent ?? undefined) ?? 0),
             taxDocumentFilePath: form.taxDocumentFilePath.uri,
             chairs: form.chairs!.map((c, index) => {
                 return {
@@ -798,37 +821,44 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                     <Controller
                                         control={control}
                                         name="type"
-                                        render={({ field: { value, onChange } }) => (
-                                            <>
-                                                <Dropdown
-                                                    data={parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }))}
-                                                    labelField="label"
-                                                    valueField="value"
-                                                    placeholder="Ana Kategori Seç"
-                                                    value={value}
-                                                    onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
-                                                    style={{
-                                                        height: 42,
-                                                        borderRadius: 10,
-                                                        paddingHorizontal: 12,
-                                                        backgroundColor: "#1F2937",
-                                                        borderWidth: 1,
-                                                        borderColor: errors.type ? "#b00020" : "#444",
-                                                        justifyContent: "center",
-                                                        marginTop: 0,
+                                        render={({ field: { value, onChange } }) => {
+                                            // Dropdown data'sını memoize et
+                                            const dropdownData = parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }));
+                                            // Value'nun data'da olup olmadığını kontrol et
+                                            const isValueValid = value && dropdownData.some(item => item.value === value);
 
-                                                    }}
-                                                    placeholderStyle={{ color: "gray" }}
-                                                    selectedTextStyle={{ color: "white" }}
-                                                    itemTextStyle={{ color: "white" }}
-                                                    containerStyle={{ backgroundColor: '#1F2937', borderWidth: 0, borderRadius: 10, overflow: 'hidden', }}
-                                                    activeColor="#3a3b3d"
-                                                />
-                                                <HelperText className='text-4xl' type="error" visible={!!errors.type}>
-                                                    {errors.type?.message}
-                                                </HelperText>
-                                            </>
-                                        )}
+                                            return (
+                                                <>
+                                                    <Dropdown
+                                                        data={dropdownData}
+                                                        labelField="label"
+                                                        valueField="value"
+                                                        placeholder="Ana Kategori Seç"
+                                                        value={isValueValid ? value : null}
+                                                        onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
+                                                        style={{
+                                                            height: 42,
+                                                            borderRadius: 10,
+                                                            paddingHorizontal: 12,
+                                                            backgroundColor: "#1F2937",
+                                                            borderWidth: 1,
+                                                            borderColor: errors.type ? "#b00020" : "#444",
+                                                            justifyContent: "center",
+                                                            marginTop: 0,
+
+                                                        }}
+                                                        placeholderStyle={{ color: "gray" }}
+                                                        selectedTextStyle={{ color: "white" }}
+                                                        itemTextStyle={{ color: "white" }}
+                                                        containerStyle={{ backgroundColor: '#1F2937', borderWidth: 0, borderRadius: 10, overflow: 'hidden', }}
+                                                        activeColor="#3a3b3d"
+                                                    />
+                                                    <HelperText className='text-4xl' type="error" visible={!!errors.type}>
+                                                        {errors.type?.message}
+                                                    </HelperText>
+                                                </>
+                                            );
+                                        }}
                                     />
                                 </View>
                             </View>

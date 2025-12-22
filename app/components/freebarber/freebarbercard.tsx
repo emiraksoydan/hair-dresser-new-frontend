@@ -262,7 +262,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                 >
                     {freeBarber.offerings.map((s) => (
                         <View
-                            key={s.id}
+                            key={(s as any).id ?? s.serviceName}
                             className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
                         >
                             <Text className="text-[#d1d5db] mr-1 text-sm">

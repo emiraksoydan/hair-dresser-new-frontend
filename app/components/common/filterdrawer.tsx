@@ -12,7 +12,7 @@ import Animated, {
     runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Chip, Divider, Icon, Button } from 'react-native-paper';
+import { Chip, Divider, Icon, Button, TextInput } from 'react-native-paper';
 import { MultiSelect } from 'react-native-element-dropdown';
 import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
 
@@ -96,8 +96,18 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     const translateX = useSharedValue(-DRAWER_WIDTH);
 
     // Category API hooks
-    const { data: parentCategories = [] } = useGetParentCategoriesQuery();
+    const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
     const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
+    
+    // Duplicate kategorileri filtrele (name bazında)
+    const parentCategories = React.useMemo(() => {
+        const seen = new Set<string>();
+        return parentCategoriesRaw.filter((cat: any) => {
+            if (seen.has(cat.name)) return false;
+            seen.add(cat.name);
+            return true;
+        });
+    }, [parentCategoriesRaw]);
 
     // Ana kategori değişince alt kategorileri yükle
     useEffect(() => {
@@ -148,7 +158,18 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
         });
 
     const userTypes = ['Hepsi', 'Serbest Berber', 'Dükkan'];
-    const mainCategories = ['Hepsi', ...parentCategories.map((cat: any) => cat.name)];
+    const mainCategories = React.useMemo(() => {
+        // Kullanıcı türü "Serbest Berber" ise Güzellik Salonu'nu gizle
+        let categories = parentCategories.map((cat: any) => cat.name);
+        
+        if (selectedUserType === "Serbest Berber") {
+            categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
+        }
+        
+        // "Hepsi" ve filtrelenmiş kategorileri birleştir, duplicate'leri kaldır
+        const allCategories = ['Hepsi', ...categories];
+        return Array.from(new Set(allCategories)); // Duplicate'leri kaldır
+    }, [parentCategories, selectedUserType]);
     const pricingTypes = ['Hepsi', 'Kiralama', 'Yüzdelik'];
     const availabilityOptions = [
         { label: 'Hepsi', value: 'all' },
@@ -248,11 +269,14 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 className="mb-4"
                                 contentContainerStyle={{ gap: 8 }}
                             >
-                                {mainCategories.map((category) => {
+                                    {mainCategories.map((category, index) => {
                                     const isSelected = selectedMainCategory === category;
+                                    // "Hepsi" için özel key, diğerleri için index kullan (unique garantisi için)
+                                    const uniqueKey = category === 'Hepsi' ? 'category-all' : `category-${index}-${category}`;
+                                    
                                     return (
                                         <TouchableOpacity
-                                            key={category}
+                                            key={uniqueKey}
                                             onPress={() => onChangeMainCategory(category)}
                                             className={`px-4 py-2 rounded-full border ${
                                                 isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
@@ -396,17 +420,47 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             </Text>
                             <View className="flex-row items-center gap-3 mb-4">
                                 <View className="flex-1">
-                                    <Text className="text-gray-400 text-xs mb-1">Min Fiyat (₺)</Text>
-                                    <View className="bg-gray-800 rounded-lg px-3 py-2 border border-gray-600">
-                                        <Text className="text-white text-sm">{minPrice || '0'}</Text>
-                                    </View>
+                                    <TextInput
+                                        label="Min Fiyat (₺)"
+                                        mode="outlined"
+                                        dense
+                                        keyboardType="numeric"
+                                        value={minPrice}
+                                        onChangeText={(text) => {
+                                            const cleaned = text.replace(/[^\d]/g, '');
+                                            onChangeMinPrice(cleaned);
+                                        }}
+                                        placeholder="0"
+                                        textColor="white"
+                                        outlineColor="#444"
+                                        theme={{
+                                            roundness: 10,
+                                            colors: { onSurfaceVariant: "gray", primary: "white" }
+                                        }}
+                                        style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
+                                    />
                                 </View>
-                                <Text className="text-gray-500 mt-5">-</Text>
+                                <Text className="text-gray-500 mt-2">-</Text>
                                 <View className="flex-1">
-                                    <Text className="text-gray-400 text-xs mb-1">Max Fiyat (₺)</Text>
-                                    <View className="bg-gray-800 rounded-lg px-3 py-2 border border-gray-600">
-                                        <Text className="text-white text-sm">{maxPrice || '∞'}</Text>
-                                    </View>
+                                    <TextInput
+                                        label="Max Fiyat (₺)"
+                                        mode="outlined"
+                                        dense
+                                        keyboardType="numeric"
+                                        value={maxPrice}
+                                        onChangeText={(text) => {
+                                            const cleaned = text.replace(/[^\d]/g, '');
+                                            onChangeMaxPrice(cleaned);
+                                        }}
+                                        placeholder="∞"
+                                        textColor="white"
+                                        outlineColor="#444"
+                                        theme={{
+                                            roundness: 10,
+                                            colors: { onSurfaceVariant: "gray", primary: "white" }
+                                        }}
+                                        style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
+                                    />
                                 </View>
                             </View>
 

@@ -26,9 +26,10 @@ import { useGetFreeBarberMinePanelQuery, useGetFilteredStoresMutation } from '..
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 import { FilterRequestDto } from '../../types/filter';
+import { useAuth } from '../../hook/useAuth';
 
 const Index = () => {
-
+    const { userId } = useAuth();
     const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location } = useNearbyStores(true);
 
     // API Filtreleme Mutation
@@ -48,7 +49,7 @@ const Index = () => {
     const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
 
     // Filter states
-    const [selectedUserType, setSelectedUserType] = useState<string>("Dükkan"); // Free barber panelinde sadece dükkanlar
+    const [selectedUserType, setSelectedUserType] = useState<string>("Hepsi"); // Free barber panelinde hem dükkan hem kendi paneli
     const [selectedMainCategory, setSelectedMainCategory] = useState<string>("Hepsi");
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [priceSort, setPriceSort] = useState<'none' | 'asc' | 'desc'>('none');
@@ -61,7 +62,7 @@ const Index = () => {
 
     // Applied filters
     const [appliedFilters, setAppliedFilters] = useState({
-        userType: "Dükkan",
+        userType: "Hepsi",
         mainCategory: "Hepsi",
         services: [] as string[],
         priceSort: 'none' as 'none' | 'asc' | 'desc',
@@ -148,23 +149,36 @@ const Index = () => {
             }
         };
 
-        const filter: FilterRequestDto = {
-            latitude: location?.latitude,
-            longitude: location?.longitude,
-            distance: 1.0,
-            searchQuery: searchQuery || undefined,
-            mainCategory: selectedMainCategory === "Hepsi" ? undefined : getCategoryEnum(selectedMainCategory),
-            serviceIds: selectedServices.length > 0 ? selectedServices : undefined,
-            priceSort: priceSort === 'none' ? undefined : priceSort,
-            minPrice: minPrice ? parseFloat(minPrice) : undefined,
-            maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-            pricingType: selectedPricingType === 'Hepsi' ? undefined : selectedPricingType.toLowerCase(),
-            isAvailable: availabilityFilter === 'all' ? undefined : availabilityFilter === 'available',
-            minRating: selectedRating > 0 ? selectedRating : undefined,
-            favoritesOnly: showFavoritesOnly || undefined,
-        };
+        // PricingType backend beklediği değerler: "rent" | "percent"
+        const pricingTypeParam =
+            selectedPricingType === "Kiralama" ? "rent" :
+                selectedPricingType === "Yüzdelik" ? "percent" :
+                    undefined;
 
-        await triggerFilterStores(filter);
+        // Availability mapping: available => true, unavailable => false, all => undefined
+        const availabilityParam = availabilityFilter === 'all' ? undefined : availabilityFilter === 'available';
+
+        // Sadece dükkanlar için filtre uygula (kullanıcı türü "Dükkan" veya "Hepsi" ise)
+        if (selectedUserType === "Hepsi" || selectedUserType === "Dükkan") {
+            const filter: FilterRequestDto = {
+                latitude: location?.latitude,
+                longitude: location?.longitude,
+                distance: 1.0,
+                searchQuery: searchQuery || undefined,
+                mainCategory: selectedMainCategory === "Hepsi" ? undefined : getCategoryEnum(selectedMainCategory),
+                serviceIds: selectedServices.length > 0 ? selectedServices : undefined,
+                priceSort: priceSort === 'none' ? undefined : priceSort,
+                minPrice: minPrice ? parseFloat(minPrice) : undefined,
+                maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+                pricingType: pricingTypeParam,
+                isOpenNow: availabilityParam, // Store için IsOpenNow (true = açık, false = kapalı)
+                minRating: selectedRating > 0 ? selectedRating : undefined,
+                favoritesOnly: showFavoritesOnly || undefined,
+                currentUserId: userId ? (userId as any) : undefined,
+            };
+
+            await triggerFilterStores(filter);
+        }
 
         setAppliedFilters({
             userType: selectedUserType,
@@ -179,10 +193,10 @@ const Index = () => {
             favoritesOnly: showFavoritesOnly,
         });
         setFilterDrawerVisible(false);
-    }, [selectedUserType, selectedMainCategory, selectedServices, priceSort, minPrice, maxPrice, selectedPricingType, selectedRating, showFavoritesOnly, searchQuery, location, triggerFilterStores]);
+    }, [selectedUserType, selectedMainCategory, selectedServices, priceSort, minPrice, maxPrice, selectedPricingType, availabilityFilter, selectedRating, showFavoritesOnly, searchQuery, location, triggerFilterStores, userId]);
 
     const handleClearFilters = useCallback(() => {
-        setSelectedUserType("Dükkan");
+        setSelectedUserType("Hepsi");
         setSelectedMainCategory("Hepsi");
         setSelectedServices([]);
         setPriceSort('none');
@@ -193,7 +207,7 @@ const Index = () => {
         setSelectedRating(0);
         setShowFavoritesOnly(false);
         setAppliedFilters({
-            userType: "Dükkan",
+            userType: "Hepsi",
             mainCategory: "Hepsi",
             services: [],
             priceSort: 'none',
@@ -216,15 +230,24 @@ const Index = () => {
             appliedFilters.minPrice !== '' ||
             appliedFilters.maxPrice !== '' ||
             appliedFilters.pricingType !== 'Hepsi' ||
+            appliedFilters.availability !== 'all' ||
             appliedFilters.rating > 0 ||
             appliedFilters.favoritesOnly;
 
+        // Kullanıcı türü filtresi kontrolü
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
+
+        // Eğer kullanıcı sadece kendi panelini görmek istiyorsa, boş array döndür
+        if (appliedFilters.userType === "Serbest Berber") {
+            return [];
+        }
+
         // Eğer search query var veya filtre uygulandıysa ve API'den sonuç geldiyse onu kullan
-        if ((searchQuery || hasActiveFilters) && filteredStoresData !== undefined) {
+        if ((searchQuery || hasActiveFilters) && filteredStoresData !== undefined && shouldShowStores) {
             return filteredStoresData;
         }
-        // Değilse normal veriyi göster
-        return displayStores;
+        // Değilse normal veriyi göster (eğer dükkanlar gösterilecekse)
+        return shouldShowStores ? displayStores : [];
     }, [filteredStoresData, displayStores, searchQuery, appliedFilters]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
@@ -254,35 +277,41 @@ const Index = () => {
     const listData = useMemo(() => {
         const items: Array<{ id: string; type: 'freebarber-section' | 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-error' | 'stores-content-horizontal'; data?: any }> = [];
 
-        // FreeBarberPanelSection - bu bir section olarak ekleniyor
-        items.push({ id: 'freebarber-section', type: 'freebarber-section' });
+        // FreeBarberPanelSection - kullanıcı türü filtresi "Serbest Berber" veya "Hepsi" ise göster
+        const shouldShowFreeBarberPanel = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Serbest Berber";
+        if (shouldShowFreeBarberPanel) {
+            items.push({ id: 'freebarber-section', type: 'freebarber-section' });
+        }
 
-        // Stores section
-        items.push({ id: 'stores-header', type: 'stores-header' });
-        if (isStoresLoading) {
-            items.push({ id: 'stores-loading', type: 'stores-loading' });
-        } else if (storeError) {
-            items.push({ id: 'stores-error', type: 'stores-error' });
-        } else {
-            // Filtrelenmiş store'ları kullan
-            const storesToDisplay = filteredStores;
-            const hasStoresToShow = storesToDisplay.length > 0;
-
-            if (hasStoresToShow) {
-                if (expandedStoreBarber) {
-                    storesToDisplay.forEach((store) => {
-                        items.push({ id: `store-${store.id}`, type: 'store', data: store });
-                    });
-                } else {
-                    items.push({ id: 'stores-content-horizontal', type: 'stores-content-horizontal', data: storesToDisplay });
-                }
+        // Stores section - kullanıcı türü filtresi "Dükkan" veya "Hepsi" ise göster
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
+        if (shouldShowStores) {
+            items.push({ id: 'stores-header', type: 'stores-header' });
+            if (isStoresLoading) {
+                items.push({ id: 'stores-loading', type: 'stores-loading' });
+            } else if (storeError) {
+                items.push({ id: 'stores-error', type: 'stores-error' });
             } else {
-                items.push({ id: 'stores-empty', type: 'stores-empty' });
+                // Filtrelenmiş store'ları kullan
+                const storesToDisplay = filteredStores;
+                const hasStoresToShow = storesToDisplay.length > 0;
+
+                if (hasStoresToShow) {
+                    if (expandedStoreBarber) {
+                        storesToDisplay.forEach((store) => {
+                            items.push({ id: `store-${store.id}`, type: 'store', data: store });
+                        });
+                    } else {
+                        items.push({ id: 'stores-content-horizontal', type: 'stores-content-horizontal', data: storesToDisplay });
+                    }
+                } else {
+                    items.push({ id: 'stores-empty', type: 'stores-empty' });
+                }
             }
         }
 
         return items;
-    }, [isStoresLoading, storeError, filteredStores, expandedStoreBarber]);
+    }, [isStoresLoading, storeError, filteredStores, expandedStoreBarber, appliedFilters.userType]);
 
     const handleMarkerPress = useCallback(
         (item: BarberStoreGetDto) => {
@@ -404,14 +433,14 @@ const Index = () => {
                 <FlatList
                     data={listData}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ paddingBottom: 16 }}
+                    contentContainerStyle={{ paddingBottom: 100 }}
                     showsVerticalScrollIndicator={false}
-                    // Performance optimizations
-                    removeClippedSubviews={true} // Görünmeyenleri kaldır
-                    maxToRenderPerBatch={10} // Batch başına max render
-                    updateCellsBatchingPeriod={50} // Batch güncelleme periyodu
-                    initialNumToRender={10} // İlk render sayısı
-                    windowSize={5} // Viewport window size
+                    // Performance optimizations - removeClippedSubviews kaldırıldı (overlap sorununa neden oluyordu)
+                    removeClippedSubviews={false}
+                    maxToRenderPerBatch={5}
+                    updateCellsBatchingPeriod={100}
+                    initialNumToRender={5}
+                    windowSize={3}
                     renderItem={({ item }) => {
                         if (item.type === 'freebarber-section') {
                             return (
@@ -542,6 +571,7 @@ const Index = () => {
                 onClose={() => setFilterDrawerVisible(false)}
                 selectedUserType={selectedUserType}
                 onChangeUserType={setSelectedUserType}
+                showUserTypeFilter={true}
                 selectedMainCategory={selectedMainCategory}
                 onChangeMainCategory={setSelectedMainCategory}
                 selectedServices={selectedServices}
@@ -555,7 +585,6 @@ const Index = () => {
                 selectedPricingType={selectedPricingType}
                 onChangePricingType={setSelectedPricingType}
                 showPricingType={true}
-                showUserTypeFilter={true}
                 availabilityFilter={availabilityFilter}
                 onChangeAvailability={setAvailabilityFilter}
                 selectedRating={selectedRating}

@@ -9,16 +9,28 @@
  * @returns Numeric type value
  */
 export const mapBarberType = (type: string): number => {
-  switch (type) {
-    case 'MaleHairdresser':
-      return 0;
-    case 'FemaleHairdresser':
-      return 1;
-    case 'BeautySalon':
-      return 2;
-    default:
-      return 0;
+  const raw = (type ?? "").toString().trim();
+  const lower = raw.toLowerCase();
+
+  // Numeric string support ("0","1","2")
+  const asNum = Number(raw);
+  if (!Number.isNaN(asNum) && Number.isFinite(asNum)) {
+    if (asNum === 0) return 0;
+    if (asNum === 1) return 1;
+    if (asNum === 2) return 2;
   }
+
+  // English enum names
+  if (raw === "MaleHairdresser") return 0;
+  if (raw === "FemaleHairdresser") return 1;
+  if (raw === "BeautySalon") return 2;
+
+  // Turkish display names (category names)
+  if (lower === "erkek berber") return 0;
+  if (lower === "bayan kuaför" || lower === "bayan kuafor") return 1;
+  if (lower === "güzellik salonu" || lower === "guzellik salonu") return 2;
+
+  return 0;
 };
 
 /**
@@ -36,6 +48,47 @@ export const mapTypeToLabel = (type: number): string => {
       return 'BeautySalon';
     default:
       return '';
+  }
+};
+
+/**
+ * Maps business type number to display name (Turkish)
+ * @param type - Numeric business type
+ * @returns Display name in Turkish
+ */
+export const mapTypeToDisplayName = (type: number | string): string => {
+  // If it's already a Turkish display name, keep it
+  if (typeof type === "string") {
+    const raw = type.trim();
+    const lower = raw.toLowerCase();
+
+    if (lower === "erkek berber") return "Erkek Berber";
+    if (lower === "bayan kuaför" || lower === "bayan kuafor") return "Bayan Kuaför";
+    if (lower === "güzellik salonu" || lower === "guzellik salonu") return "Güzellik Salonu";
+
+    // If it's enum label, map it
+    if (raw === "MaleHairdresser") return "Erkek Berber";
+    if (raw === "FemaleHairdresser") return "Bayan Kuaför";
+    if (raw === "BeautySalon") return "Güzellik Salonu";
+
+    // Numeric string support
+    const n = Number(raw);
+    if (!Number.isNaN(n) && Number.isFinite(n)) {
+      return mapTypeToDisplayName(n);
+    }
+
+    return "";
+  }
+
+  switch (type) {
+    case 0:
+      return "Erkek Berber";
+    case 1:
+      return "Bayan Kuaför";
+    case 2:
+      return "Güzellik Salonu";
+    default:
+      return "";
   }
 };
 

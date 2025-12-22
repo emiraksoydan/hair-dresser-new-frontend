@@ -24,10 +24,12 @@ import MotiViewExpand from "../../components/common/motiviewexpand";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import { EmptyState } from "../../components/common/emptystateresult";
 import { StoresSection, FreeBarbersSection } from '../../components/panel/PanelSections';
+import { useAuth } from '../../hook/useAuth';
 
 // ✅ Main Component
 const Index = () => {
     const router = useRouter();
+    const { userId } = useAuth();
 
     // ✅ RTK Query ile data çekme - keepUnusedDataFor ile cache süresi ayarlanır
     const {
@@ -144,6 +146,12 @@ const Index = () => {
             }
         };
 
+        // PricingType backend beklediği değerler: "rent" | "percent"
+        const pricingTypeParam =
+            selectedPricingType === "Kiralama" ? "rent" :
+                selectedPricingType === "Yüzdelik" ? "percent" :
+                    undefined;
+
         // Ortak filtre parametreleri
         const commonFilter = {
             searchQuery: searchQuery || undefined,
@@ -152,10 +160,13 @@ const Index = () => {
             priceSort: priceSort === 'none' ? undefined : priceSort,
             minPrice: minPrice ? parseFloat(minPrice) : undefined,
             maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-            pricingType: selectedPricingType === 'Hepsi' ? undefined : selectedPricingType.toLowerCase(),
             minRating: selectedRating > 0 ? selectedRating : undefined,
             favoritesOnly: showFavoritesOnly || undefined,
+            currentUserId: userId ? (userId as any) : undefined, // Backend'de kullanıcı ID'si gerekli
         };
+
+        // Availability mapping: available => true, unavailable => false, all => undefined
+        const availabilityParam = availabilityFilter === 'all' ? undefined : availabilityFilter === 'available';
 
         // Kullanıcı tipine göre filtreleme
         if (selectedUserType === "Hepsi" || selectedUserType === "Dükkan") {
@@ -164,6 +175,8 @@ const Index = () => {
                 latitude: storesLocation?.latitude,
                 longitude: storesLocation?.longitude,
                 distance: 1.0,
+                pricingType: pricingTypeParam, // Sadece Store için
+                isOpenNow: availabilityParam, // Store için IsOpenNow (true = açık, false = kapalı)
             };
             await triggerFilterStores(storeFilter);
         }
@@ -174,7 +187,7 @@ const Index = () => {
                 latitude: freeBarbersLocation?.latitude,
                 longitude: freeBarbersLocation?.longitude,
                 distance: 1.0,
-                isAvailable: availabilityFilter === 'all' ? undefined : availabilityFilter === 'available',
+                isAvailable: availabilityParam, // FreeBarber için IsAvailable (true = müsait, false = müsait değil)
             };
             await triggerFilterFreeBarbers(freeBarberFilter);
         }
@@ -192,7 +205,7 @@ const Index = () => {
             favoritesOnly: showFavoritesOnly,
         });
         setFilterDrawerVisible(false);
-    }, [selectedUserType, selectedMainCategory, selectedServices, priceSort, minPrice, maxPrice, selectedPricingType, availabilityFilter, selectedRating, showFavoritesOnly, searchQuery, storesLocation, freeBarbersLocation, triggerFilterStores, triggerFilterFreeBarbers]);
+    }, [selectedUserType, selectedMainCategory, selectedServices, priceSort, minPrice, maxPrice, selectedPricingType, availabilityFilter, selectedRating, showFavoritesOnly, searchQuery, storesLocation, freeBarbersLocation, triggerFilterStores, triggerFilterFreeBarbers, userId]);
 
     const handleClearFilters = useCallback(() => {
         setSelectedUserType("Hepsi");
@@ -378,7 +391,7 @@ const Index = () => {
             ) : (
                 <ScrollView
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 80 }}
+                    contentContainerStyle={{ paddingBottom: 100 }}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}

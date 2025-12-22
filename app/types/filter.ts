@@ -11,9 +11,9 @@ export interface FilterRequestDto {
     maxPrice?: number;
     priceSort?: 'asc' | 'desc';
     pricingType?: string;
-    isAvailable?: boolean;
+    isAvailable?: boolean; // FreeBarber için
+    isOpenNow?: boolean; // Store için
     minRating?: number;
     favoritesOnly?: boolean;
-    pageNumber?: number;
-    pageSize?: number;
+    currentUserId?: string;
 }

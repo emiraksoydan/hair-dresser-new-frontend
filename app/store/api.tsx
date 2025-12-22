@@ -58,7 +58,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 60, // 60 saniye cache (refresh sırasında flicker önlenir)
+            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - lokasyon değişikliklerinde hard refresh yapılıyor
             providesTags: (result) =>
                 result
                     ? [
@@ -73,7 +73,7 @@ export const api = createApi({
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
-            keepUnusedDataFor: 60, // 60 saniye cache (refresh sırasında flicker önlenir)
+            keepUnusedDataFor: 30, // ✅ Cache süresi azaltıldı - 30 saniye (beğeni ve yorum güncellemeleri için)
             // refetchOnMountOrArgChange hook seviyesinde kullanılır, endpoint tanımında değil
             providesTags: (result) =>
                 result
@@ -114,7 +114,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 60, // 60 saniye cache (refresh sırasında flicker önlenir)
+            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - lokasyon değişikliklerinde hard refresh yapılıyor
             providesTags: (result) =>
                 result
                     ? [
@@ -129,7 +129,7 @@ export const api = createApi({
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
-            keepUnusedDataFor: 60, // 60 saniye cache (refresh sırasında flicker önlenir)
+            keepUnusedDataFor: 30, // ✅ Cache süresi azaltıldı - 30 saniye (beğeni ve yorum güncellemeleri için)
             providesTags: ['MineFreeBarberPanel'],
         }),
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
@@ -469,11 +469,94 @@ export const api = createApi({
         toggleFavorite: builder.mutation<ApiResponse<ToggleFavoriteResponseDto>, ToggleFavoriteDto>({
             query: (body) => ({ url: 'Favorite/toggle', method: 'POST', body }),
             async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
-                // Backend'den dönen favoriteCount'u kullanarak cache'i güncelle
-                // Optimistic update yerine backend'den gelen gerçek değeri kullanıyoruz
-
+                // ✅ PERFORMANS İYİLEŞTİRME: Optimistic update ile anında UI güncelleme
                 const targetId = arg.targetId;
                 const state = getState() as any;
+
+                // Optimistic update için patch'leri sakla (rollback için)
+                const patchResults: any[] = [];
+
+                // ✅ Optimistic update: Anında UI'ı güncelle
+                const optimisticUpdateCache = (endpointName: string, optimisticToggle: boolean) => {
+                    try {
+                        const apiState = (state as any).api;
+                        if (!apiState?.queries) return;
+
+                        Object.keys(apiState.queries).forEach((queryKey) => {
+                            const queryState = apiState.queries[queryKey];
+                            if (queryState?.endpointName === endpointName && queryState?.data) {
+                                try {
+                                    let queryArgs = queryState.originalArgs;
+
+                                    if (!queryArgs && queryState.queryCacheKey) {
+                                        const match = queryState.queryCacheKey.match(/\((.+)\)$/);
+                                        if (match) {
+                                            try {
+                                                queryArgs = JSON.parse(match[1]);
+                                            } catch (e) {
+                                                // Parse edilemezse atla
+                                            }
+                                        }
+                                    }
+
+                                    if (queryArgs) {
+                                        const patchResult = dispatch(
+                                            api.util.updateQueryData(endpointName as any, queryArgs, (draft: any) => {
+                                                if (Array.isArray(draft)) {
+                                                    const item = draft.find((s: any) => s.id === targetId);
+                                                    if (item) {
+                                                        // Optimistic: favoriteCount'u tahmin et
+                                                        item.favoriteCount = (item.favoriteCount || 0) + (optimisticToggle ? 1 : -1);
+                                                        if (item.favoriteCount < 0) item.favoriteCount = 0;
+                                                    }
+                                                } else if (draft && draft.id === targetId) {
+                                                    draft.favoriteCount = (draft.favoriteCount || 0) + (optimisticToggle ? 1 : -1);
+                                                    if (draft.favoriteCount < 0) draft.favoriteCount = 0;
+                                                }
+                                            })
+                                        );
+                                        patchResults.push(patchResult);
+                                    }
+                                } catch (e) {
+                                    // Hata durumunda sessizce devam et
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        // Hata durumunda sessizce devam et
+                    }
+                };
+
+                // İlk önce optimistic update yap (kullanıcı anında feedback alır)
+                const currentIsFavorite = await (async () => {
+                    try {
+                        const apiState = (state as any).api;
+                        if (apiState?.queries) {
+                            for (const queryKey of Object.keys(apiState.queries)) {
+                                const queryState = apiState.queries[queryKey];
+                                if (queryState?.endpointName === 'isFavorite' && queryState?.data !== undefined) {
+                                    const args = queryState.originalArgs;
+                                    if (args === targetId) {
+                                        return queryState.data as boolean;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Hata durumunda false döndür
+                    }
+                    return false;
+                })();
+
+                const optimisticToggle = !currentIsFavorite;
+
+                // Tüm ilgili cache'leri optimistic olarak güncelle
+                optimisticUpdateCache('getNearbyStores', optimisticToggle);
+                optimisticUpdateCache('getMineStores', optimisticToggle);
+                optimisticUpdateCache('getNearbyFreeBarber', optimisticToggle);
+                optimisticUpdateCache('getFreeBarberMinePanel', optimisticToggle);
+                optimisticUpdateCache('getStoreForUsers', optimisticToggle);
+                optimisticUpdateCache('getFreeBarberForUsers', optimisticToggle);
 
                 // Helper function: Backend'den dönen favoriteCount ile cache'i güncelle
                 const updateCacheWithFavoriteCount = (endpointName: string, favoriteCount: number, isFavorite: boolean) => {
@@ -567,7 +650,7 @@ export const api = createApi({
                     }
                 };
 
-                // Backend'den dönen response'u bekle ve cache'i güncelle
+                // Backend'den dönen response'u bekle ve cache'i gerçek değerle düzelt
                 try {
                     const result = await queryFulfilled;
                     const responseData = result.data?.data || result.data;
@@ -576,7 +659,7 @@ export const api = createApi({
                         const favoriteCount = responseData.favoriteCount ?? 0;
                         const isFavorite = responseData.isFavorite ?? false;
 
-                        // Tüm ilgili cache entry'lerini güncelle
+                        // ✅ Backend'den gelen gerçek değerlerle cache'i düzelt
                         updateCacheWithFavoriteCount('getNearbyStores', favoriteCount, isFavorite);
                         updateCacheWithFavoriteCount('getMineStores', favoriteCount, isFavorite);
                         updateCacheWithFavoriteCount('getNearbyFreeBarber', favoriteCount, isFavorite);
@@ -587,8 +670,12 @@ export const api = createApi({
                         // Appointment favorite flag'lerini güncelle
                         updateAppointmentFavoriteFlag(isFavorite);
                     }
-                } catch {
-                    // Hata durumunda invalidatesTags zaten cache'i temizleyecek ve refetch yapacak
+                } catch (error) {
+                    // ✅ Hata durumunda optimistic update'i geri al
+                    patchResults.forEach(patchResult => {
+                        patchResult.undo();
+                    });
+                    // invalidatesTags zaten cache'i temizleyecek ve refetch yapacak
                 }
             },
             invalidatesTags: (result, error, arg) => [
@@ -620,7 +707,7 @@ export const api = createApi({
         }),
         isFavorite: builder.query<boolean, string>({
             query: (targetId) => `Favorite/check/${targetId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache
+            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - favoriler anlık güncellenmeli
             providesTags: (result, error, targetId) => [{ type: 'IsFavorite' as const, id: targetId }],
             transformResponse: (response: any) => {
                 // Backend zaten camelCase döndürüyor: { success: boolean, data: boolean, message?: string }
@@ -631,7 +718,7 @@ export const api = createApi({
         }),
         getMyFavorites: builder.query<FavoriteGetDto[], void>({
             query: () => 'Favorite/my-favorites',
-            keepUnusedDataFor: 30, // 30 saniye cache
+            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - favoriler anlık güncellenmeli
             providesTags: ['Favorite'],
             transformResponse: (response: any) => {
                 // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
