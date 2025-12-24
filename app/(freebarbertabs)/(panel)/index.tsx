@@ -1,4 +1,4 @@
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from 'react-native'
+﻿import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from 'react-native'
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
 import SearchBar from '../../components/common/searchbar';
@@ -14,7 +14,7 @@ import { FormFreeBarberOperation } from '../../components/freebarber/formfreebar
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { StoreCardInner } from '../../components/store/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
-import { BarberStoreGetDto, BarberType } from '../../types';
+import { BarberStoreGetDto, FavoriteTargetType } from '../../types';
 import { FreeBarberPanelSection } from '../../components/freebarber/freebarberpanelsection';
 import { EmptyState } from '../../components/common/emptystateresult';
 import { useRouter } from 'expo-router';
@@ -22,18 +22,30 @@ import { Icon, IconButton } from 'react-native-paper';
 import MapView, { Marker } from 'react-native-maps';
 import { safeCoord } from '../../utils/location/geo';
 import StoreBookingContent from '../../components/store/storebooking';
-import { useGetFreeBarberMinePanelQuery, useGetFilteredStoresMutation } from '../../store/api';
+import { useGetAllCategoriesQuery, useGetFreeBarberMinePanelQuery, useGetMyFavoritesQuery } from '../../store/api';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
-import { FilterRequestDto } from '../../types/filter';
-import { useAuth } from '../../hook/useAuth';
+import { filterStores } from "../../utils/filter/panel-filters";
+import { usePanelFilters } from "../../hook/usePanelFilters";
 
 const Index = () => {
-    const { userId } = useAuth();
     const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location } = useNearbyStores(true);
-
-    // API Filtreleme Mutation
-    const [triggerFilterStores, { data: filteredStoresData, isLoading: isFilteringStores }] = useGetFilteredStoresMutation();
+    const { data: allCategories = [] } = useGetAllCategoriesQuery();
+    const categoryNameById = useMemo(() => {
+        const map = new Map<string, string>();
+        (allCategories ?? []).forEach((c: any) => {
+            if (c?.id && c?.name) map.set(String(c.id), String(c.name));
+        });
+        return map;
+    }, [allCategories]);
+    const { data: favorites = [] } = useGetMyFavoritesQuery();
+    const favoriteStoreIds = useMemo(() => {
+        return new Set(
+            (favorites ?? [])
+                .filter((f: any) => f.targetType === FavoriteTargetType.Store)
+                .map((f: any) => String(f.favoritedToId))
+        );
+    }, [favorites]);
 
     // useTrackFreeBarberLocation zaten hard refresh yapıyor (30 saniyede bir) ve updateFreeBarberLocation mutation'ı MineFreeBarberPanel tag'ini invalidate ediyor
     // Bu yüzden ayrı polling interval'a gerek yok
@@ -48,31 +60,32 @@ const Index = () => {
     // Filter drawer state
     const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
 
-    // Filter states
-    const [selectedUserType, setSelectedUserType] = useState<string>("Hepsi"); // Free barber panelinde hem dükkan hem kendi paneli
-    const [selectedMainCategory, setSelectedMainCategory] = useState<string>("Hepsi");
-    const [selectedServices, setSelectedServices] = useState<string[]>([]);
-    const [priceSort, setPriceSort] = useState<'none' | 'asc' | 'desc'>('none');
-    const [minPrice, setMinPrice] = useState<string>('');
-    const [maxPrice, setMaxPrice] = useState<string>('');
-    const [selectedPricingType, setSelectedPricingType] = useState<string>('Hepsi');
-    const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'unavailable'>('all');
-    const [selectedRating, setSelectedRating] = useState<number>(0);
-    const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
+    const {
+        selectedUserType,
+        setSelectedUserType,
+        selectedMainCategory,
+        setSelectedMainCategory,
+        selectedServices,
+        setSelectedServices,
+        priceSort,
+        setPriceSort,
+        minPrice,
+        setMinPrice,
+        maxPrice,
+        setMaxPrice,
+        selectedPricingType,
+        setSelectedPricingType,
+        availabilityFilter,
+        setAvailabilityFilter,
+        selectedRating,
+        setSelectedRating,
+        showFavoritesOnly,
+        setShowFavoritesOnly,
+        appliedFilters,
+        applyFilters,
+        clearFilters,
+    } = usePanelFilters();
 
-    // Applied filters
-    const [appliedFilters, setAppliedFilters] = useState({
-        userType: "Hepsi",
-        mainCategory: "Hepsi",
-        services: [] as string[],
-        priceSort: 'none' as 'none' | 'asc' | 'desc',
-        minPrice: '',
-        maxPrice: '',
-        pricingType: 'Hepsi',
-        availability: 'all' as 'all' | 'available' | 'unavailable',
-        rating: 0,
-        favoritesOnly: false,
-    });
 
     const [isMapMode, setIsMapMode] = useState(false);
     const [selectedMapItem, setSelectedMapItem] = useState<BarberStoreGetDto | null>(null);
@@ -138,117 +151,28 @@ const Index = () => {
     }, [presentRatings]);
 
     // Filter fonksiyonları
-    const handleApplyFilters = useCallback(async () => {
-        // Ana kategori enum'a çevir
-        const getCategoryEnum = (category: string): BarberType | undefined => {
-            switch (category) {
-                case "Erkek Berber": return BarberType.MaleHairdresser;
-                case "Bayan Kuaför": return BarberType.FemaleHairdresser;
-                case "Güzellik Salonu": return BarberType.BeautySalon;
-                default: return undefined;
-            }
-        };
-
-        // PricingType backend beklediği değerler: "rent" | "percent"
-        const pricingTypeParam =
-            selectedPricingType === "Kiralama" ? "rent" :
-                selectedPricingType === "Yüzdelik" ? "percent" :
-                    undefined;
-
-        // Availability mapping: available => true, unavailable => false, all => undefined
-        const availabilityParam = availabilityFilter === 'all' ? undefined : availabilityFilter === 'available';
-
-        // Sadece dükkanlar için filtre uygula (kullanıcı türü "Dükkan" veya "Hepsi" ise)
-        if (selectedUserType === "Hepsi" || selectedUserType === "Dükkan") {
-            const filter: FilterRequestDto = {
-                latitude: location?.latitude,
-                longitude: location?.longitude,
-                distance: 1.0,
-                searchQuery: searchQuery || undefined,
-                mainCategory: selectedMainCategory === "Hepsi" ? undefined : getCategoryEnum(selectedMainCategory),
-                serviceIds: selectedServices.length > 0 ? selectedServices : undefined,
-                priceSort: priceSort === 'none' ? undefined : priceSort,
-                minPrice: minPrice ? parseFloat(minPrice) : undefined,
-                maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-                pricingType: pricingTypeParam,
-                isOpenNow: availabilityParam, // Store için IsOpenNow (true = açık, false = kapalı)
-                minRating: selectedRating > 0 ? selectedRating : undefined,
-                favoritesOnly: showFavoritesOnly || undefined,
-                currentUserId: userId ? (userId as any) : undefined,
-            };
-
-            await triggerFilterStores(filter);
-        }
-
-        setAppliedFilters({
-            userType: selectedUserType,
-            mainCategory: selectedMainCategory,
-            services: selectedServices,
-            priceSort,
-            minPrice,
-            maxPrice,
-            pricingType: selectedPricingType,
-            availability: availabilityFilter,
-            rating: selectedRating,
-            favoritesOnly: showFavoritesOnly,
-        });
+    const handleApplyFilters = useCallback(() => {
+        applyFilters();
         setFilterDrawerVisible(false);
-    }, [selectedUserType, selectedMainCategory, selectedServices, priceSort, minPrice, maxPrice, selectedPricingType, availabilityFilter, selectedRating, showFavoritesOnly, searchQuery, location, triggerFilterStores, userId]);
+    }, [applyFilters]);
 
     const handleClearFilters = useCallback(() => {
-        setSelectedUserType("Hepsi");
-        setSelectedMainCategory("Hepsi");
-        setSelectedServices([]);
-        setPriceSort('none');
-        setMinPrice('');
-        setMaxPrice('');
-        setSelectedPricingType('Hepsi');
-        setAvailabilityFilter('all');
-        setSelectedRating(0);
-        setShowFavoritesOnly(false);
-        setAppliedFilters({
-            userType: "Hepsi",
-            mainCategory: "Hepsi",
-            services: [],
-            priceSort: 'none',
-            minPrice: '',
-            maxPrice: '',
-            pricingType: 'Hepsi',
-            availability: 'all',
-            rating: 0,
-            favoritesOnly: false,
-        });
+        clearFilters();
         setFilterDrawerVisible(false);
-    }, []);
+    }, [clearFilters]);
 
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredStores = useMemo(() => {
-        // Filtre veya search aktif mi kontrol et
-        const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
-            appliedFilters.services.length > 0 ||
-            appliedFilters.priceSort !== 'none' ||
-            appliedFilters.minPrice !== '' ||
-            appliedFilters.maxPrice !== '' ||
-            appliedFilters.pricingType !== 'Hepsi' ||
-            appliedFilters.availability !== 'all' ||
-            appliedFilters.rating > 0 ||
-            appliedFilters.favoritesOnly;
-
-        // Kullanıcı türü filtresi kontrolü
         const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
+        if (!shouldShowStores || appliedFilters.userType === "Serbest Berber") return [];
 
-        // Eğer kullanıcı sadece kendi panelini görmek istiyorsa, boş array döndür
-        if (appliedFilters.userType === "Serbest Berber") {
-            return [];
-        }
-
-        // Eğer search query var veya filtre uygulandıysa ve API'den sonuç geldiyse onu kullan
-        if ((searchQuery || hasActiveFilters) && filteredStoresData !== undefined && shouldShowStores) {
-            return filteredStoresData;
-        }
-        // Değilse normal veriyi göster (eğer dükkanlar gösterilecekse)
-        return shouldShowStores ? displayStores : [];
-    }, [filteredStoresData, displayStores, searchQuery, appliedFilters]);
+        return filterStores(displayStores, {
+            searchQuery,
+            filters: appliedFilters,
+            categoryNameById,
+            favoriteIds: favoriteStoreIds,
+        });
+    }, [displayStores, searchQuery, appliedFilters, categoryNameById, favoriteStoreIds]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({
@@ -394,23 +318,6 @@ const Index = () => {
         freeBarber?.id ?? null
     );
 
-    // Search query değiştiğinde filtreleri uygula veya temizle
-    useEffect(() => {
-        const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
-            appliedFilters.services.length > 0 ||
-            appliedFilters.priceSort !== 'none' ||
-            appliedFilters.minPrice !== '' ||
-            appliedFilters.maxPrice !== '' ||
-            appliedFilters.pricingType !== 'Hepsi' ||
-            appliedFilters.rating > 0 ||
-            appliedFilters.favoritesOnly;
-
-        if (searchQuery || hasActiveFilters) {
-            // Filtre varsa veya arama yapılıyorsa uygula
-            handleApplyFilters();
-        }
-        // Search query boş ve filtre yoksa hiçbir şey yapma (normal data gösterilecek)
-    }, [searchQuery]);
 
     return (
         <View className='flex flex-1 pl-4 pr-2 bg-[#151618]'>
@@ -652,3 +559,7 @@ const Index = () => {
 }
 
 export default Index
+
+
+
+

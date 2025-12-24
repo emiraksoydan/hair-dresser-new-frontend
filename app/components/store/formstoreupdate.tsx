@@ -453,7 +453,18 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
-
+    console.log(categoryOptions);
+    const categoryOptionsWithSelected = useMemo(() => {
+        const base = [...categoryOptions];
+        const seen = new Set(base.map((o) => o.value));
+        (selectedCategories ?? []).forEach((v) => {
+            if (!seen.has(v)) {
+                base.push({ label: v, value: v });
+                seen.add(v);
+            }
+        });
+        return base;
+    }, [categoryOptions, selectedCategories]);
 
     useEffect(() => {
         const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
@@ -872,10 +883,11 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                             return (
                                                 <>
                                                     <MultiSelect
-                                                        data={categoryOptions}
+                                                        key={`cats-${selectedType ?? "x"}-${categoryOptions.length}`}
+                                                        data={categoryOptionsWithSelected}
                                                         labelField="label"
                                                         valueField="value"
-                                                        value={(value ?? []) as string[]}
+                                                        value={(value ?? []).filter(v => categoryOptionsWithSelected.some(o => o.value === v))}
                                                         onChange={(vals: string[]) => onChange(vals)}
                                                         placeholder="Hizmet seçin"
                                                         dropdownPosition="top"
@@ -926,7 +938,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                             {selectedCategories.length > 0 && (
                                 <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
                                     {selectedCategories.map((categoryId) => {
-                                        const label = categoryOptions.find(i => i.value === categoryId)?.label ?? categoryId;
+                                        const label = categoryOptionsWithSelected.find(i => i.value === categoryId)?.label ?? categoryId;
                                         return (
                                             <View key={categoryId}>
                                                 <View className="flex-row items-center gap-2 mb-0">

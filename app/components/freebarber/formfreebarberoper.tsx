@@ -264,6 +264,17 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
+    const categoryOptionsWithSelected = useMemo(() => {
+        const base = [...categoryOptions];
+        const seen = new Set(base.map((o) => o.value));
+        (selectedCategories ?? []).forEach((v) => {
+            if (!seen.has(v)) {
+                base.push({ label: v, value: v });
+                seen.add(v);
+            }
+        });
+        return base;
+    }, [categoryOptions, selectedCategories]);
 
 
     // Tip değişince category/price reset
@@ -592,7 +603,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                     render={({ field: { value, onChange } }) => (
                                         <>
                                             <MultiSelect
-                                                data={categoryOptions}
+                                                data={categoryOptionsWithSelected}
                                                 labelField="label"
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
@@ -644,7 +655,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                         {(selectedCategories ?? []).length > 0 && (
                             <View className="mt-3 mx-4 rounded-xl bg-gray-800 p-4">
                                 {(selectedCategories ?? []).map((categoryId) => {
-                                    const label = categoryOptions.find((i) => i.value === categoryId)?.label ?? categoryId;
+                                    const label = categoryOptionsWithSelected.find((i) => i.value === categoryId)?.label ?? categoryId;
                                     return (
                                         <View key={categoryId} className="flex-row items-center justify-between mb-2">
                                             <Text className="text-white w-[40%]" numberOfLines={1}>

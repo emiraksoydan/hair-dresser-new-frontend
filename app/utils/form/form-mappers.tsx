@@ -10,9 +10,8 @@
  */
 export const mapBarberType = (type: string): number => {
   const raw = (type ?? "").toString().trim();
-  const lower = raw.toLowerCase();
+  if (!raw) return 0;
 
-  // Numeric string support ("0","1","2")
   const asNum = Number(raw);
   if (!Number.isNaN(asNum) && Number.isFinite(asNum)) {
     if (asNum === 0) return 0;
@@ -20,15 +19,28 @@ export const mapBarberType = (type: string): number => {
     if (asNum === 2) return 2;
   }
 
-  // English enum names
   if (raw === "MaleHairdresser") return 0;
   if (raw === "FemaleHairdresser") return 1;
   if (raw === "BeautySalon") return 2;
 
-  // Turkish display names (category names)
-  if (lower === "erkek berber") return 0;
-  if (lower === "bayan kuaför" || lower === "bayan kuafor") return 1;
-  if (lower === "güzellik salonu" || lower === "guzellik salonu") return 2;
+  const lower = raw.toLowerCase();
+  const normalizeTr = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ı/g, "i")
+      .replace(/İ/g, "i")
+      .replace(/ğ/g, "g")
+      .replace(/ş/g, "s")
+      .replace(/ç/g, "c")
+      .replace(/ö/g, "o")
+      .replace(/ü/g, "u");
+
+  const norm = normalizeTr(lower);
+
+  if (norm === "erkek berber") return 0;
+  if (norm === "bayan kuafor" || norm === "kadin kuafor") return 1;
+  if (norm === "guzellik salonu") return 2;
 
   return 0;
 };
@@ -41,13 +53,13 @@ export const mapBarberType = (type: string): number => {
 export const mapTypeToLabel = (type: number): string => {
   switch (type) {
     case 0:
-      return 'MaleHairdresser';
+      return "MaleHairdresser";
     case 1:
-      return 'FemaleHairdresser';
+      return "FemaleHairdresser";
     case 2:
-      return 'BeautySalon';
+      return "BeautySalon";
     default:
-      return '';
+      return "";
   }
 };
 
@@ -97,7 +109,6 @@ export const mapTypeToDisplayName = (type: number | string): string => {
  * @param mode - Pricing mode ('percent' or 'rent')
  * @returns Numeric pricing type (0 for percent, 1 for rent)
  */
-export const mapPricingType = (mode: 'percent' | 'rent'): number => {
-  return mode === 'percent' ? 0 : 1;
+export const mapPricingType = (mode: "percent" | "rent"): number => {
+  return mode === "percent" ? 0 : 1;
 };
-
