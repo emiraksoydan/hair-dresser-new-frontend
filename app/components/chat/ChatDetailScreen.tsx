@@ -507,9 +507,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                     };
 
                     return (
-                        <View className={`flex-row items-start gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <View className={`flex-row items-start gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`} style={{ flexShrink: 1 }}>
                             {!isMe && (
-                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
+                                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center" style={{ flexShrink: 0 }}>
                                     {displayInfo.imageUrl ? (
                                         <Image
                                             source={{ uri: displayInfo.imageUrl }}
@@ -532,15 +532,16 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                 </View>
                             )}
 
-                            <View className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+                            <View className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`} style={{ flexShrink: 1, minWidth: 0 }}>
                                 <View
                                     className={`rounded-2xl px-4 py-2.5 ${isMe
                                         ? 'bg-green-600 rounded-tr-sm'
                                         : 'bg-gray-700 rounded-tl-sm'
                                         }`}
+                                    style={{ flexShrink: 1 }}
                                 >
                                     {!isMe && (
-                                        <View className="flex-row items-center gap-1 mb-1">
+                                        <View className="flex-row items-center gap-1 mb-1 flex-wrap">
                                             <Text className="text-gray-300 text-xs font-ibm-plex-sans-medium">
                                                 {displayInfo.displayName} -
                                             </Text>
@@ -557,7 +558,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                             )}
                                         </View>
                                     )}
-                                    <Text className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}>
+                                    <Text 
+                                        className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}
+                                        style={{ flexWrap: 'wrap', flexShrink: 1 }}
+                                    >
                                         {item.text}
                                     </Text>
                                 </View>

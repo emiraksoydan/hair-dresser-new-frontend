@@ -1,15 +1,16 @@
-import { PricingType } from "../../types/store";
+﻿import { PricingType } from "../../types/store";
 import { useAuth } from "../../hook/useAuth";
-import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, api } from "../../store/api";
+import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, useCustomerDecisionMutation, api } from "../../store/api";
 import { useAppDispatch } from "../../store/hook";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import { AppointmentStatus, NotificationDto, UserType } from "../../types";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 import { NotificationItem } from "./notificationdetail";
+import { useRouter } from "expo-router";
 
 // ---------------------------------------------------------------------------
-// 2. Ana NotificationsSheet Bileşeni
+// 2. Ana NotificationsSheet Bile�Yeni
 // ---------------------------------------------------------------------------
 export function NotificationsSheet({
     onClose,
@@ -21,11 +22,27 @@ export function NotificationsSheet({
     autoOpenFirstUnread?: boolean;
 }) {
     const dispatch = useAppDispatch();
+    const router = useRouter();
     const { data, isFetching, refetch } = useGetAllNotificationsQuery();
     const [markRead] = useMarkNotificationReadMutation();
     const { userType } = useAuth();
     const [storeDecision, { isLoading: isStoreDeciding }] = useStoreDecisionMutation();
     const [freeBarberDecision, { isLoading: isFreeBarberDeciding }] = useFreeBarberDecisionMutation();
+    const [customerDecision, { isLoading: isCustomerDeciding }] = useCustomerDecisionMutation();
+
+    // FreeBarber için "Dükkan Ekle" butonu handler
+    const handleAddStore = useCallback((appointmentId: string) => {
+        // FreeBarber panelinde dükkan seçimi için store listesine yönlendir
+        // Veya StoreBookingContent'i aç
+        router.push({
+            pathname: "/freebarber/[freeBarberId]",
+            params: { 
+                freeBarberId: "add-store",
+                appointmentId: appointmentId,
+                mode: "add-store"
+            },
+        });
+    }, [router]);
 
     const handleMarkRead = useCallback(async (n: NotificationDto) => {
         if (!n.isRead) {
@@ -37,7 +54,7 @@ export function NotificationsSheet({
         }
     }, [dispatch, markRead, refetch]);
 
-    // --- Anlık UI Güncellemesi İçin Geliştirilmiş HandleDecision ---
+    // --- Anlık UI Güncellemesi İçin Geli�Ytirilmi�Y HandleDecision ---
     const handleDecision = useCallback(async (notification: NotificationDto, approve: boolean) => {
         if (!notification.appointmentId) return;
 
@@ -65,6 +82,8 @@ export function NotificationsSheet({
                 result = await storeDecision({ appointmentId: notification.appointmentId, approve }).unwrap();
             } else if (userType === UserType.FreeBarber) {
                 result = await freeBarberDecision({ appointmentId: notification.appointmentId, approve }).unwrap();
+            } else if (userType === UserType.Customer) {
+                result = await customerDecision({ appointmentId: notification.appointmentId, approve }).unwrap();
             } else {
                 return;
             }
@@ -86,7 +105,7 @@ export function NotificationsSheet({
             patchResult.undo();
             Alert.alert("Hata", error?.data?.message || error?.message || "İşlem başarısız.");
         }
-    }, [userType, storeDecision, freeBarberDecision, dispatch]);
+    }, [userType, storeDecision, freeBarberDecision, customerDecision, dispatch]);
 
     // Helper functions
     const formatTime = useCallback((timeStr?: string) => {
@@ -107,7 +126,7 @@ export function NotificationsSheet({
 
     const formatRating = useCallback((rating?: number) => rating?.toFixed(1) ?? null, []);
 
-    // renderItem artık sadece NotificationItem'ı çağırıyor
+    // renderItem artık sadece NotificationItem'ı ça�Yırıyor
     const renderItem = useCallback(({ item }: { item: NotificationDto }) => {
         return (
             <NotificationItem
@@ -115,14 +134,15 @@ export function NotificationsSheet({
                 userType={userType}
                 onMarkRead={handleMarkRead}
                 onDecision={handleDecision}
-                isProcessing={isStoreDeciding || isFreeBarberDeciding}
+                isProcessing={isStoreDeciding || isFreeBarberDeciding || isCustomerDeciding}
                 formatDate={formatDate}
                 formatTime={formatTime}
                 formatPricingPolicy={formatPricingPolicy}
                 formatRating={formatRating}
+                onAddStore={handleAddStore}
             />
         );
-    }, [userType, handleMarkRead, handleDecision, isStoreDeciding, isFreeBarberDeciding, formatDate, formatTime, formatPricingPolicy, formatRating]);
+    }, [userType, handleMarkRead, handleDecision, isStoreDeciding, isFreeBarberDeciding, isCustomerDeciding, formatDate, formatTime, formatPricingPolicy, formatRating, handleAddStore]);
 
     return (
         <View className="flex-1 px-3">
@@ -150,3 +170,7 @@ export function NotificationsSheet({
         </View>
     );
 }
+
+
+
+

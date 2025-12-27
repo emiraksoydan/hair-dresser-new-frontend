@@ -132,13 +132,13 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                                 />
                             )}
                         </View>
-                        <View className="ml-2 gap-1">
-                            <View className='flex-row gap-2 items-center flex-wrap'>
-                                <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1}>
+                        <View className="ml-2 gap-1" style={{ flexShrink: 1, minWidth: 0 }}>
+                            <View className='flex-row gap-2 items-center flex-wrap' style={{ flexShrink: 1, minWidth: 0 }}>
+                                <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>
                                     {displayName}
                                 </Text>
                                 {item.isFavoriteThread && (
-                                    <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center">
+                                    <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center" style={{ flexShrink: 0 }}>
                                         <Icon source="heart" size={12} color="#fbbf24" />
                                         <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium ml-1">
                                             Favori
@@ -146,14 +146,14 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                                     </View>
                                 )}
                             </View>
-                            <View className='flex-row gap-2 items-center'>
+                            <View className='flex-row gap-2 items-center' style={{ flexShrink: 1, minWidth: 0 }}>
                                 {participantLabel && (
-                                    <Text className="text-gray-400 text-xs font-ibm-plex-sans-medium">
+                                    <Text className="text-gray-400 text-xs font-ibm-plex-sans-medium" style={{ flexShrink: 0 }}>
                                         {participantLabel} -
                                     </Text>
                                 )}
                                 {barberTypeLabel && (
-                                    <Text className="text-gray-500 text-xs">
+                                    <Text className="text-gray-500 text-xs" style={{ flexShrink: 0 }}>
                                         {barberTypeLabel}
                                     </Text>
                                 )}
@@ -162,11 +162,14 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                     </View>
 
                     {item.lastMessagePreview && (
-                        <View className='flex-row items-center gap-2 mt-2' style={{ marginLeft: 42 }}>
-                            <Icon source="message-text" size={12} color={hasUnread ? "#22c55e" : "#6b7280"} />
+                        <View className='flex-row items-center gap-2 mt-2' style={{ marginLeft: 42, flexShrink: 1, minWidth: 0 }}>
+                            <View style={{ flexShrink: 0 }}>
+                                <Icon source="message-text" size={12} color={hasUnread ? "#22c55e" : "#6b7280"} />
+                            </View>
                             <Text
                                 className={`text-sm mb-0 ${hasUnread ? 'text-white font-ibm-plex-sans-medium' : 'text-gray-400 font-ibm-plex-sans-regular'}`}
                                 numberOfLines={2}
+                                style={{ flexShrink: 1, flexWrap: 'wrap', minWidth: 0 }}
                             >
                                 {item.lastMessagePreview}
                             </Text>
@@ -199,23 +202,23 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                         </View>
                     </View>
                 )}
-                <View className="flex-row justify-between">
+                <View className="flex-row justify-between" style={{ flexShrink: 1, minWidth: 0 }}>
                     {/* Participants Row */}
                     {item.participants.length > 0 ? (
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-center" style={{ flexShrink: 1, minWidth: 0 }}>
                             {item.participants.map((p, idx) => renderParticipant(p, idx))}
                         </View>
                     ) : (
-                        <View className="w-12 h-12 rounded-full bg-gray-700 items-center justify-center">
+                        <View className="w-12 h-12 rounded-full bg-gray-700 items-center justify-center" style={{ flexShrink: 0 }}>
                             <Icon source={iconSource} size={24} color="white" />
                         </View>
                     )}
 
-                    <View className="flex-1">
+                    <View className="flex-1" style={{ flexShrink: 0 }}>
                         <View className="flex-row items-center justify-end gap-2">
                             {/* Mesaj ikonu - her zaman göster, unread varsa badge ile */}
                             {item.lastMessageAt && (
-                                <Text className="text-gray-500 text-xs">
+                                <Text className="text-gray-500 text-xs" style={{ flexShrink: 0 }}>
                                     {new Date(item.lastMessageAt).toLocaleString('tr-TR', {
                                         day: '2-digit',
                                         month: '2-digit',
@@ -225,7 +228,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                                     })}
                                 </Text>
                             )}
-                            <View className="relative items-center justify-center">
+                            <View className="relative items-center justify-center" style={{ flexShrink: 0 }}>
                                 <Icon source="message-text" size={18} color={hasUnread ? "#22c55e" : "#6b7280"} />
                                 {hasUnread && item.unreadCount > 0 && (
                                     <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">

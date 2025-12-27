@@ -11,7 +11,8 @@ import {
     // YENİ EKLENEN TİPLER:
     AppointmentGetDto, AppointmentFilter,
     CreateRatingDto, RatingGetDto,
-    ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto
+    ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
+    AddStoreToAppointmentRequestDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 
@@ -211,6 +212,14 @@ export const api = createApi({
                     : [{ type: 'Appointment', id: 'LIST' }],
         }),
 
+        createCustomerToFreeBarberAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
+            query: (body) => ({ url: 'Appointment/customer-to-freebarber', method: 'POST', body }),
+            invalidatesTags: (result, error, arg) => [
+                'Appointment', 'Badge', 'Notification',
+                { type: 'Appointment', id: 'LIST' },
+                'Chat',
+            ],
+        }),
         createCustomerAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/customer', method: 'POST', body }),
             invalidatesTags: (result, error, arg) => [
@@ -220,6 +229,21 @@ export const api = createApi({
                     { type: 'Appointment' as const, id: `availability-${arg.storeId}-${arg.appointmentDate}` },
                     { type: 'Appointment' as const, id: 'availability' },
                 ] : []),
+            ],
+        }),
+        addStoreToAppointment: builder.mutation<ApiResponse<boolean>, { appointmentId: string; body: AddStoreToAppointmentRequestDto }>({
+            query: ({ appointmentId, body }) => ({
+                url: `Appointment/${appointmentId}/add-store`,
+                method: 'POST',
+                body,
+            }),
+            invalidatesTags: (result, error, arg) => [
+                { type: 'Appointment', id: arg.appointmentId },
+                { type: 'Appointment', id: 'LIST' },
+                'Badge',
+                'Notification',
+                'Chat',
+                { type: 'Appointment', id: 'availability' }
             ],
         }),
         createFreeBarberAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
@@ -272,6 +296,22 @@ export const api = createApi({
                 'Badge',
                 'Notification', // Bildirim listesini invalidate et
                 { type: 'Notification' as const, id: 'LIST' }, // Tüm bildirimleri invalidate et
+                { type: 'Appointment', id: 'availability' }
+            ],
+        }),
+        customerDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
+            query: ({ appointmentId, approve }) => ({
+                url: `Appointment/${appointmentId}/customer-decision`,
+                method: 'POST',
+                params: { approve },
+            }),
+            invalidatesTags: (result, error, arg) => [
+                { type: 'Appointment', id: arg.appointmentId },
+                { type: 'Appointment', id: 'LIST' },
+                'Badge',
+                'Notification',
+                { type: 'Notification' as const, id: 'LIST' },
+                'Chat',
                 { type: 'Appointment', id: 'availability' }
             ],
         }),
@@ -818,10 +858,13 @@ export const {
     useGetAllNotificationsQuery,
     useMarkNotificationReadMutation,
     useCreateCustomerAppointmentMutation,
+    useCreateCustomerToFreeBarberAppointmentMutation,
     useCreateFreeBarberAppointmentMutation,
     useCreateStoreAppointmentMutation,
+    useAddStoreToAppointmentMutation,
     useStoreDecisionMutation,
     useFreeBarberDecisionMutation,
+    useCustomerDecisionMutation,
     useCancelAppointmentMutation,
     useCompleteAppointmentMutation,
     useGetChatThreadsQuery,

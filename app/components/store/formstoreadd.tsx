@@ -512,7 +512,7 @@ const FormStoreAdd = () => {
             if (m) msgs.push(`• ${idx + 1}. berber: ${m}`);
         });
         return msgs.join("\n");
-    }, [errors.barbers, barbers.length]);
+    }, [errors.barbers, barbers]);
 
     const chairsErrorText = React.useMemo(() => {
         if (!errors.chairs) return "";
@@ -523,7 +523,7 @@ const FormStoreAdd = () => {
             if (m1 || m2) msgs.push(`• ${idx + 1}. koltuk: ${m1 ?? m2}`);
         });
         return msgs.join("\n");
-    }, [errors.chairs, chairs.length]);
+    }, [errors.chairs, chairs]);
 
     return (
         <View className='h-full'>

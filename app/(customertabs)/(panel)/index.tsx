@@ -140,7 +140,7 @@ const Index = () => {
     const goFreeBarberDetail = useCallback((freeBarber: FreeBarGetDto) => {
         router.push({
             pathname: "/freebarber/[freeBarberId]",
-            params: { freeBarber: freeBarber.id },
+            params: { freeBarberId: freeBarber.id },
         });
     }, [router]);
 
@@ -413,6 +413,7 @@ const Index = () => {
 };
 
 export default Index;
+
 
 
 

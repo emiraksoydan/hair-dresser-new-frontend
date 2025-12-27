@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
@@ -222,7 +222,7 @@ const Index = () => {
 
     // Kendi dükkanlarını filtrele (client-side)
     const filteredStores = useMemo(() => {
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
         if (!shouldShowStores) return [];
 
         return filterStores(displayStores, {
@@ -236,7 +236,7 @@ const Index = () => {
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredFreeBarbers = useMemo(() => {
         const shouldShowFreeBarbers = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Serbest Berber";
-        if (!shouldShowFreeBarbers || appliedFilters.userType === "D�kkan") return [];
+        if (!shouldShowFreeBarbers || appliedFilters.userType === "D�kkan") return [];
 
         return filterFreeBarbers(displayFreeBarbers, {
             searchQuery,
@@ -279,8 +279,8 @@ const Index = () => {
     const listData = useMemo(() => {
         const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal'; data?: any }> = [];
 
-        // Stores section - kullanıcı türü filtresi "D�kkan" veya "Hepsi" ise göster
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        // Stores section - kullanıcı türü filtresi "D�kkan" veya "Hepsi" ise göster
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
         if (shouldShowStores) {
             items.push({ id: 'stores-header', type: 'stores-header' });
             if (isStoresLoading) {
@@ -648,7 +648,7 @@ const Index = () => {
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
-                    {selectedMapItem && <FreeBarberBookingContent barberId={(selectedMapItem as any).id} isBottomSheet={true} isBarberMode={true} />}
+                    {selectedMapItem && <FreeBarberBookingContent barberId={(selectedMapItem as any).id} isBottomSheet={true} isBarberMode={true} storeId={storeId || stores?.[0]?.id} />}
                 </BottomSheetView>
             </BottomSheetModal>
 
@@ -683,6 +683,7 @@ const Index = () => {
 };
 
 export default Index;
+
 
 
 

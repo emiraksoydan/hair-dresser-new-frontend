@@ -1,10 +1,10 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+﻿import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Icon } from "react-native-paper";
-import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation } from "../../store/api";
+import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation, useAddStoreToAppointmentMutation } from "../../store/api";
 import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
-import { ChairSlotDto, UserType, PricingType } from "../../types";
+import { ChairSlotDto, UserType, PricingType, StoreSelectionType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import FilterChip from "../common/filter-chip";
 import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../../utils/time/time-helper";
@@ -20,18 +20,24 @@ interface Props {
     isBottomSheet?: boolean;
     isFreeBarber?: boolean;
     isCustomer?: boolean;
+    mode?: "add-store";
+    appointmentId?: string;
     freeBarberUserId?: string; // Serbest berber randevusu için
     preselectedServices?: string[]; // Önceden seçilmiş hizmetler (serbest berber randevusu için)
+    note?: string; // Randevu notu (Customer -> FreeBarber + Store senaryosu için)
+    storeSelectionType?: StoreSelectionType; // StoreSelectionType (Dükkan Seç senaryosu için)
 }
 
-const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = false, isCustomer = false, freeBarberUserId, preselectedServices }: Props) => {
+const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = false, isCustomer = false, freeBarberUserId, preselectedServices, note, storeSelectionType, mode, appointmentId }: Props) => {
     // store header info
     const { data: storeData } = useGetStoreForUsersQuery(storeId, { skip: !storeId });
     const { data: workingHours } = useGetWorkingHoursByTargetQuery(storeId, { skip: !storeId });
     const router = useRouter();
+    const isAddStoreMode = mode === "add-store";
     const [createCustomerAppointment, { isLoading: isCreatingCustomer }] = useCreateCustomerAppointmentMutation();
     const [createFreeBarberAppointment, { isLoading: isCreatingFreeBarber }] = useCreateFreeBarberAppointmentMutation();
     const [createStoreAppointment, { isLoading: isCreatingStore }] = useCreateStoreAppointmentMutation();
+    const [addStoreToAppointment, { isLoading: isAddingStore }] = useAddStoreToAppointmentMutation();
 
     const { userType: currentUserType } = useAuth();
 
@@ -120,16 +126,15 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         serviceOfferings: storeData?.serviceOfferings,
         selectedServices,
         selectedSlotKeys,
-        isFreeBarber,
+        isFreeBarber: isFreeBarber || isAddStoreMode,
     });
 
     const canSubmit = useMemo(() => {
         const baseReady = !!selectedChairId && selectedSlotKeys.length > 0;
+        const requireServices = isAddStoreMode ? true : !isHourlyFree;
 
-        if (isHourlyFree) return baseReady;
-
-        return baseReady && selectedServices.length > 0;
-    }, [selectedChairId, selectedSlotKeys.length, selectedServices.length, isHourlyFree]);
+        return baseReady && (requireServices ? selectedServices.length > 0 : true);
+    }, [selectedChairId, selectedSlotKeys.length, selectedServices.length, isHourlyFree, isAddStoreMode]);
 
     return (
         <>
@@ -333,7 +338,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 <Text className="text-[#a3e635] font-ibm-plex-sans-bold text-lg">({totalPrice} ₺)</Text>
                             </View>
                         )}
-                        {!isHourlyFree && (isFreeBarber || isCustomer) && (
+                        {(isAddStoreMode || (!isHourlyFree && (isFreeBarber || isCustomer))) && (
                             <View>
                                 <View className="flex-row  items-center mb-2 mt-2 px-1">
                                     <Text className="text-white font-ibm-plex-sans-medium text-xl">
@@ -380,14 +385,14 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
 
                     <TouchableOpacity
-                        disabled={!canSubmit || isCreatingCustomer || isCreatingFreeBarber || isCreatingStore}
+                        disabled={!canSubmit || isCreatingCustomer || isCreatingFreeBarber || isCreatingStore || isAddingStore}
                         className={`py-3 flex-row justify-center gap-2 rounded-xl mt-0 items-center ${(!canSubmit) ? "bg-[#4b5563] opacity-60" : "bg-[#22c55e] opacity-100"}`}
                         onPress={async () => {
                             try {
                                 if (!selectedChair || selectedSlotKeys.length === 0) return;
 
                                 // Duplicate request önleme: buton disabled yap
-                                if (isCreatingCustomer || isCreatingFreeBarber || isCreatingStore) {
+                                if (isCreatingCustomer || isCreatingFreeBarber || isCreatingStore || isAddingStore) {
                                     return;
                                 }
 
@@ -422,10 +427,41 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 const startTime = `${start}:00`;
                                 const endTime = `${end}:00`;
 
+                                if (isAddStoreMode) {
+                                    if (!appointmentId) {
+                                        Alert.alert("Hata", "Randevu bulunamadi.");
+                                        return;
+                                    }
+
+                                    const addStorePayload = {
+                                        storeId: storeId,
+                                        chairId: selectedChair.chairId,
+                                        appointmentDate: selectedDateOnly,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        serviceOfferingIds: selectedServices,
+                                    };
+
+                                    const result = await addStoreToAppointment({
+                                        appointmentId,
+                                        body: addStorePayload,
+                                    }).unwrap();
+
+                                    if (result.success) {
+                                        Alert.alert("Basarili", "Dukkan eklendi.", [
+                                            { text: "Tamam", onPress: () => router.back() }
+                                        ]);
+                                    } else {
+                                        Alert.alert("Hata", result.message ?? "Islem basarisiz.");
+                                    }
+                                    return;
+                                }
+
                                 // Müşteri için konum al
+                                const isCustomerFlow = isCustomer || currentUserType === UserType.Customer;
                                 let customerLat: number | null = null;
                                 let customerLon: number | null = null;
-                                if (isCustomer || currentUserType === UserType.Customer) {
+                                if (isCustomerFlow) {
                                     const locationResult = await getCurrentLocationSafe();
                                     if (!locationResult.ok) {
                                         Alert.alert("Konum Gerekli", locationResult.message ?? "Randevu almak için konum izni gereklidir.");
@@ -442,13 +478,15 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     startTime: startTime,
                                     endTime: endTime,
                                     serviceOfferingIds: selectedServices,
-                                    freeBarberUserId: freeBarberUserId || null, // freeBarberUserId ve manuelBarberId ayrı şeyler, karıştırma
-                                    requestLatitude: (isCustomer || currentUserType === UserType.Customer) ? customerLat : (storeData?.latitude ?? null),
-                                    requestLongitude: (isCustomer || currentUserType === UserType.Customer) ? customerLon : (storeData?.longitude ?? null),
+                                    freeBarberUserId: isCustomerFlow ? null : (freeBarberUserId || null), // freeBarberUserId ve manuelBarberId ayrı şeyler, karıştırma
+                                    requestLatitude: isCustomerFlow ? customerLat : (storeData?.latitude ?? null),
+                                    requestLongitude: isCustomerFlow ? customerLon : (storeData?.longitude ?? null),
+                                    note: note || null,
+                                    storeSelectionType: storeSelectionType || null,
                                 };
 
                                 let result;
-                                if (isCustomer || currentUserType === UserType.Customer) {
+                                if (isCustomerFlow) {
                                     result = await createCustomerAppointment(appointmentData).unwrap();
                                 } else if (isFreeBarber || currentUserType === UserType.FreeBarber) {
                                     result = await createFreeBarberAppointment(appointmentData).unwrap();
@@ -491,12 +529,14 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             }
                         }}
                     >
-                        {(isCreatingCustomer || isCreatingFreeBarber || isCreatingStore) ? (
+                        {(isCreatingCustomer || isCreatingFreeBarber || isCreatingStore || isAddingStore) ? (
                             <ActivityIndicator color="white" />
                         ) : (
                             <Icon source="location-enter" size={18} color="white" />
                         )}
-                        <Text className="text-white font-ibm-plex-sans-regular text-base">Randevu Al</Text>
+                        <Text className="text-white font-ibm-plex-sans-regular text-base">
+                            {isAddStoreMode ? "Dukkani Ekle" : "Randevu Al"}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -505,4 +545,5 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 }
 
 export default StoreBookingContent
+
 

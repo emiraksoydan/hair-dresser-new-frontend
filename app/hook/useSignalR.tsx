@@ -153,34 +153,38 @@ export const useSignalR = () => {
                                     const newPayload = JSON.parse(dto.payloadJson);
                                     if (newPayload && typeof newPayload === 'object') {
                                         const newStatus = newPayload?.status;
-                                        const newStoreDecision = newPayload?.storeDecision;
-                                        const newFreeBarberDecision = newPayload?.freeBarberDecision;
+                            const newStoreDecision = newPayload?.storeDecision;
+                            const newFreeBarberDecision = newPayload?.freeBarberDecision;
+                            const newCustomerDecision = newPayload?.customerDecision;
 
-                                        // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
-                                        draft.forEach((notification) => {
-                                            if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
-                                                try {
-                                                    if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
-                                                        const currentPayload = JSON.parse(notification.payloadJson);
-                                                        if (currentPayload && typeof currentPayload === 'object') {
-                                                            // Status ve decision bilgilerini güncelle
-                                                            if (newStatus !== undefined) {
-                                                                currentPayload.status = newStatus;
-                                                            }
-                                                            if (newStoreDecision !== undefined) {
-                                                                currentPayload.storeDecision = newStoreDecision;
-                                                            }
-                                                            if (newFreeBarberDecision !== undefined) {
-                                                                currentPayload.freeBarberDecision = newFreeBarberDecision;
-                                                            }
-                                                            notification.payloadJson = JSON.stringify(currentPayload);
-                                                        }
-                                                    }
-                                                } catch {
-                                                    // Payload parse edilemezse atla
+                            // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
+                            draft.forEach((notification) => {
+                                if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
+                                    try {
+                                        if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
+                                            const currentPayload = JSON.parse(notification.payloadJson);
+                                            if (currentPayload && typeof currentPayload === 'object') {
+                                                // Status ve decision bilgilerini güncelle
+                                                if (newStatus !== undefined) {
+                                                    currentPayload.status = newStatus;
                                                 }
+                                                if (newStoreDecision !== undefined) {
+                                                    currentPayload.storeDecision = newStoreDecision;
+                                                }
+                                                if (newFreeBarberDecision !== undefined) {
+                                                    currentPayload.freeBarberDecision = newFreeBarberDecision;
+                                                }
+                                                if (newCustomerDecision !== undefined) {
+                                                    currentPayload.customerDecision = newCustomerDecision;
+                                                }
+                                                notification.payloadJson = JSON.stringify(currentPayload);
                                             }
-                                        });
+                                        }
+                                    } catch {
+                                        // Payload parse edilemezse atla
+                                    }
+                                }
+                            });
                                     }
                                 } catch {
                                     // Yeni payload parse edilemezse atla
@@ -382,7 +386,7 @@ export const useSignalR = () => {
                     // Şimdilik sadece event'i dinliyoruz, ChatDetailScreen'de typing state'i yönetilecek
                 });
 
-                // Appointment updated event handler
+                    // Appointment updated event handler
                 // Randevu durumu değiştiğinde (onay/red/tamamlandı/iptal) appointment listesini güncelle
                 conn.on("appointment.updated", (appointment: AppointmentGetDto) => {
                     // Tüm filter'lardaki appointment listelerini kontrol et ve güncelle
@@ -404,8 +408,8 @@ export const useSignalR = () => {
 
                                 if (existingIndex >= 0) {
                                     if (shouldBeInThisFilter) {
-                                        // Mevcut appointment'ı güncelle
-                                        draft[existingIndex] = appointment;
+                                        // Mevcut appointment'ı güncelle (customerDecision dahil tüm alanları)
+                                        draft[existingIndex] = { ...appointment };
                                         // Tarihe göre yeniden sırala
                                         draft.sort((a, b) => {
                                             try {

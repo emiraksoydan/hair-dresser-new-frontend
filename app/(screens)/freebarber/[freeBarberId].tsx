@@ -10,13 +10,24 @@ import FreeBarberBookingContent from '../../components/freebarber/freebarberbook
 const FreeBarberDetail = () => {
 
     const router = useRouter();
-    const { freeBarber } = useLocalSearchParams<{ freeBarber: string; }>();
-    const frbId = String(freeBarber);
+    const { freeBarberId, freeBarber, mode, appointmentId } = useLocalSearchParams<{
+        freeBarberId?: string;
+        freeBarber?: string;
+        mode?: string;
+        appointmentId?: string;
+    }>();
+    const frbId = (freeBarberId ?? freeBarber ?? "").toString();
+    const bookingMode = mode === "add-store" ? "add-store" : undefined;
 
     return (
         <View className="flex-1 bg-[#151618]">
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-            <FreeBarberBookingContent barberId={frbId} isBottomSheet={false} />
+            <FreeBarberBookingContent
+                barberId={frbId}
+                isBottomSheet={false}
+                mode={bookingMode}
+                appointmentId={appointmentId}
+            />
             <TouchableOpacity
                 onPress={() => router.back()}
                 className="absolute top-10 left-5 z-20 rounded-full p-3"

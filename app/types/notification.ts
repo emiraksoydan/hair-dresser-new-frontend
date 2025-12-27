@@ -29,9 +29,9 @@ export interface NotificationPayload {
   appointmentId: string;
   eventKey: string;
   recipientRole: string;
-  date: string;
-  startTime: string;
-  endTime: string;
+  date?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   actorUserId?: string;
 
   store?: {
@@ -75,6 +75,9 @@ export interface NotificationPayload {
   status?: AppointmentStatus;
   storeDecision?: number;
   freeBarberDecision?: number;
+  customerDecision?: number;
+  storeSelectionType?: number;
+  note?: string | null;
   pendingExpiresAt?: string | null; // UTC formatında ISO string
   serviceOfferings?: Array<{
     id: string;

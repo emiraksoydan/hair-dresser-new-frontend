@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useGetMyFavoritesQuery } from '../../store/api';
@@ -38,7 +38,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const goFreeBarberDetail = useCallback((freeBarber: FreeBarGetDto) => {
         router.push({
             pathname: "/freebarber/[freeBarberId]",
-            params: { freeBarber: freeBarber.id },
+            params: { freeBarberId: freeBarber.id },
         });
     }, [router]);
 
@@ -240,3 +240,8 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 };
 
 export default FavoritesList;
+
+
+
+
+

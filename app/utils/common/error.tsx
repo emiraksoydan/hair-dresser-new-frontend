@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Error handling utilities
  * Provides user-friendly error messages and error type detection
  */
@@ -7,16 +7,44 @@ interface ApiError {
     data?: {
         message?: string;
         error?: string;
+        errors?: Record<string, string[] | string>;
     };
     error?: {
         message?: string;
         data?: {
             message?: string;
+            errors?: Record<string, string[] | string>;
         };
     };
     message?: string;
 }
 
+const extractFirstValidationError = (errors: unknown): string | null => {
+    if (!errors) {
+        return null;
+    }
+
+    if (typeof errors === 'string') {
+        return errors;
+    }
+
+    if (Array.isArray(errors)) {
+        const firstString = errors.find((item) => typeof item === 'string');
+        return firstString ?? null;
+    }
+
+    if (typeof errors === 'object') {
+        const values = Object.values(errors as Record<string, unknown>);
+        for (const value of values) {
+            const nested = extractFirstValidationError(value);
+            if (nested) {
+                return nested;
+            }
+        }
+    }
+
+    return null;
+};
 /**
  * Extracts error message from various error formats
  */
@@ -32,6 +60,11 @@ export const extractErrorMessage = (error: unknown): string => {
     }
 
     const e = error as ApiError;
+
+    const validationError = extractFirstValidationError(e?.data?.errors ?? e?.error?.data?.errors);
+    if (validationError) {
+        return validationError;
+    }
 
     return (
         e?.data?.message ??
@@ -77,6 +110,7 @@ export const isDuplicateSlotError = (error: unknown): boolean => {
         lowerErrorMessage.includes("sqlexception") ||
         lowerErrorMessage.includes("sql exception") ||
         lowerErrorMessage.includes("alındı") ||
+        lowerErrorMessage.includes("alindi") ||
         lowerErrorMessage.includes("slot taken") ||
         lowerErrorMessage.includes("slottaken") ||
         lowerErrorMessage.includes("already booked") ||
@@ -133,3 +167,6 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
  * Alias for getUserFriendlyErrorMessage for backward compatibility
  */
 export const resolveApiErrorMessage = getUserFriendlyErrorMessage;
+
+
+

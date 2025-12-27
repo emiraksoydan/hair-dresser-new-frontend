@@ -32,6 +32,7 @@ export type FreeBarberUpdateDto = {
 
 export type FreeBarGetDto = {
   id: string;
+  freeBarberUserId?: string;
   fullName: string;
   rating: number;
   favoriteCount: number;
@@ -47,6 +48,7 @@ export type FreeBarGetDto = {
 
 export type FreeBarberPanelDto = {
   id: string;
+  freeBarberUserId?: string;
   fullName: string;
   rating: number;
   favoriteCount: number;
@@ -73,4 +75,5 @@ export type FreeBarberMinePanelDetailDto = {
 
 // Re-export from store types for convenience
 export type { CreateImageDto, ServiceOfferingCreateDto };
+
 

@@ -53,7 +53,8 @@ export function useNearbyStoresControl({
                     setLocation({ latitude: c.lat, longitude: c.lon });
                 }
                 // RTK Query'nin 'trigger'ı her zaman güncel cache veya yeni veri getirir
-                return trigger({ lat: c.lat, lon: c.lon, radiusKm }, true).unwrap();
+                // Hard refresh için preferCacheValue: false kullan (cache'i bypass et, yeni veri fetch et)
+                return trigger({ lat: c.lat, lon: c.lon, radiusKm }, false).unwrap();
             }).filter(Boolean);
 
             const results = await Promise.all(promises);

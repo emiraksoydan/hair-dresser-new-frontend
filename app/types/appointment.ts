@@ -27,16 +27,33 @@ export enum AppointmentRequester {
   FreeBarber = 3,
 }
 
+export enum StoreSelectionType {
+  CustomRequest = 0, // İsteğime Göre
+  StoreSelection = 1, // Dükkan Seç
+}
+
 export type CreateAppointmentRequestDto = {
   storeId: string;
   chairId?: string | null;
-  appointmentDate: string; // DateOnly format: "YYYY-MM-DD"
-  startTime?: string | null; // TimeSpan format: "HH:mm:ss"
-  endTime?: string | null; // TimeSpan format: "HH:mm:ss"
+  appointmentDate?: string | null; // DateOnly format: "YYYY-MM-DD" - İsteğime Göre senaryosunda null olabilir
+  startTime?: string | null; // TimeSpan format: "HH:mm:ss" - İsteğime Göre senaryosunda null olabilir
+  endTime?: string | null; // TimeSpan format: "HH:mm:ss" - İsteğime Göre senaryosunda null olabilir
   freeBarberUserId?: string | null;
   serviceOfferingIds: string[];
   requestLatitude?: number | null;
   requestLongitude?: number | null;
+  // Customer -> FreeBarber randevusu için yeni alanlar
+  storeSelectionType?: StoreSelectionType | null; // İsteğime Göre (0) veya Dükkan Seç (1)
+  note?: string | null; // Randevu notu
+};
+
+export type AddStoreToAppointmentRequestDto = {
+  storeId: string;
+  chairId: string;
+  appointmentDate: string; // DateOnly format: "YYYY-MM-DD"
+  startTime: string; // TimeSpan format: "HH:mm:ss"
+  endTime: string; // TimeSpan format: "HH:mm:ss"
+  serviceOfferingIds: string[];
 };
 
 
@@ -107,6 +124,14 @@ export type AppointmentGetDto = {
   myRatingForCustomer?: number;
   myCommentForCustomer?: string;
   customerAverageRating?: number; // Customer'ın ortalama rating'i
+  
+  // Decision statuses
+  storeDecision?: DecisionStatus;
+  freeBarberDecision?: DecisionStatus;
+  customerDecision?: DecisionStatus;
+  
+  // Note
+  note?: string; // Randevu notu (Customer -> FreeBarber randevusunda)
 }
 
 export type SlotDto = {
@@ -125,4 +150,3 @@ export type ChairSlotDto = {
   barberRating?: number | null;
   slots: SlotDto[];
 };
-

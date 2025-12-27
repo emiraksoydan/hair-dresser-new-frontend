@@ -50,7 +50,8 @@ export default function SharedAppointmentScreen() {
     const formatRating = useCallback((rating?: number) => rating?.toFixed(1) ?? null, []);
 
     // --- Zaman Kontrolü ---
-    const isTimePassed = useCallback((dateStr: string, endTimeStr: string) => {
+    const isTimePassed = useCallback((dateStr?: string | null, endTimeStr?: string | null) => {
+        if (!dateStr || !endTimeStr) return false;
         try {
             const timePart = endTimeStr.length === 5 ? endTimeStr + ":00" : endTimeStr;
             const appointmentEnd = new Date(`${dateStr}T${timePart}`);
@@ -229,9 +230,16 @@ export default function SharedAppointmentScreen() {
 
         if (activeFilter === AppointmentFilter.Active) {
             // Active tab'ında sadece Approved randevular görünür
-            if (isApproved && passed && userType == UserType.BarberStore) {
+            // Dükkan randevusunu dükkan tamamlar
+            if (isApproved && passed && userType === UserType.BarberStore) {
                 showCompleteButton = true;
             }
+            // İsteğime Göre randevusunu free barber tamamlar (store yoksa veya CustomRequest ise)
+            // Müşteri-free barber arasında isteğe göre randevu onaylandıysa free barber tamamlama hakkına sahip
+            if (isApproved && userType === UserType.FreeBarber && !item.barberStoreId) {
+                showCompleteButton = true;
+            }
+
             // Active tab'ında sadece Approved durumunda iptal butonu göster
             if (isApproved) {
                 showCancelButton = true;
@@ -289,7 +297,7 @@ export default function SharedAppointmentScreen() {
                     </View>
                 )}
                 <View className="flex-row justify-between items-start mb-3">
-                    {item.appointmentRequester != AppointmentRequester.Store && userType != UserType.FreeBarber && (
+                    {item.appointmentRequester != AppointmentRequester.Store && userType != UserType.FreeBarber && item.startTime && item.endTime && (
                         <View className="flex-row items-center mb-3">
                             <Icon source="calendar" size={16} color="#6b7280" />
                             <Text className="text-[#9ca3af] text-sm ml-1.5">
@@ -484,7 +492,7 @@ export default function SharedAppointmentScreen() {
                                     </View>
                                 </View>
                             )}
-                            {item.freeBarberId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
+                            {item.freeBarberId && item.barberStoreId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
                                 <View className="bg-[#2a2c30] rounded-lg p-2 mb-2">
                                     <Text className="text-[#9ca3af] text-xs">
                                         {formatPricingPolicy(item.pricingType, item.pricingValue)}
@@ -649,8 +657,8 @@ export default function SharedAppointmentScreen() {
                     )}
                 </View>
 
-                {/* Fiyatlandırma Bilgisi - Sadece FreeBarber varsa göster */}
-                {item.freeBarberId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
+                {/* Fiyatlandırma Bilgisi - Sadece FreeBarber ve Dükkan varsa göster */}
+                {item.freeBarberId && item.barberStoreId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
                     <View className="bg-[#1f2023] border border-[#2a2c30] flex-row items-center rounded-lg p-2 mt-2 mb-2 gap-1">
                         <View className="flex-row items-center">
                             <Icon source="cash" size={14} color="#f05e23" />

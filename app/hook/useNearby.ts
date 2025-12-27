@@ -54,8 +54,8 @@ export function useNearby<T>(
     const [trigger, result] = queryHook();
 
     const onFetch = useCallback(async (lat: number, lon: number) => {
-        // Hard refresh için force refetch: true kullan (cache'i bypass et)
-        await trigger({ lat, lon, radiusKm }, true);
+        // Hard refresh için preferCacheValue: false kullan (cache'i bypass et, yeni veri fetch et)
+        await trigger({ lat, lon, radiusKm }, false);
     }, [trigger, radiusKm]);
 
     const nearby = useNearbyControl({
