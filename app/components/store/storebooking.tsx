@@ -41,6 +41,8 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
     const { userType: currentUserType } = useAuth();
 
+    console.log("mode", appointmentId);
+
     // FreeBarber seçimi artık koltuk seçiminde gösteriliyor (barberId koltuğa atanmışsa)
 
 
@@ -427,7 +429,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 const startTime = `${start}:00`;
                                 const endTime = `${end}:00`;
 
-                                if (isAddStoreMode) {
+                                if (appointmentId) {
                                     if (!appointmentId) {
                                         Alert.alert("Hata", "Randevu bulunamadi.");
                                         return;
@@ -439,7 +441,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                         appointmentDate: selectedDateOnly,
                                         startTime: startTime,
                                         endTime: endTime,
-                                        serviceOfferingIds: selectedServices,
+                                        serviceOfferingIds: selectedServices, // ✅ Sadece ID'leri gönder
                                     };
 
                                     const result = await addStoreToAppointment({
@@ -477,8 +479,8 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     appointmentDate: selectedDateOnly,
                                     startTime: startTime,
                                     endTime: endTime,
-                                    serviceOfferingIds: selectedServices,
-                                    freeBarberUserId: isCustomerFlow ? null : (freeBarberUserId || null), // freeBarberUserId ve manuelBarberId ayrı şeyler, karıştırma
+                                    serviceOfferingIds: selectedServices, // ✅ Sadece ID'leri gönder
+                                    freeBarberUserId: isCustomerFlow ? null : (freeBarberUserId || null),
                                     requestLatitude: isCustomerFlow ? customerLat : (storeData?.latitude ?? null),
                                     requestLongitude: isCustomerFlow ? customerLon : (storeData?.longitude ?? null),
                                     note: note || null,
@@ -535,7 +537,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             <Icon source="location-enter" size={18} color="white" />
                         )}
                         <Text className="text-white font-ibm-plex-sans-regular text-base">
-                            {isAddStoreMode ? "Dukkani Ekle" : "Randevu Al"}
+                            {appointmentId ? "Dukkanı Ekle" : "Randevu Al"}
                         </Text>
                     </TouchableOpacity>
                 </View>

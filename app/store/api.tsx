@@ -12,7 +12,7 @@ import {
     AppointmentGetDto, AppointmentFilter,
     CreateRatingDto, RatingGetDto,
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
-    AddStoreToAppointmentRequestDto
+    AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 
@@ -267,6 +267,10 @@ export const api = createApi({
                     { type: 'Appointment' as const, id: 'availability' },
                 ] : []),
             ],
+        }),
+        callFreeBarber: builder.mutation<ApiResponse<{ id: string }>, CreateStoreToFreeBarberRequestDto>({
+            query: (body) => ({ url: 'Appointment/store/call-freebarber', method: 'POST', body }),
+            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment', id: 'LIST' }, 'Chat'],
         }),
 
         storeDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
@@ -861,6 +865,7 @@ export const {
     useCreateCustomerToFreeBarberAppointmentMutation,
     useCreateFreeBarberAppointmentMutation,
     useCreateStoreAppointmentMutation,
+    useCallFreeBarberMutation,
     useAddStoreToAppointmentMutation,
     useStoreDecisionMutation,
     useFreeBarberDecisionMutation,

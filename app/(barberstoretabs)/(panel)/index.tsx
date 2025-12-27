@@ -269,9 +269,10 @@ const Index = () => {
                 cardWidthFreeBarber={cardWidthFreeBarber}
                 mode="barbershop"
                 onPressRatings={handlePressRatings}
+                storeId={stores?.[0]?.id}
             />
         ),
-        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings]
+        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings, stores]
     );
 
     // FlatList için tüm item'ları birleştir
@@ -561,6 +562,7 @@ const Index = () => {
                                     cardWidthFreeBarber={cardWidthFreeBarber}
                                     mode="barbershop"
                                     onPressRatings={handlePressRatings}
+                                    storeId={stores?.[0]?.id}
                                 />
                             );
                         }

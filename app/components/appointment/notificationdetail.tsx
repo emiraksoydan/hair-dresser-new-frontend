@@ -95,16 +95,22 @@ export const NotificationItem = React.memo(({
     const customerDecision = payload?.customerDecision;
 
     // Butonları göstermek için decision kontrolü:
-    // - Decision undefined ise �?' butonlar gösterilir (henüz karar verilmemi�Y)
-    // - Decision Pending (0) ise �?' butonlar gösterilir (karar bekleniyor)
-    // - Decision Approved (1), Rejected (2) veya NoAnswer (3) ise �?' butonlar gösterilmez
-    const canShowStoreButtons = storeDecision !== undefined &&
+    // - Decision undefined veya null ise → butonlar gösterilir (henüz decision eklenmemiş)
+    // - Decision Pending (0) ise → butonlar gösterilir (karar bekleniyor)
+    // - Decision Approved (1), Rejected (2) veya NoAnswer (3) ise → butonlar gösterilmez
+    const canShowStoreButtons =
+        storeDecision === undefined ||
+        storeDecision === null ||
         storeDecision === DecisionStatus.Pending;
 
-    const canShowFreeBarberButtons = freeBarberDecision !== undefined &&
+    const canShowFreeBarberButtons =
+        freeBarberDecision === undefined ||
+        freeBarberDecision === null ||
         freeBarberDecision === DecisionStatus.Pending;
 
-    const canShowCustomerButtons = customerDecision !== undefined &&
+    const canShowCustomerButtons =
+        customerDecision === undefined ||
+        customerDecision === null ||
         customerDecision === DecisionStatus.Pending;
 
     // Süre (Expires) Hesaplama - Decision butonları için kritik
@@ -130,24 +136,54 @@ export const NotificationItem = React.memo(({
     const now = new Date();
     const isExpired = expiresAt ? now.getTime() > expiresAt.getTime() : false;
 
+    // Decision butonları için özel kontroller (3'lü sistem)
 
+    // FreeBarber için RED butonu (Dükkan Seç senaryosunda müşteriden gelen ilk istek)
+    const showFreeBarberRejectButton =
+        userType === UserType.FreeBarber &&
+        payload?.storeSelectionType === StoreSelectionType.StoreSelection &&
+        item.type === NotificationType.AppointmentCreated &&
+        isPending &&
+        !isExpired &&
+        canShowFreeBarberButtons &&
+        !payload?.store; // Henüz dükkan seçilmemişse
 
+    // Store için ONAY/RED butonları
+    const showStoreDecisionButtons =
+        userType === UserType.BarberStore &&
+        item.type === NotificationType.AppointmentCreated &&
+        isPending &&
+        !isExpired &&
+        canShowStoreButtons;
 
-    // Decision butonları gösterilme ko�Yulları:
-    // 1. Notification type AppointmentCreated olmalı (AppointmentUnanswered'da buton gösterilmez - süre dolmu�Y)
-    // 2. Status Pending olmalı (Approved, Rejected, Cancelled, Completed, Unanswered durumlarında gösterilmez)
-    // 3. İlgili kullanıcının decision'ı verilmemi�Y olmalı (Pending veya NoAnswer)
-    // 4. Süre dolmamı�Y olmalı
-    // 5. Kullanıcı tipi BarberStore veya FreeBarber olmalı
-    const showDecisionButtons = item.type === NotificationType.AppointmentCreated && // Sadece AppointmentCreated'da buton göster
-        isPending && // Status Pending olmalı
-        !isExpired && // Süre dolmamı�Y olmalı
+    // Müşteri için ONAY/RED butonları (Store onayladıktan sonra, 3'lü sistemde)
+    const showCustomerFinalDecisionButtons =
+        userType === UserType.Customer &&
+        payload?.storeSelectionType === StoreSelectionType.StoreSelection &&
+        (item.type === NotificationType.StoreApprovedSelection ||
+            item.type === NotificationType.AppointmentCreated) &&
+        isPending &&
+        !isExpired &&
+        canShowCustomerButtons &&
+        storeDecision === DecisionStatus.Approved; // Store onaylamış olmalı
+
+    // Genel decision butonları (diğer senaryolar için: İsteğime Göre, normal randevular)
+    const showGeneralDecisionButtons =
+        item.type === NotificationType.AppointmentCreated &&
+        isPending &&
+        !isExpired &&
         userType !== null &&
-        // BarberStore kullanıcısı için: payload'da store varsa ve decision Pending/undefined ise
+        !showFreeBarberRejectButton &&
+        !showStoreDecisionButtons &&
+        !showCustomerFinalDecisionButtons &&
         ((userType === UserType.BarberStore && canShowStoreButtons) ||
-            // FreeBarber kullanıcısı için: payload'da freeBarber varsa ve decision Pending/undefined ise
             (userType === UserType.FreeBarber && canShowFreeBarberButtons) ||
             (userType === UserType.Customer && canShowCustomerButtons));
+
+    const showDecisionButtons = showGeneralDecisionButtons ||
+        showStoreDecisionButtons ||
+        showCustomerFinalDecisionButtons ||
+        showFreeBarberRejectButton; // FreeBarber red butonu da dahil
 
 
 
@@ -172,8 +208,8 @@ export const NotificationItem = React.memo(({
     const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending;
 
     // FreeBarber için "Dükkan Ekle" butonu KALDIRILDI
-    // Free barber kendi panel index'inden dükkan seçebilir
-    const canShowAddStoreButton = false; // Her zaman false - buton gösterilmeyecek
+    // Otomatik algılama: Panel index'te aktif StoreSelection randevusu varsa otomatik mode=add-store
+    const canShowAddStoreButton = false;
 
     const serviceOfferings = Array.isArray(payload?.serviceOfferings) ? payload.serviceOfferings : [];
 
@@ -321,38 +357,56 @@ export const NotificationItem = React.memo(({
                             </View>
                         )}
 
-                        {/* BUTONLAR - Sadece Pending durumunda, süre dolmamı�Ysa ve decision verilmemi�Yse */}
+                        {/* BUTONLAR */}
                         {shouldShowButtons && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
-                                <View className="flex-row gap-2">
-                                    <TouchableOpacity onPress={() => onDecision(item, false)} disabled={isProcessing} className={`flex-1 bg-red-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
+                                {/* FreeBarber için sadece REDDET butonu (Dükkan Seç senaryosunda) */}
+                                {showFreeBarberRejectButton ? (
+                                    <TouchableOpacity
+                                        onPress={() => onDecision(item, false)}
+                                        disabled={isProcessing}
+                                        className={`bg-red-600 rounded-xl py-3 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}
+                                    >
                                         {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
-                                            <View className="items-center"><Icon source="close-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Reddet</Text></View>
+                                            <View className="flex-row items-center gap-2">
+                                                <Icon source="close-circle" size={18} color="white" />
+                                                <Text className="text-white text-sm font-semibold">Reddet</Text>
+                                            </View>
                                         )}
                                     </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => onDecision(item, true)} disabled={isProcessing} className={`flex-1 bg-green-600 rounded-xl py-2.5 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}>
-                                        {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
-                                            <View className="items-center"><Icon source="check-circle" size={20} color="white" /><Text className="text-white text-xs font-semibold mt-1">Onayla</Text></View>
-                                        )}
-                                    </TouchableOpacity>
-                                </View>
+                                ) : (
+                                    /* Diğer kullanıcılar için ONAY/RED butonları */
+                                    <View className="flex-row gap-2">
+                                        <TouchableOpacity
+                                            onPress={() => onDecision(item, false)}
+                                            disabled={isProcessing}
+                                            className={`flex-1 bg-red-600 rounded-xl py-3 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}
+                                        >
+                                            {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
+                                                <View className="flex-row items-center gap-2">
+                                                    <Icon source="close-circle" size={18} color="white" />
+                                                    <Text className="text-white text-sm font-semibold">Reddet</Text>
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => onDecision(item, true)}
+                                            disabled={isProcessing}
+                                            className={`flex-1 bg-green-600 rounded-xl py-3 items-center justify-center ${isProcessing ? "opacity-60" : "opacity-100"}`}
+                                        >
+                                            {isProcessing ? <ActivityIndicator color="white" size="small" /> : (
+                                                <View className="flex-row items-center gap-2">
+                                                    <Icon source="check-circle" size={18} color="white" />
+                                                    <Text className="text-white text-sm font-semibold">Onayla</Text>
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
                             </View>
                         )}
 
-                        {/* FreeBarber için "Dükkan Ekle" Butonu */}
-                        {canShowAddStoreButton && item.appointmentId && onAddStore && (
-                            <View className="mt-3 pt-3 border-t border-[#2a2c30]">
-                                <TouchableOpacity
-                                    onPress={() => onAddStore(item.appointmentId!)}
-                                    className="bg-blue-600 rounded-xl py-2.5 items-center justify-center"
-                                >
-                                    <View className="flex-row items-center gap-2">
-                                        <Icon source="store-plus" size={20} color="white" />
-                                        <Text className="text-white text-xs font-semibold">Dükkan Ekle</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-                        )}
+
 
                         {/* UNANSWERED DURUMU - Status Unanswered ise (süre dolmu�Y ve backend tarafından Unanswered'a geçirilmi�Y) */}
                         {isUnanswered && (

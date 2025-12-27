@@ -32,17 +32,30 @@ export function NotificationsSheet({
 
     // FreeBarber için "Dükkan Ekle" butonu handler
     const handleAddStore = useCallback((appointmentId: string) => {
-        // FreeBarber panelinde dükkan seçimi için store listesine yönlendir
-        // Veya StoreBookingContent'i aç
-        router.push({
-            pathname: "/freebarber/[freeBarberId]",
-            params: { 
-                freeBarberId: "add-store",
-                appointmentId: appointmentId,
-                mode: "add-store"
-            },
-        });
-    }, [router]);
+        console.log("Dükkan Ekle tıklandı, appointmentId:", appointmentId);
+        
+        // Önce modal'ı kapat
+        if (onClose) {
+            onClose();
+        }
+        
+        // Kısa bir gecikmeyle yönlendir (modal kapanması için)
+        setTimeout(() => {
+            try {
+                router.push({
+                    pathname: "/(freebarbertabs)/(panel)",
+                    params: { 
+                        mode: "add-store",
+                        appointmentId: appointmentId
+                    },
+                });
+                console.log("Router push çağrıldı");
+            } catch (error) {
+                console.error("Router push hatası:", error);
+                Alert.alert("Hata", "Yönlendirme başarısız oldu.");
+            }
+        }, 300);
+    }, [router, onClose]);
 
     const handleMarkRead = useCallback(async (n: NotificationDto) => {
         if (!n.isRead) {
@@ -89,9 +102,20 @@ export function NotificationsSheet({
             }
 
             if (result.success) {
-                // refetch() yerine sadece invalidateTags kullan
-                // SignalR'dan gelen notification.received event'i zaten notification'ı güncelleyecek
-                // Bu sayede race condition olmaz
+                // Bildirimi okundu olarak işaretle (otomatik)
+                if (!notification.isRead) {
+                    dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+                        const found = draft?.find((x) => x.id === notification.id);
+                        if (found) found.isRead = true;
+                    }));
+                    try { 
+                        await markRead(notification.id).unwrap(); 
+                    } catch { 
+                        // Okundu işaretleme hatası önemsiz, devam et
+                    }
+                }
+                
+                // Badge ve notification'ları yenile
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));
 
                 Alert.alert("Başarılı", approve ? "Randevu onaylandı." : "Randevu reddedildi.");

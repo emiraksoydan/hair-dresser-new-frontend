@@ -12,6 +12,15 @@ export enum NotificationType {
   AppointmentCompleted = 4,
   AppointmentUnanswered = 5,
   AppointmentDecisionUpdated = 6,
+  
+  // 3'lü sistem için yeni bildirim tipleri
+  FreeBarberRejectedInitial = 7,      // FreeBarber ilk isteği reddetti (Müşteri'ye)
+  StoreRejectedSelection = 8,          // Store seçimi reddetti (FreeBarber+Müşteri'ye)
+  StoreApprovedSelection = 9,          // Store onayladı (FreeBarber+Müşteri'ye)
+  StoreSelectionTimeout = 10,          // Store 5dk cevap vermedi (FreeBarber+Müşteri'ye)
+  CustomerRejectedFinal = 11,          // Müşteri final red verdi (FreeBarber+Store'a)
+  CustomerApprovedFinal = 12,          // Müşteri final onay verdi (FreeBarber+Store'a)
+  CustomerFinalTimeout = 13,           // Müşteri 30dk içinde cevap vermedi (Herkes'e)
 }
 
 export type NotificationDto = {

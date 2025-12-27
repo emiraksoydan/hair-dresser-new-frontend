@@ -233,7 +233,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     const payload = {
                                         storeId,
                                         freeBarberUserId: freeBarberUserId,
-                                        serviceOfferingIds: [],
+                                        serviceOfferingIds: [], // ✅ Backend List<Guid> bekliyor
                                     } as any;
 
                                     const result = await createStoreAppointment(payload).unwrap();
@@ -383,7 +383,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                         storeSelectionType: StoreSelectionType.CustomRequest,
                                         requestLatitude: locationResult.lat,
                                         requestLongitude: locationResult.lon,
-                                        serviceOfferingIds: selectedServices,
+                                        serviceOfferingIds: selectedServices, // ✅ Sadece ID'leri gönder
                                     } as any;
 
                                     await createCustomerToFreeBarberAppointment(payload).unwrap();
@@ -477,7 +477,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                         requestLatitude: locationResult.lat,
                                         requestLongitude: locationResult.lon,
                                         note: trimmedNote,
-                                        serviceOfferingIds: [],
+                                        serviceOfferingIds: [], // ✅ Backend List<Guid> bekliyor
                                     } as any;
 
                                     await createCustomerToFreeBarberAppointment(payload).unwrap();

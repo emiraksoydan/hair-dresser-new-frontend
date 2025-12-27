@@ -157,6 +157,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     typeLabel={typeLabel}
                     typeLabelColor={typeLabelColor}
                     onPressUpdate={goCustomerDetail}
+                    onPressRatings={handlePressRatings}
                 />
             );
         } else if (item.targetType === FavoriteTargetType.ManuelBarber && item.manuelBarber) {

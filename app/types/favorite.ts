@@ -7,6 +7,7 @@ import { FreeBarGetDto } from './freebarber';
 
 export type ToggleFavoriteDto = {
   targetId: string;
+  targetType?: FavoriteTargetType; // Favori tipi (Store, FreeBarber, Customer, ManuelBarber)
   appointmentId?: string | null; // Opsiyonel: Randevu sayfasından geliyorsa appointmentId gönderilir
 };
 
@@ -27,6 +28,9 @@ export type UserFavoriteDto = {
   firstName: string;
   lastName: string;
   imageUrl?: string | null;
+  rating: number; // Ortalama rating
+  favoriteCount: number; // Favori sayısı
+  reviewCount: number; // Yorum sayısı
 };
 
 export type ManuelBarberFavoriteDto = {

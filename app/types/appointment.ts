@@ -33,27 +33,31 @@ export enum StoreSelectionType {
 }
 
 export type CreateAppointmentRequestDto = {
-  storeId: string;
+  storeId?: string | null;
   chairId?: string | null;
-  appointmentDate?: string | null; // DateOnly format: "YYYY-MM-DD" - İsteğime Göre senaryosunda null olabilir
-  startTime?: string | null; // TimeSpan format: "HH:mm:ss" - İsteğime Göre senaryosunda null olabilir
-  endTime?: string | null; // TimeSpan format: "HH:mm:ss" - İsteğime Göre senaryosunda null olabilir
+  appointmentDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   freeBarberUserId?: string | null;
-  serviceOfferingIds: string[];
+  serviceOfferingIds: string[]; // ✅ Sadece ID'ler (services değil)
   requestLatitude?: number | null;
   requestLongitude?: number | null;
-  // Customer -> FreeBarber randevusu için yeni alanlar
-  storeSelectionType?: StoreSelectionType | null; // İsteğime Göre (0) veya Dükkan Seç (1)
-  note?: string | null; // Randevu notu
+  storeSelectionType?: StoreSelectionType | null;
+  note?: string | null;
 };
 
 export type AddStoreToAppointmentRequestDto = {
   storeId: string;
   chairId: string;
-  appointmentDate: string; // DateOnly format: "YYYY-MM-DD"
-  startTime: string; // TimeSpan format: "HH:mm:ss"
-  endTime: string; // TimeSpan format: "HH:mm:ss"
-  serviceOfferingIds: string[];
+  appointmentDate: string;
+  startTime: string;
+  endTime: string;
+  serviceOfferingIds: string[]; // ✅ Sadece ID'ler
+};
+
+export type CreateStoreToFreeBarberRequestDto = {
+  storeId: string;
+  freeBarberUserId: string;
 };
 
 
@@ -129,6 +133,9 @@ export type AppointmentGetDto = {
   storeDecision?: DecisionStatus;
   freeBarberDecision?: DecisionStatus;
   customerDecision?: DecisionStatus;
+  
+  // StoreSelectionType
+  storeSelectionType?: StoreSelectionType;
   
   // Note
   note?: string; // Randevu notu (Customer -> FreeBarber randevusunda)

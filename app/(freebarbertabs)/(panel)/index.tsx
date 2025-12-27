@@ -14,21 +14,58 @@ import { FormFreeBarberOperation } from '../../components/freebarber/formfreebar
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { StoreCardInner } from '../../components/store/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
-import { BarberStoreGetDto, FavoriteTargetType } from '../../types';
+import { BarberStoreGetDto, FavoriteTargetType, AppointmentStatus, StoreSelectionType } from '../../types';
 import { FreeBarberPanelSection } from '../../components/freebarber/freebarberpanelsection';
 import { EmptyState } from '../../components/common/emptystateresult';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import MapView, { Marker } from 'react-native-maps';
 import { safeCoord } from '../../utils/location/geo';
 import StoreBookingContent from '../../components/store/storebooking';
-import { useGetAllCategoriesQuery, useGetFreeBarberMinePanelQuery, useGetMyFavoritesQuery } from '../../store/api';
+import { useGetAllCategoriesQuery, useGetFreeBarberMinePanelQuery, useGetMyFavoritesQuery, useGetAllNotificationsQuery } from '../../store/api';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 import { filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
 
 const Index = () => {
+    const router = useRouter();
+
+    // Notification'lardan aktif StoreSelection randevusunu otomatik algıla
+    const { data: notifications = [] } = useGetAllNotificationsQuery();
+    const activeStoreSelectionAppointment = useMemo(() => {
+        // Notification'ların payload'larını kontrol et
+        for (const notification of notifications) {
+            if (!notification.payloadJson || notification.payloadJson === '{}') continue;
+
+            try {
+                const payload = JSON.parse(notification.payloadJson);
+
+                // StoreSelection randevusu mu ve henüz dükkan seçilmemiş mi?
+                if (
+                    payload.storeSelectionType === 1 && // StoreSelectionType.StoreSelection
+                    payload.status === 0 && // AppointmentStatus.Pending
+                    !payload.store && // Henüz dükkan seçilmemiş
+                    notification.appointmentId
+                ) {
+                    return {
+                        id: notification.appointmentId,
+                        payload: payload
+                    };
+                }
+            } catch {
+                continue;
+            }
+        }
+        return null;
+    }, [notifications]);
+
+    // URL'den gelen mode veya otomatik algılanan randevu varsa add-store modu
+    const effectiveAppointmentId = activeStoreSelectionAppointment?.id;
+
+    console.log(effectiveAppointmentId);
+
+
     const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location } = useNearbyStores(true);
     const { data: allCategories = [] } = useGetAllCategoriesQuery();
     const categoryNameById = useMemo(() => {
@@ -53,7 +90,6 @@ const Index = () => {
         skip: !hasLocation,
     });
 
-    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
 
@@ -175,11 +211,20 @@ const Index = () => {
     }, [displayStores, searchQuery, appliedFilters, categoryNameById, favoriteStoreIds]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
+        const params: any = { 
+            storeId: store.id, 
+            mode: effectiveAppointmentId ? "add-store" : "free-barber"
+        };
+        
+        if (effectiveAppointmentId) {
+            params.appointmentId = effectiveAppointmentId;
+        }
+        
         router.push({
             pathname: "/store/[storeId]",
-            params: { storeId: store.id, mode: "free-barber" },
+            params,
         });
-    }, [router]);
+    }, [router, effectiveAppointmentId]);
 
     const renderItem = useCallback(
         ({ item }: { item: BarberStoreGetDto }) => (
@@ -526,7 +571,15 @@ const Index = () => {
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
-                    {selectedMapItem && <StoreBookingContent storeId={(selectedMapItem as any).id} isBottomSheet={true} isFreeBarber={true} />}
+                    {selectedMapItem && (
+                        <StoreBookingContent
+                            storeId={(selectedMapItem as any).id}
+                            isBottomSheet={true}
+                            isFreeBarber={true}
+                            mode={effectiveAppointmentId ? "add-store" : undefined}
+                            appointmentId={effectiveAppointmentId}
+                        />
+                    )}
                 </BottomSheetView>
             </BottomSheetModal>
 

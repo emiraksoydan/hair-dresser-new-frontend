@@ -1,10 +1,9 @@
-// app/components/StoreCard.tsx
 import React, { useCallback, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, FreeBarGetDto } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
+import { useToggleFavoriteMutation, useIsFavoriteQuery, useCallFreeBarberMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 
 type Props = {
@@ -17,12 +16,15 @@ type Props = {
     onPressUpdate?: (freeBarber: FreeBarGetDto) => void;
     mode?: 'default' | 'barbershop';
     onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
+    onCallFreeBarber?: (freeBarberId: string) => void;
+    storeId?: string;
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings }) => {
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
+    const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
     const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
@@ -86,6 +88,38 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             setIsToggling(false);
         }
     }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite]);
+
+    const handleCallFreeBarber = useCallback(async () => {
+        if (!storeId) {
+            Alert.alert('Hata', 'Lütfen önce bir dükkan seçin.');
+            return;
+        }
+
+        Alert.alert(
+            'Berberi Çağır',
+            `${freeBarber.fullName} adlı berberi çağırmak istediğinize emin misiniz?`,
+            [
+                { text: 'İptal', style: 'cancel' },
+                {
+                    text: 'Çağır',
+                    onPress: async () => {
+                        try {
+                            await callFreeBarber({
+                                storeId,
+                                freeBarberUserId: freeBarber.id,
+                            }).unwrap();
+                            Alert.alert('Başarılı', 'Berber başarıyla çağrıldı!');
+                            if (onCallFreeBarber) {
+                                onCallFreeBarber(freeBarber.id);
+                            }
+                        } catch (error: any) {
+                            Alert.alert('Hata', error?.data?.message || error?.message || 'Berber çağırma işlemi başarısız.');
+                        }
+                    },
+                },
+            ]
+        );
+    }, [storeId, freeBarber.id, freeBarber.fullName, callFreeBarber, onCallFreeBarber]);
     return (
         <View
             style={{ width: cardWidthFreeBarber, overflow: 'hidden' }}
@@ -142,12 +176,13 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             </TouchableOpacity>
                             {mode === 'barbershop' && isAvailable && (
                                 <TouchableOpacity
-                                    onPress={() => { }}
+                                    onPress={handleCallFreeBarber}
+                                    disabled={isCalling}
                                     className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
                                     style={{ elevation: 5 }}
                                 >
                                     <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
-                                        Berberi Çağır
+                                        {isCalling ? 'Çağırılıyor...' : 'Berberi Çağır'}
                                     </Text>
                                 </TouchableOpacity>
                             )}
