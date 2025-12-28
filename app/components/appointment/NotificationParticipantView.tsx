@@ -123,6 +123,11 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                             <Text className="text-white text-sm font-semibold">{payload.store.storeName}</Text>
+                            {payload.store.type !== undefined && (
+                                <Text className="text-[#9ca3af] text-xs mt-0.5">
+                                    {getBarberTypeName(payload.store.type as BarberType)}
+                                </Text>
+                            )}
                             {payload.store.addressDescription && (
                                 <View className="mt-1 flex-row items-start">
                                     <View className="mt-0.5">

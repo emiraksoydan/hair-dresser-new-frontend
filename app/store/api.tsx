@@ -21,7 +21,7 @@ export const api = createApi({
     baseQuery: baseQueryWithReauth,
     tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers"],
     refetchOnReconnect: true,
-    refetchOnFocus: false,
+    refetchOnFocus: true,
     endpoints: (builder) => ({
 
         // ... (Auth, BarberStore, FreeBarber, ManuelBarber kısımları aynı kalıyor) ...
@@ -270,7 +270,15 @@ export const api = createApi({
         }),
         callFreeBarber: builder.mutation<ApiResponse<{ id: string }>, CreateStoreToFreeBarberRequestDto>({
             query: (body) => ({ url: 'Appointment/store/call-freebarber', method: 'POST', body }),
-            invalidatesTags: ['Appointment', 'Badge', 'Notification', { type: 'Appointment', id: 'LIST' }, 'Chat'],
+            invalidatesTags: [
+                'Appointment',
+                'Badge',
+                'Notification',
+                { type: 'Appointment', id: 'LIST' },
+                'Chat',
+                { type: 'MineFreeBarberPanel', id: 'NEARBY' },
+                { type: 'MineFreeBarberPanel', id: 'LIST' },
+            ],
         }),
 
         storeDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({

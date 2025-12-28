@@ -222,7 +222,7 @@ const Index = () => {
 
     // Kendi dükkanlarını filtrele (client-side)
     const filteredStores = useMemo(() => {
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
         if (!shouldShowStores) return [];
 
         return filterStores(displayStores, {
@@ -236,7 +236,7 @@ const Index = () => {
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredFreeBarbers = useMemo(() => {
         const shouldShowFreeBarbers = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Serbest Berber";
-        if (!shouldShowFreeBarbers || appliedFilters.userType === "D�kkan") return [];
+        if (!shouldShowFreeBarbers || appliedFilters.userType === "Dükkan") return [];
 
         return filterFreeBarbers(displayFreeBarbers, {
             searchQuery,
@@ -269,10 +269,11 @@ const Index = () => {
                 cardWidthFreeBarber={cardWidthFreeBarber}
                 mode="barbershop"
                 onPressRatings={handlePressRatings}
+                onCallFreeBarber={() => manualFetch()}
                 storeId={stores?.[0]?.id}
             />
         ),
-        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings, stores]
+        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings, manualFetch, stores]
     );
 
     // FlatList için tüm item'ları birleştir
@@ -280,8 +281,8 @@ const Index = () => {
     const listData = useMemo(() => {
         const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal'; data?: any }> = [];
 
-        // Stores section - kullanıcı türü filtresi "D�kkan" veya "Hepsi" ise göster
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        // Stores section - kullanıcı türü filtresi "Dükkan" veya "Hepsi" ise göster
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
         if (shouldShowStores) {
             items.push({ id: 'stores-header', type: 'stores-header' });
             if (isStoresLoading) {
@@ -562,6 +563,7 @@ const Index = () => {
                                     cardWidthFreeBarber={cardWidthFreeBarber}
                                     mode="barbershop"
                                     onPressRatings={handlePressRatings}
+                                    onCallFreeBarber={() => manualFetch()}
                                     storeId={stores?.[0]?.id}
                                 />
                             );
@@ -685,9 +687,6 @@ const Index = () => {
 };
 
 export default Index;
-
-
-
 
 
 

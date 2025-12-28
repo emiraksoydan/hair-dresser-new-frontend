@@ -1,8 +1,8 @@
-﻿import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
-import { useGetFreeBarberForUsersQuery, useCreateCustomerToFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation } from '../../store/api';
+import { useGetFreeBarberForUsersQuery, useCreateCustomerToFreeBarberAppointmentMutation, useCallFreeBarberMutation } from '../../store/api';
 import FilterChip from '../common/filter-chip';
 import { getBarberTypeName } from '../../utils/store/barber-type';
 import { SkeletonComponent } from '../common/skeleton';
@@ -13,7 +13,7 @@ import { MESSAGES } from '../../constants/messages';
 import { APPOINTMENT_CONSTANTS } from '../../constants/appointment';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { useBottomSheetRegistry } from '../../context/bottomsheet';
+import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
 import StoreBookingContent from '../store/storebooking';
 import { StoreCardInner } from '../store/storecard';
 import { EmptyState } from '../common/emptystateresult';
@@ -22,6 +22,7 @@ import { safeCoord } from '../../utils/location/geo';
 import { toggleExpand } from '../../utils/common/expand-toggle';
 import MotiViewExpand from '../common/motiviewexpand';
 import { getCurrentLocationSafe } from '../../utils/location/location-helper';
+import { RatingsBottomSheet } from '../rating/ratingsbottomsheet';
 
 interface Props {
     barberId: string;
@@ -43,8 +44,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     // Not alani sadece StoreSelection senaryosunda kullanilir
     const [note, setNote] = useState<string>('');
     const [createCustomerToFreeBarberAppointment, { isLoading: isCreating }] = useCreateCustomerToFreeBarberAppointmentMutation();
-    const [createStoreAppointment, { isLoading: isCreatingStore }] = useCreateStoreAppointmentMutation();
-    const freeBarberUserId = freeBarberData?.freeBarberUserId ?? (freeBarberData as any)?.userId ?? barberId;
+    const [callFreeBarber, { isLoading: isCallingFreeBarber }] = useCallFreeBarberMutation();
+    const freeBarberUserId = freeBarberData?.freeBarberUserId ?? null;
 
     // Dükkan seçimi için
     const { stores, loading: storesLoading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(isAddStoreMode);
@@ -52,7 +53,10 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     const storeBookingSheetRef = useRef<BottomSheetModal>(null);
     const { setRef: setStoreSelectionRef, makeBackdrop } = useBottomSheetRegistry();
     const { setRef: setStoreBookingRef } = useBottomSheetRegistry();
+    const { setRef: setRatingsRef } = useBottomSheetRegistry();
+    const { present: presentRatings } = useSheet("ratings");
     const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+    const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
     const [isMapMode, setIsMapMode] = useState(false);
     const [expanded, setExpanded] = useState(true);
 
@@ -134,6 +138,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
         });
     }, [stores, hasStores, handleMapItemPress]);
 
+    const handlePressRatings = useCallback((targetId: string, targetName: string) => {
+        setSelectedRatingsTarget({ targetId, targetName });
+        presentRatings();
+    }, [presentRatings]);
+
     const renderStoreItem = useCallback(({ item }: { item: BarberStoreGetDto }) => (
         <StoreCardInner
             store={item}
@@ -141,8 +150,9 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             expanded={expanded}
             cardWidthStore={cardWidthStore}
             onPressUpdate={goStoreDetail}
+            onPressRatings={handlePressRatings}
         />
-    ), [expanded, cardWidthStore, goStoreDetail]);
+    ), [expanded, cardWidthStore, goStoreDetail, handlePressRatings]);
 
     // Loading
     if (!isAddStoreMode && isLoading) {
@@ -215,9 +225,9 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                         <Text className="text-white font-ibm-plex-sans-bold text-lg">Serbest Berber Çağır</Text>
                         <Text className="text-gray-300 text-sm">Tarih ve saat seçmeden çağrı gönderebilirsiniz.</Text>
                         <TouchableOpacity
-                            disabled={isCreatingStore || !freeBarberData?.isAvailable}
-                            className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${(!freeBarberData?.isAvailable || isCreatingStore) ? "bg-[#4b5563]" : "bg-[#3b82f6]"}`}
-                            style={{ opacity: (!freeBarberData?.isAvailable || isCreatingStore) ? 0.7 : 1 }}
+                            disabled={isCallingFreeBarber || !freeBarberData?.isAvailable}
+                            className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${(!freeBarberData?.isAvailable || isCallingFreeBarber) ? "bg-[#4b5563]" : "bg-[#3b82f6]"}`}
+                            style={{ opacity: (!freeBarberData?.isAvailable || isCallingFreeBarber) ? 0.7 : 1 }}
                             onPress={async () => {
                                 try {
                                     if (!storeId) {
@@ -230,13 +240,17 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                         return;
                                     }
 
+                                    if (!freeBarberUserId) {
+                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
+                                        return;
+                                    }
+
                                     const payload = {
                                         storeId,
                                         freeBarberUserId: freeBarberUserId,
-                                        serviceOfferingIds: [], // ✅ Backend List<Guid> bekliyor
                                     } as any;
 
-                                    const result = await createStoreAppointment(payload).unwrap();
+                                    const result = await callFreeBarber(payload).unwrap();
 
                                     if (result.success) {
                                         Alert.alert("Başarılı", "Çağrı gönderildi.", [
@@ -250,7 +264,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                 }
                             }}
                         >
-                            {isCreatingStore ? (
+                            {isCallingFreeBarber ? (
                                 <ActivityIndicator color="white" />
                             ) : (
                                 <>
@@ -261,7 +275,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                         </TouchableOpacity>
                     </View>
                 )}
-                {/* İsteğime Göre se�ilmediyse normal hizmet se�imi g�ster */}
+                {/* İsteğime Göre seçilmediyse normal hizmet seçimi göster */}
                 {currentUserType === UserType.Customer && !isBarberMode && !isAddStoreMode && !storeSelectionType && (
                     <View className="gap-3 mt-4">
                         <Text className="text-white font-ibm-plex-sans-bold text-lg">Randevu Tipi Seçin</Text>
@@ -308,7 +322,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             </TouchableOpacity>
                         </View>
 
-                        {/* Hizmetler (Se�ilebilir) */}
+                        {/* Hizmetler (Seçilebilir) */}
                         <View>
                             <View className="flex-row items-center gap-2 mb-2">
                                 <Text className="text-white font-ibm-plex-sans-medium text-base">Berberin Hizmetleri</Text>
@@ -360,7 +374,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             </View>
                         </View>
 
-                        {/* Randevu G�nder Butonu */}
+                        {/* Randevu Gönder Butonu */}
                         <TouchableOpacity
                             disabled={isCreating}
                             className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${isCreating ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
@@ -375,6 +389,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     const locationResult = await getCurrentLocationSafe();
                                     if (!locationResult.ok) {
                                         Alert.alert("Hata", "Konum bilgisi alınamadı..");
+                                        return;
+                                    }
+
+                                    if (!freeBarberUserId) {
+                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
                                         return;
                                     }
 
@@ -471,13 +490,17 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                         return;
                                     }
 
+                                    if (!freeBarberUserId) {
+                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
+                                        return;
+                                    }
+
                                     const payload = {
                                         freeBarberUserId: freeBarberUserId,
                                         storeSelectionType: StoreSelectionType.StoreSelection,
                                         requestLatitude: locationResult.lat,
                                         requestLongitude: locationResult.lon,
                                         note: trimmedNote,
-                                        serviceOfferingIds: [], // ✅ Backend List<Guid> bekliyor
                                     } as any;
 
                                     await createCustomerToFreeBarberAppointment(payload).unwrap();
@@ -644,14 +667,35 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                     </BottomSheetView>
                 </BottomSheetModal>
             )}
+
+            <BottomSheetModal
+                ref={(inst) => setRatingsRef("ratings", inst)}
+                snapPoints={["50%", "85%"]}
+                enablePanDownToClose={true}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                onChange={(index) => {
+                    if (index < 0) {
+                        setSelectedRatingsTarget(null);
+                    }
+                }}
+            >
+                {selectedRatingsTarget && (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                        }}
+                    />
+                )}
+            </BottomSheetModal>
         </View>
     );
 };
 
 export default FreeBarberBookingContent;
-
-
-
 
 
 

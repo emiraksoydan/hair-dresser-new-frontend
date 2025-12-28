@@ -240,9 +240,7 @@ const FreeBarberLayout = () => {
                 enableOverDrag={false}
                 enablePanDownToClose
             >
-                <BottomSheetView style={{ flex: 1, paddingTop: 8 }}>
-                    <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
-                </BottomSheetView>
+                <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
             </BottomSheetModal>
         </>
     )

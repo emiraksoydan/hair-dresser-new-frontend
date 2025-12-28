@@ -4,13 +4,14 @@ import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useStoreD
 import { useAppDispatch } from "../../store/hook";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import React, { useCallback, useRef } from "react";
-import { AppointmentStatus, NotificationDto, UserType } from "../../types";
+import { AppointmentStatus, DecisionStatus, NotificationDto, StoreSelectionType, UserType } from "../../types";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NotificationItem } from "./notificationdetail";
 import { useRouter } from "expo-router";
 
 // ---------------------------------------------------------------------------
-// 2. Ana NotificationsSheet Bile�Yeni
+// 2. Ana NotificationsSheet Bileşeni
 // ---------------------------------------------------------------------------
 export function NotificationsSheet({
     onClose,
@@ -23,6 +24,7 @@ export function NotificationsSheet({
 }) {
     const dispatch = useAppDispatch();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { data, isFetching, refetch } = useGetAllNotificationsQuery();
     const [markRead] = useMarkNotificationReadMutation();
     const { userType } = useAuth();
@@ -33,18 +35,18 @@ export function NotificationsSheet({
     // FreeBarber için "Dükkan Ekle" butonu handler
     const handleAddStore = useCallback((appointmentId: string) => {
         console.log("Dükkan Ekle tıklandı, appointmentId:", appointmentId);
-        
+
         // Önce modal'ı kapat
         if (onClose) {
             onClose();
         }
-        
+
         // Kısa bir gecikmeyle yönlendir (modal kapanması için)
         setTimeout(() => {
             try {
                 router.push({
                     pathname: "/(freebarbertabs)/(panel)",
-                    params: { 
+                    params: {
                         mode: "add-store",
                         appointmentId: appointmentId
                     },
@@ -67,11 +69,37 @@ export function NotificationsSheet({
         }
     }, [dispatch, markRead, refetch]);
 
-    // --- Anlık UI Güncellemesi İçin Geli�Ytirilmi�Y HandleDecision ---
+    // --- Anlık UI Güncellemesi İçin Geliştirilmiş HandleDecision ---
     const handleDecision = useCallback(async (notification: NotificationDto, approve: boolean) => {
         if (!notification.appointmentId) return;
 
-        // Optimistic update: Notification'ın status'unu hemen güncelle
+        let parsedPayload: any = null;
+        try {
+            if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
+                parsedPayload = JSON.parse(notification.payloadJson);
+            }
+        } catch {
+            parsedPayload = null;
+        }
+
+        const isStoreSelection = parsedPayload?.storeSelectionType === StoreSelectionType.StoreSelection;
+        const decisionValue = approve ? DecisionStatus.Approved : DecisionStatus.Rejected;
+        const shouldUpdateStatus =
+            !isStoreSelection ||
+            (userType === UserType.Customer && approve) ||
+            (userType === UserType.FreeBarber && !approve);
+
+        if (
+            userType === UserType.FreeBarber &&
+            isStoreSelection &&
+            (parsedPayload?.customerDecision === DecisionStatus.Approved ||
+                parsedPayload?.status === AppointmentStatus.Approved)
+        ) {
+            Alert.alert("Bilgi", "Müşteri onayı verildiği için bu randevu artık reddedilemez.");
+            return;
+        }
+
+        // Optimistic update: Notification'ın status/decision alanlarını hemen güncelle
         const patchResult = dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
             if (!draft) return;
             const found = draft.find((n) => n.id === notification.id);
@@ -79,8 +107,17 @@ export function NotificationsSheet({
                 try {
                     const payload = JSON.parse(found.payloadJson);
                     if (payload && typeof payload === 'object') {
-                        // Status'ü güncelle
-                        payload.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
+                        if (userType === UserType.BarberStore) {
+                            payload.storeDecision = decisionValue;
+                        } else if (userType === UserType.FreeBarber) {
+                            payload.freeBarberDecision = decisionValue;
+                        } else if (userType === UserType.Customer) {
+                            payload.customerDecision = decisionValue;
+                        }
+
+                        if (shouldUpdateStatus) {
+                            payload.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
+                        }
                         found.payloadJson = JSON.stringify(payload);
                     }
                 } catch {
@@ -102,23 +139,33 @@ export function NotificationsSheet({
             }
 
             if (result.success) {
+                const successMessage = (() => {
+                    if (isStoreSelection && userType === UserType.BarberStore) {
+                        return approve ? "Dükkan onayı gönderildi." : "Dükkan reddedildi.";
+                    }
+                    if (isStoreSelection && userType === UserType.Customer) {
+                        return approve ? "Randevu onaylandı." : "Dükkan reddedildi.";
+                    }
+                    return approve ? "Randevu onaylandı." : "Randevu reddedildi.";
+                })();
+
                 // Bildirimi okundu olarak işaretle (otomatik)
                 if (!notification.isRead) {
                     dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
                         const found = draft?.find((x) => x.id === notification.id);
                         if (found) found.isRead = true;
                     }));
-                    try { 
-                        await markRead(notification.id).unwrap(); 
-                    } catch { 
+                    try {
+                        await markRead(notification.id).unwrap();
+                    } catch {
                         // Okundu işaretleme hatası önemsiz, devam et
                     }
                 }
-                
+
                 // Badge ve notification'ları yenile
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));
 
-                Alert.alert("Başarılı", approve ? "Randevu onaylandı." : "Randevu reddedildi.");
+                Alert.alert("Başarılı", successMessage);
             } else {
                 // Hata durumunda optimistic update'i geri al
                 patchResult.undo();
@@ -150,7 +197,7 @@ export function NotificationsSheet({
 
     const formatRating = useCallback((rating?: number) => rating?.toFixed(1) ?? null, []);
 
-    // renderItem artık sadece NotificationItem'ı ça�Yırıyor
+    // renderItem artık sadece NotificationItem'ı çağırıyor
     const renderItem = useCallback(({ item }: { item: NotificationDto }) => {
         return (
             <NotificationItem
@@ -168,9 +215,10 @@ export function NotificationsSheet({
         );
     }, [userType, handleMarkRead, handleDecision, isStoreDeciding, isFreeBarberDeciding, isCustomerDeciding, formatDate, formatTime, formatPricingPolicy, formatRating, handleAddStore]);
 
+
     return (
         <View className="flex-1 px-3">
-            <View className="flex-row justify-between items-center mb-2.5">
+            <View className="flex-row justify-between items-center my-3">
                 <Text className="text-white text-lg font-bold">Bildirimler</Text>
                 <TouchableOpacity onPress={onClose}>
                     <Text className="text-[#f05e23] font-semibold">Kapat</Text>
@@ -182,9 +230,12 @@ export function NotificationsSheet({
                 keyExtractor={(x: NotificationDto) => x.id}
                 refreshing={isFetching}
                 onRefresh={refetch}
-                style={{ flex: 1 }}
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
+                style={{ flex: 1, }}
+                contentContainerStyle={{
+                    flexGrow: 1 // Liste boş olsa bile kaydırma davranışını korur
+                }}
                 renderItem={renderItem}
+
                 ListEmptyComponent={
                     <View className="p-4.5">
                         <Text className="text-[#8b8c90]">Bildirim yok</Text>
@@ -194,7 +245,3 @@ export function NotificationsSheet({
         </View>
     );
 }
-
-
-
-

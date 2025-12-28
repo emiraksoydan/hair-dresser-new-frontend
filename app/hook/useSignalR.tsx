@@ -101,10 +101,17 @@ export const useSignalR = () => {
                 });
 
                 conn.on("notification.received", (dto: NotificationDto) => {
+                    let addedUnread = 0;
+                    let removedUnread = 0;
                     // Notification'ı listeye ekle veya güncelle
                     dispatch(
                         api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
-                            if (!draft) return;
+                            if (!draft) {
+                                if (!dto.isRead) {
+                                    addedUnread = 1;
+                                }
+                                return;
+                            }
 
                             // Duplicate kontrolü: Aynı appointmentId ve type'a sahip notification var mı?
                             // ÖNEMLİ: AppointmentUnanswered durumunda eski AppointmentCreated notification'ı kaldırmalıyız
@@ -121,7 +128,12 @@ export const useSignalR = () => {
                                         }
                                     });
                                     // Tersten kaldır (indeksler bozulmasın diye)
-                                    oldCreatedIndexes.reverse().forEach(idx => draft.splice(idx, 1));
+                                    oldCreatedIndexes.reverse().forEach(idx => {
+                                        if (!draft[idx].isRead) {
+                                            removedUnread++;
+                                        }
+                                        draft.splice(idx, 1);
+                                    });
                                 }
 
                                 // Aynı appointmentId ve type'a sahip notification var mı? (genel duplicate kontrolü)
@@ -132,12 +144,21 @@ export const useSignalR = () => {
                                 );
                                 if (duplicateIndex >= 0) {
                                     // Eski duplicate notification'ı kaldır
+                                    if (!draft[duplicateIndex].isRead) {
+                                        removedUnread++;
+                                    }
                                     draft.splice(duplicateIndex, 1);
                                 }
                             }
 
                             // Eğer aynı notification zaten varsa güncelle
                             const existingIndex = draft.findIndex(n => n.id === dto.id);
+                            const wasRead = existingIndex >= 0 ? draft[existingIndex].isRead : null;
+                            if (existingIndex < 0 && !dto.isRead) {
+                                addedUnread = 1;
+                            } else if (existingIndex >= 0 && wasRead && !dto.isRead) {
+                                addedUnread = 1;
+                            }
                             if (existingIndex >= 0) {
                                 // Mevcut notification'ı tamamen güncelle (payload dahil)
                                 draft[existingIndex] = { ...dto };
@@ -193,6 +214,23 @@ export const useSignalR = () => {
                         })
                     );
 
+
+                    const unreadDelta = addedUnread - removedUnread;
+                    if (unreadDelta !== 0) {
+                        dispatch(
+                            api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                                if (!draft) {
+                                    if (unreadDelta > 0) {
+                                        return { unreadNotifications: unreadDelta, unreadMessages: 0 };
+                                    }
+                                    return;
+                                }
+                                const nextUnread = Math.max(0, (draft.unreadNotifications ?? 0) + unreadDelta);
+                                draft.unreadNotifications = nextUnread;
+                            })
+                        );
+                    }
+
                     // Appointment status değiştiğinde slot availability'yi güncelle
                     if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
                         try {
@@ -217,10 +255,7 @@ export const useSignalR = () => {
                         }
                     }
 
-                    // Badge count'u invalidate et - backend'den badge.updated event'i gelecek
-                    // Backend'de CreateAndPushAsync içinde badge count hesaplanıp badge.updated event'i gönderiliyor
-                    // Bu yüzden burada sadece invalidate etmek yeterli, manuel artırmaya gerek yok
-                    dispatch(api.util.invalidateTags(["Badge"]));
+                    // badge.updated event'i gelirse ek olarak senkronize olur
                 });
 
                 conn.on("chat.message", (dto: ChatMessageDto) => {
@@ -376,7 +411,6 @@ export const useSignalR = () => {
                             }
                         })
                     );
-                    dispatch(api.util.invalidateTags(["Badge"]));
                 });
 
                 // Typing indicator event handler
@@ -400,7 +434,7 @@ export const useSignalR = () => {
                                 const existingIndex = draft.findIndex(a => a.id === appointment.id);
 
                                 // Status'e göre hangi filter'da olması gerektiğini kontrol et
-                                // Active tab'ında sadece Approved randevular görünür (Pending sadece notification'larda)
+                                // Active tab'ında sadece Approved randevular görünür (Pending'ler gözükmeyecek)
                                 const shouldBeInThisFilter =
                                     (filter === AppointmentFilter.Active && appointment.status === AppointmentStatus.Approved) ||
                                     (filter === AppointmentFilter.Completed && appointment.status === AppointmentStatus.Completed) ||
@@ -610,3 +644,4 @@ export const useSignalR = () => {
 
     return { isConnected, connectionRef };
 };
+

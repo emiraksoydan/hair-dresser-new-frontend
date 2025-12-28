@@ -8,13 +8,15 @@ import {
     useSendChatMessageByThreadMutation,
     useMarkChatThreadReadMutation,
     useGetChatThreadsQuery,
-    useGetBadgeCountsQuery,
-    useNotifyTypingMutation
+    useNotifyTypingMutation,
+    api
 } from '../../store/api';
 import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from '../../store/redux-store';
 
 interface ChatDetailScreenProps {
     threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
@@ -31,15 +33,14 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const flatListRef = useRef<FlatList>(null);
     const { userId: currentUserId, userType: currentUserType } = useAuth();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+    const dispatch = useDispatch<AppDispatch>();
 
     // SignalR bağlantı kontrolü
     const { isConnected, connectionRef } = useSignalR();
 
     const { data: threads, isLoading: isLoadingThreads, refetch: refetchThreads } = useGetChatThreadsQuery();
     const currentThread = useMemo(() => {
-        const thread = threads?.find(t => t.threadId === threadId);
-        console.log('📋 Current thread participants count:', thread?.participants?.length || 0);
-        return thread;
+        return threads?.find(t => t.threadId === threadId);
     }, [threads, threadId]);
 
     // Thread bulunamadı hatası için kontrol
@@ -85,17 +86,41 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
     const [markRead] = useMarkChatThreadReadMutation();
     const [notifyTyping] = useNotifyTypingMutation();
+    const markReadInFlightRef = useRef(false);
 
     // Typing indicator için debounce
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastTypingNotificationRef = useRef(false);
 
+    const markThreadRead = useCallback(async () => {
+        if (!threadId || markReadInFlightRef.current) return;
+        markReadInFlightRef.current = true;
+        try {
+            await markRead(threadId).unwrap();
+        } catch {
+            // Hata durumunda sessizce devam et
+        } finally {
+            markReadInFlightRef.current = false;
+        }
+
+        dispatch(
+            api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                if (!draft) return;
+                const thread = draft.find(t => t.threadId === threadId);
+                if (thread) {
+                    thread.unreadCount = 0;
+                }
+            })
+        );
+        dispatch(api.util.invalidateTags(["Badge"]));
+    }, [threadId, markRead, dispatch]);
+
     // Mark thread as read when opened
     useEffect(() => {
         if (threadId && currentThread && currentThread.unreadCount > 0) {
-            markRead(threadId);
+            markThreadRead();
         }
-    }, [threadId, currentThread?.unreadCount, markRead]);
+    }, [threadId, currentThread?.unreadCount, markThreadRead]);
 
     // ÖNEMLİ: ChatDetailScreen açıkken yeni mesaj geldiğinde otomatik read yap
     // Eğer kullanıcı sohbet odasında ise, mesaj geldiğinde otomatik okundu işaretlenmeli
@@ -109,11 +134,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
             // Kendi gönderdiğimiz mesaj değilse (başkasından geldiyse) otomatik read yap
             if (dto.senderUserId !== currentUserId) {
-                try {
-                    await markRead(threadId).unwrap();
-                } catch (error) {
-                    // Hata durumunda sessizce devam et
-                }
+                await markThreadRead();
             }
         };
 
@@ -124,7 +145,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                 connection.off("chat.message", handleNewMessage);
             }
         };
-    }, [threadId, currentUserId, markRead, connectionRef]);
+    }, [threadId, currentUserId, markThreadRead, connectionRef]);
 
     // Typing indicator timeout
     useEffect(() => {

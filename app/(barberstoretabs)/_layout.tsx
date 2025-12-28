@@ -284,9 +284,7 @@ const BarberStoreLayout = () => {
                 enableOverDrag={false}
                 enablePanDownToClose
             >
-                <BottomSheetView style={{ flex: 1, paddingTop: 8 }}>
-                    <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
-                </BottomSheetView>
+                <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
             </BottomSheetModal>
             <BottomSheetModal
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}

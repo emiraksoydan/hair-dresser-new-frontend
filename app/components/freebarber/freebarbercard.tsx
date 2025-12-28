@@ -25,7 +25,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
-    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
+    const { data: isFavoriteData } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
     const [isToggling, setIsToggling] = useState(false);
@@ -59,35 +59,36 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             return;
         }
 
-        // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
-        // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
+        const previousIsFavorite = isFavorite;
+        const previousCount = favoriteCount;
+        const nextIsFavorite = !previousIsFavorite;
+        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
+
+        setIsFavorite(nextIsFavorite);
+        setFavoriteCount(nextCount);
         setIsToggling(true);
 
         try {
-            await toggleFavorite({
+            const result = await toggleFavorite({
                 targetId: freeBarber.id,
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra:
-            // isFavorite query'sini refetch et
-            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
-            // API.tsx'teki optimistic update cache'i güncelleyecek
-            // useEffect'te freeBarber.favoriteCount ve isFavoriteData değiştiğinde state güncellenecek
-            if (refetchIsFavorite) {
-                refetchIsFavorite();
+            const responseData: any = (result as any)?.data ?? result;
+            if (typeof responseData?.isFavorite === "boolean") {
+                setIsFavorite(responseData.isFavorite);
             }
-
-            // Cache güncellemesi useEffect'te handle edilecek (backend'den gelen değerle override)
+            if (typeof responseData?.favoriteCount === "number") {
+                setFavoriteCount(responseData.favoriteCount);
+            }
         } catch (error: any) {
-            // Hata durumunda sadece toggle flag'ini kaldır
-            // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
-            setIsToggling(false);
+            setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         } finally {
             setIsToggling(false);
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount]);
 
     const handleCallFreeBarber = useCallback(async () => {
         if (!storeId) {
@@ -104,9 +105,15 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                     text: 'Çağır',
                     onPress: async () => {
                         try {
+                            const freeBarberUserId = freeBarber.freeBarberUserId;
+                            if (!freeBarberUserId) {
+                                Alert.alert('Hata', 'Serbest berber kullanıcısı bulunamadı.');
+                                return;
+                            }
+
                             await callFreeBarber({
                                 storeId,
-                                freeBarberUserId: freeBarber.id,
+                                freeBarberUserId,
                             }).unwrap();
                             Alert.alert('Başarılı', 'Berber başarıyla çağrıldı!');
                             if (onCallFreeBarber) {

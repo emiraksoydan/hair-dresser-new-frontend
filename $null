@@ -1,0 +1,8 @@
+Get-ChildItem : Parameter cannot be processed because the parameter name 'o' is ambiguous. Possible matches include: -O
+utVariable -OutBuffer.
+At line:1 char:41
++ (Get-ChildItem -Recurse -Filter '*.tsx' -o -Filter '*.ts' | ForEach-O ...
++                                         ~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-ChildItem], ParameterBindingException
+    + FullyQualifiedErrorId : AmbiguousParameter,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 

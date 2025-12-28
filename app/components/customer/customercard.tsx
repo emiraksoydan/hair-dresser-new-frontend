@@ -31,7 +31,7 @@ const CustomerCard: React.FC<Props> = ({
     const coverImage = customer.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(customer.id, { skip: !isAuthenticated });
+    const { data: isFavoriteData } = useIsFavoriteQuery(customer.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(customer.favoriteCount || 0);
     const [isToggling, setIsToggling] = useState(false);
@@ -61,24 +61,36 @@ const CustomerCard: React.FC<Props> = ({
             return;
         }
 
+        const previousIsFavorite = isFavorite;
+        const previousCount = favoriteCount;
+        const nextIsFavorite = !previousIsFavorite;
+        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
+
+        setIsFavorite(nextIsFavorite);
+        setFavoriteCount(nextCount);
         setIsToggling(true);
 
         try {
-            await toggleFavorite({
+            const result = await toggleFavorite({
                 targetId: customer.id,
                 targetType: FavoriteTargetType.Customer,
             }).unwrap();
 
-            if (refetchIsFavorite) {
-                refetchIsFavorite();
+            const responseData: any = (result as any)?.data ?? result;
+            if (typeof responseData?.isFavorite === "boolean") {
+                setIsFavorite(responseData.isFavorite);
+            }
+            if (typeof responseData?.favoriteCount === "number") {
+                setFavoriteCount(responseData.favoriteCount);
             }
         } catch (error: any) {
-            setIsToggling(false);
+            setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         } finally {
             setIsToggling(false);
         }
-    }, [isAuthenticated, customer.id, toggleFavorite, refetchIsFavorite]);
+    }, [isAuthenticated, customer.id, toggleFavorite, isFavorite, favoriteCount]);
 
     return (
         <View

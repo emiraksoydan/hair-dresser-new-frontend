@@ -40,13 +40,30 @@ const Index = () => {
 
             try {
                 const payload = JSON.parse(notification.payloadJson);
+                let expiresAt: Date | null = null;
+                if (payload?.pendingExpiresAt) {
+                    let dateStr = payload.pendingExpiresAt;
+                    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+                        dateStr += 'Z';
+                    }
+                    expiresAt = new Date(dateStr);
+                } else if (notification.createdAt) {
+                    let createdStr = notification.createdAt;
+                    if (typeof createdStr === 'string' && !createdStr.endsWith('Z') && !createdStr.includes('+')) {
+                        createdStr += 'Z';
+                    }
+                    const createdAt = new Date(createdStr);
+                    expiresAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
+                }
+                const isExpired = expiresAt ? new Date().getTime() > expiresAt.getTime() : false;
 
                 // StoreSelection randevusu mu ve henüz dükkan seçilmemiş mi?
                 if (
-                    payload.storeSelectionType === 1 && // StoreSelectionType.StoreSelection
-                    payload.status === 0 && // AppointmentStatus.Pending
-                    !payload.store && // Henüz dükkan seçilmemiş
-                    notification.appointmentId
+                    payload.storeSelectionType === StoreSelectionType.StoreSelection &&
+                    payload.status === AppointmentStatus.Pending &&
+                    !payload.store &&
+                    notification.appointmentId &&
+                    !isExpired
                 ) {
                     return {
                         id: notification.appointmentId,
@@ -612,7 +629,6 @@ const Index = () => {
 }
 
 export default Index
-
 
 
 

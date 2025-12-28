@@ -23,7 +23,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
     const coverImage = store.imageList?.[0]?.imageUrl;
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
+    const { data: isFavoriteData } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
     const [isToggling, setIsToggling] = useState(false);
@@ -58,33 +58,36 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
         // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
         // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
+        const previousIsFavorite = isFavorite;
+        const previousCount = favoriteCount;
+        const nextIsFavorite = !previousIsFavorite;
+        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
+
+        setIsFavorite(nextIsFavorite);
+        setFavoriteCount(nextCount);
         setIsToggling(true);
 
         try {
-            await toggleFavorite({
+            const result = await toggleFavorite({
                 targetId: store.id,
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra:
-            // isFavorite query'sini refetch et
-            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor (NEARBY dahil)
-            // API.tsx'teki optimistic update cache'i güncelleyecek
-            // useEffect'te store.favoriteCount ve isFavoriteData değiştiğinde state güncellenecek
-            if (refetchIsFavorite) {
-                refetchIsFavorite();
+            const responseData: any = (result as any)?.data ?? result;
+            if (typeof responseData?.isFavorite === "boolean") {
+                setIsFavorite(responseData.isFavorite);
             }
-
-            // Cache güncellemesi useEffect'te handle edilecek (backend'den gelen değerle override)
+            if (typeof responseData?.favoriteCount === "number") {
+                setFavoriteCount(responseData.favoriteCount);
+            }
         } catch (error: any) {
-            // Hata durumunda sadece toggle flag'ini kaldır
-            // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
-            setIsToggling(false);
+            setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         } finally {
             setIsToggling(false);
         }
-    }, [isAuthenticated, store.id, toggleFavorite, refetchIsFavorite]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount]);
 
     return (
         <View
@@ -132,16 +135,18 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                         </View>
                     </View>
                 </TouchableOpacity>
-                <View className="flex-1 flex-col gap-2">
+                <View className="flex-1 flex-col gap-2" style={{ minWidth: 0, maxWidth: '100%' }}>
                     <View
                         className={`flex-row  justify-between ${!isList ? 'items-start' : 'items-center'
                             }`}
+                        style={{ minWidth: 0, maxWidth: '100%' }}
                     >
-                        <View className={`flex-row  h-8 flex-1 ${isList ? 'items-center' : ''}`}>
+                        <View className={`flex-row  h-8 flex-1 ${isList ? 'items-center' : ''}`} style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
                             <Text
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
                                 className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                             >
                                 {store.storeName}
                             </Text>
@@ -210,17 +215,17 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                     )}
                     <View
                         className="flex-row justify-between items-center"
-                        style={{ marginTop: !isList ? -5 : -10 }}
+                        style={{ marginTop: !isList ? -5 : -10, minWidth: 0, maxWidth: '100%' }}
                     >
-                        <View className="flex-row items-center gap-1">
+                        <View className="flex-row items-center gap-1" style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
                             <StarRatingDisplay
                                 rating={store.rating}
                                 starSize={15}
                                 starStyle={{ marginHorizontal: 0 }}
                             />
-                            <Text className="text-white flex-1">{store.rating}</Text>
-                            <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)}>
-                                <Text className="text-white underline mr-1 mb-0 text-xs">
+                            <Text className="text-white flex-1" style={{ flexShrink: 0 }}>{store.rating}</Text>
+                            <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)} style={{ flexShrink: 0 }}>
+                                <Text className="text-white underline mr-1 mb-0 text-xs" numberOfLines={1}>
                                     Yorumlar ({store.reviewCount})
                                 </Text>
                             </TouchableOpacity>

@@ -22,10 +22,9 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
     const { isAuthenticated } = useAuth();
     const dispatch = useDispatch();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData, refetch: refetchIsFavorite } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
+    const { data: isFavoriteData } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
-    // favoriteCount'u direkt freeBarber prop'undan al, optimistic update yapma
-    const favoriteCount = freeBarber.favoriteCount || 0;
+    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
 
     const handlePressCard = () => {
         onPressUpdate?.(freeBarber);
@@ -38,24 +37,38 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
         }
     }, [isFavoriteData]);
 
+    useEffect(() => {
+        if (freeBarber.favoriteCount !== undefined && freeBarber.favoriteCount !== null) {
+            setFavoriteCount(freeBarber.favoriteCount);
+        }
+    }, [freeBarber.favoriteCount]);
+
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
             Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
             return;
         }
 
-        // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
-        // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
+        const previousIsFavorite = isFavorite;
+        const previousCount = favoriteCount;
+        const nextIsFavorite = !previousIsFavorite;
+        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
+
+        setIsFavorite(nextIsFavorite);
+        setFavoriteCount(nextCount);
+
         try {
-            await toggleFavorite({
+            const result = await toggleFavorite({
                 targetId: freeBarber.id,
                 appointmentId: null,
             }).unwrap();
 
-            // Mutation başarılı olduktan sonra:
-            // 1. isFavorite query'sini refetch et
-            if (refetchIsFavorite) {
-                refetchIsFavorite();
+            const responseData: any = (result as any)?.data ?? result;
+            if (typeof responseData?.isFavorite === "boolean") {
+                setIsFavorite(responseData.isFavorite);
+            }
+            if (typeof responseData?.favoriteCount === "number") {
+                setFavoriteCount(responseData.favoriteCount);
             }
 
             // 2. Parent query'leri invalidate et (favoriteCount güncellenmesi için)
@@ -67,11 +80,13 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                 { type: 'FreeBarberForUsers' as const, id: freeBarber.id },
             ]));
         } catch (error: any) {
+            setIsFavorite(previousIsFavorite);
+            setFavoriteCount(previousCount);
             // Hata durumunda sadece alert göster
             // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, refetchIsFavorite, dispatch]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite, dispatch, isFavorite, favoriteCount]);
 
     return (
         <View

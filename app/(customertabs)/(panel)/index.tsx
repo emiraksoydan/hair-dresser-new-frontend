@@ -116,6 +116,7 @@ const Index = () => {
 
 
     // ✅ Refresh handler - her iki list'i de yenile (concurrency guarded)
+    // Hard refresh: Cache'i bypass ederek fresh data çek
     const [refreshing, setRefreshing] = useState(false);
     const isRefreshingRef = useRef(false);
     const onRefresh = useCallback(async () => {
@@ -123,7 +124,11 @@ const Index = () => {
         try {
             isRefreshingRef.current = true;
             setRefreshing(true);
-            await Promise.all([manualFetchStores(), manualFetchFreeBarbers()]);
+            // Hard refresh: Cache'i bypass ederek fresh data çek
+            await Promise.all([
+                manualFetchStores(), 
+                manualFetchFreeBarbers()
+            ]);
         } finally {
             setRefreshing(false);
             isRefreshingRef.current = false;
@@ -167,7 +172,7 @@ const Index = () => {
 
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredStores = useMemo(() => {
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
         if (!shouldShowStores) return [];
 
         return filterStores(stores, {

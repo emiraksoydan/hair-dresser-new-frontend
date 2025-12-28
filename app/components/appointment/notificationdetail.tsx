@@ -1,4 +1,4 @@
-﻿import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from "react-native";
 import { Icon } from "react-native-paper";
 import type { NotificationDto, NotificationPayload } from "../../types";
 import { NotificationType, AppointmentStatus, DecisionStatus, StoreSelectionType } from "../../types";
@@ -10,7 +10,7 @@ import { useAuth } from "../../hook/useAuth";
 import { NotificationParticipantView } from "./NotificationParticipantView";
 
 // ---------------------------------------------------------------------------
-// 1. NotificationItem Bile�Yeni
+// 1. NotificationItem Bileşeni
 // ---------------------------------------------------------------------------
 export const NotificationItem = React.memo(({
     item,
@@ -44,7 +44,7 @@ export const NotificationItem = React.memo(({
         }
     } catch { }
 
-    // Favori durumlarını query'den al (payload'daki de�Yerler güncellenmeyebilir)
+    // Favori durumlarını query'den al (payload'daki değerler güncellenmeyebilir)
     const storeId = payload?.store?.storeId;
     const freeBarberId = payload?.freeBarber?.userId;
     const customerId = payload?.customer?.userId;
@@ -53,18 +53,18 @@ export const NotificationItem = React.memo(({
     const { data: isFreeBarberFavorite } = useIsFavoriteQuery(freeBarberId || '', { skip: !isAuthenticated || !freeBarberId });
     const { data: isCustomerFavorite } = useIsFavoriteQuery(customerId || '', { skip: !isAuthenticated || !customerId });
 
-    // Favori durumlarını belirle (query'den gelen de�Yerler öncelikli, yoksa payload'dan)
+    // Favori durumlarını belirle (query'den gelen değerler öncelikli, yoksa payload'dan)
     const isStoreInFavorites: boolean = isStoreFavorite !== undefined ? isStoreFavorite : !!(payload?.store?.isInFavorites || payload?.isStoreInFavorites);
     const isFreeBarberInFavorites: boolean = isFreeBarberFavorite !== undefined ? isFreeBarberFavorite : !!(payload?.freeBarber?.isInFavorites || payload?.isFreeBarberInFavorites);
     const isCustomerInFavorites: boolean = isCustomerFavorite !== undefined ? isCustomerFavorite : !!(payload?.customer?.isInFavorites || payload?.isCustomerInFavorites);
 
-    // Payload'dan status al, e�Yer yoksa varsayılan olarak Pending
-    // item.payloadJson de�Yi�Yti�Yinde component yeniden render olmalı
+    // Payload'dan status al, eğer yoksa varsayılan olarak Pending
+    // item.payloadJson değiştiğinde component yeniden render olmalı
     const status = React.useMemo(() => {
         if (payload?.status !== undefined) {
             return payload.status as AppointmentStatus;
         }
-        // E�Yer notification type AppointmentUnanswered ise, status Unanswered olmalı
+        // Eğer notification type AppointmentUnanswered ise, status Unanswered olmalı
         if (item.type === NotificationType.AppointmentUnanswered) {
             return AppointmentStatus.Unanswered;
         }
@@ -82,12 +82,12 @@ export const NotificationItem = React.memo(({
     const isCompleted = status === AppointmentStatus.Completed;
     const isUnanswered = status === AppointmentStatus.Unanswered;
 
-    // Decision verilip verilmedi�Yini kontrol et (payload'daki decision'lara göre)
-    // �-NEMLİ: Backend'den decision'lar bazen boolean (true/false) bazen number (0,1,2,3) olarak gelebilir
+    // Decision verilip verilmediğini kontrol et (payload'daki decision'lara göre)
+    // ÖNEMLİ: Backend'den decision'lar bazen boolean (true/false) bazen number (0,1,2,3) olarak gelebilir
     // DecisionStatus: 0=Pending, 1=Approved, 2=Rejected, 3=NoAnswer
-    // Boolean de�Yerler backend bug'ı olabilir, bu durumda decision verilmemi�Y sayıyoruz
+    // Boolean değerler backend bug'ı olabilir, bu durumda decision verilmemiş sayıyoruz
 
-    // Decision de�Yerini normalize et: sadece geçerli number de�Yerlerini kabul et
+    // Decision değerini normalize et: sadece geçerli number değerlerini kabul et
 
 
     const storeDecision = payload?.storeDecision;
@@ -114,6 +114,22 @@ export const NotificationItem = React.memo(({
         customerDecision === DecisionStatus.Pending;
 
     // Süre (Expires) Hesaplama - Decision butonları için kritik
+    const resolvePendingTimeoutMinutes = () => {
+        if (payload?.storeSelectionType !== StoreSelectionType.StoreSelection) {
+            return 5;
+        }
+
+        // StoreSelection akışı:
+        // - FreeBarber, henüz dükkan seçmemişse 30 dk
+        // - Store/Customer kararları için 5 dk
+        const isFreeBarberRecipient = userType === UserType.FreeBarber || recipientRole === 'freebarber';
+        if (isFreeBarberRecipient && !payload?.store) {
+            return 30;
+        }
+
+        return 5;
+    };
+
     let expiresAt: Date | null = null;
     if (payload?.pendingExpiresAt) {
         let dateStr = payload.pendingExpiresAt;
@@ -129,7 +145,7 @@ export const NotificationItem = React.memo(({
         }
         const createdAt = new Date(createdStr);
         // StoreSelectionType.StoreSelection durumunda 30 dakika, diğer durumlarda 5 dakika
-        const timeoutMinutes = payload?.storeSelectionType === StoreSelectionType.StoreSelection ? 30 : 5;
+        const timeoutMinutes = resolvePendingTimeoutMinutes();
         expiresAt = new Date(createdAt.getTime() + timeoutMinutes * 60 * 1000);
     }
 
@@ -146,6 +162,7 @@ export const NotificationItem = React.memo(({
         isPending &&
         !isExpired &&
         canShowFreeBarberButtons &&
+        customerDecision !== DecisionStatus.Approved &&
         !payload?.store; // Henüz dükkan seçilmemişse
 
     // Store için ONAY/RED butonları
@@ -189,20 +206,14 @@ export const NotificationItem = React.memo(({
 
     // Durum gösterimi: Approved, Rejected, Cancelled, Completed, Unanswered durumlarında durum gösterilmeli
     // Pending durumunda durum gösterilmez (butonlar gösterilir)
-    const showDecisionStatus = (isApproved || isRejected || isCancelled || isCompleted || isUnanswered) &&
-        (item.type === NotificationType.AppointmentCreated ||
-            item.type === NotificationType.AppointmentApproved ||
-            item.type === NotificationType.AppointmentRejected ||
-            item.type === NotificationType.AppointmentCancelled ||
-            item.type === NotificationType.AppointmentCompleted ||
-            item.type === NotificationType.AppointmentUnanswered);
+    const showDecisionStatus = isApproved || isRejected || isCancelled || isCompleted || isUnanswered;
 
     // Karar verilmesi gereken (Pending) bir bildirim mi?
     // AppointmentCreated notification'ında ve status Pending ise karar bekleniyor demektir
     const isCreatedType = item.type === NotificationType.AppointmentCreated && isPending;
 
-    // Butonlar gösterilme ko�Yulları:
-    // 1. showDecisionButtons true olmalı (yukarıdaki tüm ko�Yullar sa�Ylanmalı)
+    // Butonlar gösterilme koşulları:
+    // 1. showDecisionButtons true olmalı (yukarıdaki tüm koşullar sağlanmalı)
     // 2. Durum gösterilmemeli (Pending durumunda durum gösterilmez)
     // 3. Status Pending olmalı (zaten showDecisionButtons'da kontrol ediliyor ama ekstra güvenlik)
     const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending;
@@ -212,6 +223,8 @@ export const NotificationItem = React.memo(({
     const canShowAddStoreButton = false;
 
     const serviceOfferings = Array.isArray(payload?.serviceOfferings) ? payload.serviceOfferings : [];
+    const isStoreRecipient = recipientRole === 'store' || userType === UserType.BarberStore;
+    const shouldShowNote = !!payload?.note && !(isStoreRecipient && payload?.storeSelectionType === StoreSelectionType.StoreSelection);
 
     // [DEĞİŞİKLİK 1] Otomatik okundu yapma (useEffect) TAMAMEN KALDIRILDI.
     // Kullanıcı görmeden 'okundu' olmasını istemiyoruz.
@@ -220,16 +233,16 @@ export const NotificationItem = React.memo(({
         <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
-                // [DEĞİŞİKLİK 2] Tıklama Mantı�Yı:
-                // E�Yer normal bir bildirimse (!isCreatedType) VEYA süre dolmu�Ysa (isExpired)
-                // tıklayınca okundu i�Yaretlemesine izin ver.
+                // [DEĞİŞİKLİK 2] Tıklama Mantığı:
+                // Eğer normal bir bildirimse (!isCreatedType) VEYA süre dolmuşsa (isExpired)
+                // tıklayınca okundu işaretlemesine izin ver.
                 if ((!isCreatedType || isExpired) && unread) {
                     onMarkRead(item);
                 }
             }}
-            // [DEĞİŞİKLİK 3] Disabled Mantı�Yı:
-            // Sadece "Karar Bekleyen (CreatedType)" VE "Süresi Dolmamı�Y (!isExpired)" ise tıklamayı kapat.
-            // Süresi dolmu�Ysa tıklanabilir olsun ki kullanıcı okundu yapabilsin.
+            // [DEĞİŞİKLİK 3] Disabled Mantığı:
+            // Sadece "Karar Bekleyen (CreatedType)" VE "Süresi Dolmamış (!isExpired)" ise tıklamayı kapat.
+            // Süresi dolmuşsa tıklanabilir olsun ki kullanıcı okundu yapabilsin.
             disabled={isCreatedType && !isExpired}
         >
             <View className={`p-4 rounded-xl mb-3 border ${unread ? "bg-[#1c1d20] border-[#2a2c30]" : "bg-[#151618] border-[#1f2023]"}`}>
@@ -268,7 +281,7 @@ export const NotificationItem = React.memo(({
                             </View>
                         )}
 
-                        {/* ROL BAZLI G�-R�oN�oMLER */}
+                        {/* ROL BAZLI GÖRÜNÜMLER */}
                         <View className="mb-3">
                             <NotificationParticipantView
                                 payload={payload}
@@ -300,7 +313,7 @@ export const NotificationItem = React.memo(({
                         )}
 
                         {/* DURUM ALANI (Kabul Edildi / Reddedildi / İptal Edildi / Tamamlandı) */}
-                        {payload?.note ? (
+                        {shouldShowNote ? (
                             <View className="mb-2 mt-2">
                                 <Text className="text-[#9ca3af] text-xs mb-1 font-semibold">Not:</Text>
                                 <View className="bg-[#2a2c30] rounded-lg px-2 py-2">
@@ -408,7 +421,7 @@ export const NotificationItem = React.memo(({
 
 
 
-                        {/* UNANSWERED DURUMU - Status Unanswered ise (süre dolmu�Y ve backend tarafından Unanswered'a geçirilmi�Y) */}
+                        {/* UNANSWERED DURUMU - Status Unanswered ise (süre dolmuş ve backend tarafından Unanswered'a geçirilmiş) */}
                         {isUnanswered && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
                                 <View className="p-3 bg-red-900/20 rounded-lg border border-red-800/30">
@@ -423,8 +436,4 @@ export const NotificationItem = React.memo(({
         </TouchableOpacity>
     );
 });
-
-
-
-
 

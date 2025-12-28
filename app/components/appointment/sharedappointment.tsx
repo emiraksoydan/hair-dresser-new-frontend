@@ -229,9 +229,9 @@ export default function SharedAppointmentScreen() {
         let showCancelButton = false;
 
         if (activeFilter === AppointmentFilter.Active) {
-            // Active tab'ında sadece Approved randevular görünür
+            // Active tab'ında Pending/Approved randevular görünür
             // Dükkan randevusunu dükkan tamamlar
-            if (isApproved && passed && userType === UserType.BarberStore) {
+            if (isApproved && userType === UserType.BarberStore && (passed || item.appointmentRequester === AppointmentRequester.Store)) {
                 showCompleteButton = true;
             }
             // İsteğime Göre randevusunu free barber tamamlar (store yoksa veya CustomRequest ise)
