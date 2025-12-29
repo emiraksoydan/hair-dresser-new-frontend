@@ -1,4 +1,4 @@
-import "react-native-url-polyfill/auto";
+﻿import "react-native-url-polyfill/auto";
 import { useEffect, useRef, useState } from "react";
 import * as SignalR from "@microsoft/signalr";
 import { useDispatch } from "react-redux";
@@ -179,7 +179,9 @@ export const useSignalR = () => {
                             const newCustomerDecision = newPayload?.customerDecision;
 
                             // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
+                            // Sadece AppointmentCreated notification'larını güncelle (diğerleri sabit kalmalı)
                             draft.forEach((notification) => {
+                                if (notification.type !== NotificationType.AppointmentCreated) return;
                                 if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
                                     try {
                                         if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
@@ -644,4 +646,3 @@ export const useSignalR = () => {
 
     return { isConnected, connectionRef };
 };
-

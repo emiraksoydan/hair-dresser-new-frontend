@@ -270,12 +270,30 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
 export const StoreCardInner = React.memo(
     StoreCard,
-    (prev, next) =>
-        prev.store.id === next.store.id &&
-        prev.store.favoriteCount === next.store.favoriteCount &&
-        (prev.isViewerFromFreeBr ?? false) === (next.isViewerFromFreeBr ?? false) &&
-        prev.isList === next.isList &&
-        prev.expanded === next.expanded &&
-        prev.cardWidthStore === next.cardWidthStore &&
-        prev.typeLabel === next.typeLabel
+    (prev, next) => {
+        const sameStore =
+            prev.store.id === next.store.id &&
+            prev.store.storeName === next.store.storeName &&
+            prev.store.type === next.store.type &&
+            prev.store.isOpenNow === next.store.isOpenNow &&
+            prev.store.rating === next.store.rating &&
+            prev.store.reviewCount === next.store.reviewCount &&
+            prev.store.favoriteCount === next.store.favoriteCount &&
+            prev.store.imageList === next.store.imageList &&
+            prev.store.serviceOfferings === next.store.serviceOfferings &&
+            prev.store.pricingType === next.store.pricingType &&
+            prev.store.pricingValue === next.store.pricingValue;
+
+        const sameProps =
+            (prev.isViewerFromFreeBr ?? false) === (next.isViewerFromFreeBr ?? false) &&
+            prev.isList === next.isList &&
+            prev.expanded === next.expanded &&
+            prev.cardWidthStore === next.cardWidthStore &&
+            prev.typeLabel === next.typeLabel &&
+            prev.typeLabelColor === next.typeLabelColor &&
+            prev.onPressUpdate === next.onPressUpdate &&
+            prev.onPressRatings === next.onPressRatings;
+
+        return sameStore && sameProps;
+    }
 );

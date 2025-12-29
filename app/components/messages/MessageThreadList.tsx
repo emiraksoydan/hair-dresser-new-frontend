@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Shared message thread list component
  * Used across different user type message pages
  */
 
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
@@ -251,9 +251,19 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
 
     if (hasNoThreads) {
         return (
-            <View className="flex-1 bg-[#151618]">
+            <ScrollView
+                className="flex-1 bg-[#151618]"
+                contentContainerStyle={{ flexGrow: 1 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isFetching && !isLoading}
+                        onRefresh={refetch}
+                        tintColor="#f05e23"
+                    />
+                }
+            >
                 <LottieViewComponent message={MESSAGES.EMPTY_STATE.NO_MESSAGES} />
-            </View>
+            </ScrollView>
         );
     }
 

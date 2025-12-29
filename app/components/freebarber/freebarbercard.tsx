@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
@@ -29,6 +29,8 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
     const [isToggling, setIsToggling] = useState(false);
+    const [hasCalled, setHasCalled] = useState(false);
+    const previousAvailableRef = useRef<boolean | null>(null);
 
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
@@ -52,6 +54,13 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             setIsToggling(false);
         }
     }, [freeBarber.favoriteCount]);
+
+    useEffect(() => {
+        if (previousAvailableRef.current === false && isAvailable) {
+            setHasCalled(false);
+        }
+        previousAvailableRef.current = isAvailable;
+    }, [isAvailable]);
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
@@ -115,6 +124,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                 storeId,
                                 freeBarberUserId,
                             }).unwrap();
+                            setHasCalled(true);
                             Alert.alert('Başarılı', 'Berber başarıyla çağrıldı!');
                             if (onCallFreeBarber) {
                                 onCallFreeBarber(freeBarber.id);
@@ -181,7 +191,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                     {isAvailable ? "Müsait" : "Meşgul"}
                                 </Text>
                             </TouchableOpacity>
-                            {mode === 'barbershop' && isAvailable && (
+                            {mode === 'barbershop' && isAvailable && !hasCalled && (
                                 <TouchableOpacity
                                     onPress={handleCallFreeBarber}
                                     disabled={isCalling}
@@ -323,11 +333,30 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
 
 export const FreeBarberCardInner = React.memo(
     FreeBarberCard,
-    (prev, next) =>
-        prev.freeBarber.id === next.freeBarber.id &&
-        prev.freeBarber.favoriteCount === next.freeBarber.favoriteCount &&
-        prev.isList === next.isList &&
-        prev.expanded === next.expanded &&
-        prev.cardWidthFreeBarber === next.cardWidthFreeBarber &&
-        prev.typeLabel === next.typeLabel
+    (prev, next) => {
+        const sameFreeBarber =
+            prev.freeBarber.id === next.freeBarber.id &&
+            prev.freeBarber.fullName === next.freeBarber.fullName &&
+            prev.freeBarber.type === next.freeBarber.type &&
+            prev.freeBarber.isAvailable === next.freeBarber.isAvailable &&
+            prev.freeBarber.rating === next.freeBarber.rating &&
+            prev.freeBarber.reviewCount === next.freeBarber.reviewCount &&
+            prev.freeBarber.favoriteCount === next.freeBarber.favoriteCount &&
+            prev.freeBarber.imageList === next.freeBarber.imageList &&
+            prev.freeBarber.offerings === next.freeBarber.offerings;
+
+        const sameProps =
+            prev.isList === next.isList &&
+            prev.expanded === next.expanded &&
+            prev.cardWidthFreeBarber === next.cardWidthFreeBarber &&
+            prev.typeLabel === next.typeLabel &&
+            prev.typeLabelColor === next.typeLabelColor &&
+            prev.mode === next.mode &&
+            prev.storeId === next.storeId &&
+            prev.onPressUpdate === next.onPressUpdate &&
+            prev.onPressRatings === next.onPressRatings &&
+            prev.onCallFreeBarber === next.onCallFreeBarber;
+
+        return sameFreeBarber && sameProps;
+    }
 );

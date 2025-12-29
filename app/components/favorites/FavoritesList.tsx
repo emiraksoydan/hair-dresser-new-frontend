@@ -42,21 +42,9 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
         });
     }, [router]);
 
-    const goCustomerDetail = useCallback((customer: UserFavoriteDto) => {
-        // Customer detail sayfası varsa buraya eklenebilir
-        // router.push({
-        //     pathname: "/customer/[customerId]",
-        //     params: { customerId: customer.id },
-        // });
-    }, []);
 
-    const goManuelBarberDetail = useCallback((manuelBarber: ManuelBarberFavoriteDto) => {
-        // ManuelBarber detail sayfası varsa buraya eklenebilir
-        // router.push({
-        //     pathname: "/manuelbarber/[manuelBarberId]",
-        //     params: { manuelBarberId: manuelBarber.id },
-        // });
-    }, []);
+
+
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
@@ -156,7 +144,6 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     cardWidth={cardWidth}
                     typeLabel={typeLabel}
                     typeLabelColor={typeLabelColor}
-                    onPressUpdate={goCustomerDetail}
                     onPressRatings={handlePressRatings}
                 />
             );
@@ -169,12 +156,11 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     cardWidth={cardWidth}
                     typeLabel={typeLabel}
                     typeLabelColor={typeLabelColor}
-                    onPressUpdate={goManuelBarberDetail}
                 />
             );
         }
         return null;
-    }, [cardWidth, goStoreDetail, goFreeBarberDetail, goCustomerDetail, goManuelBarberDetail, getTargetTypeLabel, getTargetTypeColor, mode, handlePressRatings]);
+    }, [cardWidth, goStoreDetail, goFreeBarberDetail, getTargetTypeLabel, getTargetTypeColor, mode, handlePressRatings]);
 
     if (isLoading) {
         return (

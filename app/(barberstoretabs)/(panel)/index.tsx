@@ -1,5 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from "react-native";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
 import SearchBar from "../../components/common/searchbar";
@@ -30,7 +30,7 @@ import { usePanelFilters } from "../../hook/usePanelFilters";
 const Index = () => {
     // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
     // refetchOnMountOrArgChange: true ile her mount'ta ve invalidate edildiğinde refetch et
-    const { data: stores = [], isLoading: storeLoading } = useGetMineStoresQuery(undefined, {
+    const { data: stores = [], isLoading: storeLoading, refetch: refetchStores } = useGetMineStoresQuery(undefined, {
         pollingInterval: 30_000, // 30 saniye
         refetchOnMountOrArgChange: true, // Hard refresh: Her mount'ta ve invalidate edildiğinde refetch et
     });
@@ -56,7 +56,7 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
-    const { data: favorites = [] } = useGetMyFavoritesQuery();
+    const { data: favorites = [], refetch: refetchFavorites } = useGetMyFavoritesQuery();
     const favoriteStoreIds = useMemo(() => {
         return new Set(
             (favorites ?? [])
@@ -110,6 +110,24 @@ const Index = () => {
         applyFilters,
         clearFilters,
     } = usePanelFilters();
+    const [refreshing, setRefreshing] = useState(false);
+    const isRefreshingRef = useRef(false);
+    const onRefresh = useCallback(async () => {
+        if (isRefreshingRef.current) return;
+        try {
+            isRefreshingRef.current = true;
+            setRefreshing(true);
+            await Promise.all([
+                refetchStores(),
+                refetchFavorites(),
+                manualFetch(),
+            ]);
+        } finally {
+            setRefreshing(false);
+            isRefreshingRef.current = false;
+        }
+    }, [manualFetch, refetchFavorites, refetchStores]);
+
 
 
     const [expandedStores, setExpandedStores] = useState(true);
@@ -425,6 +443,14 @@ const Index = () => {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={{ paddingBottom: 100 }}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#f05e23"
+                        />
+                    }
+
                     // Performance optimizations - removeClippedSubviews kaldırıldı (overlap sorununa neden oluyordu)
                     removeClippedSubviews={false}
                     maxToRenderPerBatch={5}
@@ -687,6 +713,7 @@ const Index = () => {
 };
 
 export default Index;
+
 
 
 

@@ -17,6 +17,7 @@ import { useSignalR } from '../../hook/useSignalR';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../store/redux-store';
+import { setActiveThreadId } from '../../lib/activeChatThread';
 
 interface ChatDetailScreenProps {
     threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
@@ -64,19 +65,16 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         if (!currentThread) return false;
         if (!isConnected) return false; // SignalR bağlantısı yoksa mesaj gönderilemez
 
-        // Randevu thread'i için: Pending veya Approved
-        if (!currentThread.isFavoriteThread && currentThread.status !== null && currentThread.status !== undefined) {
-            const status = currentThread.status;
-            return status === AppointmentStatus.Pending ||
-                status === AppointmentStatus.Approved;
-        }
-
-        // Favori thread için: her zaman gönderilebilir (aktif favori kontrolü backend'de)
-        if (currentThread.isFavoriteThread) {
+        if (!currentThread.appointmentId) {
             return true;
         }
 
-        return false;
+        if (currentThread.status === null || currentThread.status === undefined) {
+            return false;
+        }
+
+        // Appointment thread: backend görünür kıldıysa gönderime izin ver (favori kontrolü backend'de)
+        return currentThread.status === AppointmentStatus.Pending || currentThread.status === AppointmentStatus.Approved;
     }, [currentThread, isConnected]);
 
     // Mesaj gönderme mutation'ları
@@ -121,6 +119,12 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             markThreadRead();
         }
     }, [threadId, currentThread?.unreadCount, markThreadRead]);
+
+    useEffect(() => {
+        if (!threadId) return;
+        setActiveThreadId(threadId);
+        return () => setActiveThreadId(null);
+    }, [threadId]);
 
     // ÖNEMLİ: ChatDetailScreen açıkken yeni mesaj geldiğinde otomatik read yap
     // Eğer kullanıcı sohbet odasında ise, mesaj geldiğinde otomatik okundu işaretlenmeli
@@ -243,10 +247,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
         try {
             // Randevu thread'i ise appointmentId ile gönder, favori thread ise threadId ile
-            if (currentThread?.isFavoriteThread || !currentThread?.appointmentId) {
-                await sendMessageByThread({ threadId, text }).unwrap();
-            } else {
+            if (currentThread?.appointmentId) {
                 await sendMessageByAppointment({ appointmentId: currentThread.appointmentId, text }).unwrap();
+            } else {
+                await sendMessageByThread({ threadId, text }).unwrap();
             }
             refetch();
         } catch (e: any) {

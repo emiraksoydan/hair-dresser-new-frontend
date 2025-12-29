@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Notification Participant View Component
  * Displays participant information in notifications based on recipient role
  */
@@ -33,6 +33,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
 }) => {
     const hasStore = !!payload?.store;
     const hasFreeBarber = !!payload?.freeBarber;
+    const hasManualBarber = !!payload?.chair?.manuelBarberId || !!payload?.chair?.manuelBarberName;
 
     if (recipientRole === 'store') {
         return (
@@ -69,7 +70,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                                 </View>
                             )}
                             <View className="flex-1">
-                                <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
+                                <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
                                 {isFreeBarberInFavorites && (
                                     <View className="flex-row items-center mt-0.5">
@@ -79,9 +80,9 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                                 )}
                             </View>
                         </View>
-                    ) : payload.chair?.manuelBarberId ? (
+                    ) : hasManualBarber ? (
                         <View className="flex-row items-start">
-                            {payload.chair.manuelBarberImageUrl ? (
+                            {payload?.chair?.manuelBarberImageUrl ? (
                                 <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (
                                 <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
@@ -90,7 +91,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             )}
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
-                                <Text className="text-white text-sm font-semibold">{payload.chair.manuelBarberName}</Text>
+                                <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
                             </View>
                         </View>
                     ) : (
@@ -225,7 +226,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                                 </View>
                             )}
                             <View className="flex-1">
-                                <Text className="text-[#9ca3af] text-xs">Traş Edecek</Text>
+                                <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
                                 {payload.freeBarber?.rating !== undefined && (
                                     <View className="flex-row items-center mt-0.5">
@@ -241,9 +242,9 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                                 )}
                             </View>
                         </View>
-                    ) : payload.chair?.manuelBarberId ? (
+                    ) : hasManualBarber ? (
                         <View className="flex-row items-start">
-                            {payload.chair.manuelBarberImageUrl ? (
+                            {payload?.chair?.manuelBarberImageUrl ? (
                                 <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
                             ) : (
                                 <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
@@ -252,8 +253,8 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             )}
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Manuel Berber</Text>
-                                <Text className="text-white text-sm font-semibold">{payload.chair.manuelBarberName}</Text>
-                                {payload.chair.manuelBarberRating !== undefined && (
+                                <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
+                                {payload?.chair?.manuelBarberRating !== undefined && (
                                     <View className="flex-row items-center mt-0.5">
                                         <Icon source="star" size={12} color="#fbbf24" />
                                         <Text className="text-[#fbbf24] text-xs ml-1">{formatRating(payload.chair.manuelBarberRating)}</Text>
@@ -278,3 +279,4 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
 
     return null;
 };
+

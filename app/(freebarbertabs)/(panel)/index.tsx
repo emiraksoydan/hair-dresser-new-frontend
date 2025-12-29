@@ -1,5 +1,5 @@
-﻿import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ScrollView } from 'react-native'
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
+﻿import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from 'react-native'
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
 import SearchBar from '../../components/common/searchbar';
 import FormatListButton from '../../components/common/formatlistbutton';
@@ -32,7 +32,7 @@ const Index = () => {
     const router = useRouter();
 
     // Notification'lardan aktif StoreSelection randevusunu otomatik algıla
-    const { data: notifications = [] } = useGetAllNotificationsQuery();
+    const { data: notifications = [], refetch: refetchNotifications } = useGetAllNotificationsQuery();
     const activeStoreSelectionAppointment = useMemo(() => {
         // Notification'ların payload'larını kontrol et
         for (const notification of notifications) {
@@ -83,7 +83,7 @@ const Index = () => {
     console.log(effectiveAppointmentId);
 
 
-    const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location } = useNearbyStores(true);
+    const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location, manualFetch } = useNearbyStores(true);
     const { data: allCategories = [] } = useGetAllCategoriesQuery();
     const categoryNameById = useMemo(() => {
         const map = new Map<string, string>();
@@ -92,7 +92,7 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
-    const { data: favorites = [] } = useGetMyFavoritesQuery();
+    const { data: favorites = [], refetch: refetchFavorites } = useGetMyFavoritesQuery();
     const favoriteStoreIds = useMemo(() => {
         return new Set(
             (favorites ?? [])
@@ -103,7 +103,7 @@ const Index = () => {
 
     // useTrackFreeBarberLocation zaten hard refresh yapıyor (30 saniyede bir) ve updateFreeBarberLocation mutation'ı MineFreeBarberPanel tag'ini invalidate ediyor
     // Bu yüzden ayrı polling interval'a gerek yok
-    const { data: freeBarber, isLoading, isError, error } = useGetFreeBarberMinePanelQuery(undefined, {
+    const { data: freeBarber, isLoading, isError, error, refetch: refetchFreeBarber } = useGetFreeBarberMinePanelQuery(undefined, {
         skip: !hasLocation,
     });
 
@@ -138,6 +138,25 @@ const Index = () => {
         applyFilters,
         clearFilters,
     } = usePanelFilters();
+    const [refreshing, setRefreshing] = useState(false);
+    const isRefreshingRef = useRef(false);
+    const onRefresh = useCallback(async () => {
+        if (isRefreshingRef.current) return;
+        try {
+            isRefreshingRef.current = true;
+            setRefreshing(true);
+            await Promise.all([
+                manualFetch(),
+                refetchFreeBarber(),
+                refetchFavorites(),
+                refetchNotifications(),
+            ]);
+        } finally {
+            setRefreshing(false);
+            isRefreshingRef.current = false;
+        }
+    }, [manualFetch, refetchFavorites, refetchFreeBarber, refetchNotifications]);
+
 
 
     const [isMapMode, setIsMapMode] = useState(false);
@@ -404,6 +423,14 @@ const Index = () => {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={{ paddingBottom: 100 }}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#f05e23"
+                        />
+                    }
+
                     // Performance optimizations - removeClippedSubviews kaldırıldı (overlap sorununa neden oluyordu)
                     removeClippedSubviews={false}
                     maxToRenderPerBatch={5}
@@ -629,6 +656,7 @@ const Index = () => {
 }
 
 export default Index
+
 
 
 

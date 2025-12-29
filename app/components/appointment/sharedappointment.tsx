@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity, FlatList, Alert, RefreshControl, Image, ActivityIndicator, ScrollView } from "react-native";
 import { LegendList } from '@legendapp/list';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,6 +34,28 @@ export default function SharedAppointmentScreen() {
 
     // --- API ---
     const { data: appointments, isLoading, refetch, isFetching } = useGetAllAppointmentByFilterQuery(activeFilter);
+
+    const filteredAppointments = useMemo(() => {
+        const items = appointments ?? [];
+
+        if (activeFilter === AppointmentFilter.Active) {
+            return items.filter((item) => item.status === AppointmentStatus.Approved);
+        }
+
+        if (activeFilter === AppointmentFilter.Completed) {
+            return items.filter((item) => item.status === AppointmentStatus.Completed);
+        }
+
+        if (activeFilter === AppointmentFilter.Cancelled) {
+            return items.filter((item) =>
+                item.status === AppointmentStatus.Cancelled ||
+                item.status === AppointmentStatus.Rejected ||
+                item.status === AppointmentStatus.Unanswered
+            );
+        }
+
+        return items;
+    }, [appointments, activeFilter]);
 
     const [cancelAppointment, { isLoading: isCancelling }] = useCancelAppointmentMutation();
     const [completeAppointment, { isLoading: isCompleting }] = useCompleteAppointmentMutation();
@@ -220,10 +242,13 @@ export default function SharedAppointmentScreen() {
 
     // --- RENDER ITEM ---
     const renderItem = ({ item }: { item: AppointmentGetDto }) => {
-        const passed = isTimePassed(item.appointmentDate, item.endTime);
+        const hasSchedule = !!item.appointmentDate && !!item.startTime && !!item.endTime;
+        const passed = hasSchedule ? isTimePassed(item.appointmentDate, item.endTime) : false;
         const isApproved = item.status === AppointmentStatus.Approved;
         const isUnanswered = item.status === AppointmentStatus.Unanswered;
         const canRateNow = canRate(item);
+        const isStoreCallWithoutSchedule =
+            item.appointmentRequester === AppointmentRequester.Store && !hasSchedule;
 
         let showCompleteButton = false;
         let showCancelButton = false;
@@ -231,7 +256,7 @@ export default function SharedAppointmentScreen() {
         if (activeFilter === AppointmentFilter.Active) {
             // Active tab'ında Pending/Approved randevular görünür
             // Dükkan randevusunu dükkan tamamlar
-            if (isApproved && userType === UserType.BarberStore && (passed || item.appointmentRequester === AppointmentRequester.Store)) {
+            if (isApproved && userType === UserType.BarberStore && (passed || isStoreCallWithoutSchedule)) {
                 showCompleteButton = true;
             }
             // İsteğime Göre randevusunu free barber tamamlar (store yoksa veya CustomRequest ise)
@@ -737,7 +762,7 @@ export default function SharedAppointmentScreen() {
                 </View>
             ) : (
                 <LegendList
-                    data={appointments || []}
+                    data={filteredAppointments}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     estimatedItemSize={250}

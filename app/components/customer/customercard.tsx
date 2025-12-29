@@ -202,13 +202,13 @@ const CustomerCard: React.FC<Props> = ({
                                 starStyle={{ marginHorizontal: 0 }}
                             />
                             <Text className="text-white flex-1">{customer.rating?.toFixed(1) || '0.0'}</Text>
-                            {onPressRatings && (
-                                <TouchableOpacity onPress={() => onPressRatings(customer.id, `${customer.firstName} ${customer.lastName}`)}>
+                            {
+                                <TouchableOpacity onPress={() => onPressRatings?.(customer.id, `${customer.firstName} ${customer.lastName}`)}>
                                     <Text className="text-white underline mr-0 mb-0 text-xs">
                                         Yorumlar
                                     </Text>
                                 </TouchableOpacity>
-                            )}
+                            }
                             <Text className="text-white text-xs">({customer.reviewCount || 0})</Text>
 
                         </View>
