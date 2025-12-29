@@ -80,6 +80,7 @@ export interface NotificationPayload {
     manuelBarberName?: string;
     manuelBarberImageUrl?: string;
     manuelBarberRating?: number;
+    manuelBarberType?: number; // BarberType for Manuel Barber
   };
   status?: AppointmentStatus;
   storeDecision?: number;
