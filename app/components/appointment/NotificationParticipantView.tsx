@@ -72,6 +72,11 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
+                                {payload.freeBarber.type !== undefined && (
+                                    <Text className="text-[#9ca3af] text-xs mt-0.5">
+                                        {getBarberTypeName(payload.freeBarber.type as BarberType)}
+                                    </Text>
+                                )}
                                 {isFreeBarberInFavorites && (
                                     <View className="flex-row items-center mt-0.5">
                                         <Icon source="heart" size={12} color="#f05e23" />
@@ -92,6 +97,11 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
                                 <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
+                                {payload?.chair?.manuelBarberType !== undefined && (
+                                    <Text className="text-[#9ca3af] text-xs mt-0.5">
+                                        {getBarberTypeName(payload.chair.manuelBarberType as BarberType)}
+                                    </Text>
+                                )}
                             </View>
                         </View>
                     ) : (
@@ -228,6 +238,11 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
+                                {payload.freeBarber?.type !== undefined && (
+                                    <Text className="text-[#9ca3af] text-xs mt-0.5">
+                                        {getBarberTypeName(payload.freeBarber.type as BarberType)}
+                                    </Text>
+                                )}
                                 {payload.freeBarber?.rating !== undefined && (
                                     <View className="flex-row items-center mt-0.5">
                                         <Icon source="star" size={12} color="#fbbf24" />
@@ -254,6 +269,11 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Manuel Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
+                                {payload?.chair?.manuelBarberType !== undefined && (
+                                    <Text className="text-[#9ca3af] text-xs mt-0.5">
+                                        {getBarberTypeName(payload.chair.manuelBarberType as BarberType)}
+                                    </Text>
+                                )}
                                 {payload?.chair?.manuelBarberRating !== undefined && (
                                     <View className="flex-row items-center mt-0.5">
                                         <Icon source="star" size={12} color="#fbbf24" />
