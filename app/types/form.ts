@@ -26,7 +26,11 @@ export type ChairRowProps = {
 export type BarberFormValues = {
   id?: string;
   name?: string;
-  profileImageUrl?: string;
+  profileImage?: {
+    uri: string;
+    name: string;
+    type: string;
+  };
 };
 
 export type ChairFormInitial = {

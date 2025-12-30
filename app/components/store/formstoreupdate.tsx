@@ -11,7 +11,7 @@ import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button, Activ
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation, useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
-import { pickImageAndSet, pickPdf, truncateFileName } from '../../utils/form/pick-document';
+import { pickImageAndSet, handlePickMultipleImages, pickPdf, truncateFileName } from '../../utils/form/pick-document';
 import { LegendList } from '@legendapp/list';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MapPicker } from '../common/mappicker';
@@ -158,12 +158,16 @@ const TaxDocumentFileField = z
     .pipe(PdfAssetSchema);
 
 const schema = z.object({
-    storeImageUrl: z
-        .object({
-            uri: z.string().min(1),
-            name: z.string().min(1),
-            type: z.string().min(1),
-        }).optional(),
+    storeImages: z
+        .array(
+            z.object({
+                uri: z.string().min(1),
+                name: z.string().min(1),
+                type: z.string().min(1),
+            })
+        )
+        .max(3, "En fazla 3 resim ekleyebilirsiniz")
+        .optional(),
     storeName: z.string({ required_error: 'İşletme adı zorunlu' }).trim(),
     type: z.string({ required_error: 'İşletme türü zorunlu' }),
     selectedCategories: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
@@ -203,7 +207,20 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         }
     }, [isError, errorText, showSnack])
 
-    const pickMainImage = () => pickImageAndSet(setValue, 'storeImageUrl');
+    const pickMultipleImages = async () => {
+        const files = await handlePickMultipleImages(3);
+        if (files && files.length > 0) {
+            const currentImages = getValues("storeImages") || [];
+            const newImages = [...currentImages, ...files].slice(0, 3);
+            setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+        }
+    };
+
+    const removeImage = (index: number) => {
+        const currentImages = getValues("storeImages") || [];
+        const newImages = currentImages.filter((_, i) => i !== index);
+        setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+    };
     const [barberModalVisible, setBarberModalVisible] = useState(false);
     const [chairModalVisible, setChairModalVisible] = useState(false);
 
@@ -264,8 +281,12 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
     useEffect(() => {
         if (!data) return;
-        const firstImage = data.imageList?.[0];
-        const imageUrl = firstImage?.imageUrl;
+        const imageListData = data.imageList ?? [];
+        const initialImages = imageListData.map((img: any) => ({
+            uri: img.imageUrl,
+            name: img.imageUrl.split("/").pop() ?? `image-${img.id}.jpg`,
+            type: img.imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
+        }));
         const taxPath = (data as any).taxDocumentFilePath as string | undefined;
 
         // Backend'den gelen serviceName aslında category name
@@ -336,13 +357,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             storeName: data.storeName ?? "",
             // BarberStoreDetail.type backend'den string gelebilir (örn: "MaleHairdresser")
             type: mapTypeToDisplayName(data.type as any),
-            storeImageUrl: imageUrl
-                ? {
-                    uri: imageUrl,
-                    name: imageUrl.split("/").pop() ?? `store-${data.id}.jpg`,
-                    type: imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
-                }
-                : undefined,
+            storeImages: initialImages.length > 0 ? initialImages : undefined,
             taxDocumentFilePath: taxPath
                 ? {
                     uri: taxPath,
@@ -367,7 +382,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
     const location = watch("location");
     const address = location?.addressDescription;
-    const image = watch('storeImageUrl');
+    const images = watch('storeImages');
     const barbers = watch('barbers') ?? [];
     const chairs = watch("chairs") ?? [];
     const pricingMode = watch("pricingType.mode");
@@ -502,7 +517,11 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         setBarberModalTitle('Berber Güncelle');
         setBarberInitialValues({
             name: current.name,
-            profileImageUrl: current.avatar?.uri,
+            profileImage: current.avatar ? {
+                uri: current.avatar.uri,
+                name: current.avatar.name ?? 'photo.jpg',
+                type: current.avatar.type ?? 'image/jpeg',
+            } : undefined,
             id: current.id,
         });
         setBarberModalVisible(true);
@@ -535,7 +554,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
     const openCreateBarberModal = () => {
         setBarberModalTitle('Berber Ekle');
-        setBarberInitialValues({ name: '', profileImageUrl: '', id: '' });
+        setBarberInitialValues({ name: '', profileImage: undefined, id: '' });
         setBarberModalVisible(true);
     };
     const openCreateChairModal = () => {
@@ -651,18 +670,19 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
 
     const OnSubmit = async (form: FormUpdateValues) => {
-        const existingImageId = data?.imageList?.[0]?.id;
+        const existingImages = data?.imageList ?? [];
         const payload: BarberStoreUpdateDto = {
             id: storeId,
             storeName: form.storeName,
-            storeImageList: form.storeImageUrl?.uri
-                ? [{
-                    id: existingImageId!,
-                    imageUrl: form.storeImageUrl.uri,
+            storeImageList: (form.storeImages ?? []).map((img, index) => {
+                const existingImage = existingImages[index];
+                return {
+                    id: existingImage?.id,
+                    imageUrl: img.uri,
                     imageOwnerId: storeId,
                     ownerType: ImageOwnerType.Store,
-                }]
-                : [],
+                };
+            }),
             type: mapBarberType(form.type),
             pricingType: mapPricingType(form.pricingType.mode),
             addressDescription: form.location.addressDescription,
@@ -743,26 +763,37 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             ) : (
                 <>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
-                        <Text className="text-white text-xl mt-4 px-4">İşletme Resmi Güncelle</Text>
-                        <View className="flex items-center justify-center px-4 mt-4">
-                            <TouchableOpacity
-                                onPress={pickMainImage}
-                                className="w-full bg-gray-800 rounded-xl overflow-hidden"
-                                style={{ aspectRatio: 2 / 1 }}
-                                activeOpacity={0.85}
-                            >
-                                {image ? (
-                                    <Image
-                                        className="h-full w-full"
-                                        resizeMode="cover"
-                                        source={{ uri: image.uri }}
-                                    />
-                                ) : (
-                                    <View className="flex-1 items-center justify-center">
-                                        <Icon source="image" size={40} color="#888" />
+                        <Text className="text-white text-xl mt-4 px-4">İşletme Resimleri (Maks 3)</Text>
+                        <View className="px-4 mt-4">
+                            <View className="flex-row flex-wrap gap-2">
+                                {(images ?? []).map((img, index) => (
+                                    <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                        <Image
+                                            className="w-full h-full rounded-xl"
+                                            source={{ uri: img.uri }}
+                                            resizeMode="cover"
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => removeImage(index)}
+                                            className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                            activeOpacity={0.85}
+                                        >
+                                            <Icon source="close" size={16} color="white" />
+                                        </TouchableOpacity>
                                     </View>
+                                ))}
+                                {(!images || images.length < 3) && (
+                                    <TouchableOpacity
+                                        onPress={pickMultipleImages}
+                                        className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                                        style={{ width: '48%', aspectRatio: 16/9 }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Icon source="image-plus" size={40} color="#888" />
+                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
+                            </View>
                         </View>
                         <Text className="text-white text-xl mt-6 px-4">İşletme Bilgileri</Text>
                         <View className="mt-2 px-4">

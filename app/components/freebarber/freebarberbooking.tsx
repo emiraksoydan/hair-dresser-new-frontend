@@ -23,6 +23,7 @@ import { toggleExpand } from '../../utils/common/expand-toggle';
 import MotiViewExpand from '../common/motiviewexpand';
 import { getCurrentLocationSafe } from '../../utils/location/location-helper';
 import { RatingsBottomSheet } from '../rating/ratingsbottomsheet';
+import { ImageCarousel } from '../common/imagecarousel';
 
 interface Props {
     barberId: string;
@@ -176,10 +177,10 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
         <View className="flex-1 bg-[#151618] w-full">
             {!isAddStoreMode && (
                 <View className={`relative w-full h-[250px]`}>
-                    <Image
-                        source={{ uri: freeBarberData?.imageList?.[0]?.imageUrl || "https://picsum.photos/900/600" }}
-                        className={`w-full h-full ${borderRadiusClass}`}
-                        resizeMode="cover"
+                    <ImageCarousel
+                        images={freeBarberData?.imageList ?? []}
+                        height={250}
+                        borderRadiusClass={borderRadiusClass}
                     />
                     <View className={`absolute bottom-0 left-0 right-0 px-4 pb-3 bg-black/50 ${borderRadiusClass} justify-end h-full`}>
                         <View className="flex-row justify-between items-end">

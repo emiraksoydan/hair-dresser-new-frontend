@@ -832,6 +832,33 @@ export const api = createApi({
             invalidatesTags: ['MineFreeBarberPanel'],
         }),
 
+        // --- IMAGE API ---
+        uploadImage: builder.mutation<ApiResponse<string>, FormData>({
+            query: (formData) => ({
+                url: 'Image/upload',
+                method: 'POST',
+                body: formData,
+            }),
+            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+        }),
+
+        uploadMultipleImages: builder.mutation<ApiResponse<string[]>, FormData>({
+            query: (formData) => ({
+                url: 'Image/upload-multiple',
+                method: 'POST',
+                body: formData,
+            }),
+            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+        }),
+
+        deleteImage: builder.mutation<ApiResponse<void>, string>({
+            query: (id) => ({
+                url: `Image/${id}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+        }),
+
     }),
 });
 
@@ -902,4 +929,7 @@ export const {
     useLazyGetChildCategoriesQuery,
     useGetFilteredStoresMutation,
     useGetFilteredFreeBarbersMutation,
+    useUploadImageMutation,
+    useUploadMultipleImagesMutation,
+    useDeleteImageMutation,
 } = api;

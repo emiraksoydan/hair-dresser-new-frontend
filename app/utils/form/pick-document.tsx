@@ -54,3 +54,44 @@ export const handlePickImage = async (): Promise<FileObject | null> => {
 
 export const truncateFileName = (name: string, max = 40) =>
     name.length > max ? name.slice(0, max - 3) + "..." : name;
+
+/**
+ * Pick multiple images from gallery
+ */
+export const handlePickMultipleImages = async (maxImages: number = 3): Promise<FileObject[]> => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: maxImages,
+        quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets) {
+        return result.assets.map((file, index) => ({
+            uri: file.uri,
+            name: file.fileName ?? `photo_${index}.jpg`,
+            type: file.type ?? 'image/jpeg',
+        }));
+    }
+    return [];
+};
+
+/**
+ * Take a photo using camera
+ */
+export const handleTakePhoto = async (): Promise<FileObject | null> => {
+    const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        return {
+            uri: file.uri,
+            name: file.fileName ?? 'photo.jpg',
+            type: file.type ?? 'image/jpeg',
+        };
+    }
+    return null;
+};

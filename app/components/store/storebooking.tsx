@@ -13,6 +13,7 @@ import { getCurrentLocationSafe } from "../../utils/location/location-helper";
 import { useAppointmentBooking } from "../../hook/useAppointmentBooking";
 import { useAppointmentPricing } from "../../hook/useAppointmentPricing";
 import { getUserFriendlyErrorMessage, isDuplicateSlotError } from "../../utils/common/error";
+import { ImageCarousel } from "../common/imagecarousel";
 
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
 interface Props {
@@ -141,10 +142,9 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
     return (
         <>
             <View className="relative">
-                <Image
-                    source={{ uri: storeData?.imageList?.[0]?.imageUrl || "https://picsum.photos/900/600" }}
-                    className="w-full h-[250px]"
-                    resizeMode="cover"
+                <ImageCarousel
+                    images={storeData?.imageList ?? []}
+                    height={250}
                 />
                 <View className="absolute top-0 left-0 right-0 bottom-0 bg-black opacity-50" />
                 <View className="absolute bottom-0 left-0 right-0 px-4 pb-3">

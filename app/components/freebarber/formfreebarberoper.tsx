@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dropdown, MultiSelect } from "react-native-element-dropdown";
-import { handlePickImage, pickPdf, truncateFileName } from "../../utils/form/pick-document";
+import { handlePickImage, handlePickMultipleImages, pickPdf, truncateFileName } from "../../utils/form/pick-document";
 import { parseTR } from "../../utils/form/money-helper";
 import { ImageOwnerType, ServiceOfferingCreateDto, ServiceOfferingUpdateDto } from "../../types";
 import { useSheet } from "../../context/bottomsheet";
@@ -59,12 +59,15 @@ const FreeBarberFileField = z
 const schema = z.object({
     name: z.string({ required_error: 'İsim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
     surname: z.string({ required_error: 'Soyisim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
-    image: z
-        .object({
-            uri: z.string().min(1),
-            name: z.string().min(1),
-            type: z.string().min(1),
-        })
+    images: z
+        .array(
+            z.object({
+                uri: z.string().min(1),
+                name: z.string().min(1),
+                type: z.string().min(1),
+            })
+        )
+        .max(3, "En fazla 3 resim ekleyebilirsiniz")
         .optional(),
     type: z.string({ required_error: "İşletme türü zorunlu" }),
     selectedCategories: z.array(z.string()).min(1, "En az bir kategori seçiniz"),
@@ -115,7 +118,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         },
     });
 
-    const image = watch("image");
+    const images = watch("images");
     const selectedType = watch("type");
     const selectedCategories = watch("selectedCategories");
     const currentPrices = watch("prices");
@@ -166,9 +169,19 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     }, [enabled, isEdit, freeBarberId, triggerGetFreeBarberPanel]);
 
 
-    const pickMainImage = async () => {
-        const file = await handlePickImage();
-        if (file) setValue("image", file, { shouldDirty: true, shouldValidate: true });
+    const pickMultipleImages = async () => {
+        const files = await handlePickMultipleImages(3);
+        if (files && files.length > 0) {
+            const currentImages = getValues("images") || [];
+            const newImages = [...currentImages, ...files].slice(0, 3);
+            setValue("images", newImages, { shouldDirty: true, shouldValidate: true });
+        }
+    };
+
+    const removeImage = (index: number) => {
+        const currentImages = getValues("images") || [];
+        const newImages = currentImages.filter((_, i) => i !== index);
+        setValue("images", newImages, { shouldDirty: true, shouldValidate: true });
     };
     const gettingLocRef = useRef(false);
     const setLocationNow = async (): Promise<boolean> => {
@@ -205,8 +218,12 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         if (!isEdit) return;
         if (!data) return;
 
-        const firstImage = data?.imageList?.[0];
-        const imageUrl = firstImage?.imageUrl;
+        const imageListData = data?.imageList ?? [];
+        const initialImages = imageListData.map((img: any) => ({
+            uri: img.imageUrl,
+            name: img.imageUrl.split("/").pop() ?? `image-${img.id}.jpg`,
+            type: img.imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
+        }));
 
         const taxPath = (data as any).barberCertificate as string | undefined;
         let pdfName = "tax-document.pdf"; // Varsayılan isim
@@ -232,13 +249,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             surname: data?.lastName ?? "",
             type: initialType,
             isAvailable: data?.isAvailable ?? true,
-            image: imageUrl
-                ? {
-                    uri: imageUrl,
-                    name: imageUrl.split("/").pop() ?? `image-${data?.id}.jpg`,
-                    type: imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
-                }
-                : undefined,
+            images: initialImages.length > 0 ? initialImages : undefined,
             freeBarberFile: taxPath
                 ? {
                     uri: taxPath,
@@ -333,7 +344,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             }
         }
 
-        const existingImageId = data?.imageList?.[0]?.id;
+        const existingImages = data?.imageList ?? [];
         const existingOfferings = data?.offerings ?? [];
 
         const offeringsMapped = (form.selectedCategories ?? [])
@@ -359,19 +370,20 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             })
             .filter((x): x is NonNullable<typeof x> => x !== null);
 
-        const imageControl =
-            !isEdit && form.image?.uri
-                ? [{ imageUrl: form.image.uri, ownerType: ImageOwnerType.FreeBarber }]
-                : isEdit && form.image?.uri
-                    ? [
-                        {
-                            id: existingImageId!,
-                            imageUrl: form.image.uri,
-                            imageOwnerId: freeBarberId!,
-                            ownerType: ImageOwnerType.FreeBarber,
-                        },
-                    ]
-                    : [];
+        const imageControl = !isEdit
+            ? (form.images ?? []).map((img) => ({
+                imageUrl: img.uri,
+                ownerType: ImageOwnerType.FreeBarber,
+            }))
+            : (form.images ?? []).map((img, index) => {
+                const existingImage = existingImages[index];
+                return {
+                    id: existingImage?.id,
+                    imageUrl: img.uri,
+                    imageOwnerId: freeBarberId!,
+                    ownerType: ImageOwnerType.FreeBarber,
+                };
+            });
 
         const offerings = !isEdit
             ? (offeringsMapped as ServiceOfferingCreateDto[])
@@ -429,28 +441,47 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             ) : (
                 <>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}>
-                        <Text className="text-white text-xl mt-4 px-4">{!isEdit ? "Panel Resmini Ekle" : "Panel Resmini Güncelle"} </Text>
+                        <Text className="text-white text-xl mt-4 px-4">Panel Resimleri (Maks 3)</Text>
 
                         <Controller
                             control={control}
-                            name="image"
+                            name="images"
                             render={() => (
-                                <View className="flex items-center justify-center px-4 mt-4">
-                                    <TouchableOpacity
-                                        onPress={pickMainImage}
-                                        className="w-full bg-gray-800 rounded-xl overflow-hidden border border-gray-700"
-                                        style={{ aspectRatio: 2 / 1 }}
-                                        activeOpacity={0.85}
-                                    >
-                                        {image?.uri ? (
-                                            <Image className="h-full w-full object-cover" source={{ uri: image.uri }} />
-                                        ) : (
-                                            <View className="flex-1 items-center justify-center">
-                                                <Icon source="image-plus" size={40} color="#888" />
-                                                <Text className="text-gray-500 mt-2">Resim Seç</Text>
+                                <View className="px-4 mt-4">
+                                    <View className="flex-row flex-wrap gap-2">
+                                        {(images ?? []).map((img, index) => (
+                                            <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                                <Image
+                                                    className="w-full h-full rounded-xl"
+                                                    source={{ uri: img.uri }}
+                                                    resizeMode="cover"
+                                                />
+                                                <TouchableOpacity
+                                                    onPress={() => removeImage(index)}
+                                                    className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                                    activeOpacity={0.85}
+                                                >
+                                                    <Icon source="close" size={16} color="white" />
+                                                </TouchableOpacity>
                                             </View>
+                                        ))}
+                                        {(!images || images.length < 3) && (
+                                            <TouchableOpacity
+                                                onPress={pickMultipleImages}
+                                                className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                                                style={{ width: '48%', aspectRatio: 16/9 }}
+                                                activeOpacity={0.85}
+                                            >
+                                                <Icon source="image-plus" size={40} color="#888" />
+                                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                            </TouchableOpacity>
                                         )}
-                                    </TouchableOpacity>
+                                    </View>
+                                    {errors.images && (
+                                        <HelperText type="error" visible={!!errors.images}>
+                                            {errors.images.message as string}
+                                        </HelperText>
+                                    )}
                                 </View>
                             )}
                         />

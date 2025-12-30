@@ -4,7 +4,7 @@ import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip 
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { handlePickImage, pickPdf, truncateFileName } from '../../utils/form/pick-document';
+import { handlePickImage, handlePickMultipleImages, pickPdf, truncateFileName } from '../../utils/form/pick-document';
 import { useSheet } from '../../context/bottomsheet';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants';
@@ -147,12 +147,16 @@ const ChairSchema = z
     });
 
 const schema = z.object({
-    storeImageUrl: z
-        .object({
-            uri: z.string().min(1),
-            name: z.string().min(1),
-            type: z.string().min(1),
-        }).optional(),
+    storeImages: z
+        .array(
+            z.object({
+                uri: z.string().min(1),
+                name: z.string().min(1),
+                type: z.string().min(1),
+            })
+        )
+        .max(3, "En fazla 3 resim ekleyebilirsiniz")
+        .optional(),
     storeName: z.string({ required_error: 'İşletme adı zorunlu' }).trim(),
     type: z.string({ required_error: 'İşletme türü zorunlu' }),
     selectedCategories: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
@@ -249,7 +253,7 @@ const FormStoreAdd = () => {
     const [activeDay, setActiveDay] = useState<number>(1);
     const [activeStart, setActiveStart] = useState(fromHHmm("09:00"));
     const [activeEnd, setActiveEnd] = useState(fromHHmm("18:00"));
-    const image = watch("storeImageUrl");
+    const images = watch("storeImages");
     const selectedType = watch("type");
     const selectedCategories = watch('selectedCategories');
     const currentPrices = watch('prices');
@@ -278,9 +282,10 @@ const FormStoreAdd = () => {
     const OnSubmit = async (data: FormValues) => {
         const payload: BarberStoreCreateDto = {
             storeName: data.storeName,
-            storeImageList: data?.storeImageUrl?.uri
-                ? [{ imageUrl: data.storeImageUrl.uri, ownerType: ImageOwnerType.Store }]
-                : [],
+            storeImageList: (data.storeImages ?? []).map((img) => ({
+                imageUrl: img.uri,
+                ownerType: ImageOwnerType.Store,
+            })),
             type: mapBarberType(data.type),
             pricingType: mapPricingType(data.pricingType.mode),
             addressDescription: data.location.addressDescription,
@@ -400,10 +405,20 @@ const FormStoreAdd = () => {
 
 
 
-    const pickMainImage = async () => {
-        const file = await handlePickImage()
-        if (file) setValue('storeImageUrl', file, { shouldDirty: true, shouldValidate: true })
-    }
+    const pickMultipleImages = async () => {
+        const files = await handlePickMultipleImages(3);
+        if (files && files.length > 0) {
+            const currentImages = getValues("storeImages") || [];
+            const newImages = [...currentImages, ...files].slice(0, 3);
+            setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+        }
+    };
+
+    const removeImage = (index: number) => {
+        const currentImages = getValues("storeImages") || [];
+        const newImages = currentImages.filter((_, i) => i !== index);
+        setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+    };
     const categoryOptions = useMemo(
         // Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
         // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için en stabil yaklaşım.
@@ -533,29 +548,41 @@ const FormStoreAdd = () => {
             </View>
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
             <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
-                <Text className="text-white text-xl mt-4 px-4">İşletme Resmi Ekle</Text>
+                <Text className="text-white text-xl mt-4 px-4">İşletme Resimleri (Maks 3)</Text>
                 <Controller
                     control={control}
-                    name="storeImageUrl"
+                    name="storeImages"
                     render={() => (
-                        <View className="flex items-center justify-center px-4 mt-4">
-                            <TouchableOpacity
-                                onPress={pickMainImage}
-                                className="w-full bg-gray-800 rounded-xl overflow-hidden"
-                                style={{ aspectRatio: 2 / 1 }}
-                                activeOpacity={0.85}
-                            >
-                                {image ? (
-                                    <Image
-                                        className='h-full w-full object-cover'
-                                        source={{ uri: image.uri }}
-                                    />
-                                ) : (
-                                    <View className="flex-1 items-center justify-center">
-                                        <Icon source="image" size={40} color="#888" />
+                        <View className="px-4 mt-4">
+                            <View className="flex-row flex-wrap gap-2">
+                                {(images ?? []).map((img, index) => (
+                                    <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                        <Image
+                                            className="w-full h-full rounded-xl"
+                                            source={{ uri: img.uri }}
+                                            resizeMode="cover"
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => removeImage(index)}
+                                            className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                            activeOpacity={0.85}
+                                        >
+                                            <Icon source="close" size={16} color="white" />
+                                        </TouchableOpacity>
                                     </View>
+                                ))}
+                                {(!images || images.length < 3) && (
+                                    <TouchableOpacity
+                                        onPress={pickMultipleImages}
+                                        className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                                        style={{ width: '48%', aspectRatio: 16/9 }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Icon source="image-plus" size={40} color="#888" />
+                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
+                            </View>
                         </View>
                     )}
                 />

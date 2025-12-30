@@ -43,23 +43,30 @@ export const BarberEditModal: React.FC<Props> = ({
     const [snackVisible, setSnackVisible] = useState(false);
     const [snackMessage, setSnackMessage] = useState('');
     const [snackIsError, setSnackIsError] = useState(false);
-    const profileImageUrl = watch('profileImageUrl');
+    const profileImage = watch('profileImage');
+
     const handlePickAvatar = async () => {
         const file = await handlePickImage();
-        if (file?.uri) {
-            setValue('profileImageUrl', file.uri, {
+        if (file) {
+            setValue('profileImage', file, {
                 shouldDirty: true,
                 shouldValidate: true,
             });
         }
+    };
+
+    const removeImage = () => {
+        setValue('profileImage', undefined, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
     };
     useEffect(() => {
         if (visible) {
             reset({
                 id: initialValues?.id ?? undefined,
                 name: initialValues?.name ?? undefined,
-                profileImageUrl: initialValues?.profileImageUrl ?? undefined,
-
+                profileImage: initialValues?.profileImage ?? undefined,
             });
         }
     }, [visible, initialValues, reset]);
@@ -73,7 +80,7 @@ export const BarberEditModal: React.FC<Props> = ({
                     dto: {
                         id: undefined,
                         fullName: values.name!,
-                        profileImageUrl: values.profileImageUrl,
+                        profileImageUrl: values.profileImage?.uri,
                         storeId: storeId,
                     },
                 }).unwrap();
@@ -83,8 +90,7 @@ export const BarberEditModal: React.FC<Props> = ({
                     dto: {
                         id: values.id!,
                         fullName: values.name!,
-                        profileImageUrl: values.profileImageUrl,
-
+                        profileImageUrl: values.profileImage?.uri,
                     },
                 }).unwrap();
             }
@@ -108,23 +114,33 @@ export const BarberEditModal: React.FC<Props> = ({
                 </Dialog.Title>
                 <Dialog.Content style={{ paddingBottom: 0, marginBottom: 0 }} >
                     <View className='gap-3'>
-                        <TouchableOpacity
-                            onPress={handlePickAvatar}
-                            className="w-full bg-gray-800 rounded-xl overflow-hidden"
-                            style={{ aspectRatio: 2 / 1 }}
-                            activeOpacity={0.85}
-                        >
-                            {profileImageUrl ? (
+                        {profileImage ? (
+                            <View className="relative">
                                 <Image
-                                    className='h-full w-full object-cover'
-                                    source={{ uri: profileImageUrl }}
+                                    className='w-full rounded-xl'
+                                    style={{ aspectRatio: 2 / 1 }}
+                                    source={{ uri: profileImage.uri }}
+                                    resizeMode="cover"
                                 />
-                            ) : (
-                                <View className="flex-1 items-center justify-center">
-                                    <Icon source="image" size={40} color="#888" />
-                                </View>
-                            )}
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={removeImage}
+                                    className="absolute top-2 right-2 bg-red-500 rounded-full p-2"
+                                    activeOpacity={0.85}
+                                >
+                                    <Icon source="close" size={20} color="white" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={handlePickAvatar}
+                                className="w-full bg-gray-800 rounded-xl items-center justify-center border border-gray-700"
+                                style={{ aspectRatio: 2 / 1 }}
+                                activeOpacity={0.85}
+                            >
+                                <Icon source="image-plus" size={40} color="#888" />
+                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                            </TouchableOpacity>
+                        )}
                         <Controller
                             control={control}
                             name="name"
