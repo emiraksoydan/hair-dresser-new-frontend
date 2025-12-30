@@ -12,6 +12,7 @@ import {
     AppointmentGetDto, AppointmentFilter,
     CreateRatingDto, RatingGetDto,
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
+    ImageGetDto, ImageOwnerType,
     AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
@@ -833,6 +834,18 @@ export const api = createApi({
         }),
 
         // --- IMAGE API ---
+        getImagesByOwner: builder.query<ImageGetDto[], { ownerId: string; ownerType: ImageOwnerType }>({
+            query: ({ ownerId, ownerType }) => ({
+                url: `Image/owner/${ownerId}`,
+                params: { ownerType },
+            }),
+            keepUnusedDataFor: 0,
+            transformResponse: (response: any) => {
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
+        }),
         uploadImage: builder.mutation<ApiResponse<string>, FormData>({
             query: (formData) => ({
                 url: 'Image/upload',
@@ -872,6 +885,7 @@ export const {
     useUpdateBarberStoreMutation,
     useLazyGetNearbyStoresQuery,
     useGetMineStoresQuery,
+    useLazyGetMineStoresQuery,
     useLazyGetStoreByIdQuery,
     useAddManuelBarberMutation,
     useDeleteManuelBarberMutation,
@@ -880,6 +894,7 @@ export const {
     useUpdateStoreChairMutation,
     useDeleteStoreChairMutation,
     useGetFreeBarberMinePanelQuery,
+    useLazyGetFreeBarberMinePanelQuery,
     useLazyGetFreeBarberMinePanelDetailQuery,
     useLazyGetNearbyFreeBarberQuery,
     useAddFreeBarberPanelMutation,
@@ -929,6 +944,8 @@ export const {
     useLazyGetChildCategoriesQuery,
     useGetFilteredStoresMutation,
     useGetFilteredFreeBarbersMutation,
+    useGetImagesByOwnerQuery,
+    useLazyGetImagesByOwnerQuery,
     useUploadImageMutation,
     useUploadMultipleImagesMutation,
     useDeleteImageMutation,

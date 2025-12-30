@@ -2,7 +2,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { Icon } from 'react-native-paper';
-import { ManuelBarberFavoriteDto } from '../../types';
+import { useGetImagesByOwnerQuery } from '../../store/api';
+import { ImageOwnerType, ManuelBarberFavoriteDto } from '../../types';
 
 type Props = {
     manuelBarber: ManuelBarberFavoriteDto;
@@ -23,7 +24,13 @@ const ManuelBarberCard: React.FC<Props> = ({
     typeLabelColor = 'bg-orange-500',
     onPressUpdate
 }) => {
-    const coverImage = manuelBarber.imageUrl;
+    const shouldFetchCoverImage = !manuelBarber.imageUrl && !!manuelBarber.id;
+    const { data: images } = useGetImagesByOwnerQuery(
+        { ownerId: manuelBarber.id, ownerType: ImageOwnerType.ManuelBarber },
+        { skip: !shouldFetchCoverImage }
+    );
+
+    const coverImage = manuelBarber.imageUrl ?? images?.[0]?.imageUrl;
 
     const handlePressCard = () => {
         onPressUpdate?.(manuelBarber);

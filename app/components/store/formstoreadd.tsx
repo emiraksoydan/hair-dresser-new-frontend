@@ -8,7 +8,14 @@ import { handlePickImage, handlePickMultipleImages, pickPdf, truncateFileName } 
 import { useSheet } from '../../context/bottomsheet';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants';
-import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api'
+import {
+    useAddBarberStoreMutation,
+    useGetParentCategoriesQuery,
+    useLazyGetChildCategoriesQuery,
+    useLazyGetMineStoresQuery,
+    useUploadImageMutation,
+    useUploadMultipleImagesMutation,
+} from '../../store/api';
 import 'react-native-get-random-values';
 import { v4 as uuid } from "uuid";
 import { LegendList } from '@legendapp/list';
@@ -17,7 +24,6 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { parseTR } from '../../utils/form/money-helper';
 import * as Location from "expo-location";
 import { MapPicker } from '../common/mappicker';
-import { useAddBarberStoreMutation } from '../../store/api';
 import { BarberStoreCreateDto, ImageOwnerType } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { useSnackbar } from '../../hook/useSnackbar';
@@ -250,6 +256,9 @@ const FormStoreAdd = () => {
         },
     });
     const [addStore, { isLoading, isSuccess }] = useAddBarberStoreMutation();
+    const [triggerGetMineStores] = useLazyGetMineStoresQuery();
+    const [uploadMultipleImages] = useUploadMultipleImagesMutation();
+    const [uploadImage] = useUploadImageMutation();
     const [activeDay, setActiveDay] = useState<number>(1);
     const [activeStart, setActiveStart] = useState(fromHHmm("09:00"));
     const [activeEnd, setActiveEnd] = useState(fromHHmm("18:00"));
@@ -280,12 +289,21 @@ const FormStoreAdd = () => {
     const { showSnack, SnackbarComponent } = useSnackbar();
     const { dismiss } = useSheet('addStore');
     const OnSubmit = async (data: FormValues) => {
+        const hasUploads = (data.storeImages?.length ?? 0) > 0 || (data.barbers ?? []).some((b) => b.avatar?.uri);
+        let existingStoreIds = new Set<string>();
+        let hasExistingSnapshot = false;
+        if (hasUploads) {
+            try {
+                const existingStores = await triggerGetMineStores(undefined, true).unwrap();
+                existingStoreIds = new Set((existingStores ?? []).map((s) => s.id));
+                hasExistingSnapshot = true;
+            } catch {
+                existingStoreIds = new Set<string>();
+                hasExistingSnapshot = false;
+            }
+        }
         const payload: BarberStoreCreateDto = {
             storeName: data.storeName,
-            storeImageList: (data.storeImages ?? []).map((img) => ({
-                imageUrl: img.uri,
-                ownerType: ImageOwnerType.Store,
-            })),
             type: mapBarberType(data.type),
             pricingType: mapPricingType(data.pricingType.mode),
             addressDescription: data.location.addressDescription,
@@ -317,7 +335,6 @@ const FormStoreAdd = () => {
             manuelBarbers: data.barbers!.map((barber) => {
                 return {
                     id: barber.id,
-                    profileImageUrl: barber.avatar?.uri,
                     fullName: barber.name,
                     storeId: undefined,
                 }
@@ -328,7 +345,71 @@ const FormStoreAdd = () => {
             var result = await addStore(payload).unwrap();
             // Result handled by RTK Query mutation
             if (result.success) {
-                showSnack(result.message, false);
+                let uploadError: string | null = null;
+                if (hasUploads) {
+                    try {
+                        const latestStores = await triggerGetMineStores().unwrap();
+                        const signatureMatches = latestStores.filter((store) => {
+                            const sameName = store.storeName === data.storeName;
+                            const sameAddress = (store.addressDescription ?? "") === data.location.addressDescription;
+                            const latDiff = Math.abs((store.latitude ?? 0) - (data.location.latitude ?? 0));
+                            const lonDiff = Math.abs((store.longitude ?? 0) - (data.location.longitude ?? 0));
+                            return sameName && sameAddress && latDiff <= 0.0005 && lonDiff <= 0.0005;
+                        });
+
+                        const createdStore = hasExistingSnapshot
+                            ? latestStores.find((s) => !existingStoreIds.has(s.id)) ??
+                                signatureMatches[0] ??
+                                latestStores[latestStores.length - 1]
+                            : signatureMatches[0] ??
+                                latestStores[latestStores.length - 1];
+
+                        if (!createdStore?.id) {
+                            throw new Error("İşletme oluşturuldu ancak işletme id'si bulunamadı.");
+                        }
+
+                        if ((data.storeImages ?? []).length > 0) {
+                            const formData = new FormData();
+                            (data.storeImages ?? []).forEach((img) => {
+                                formData.append("files", {
+                                    uri: img.uri,
+                                    name: img.name ?? "photo.jpg",
+                                    type: img.type ?? "image/jpeg",
+                                } as any);
+                            });
+                            formData.append("ownerType", String(ImageOwnerType.Store));
+                            formData.append("ownerId", createdStore.id);
+                            const uploadResult = await uploadMultipleImages(formData).unwrap();
+                            if (!uploadResult.success) {
+                                throw new Error(uploadResult.message || "İşletme resimleri yüklenemedi.");
+                            }
+                        }
+
+                        const barbersWithImages = (data.barbers ?? []).filter((b) => b.avatar?.uri);
+                        for (const barber of barbersWithImages) {
+                            const formData = new FormData();
+                            formData.append("file", {
+                                uri: barber.avatar!.uri,
+                                name: barber.avatar!.name ?? "photo.jpg",
+                                type: barber.avatar!.type ?? "image/jpeg",
+                            } as any);
+                            formData.append("ownerType", String(ImageOwnerType.ManuelBarber));
+                            formData.append("ownerId", barber.id);
+                            const uploadResult = await uploadImage(formData).unwrap();
+                            if (!uploadResult.success) {
+                                throw new Error(uploadResult.message || "Berber resmi yüklenemedi.");
+                            }
+                        }
+                    } catch (uploadErr: any) {
+                        uploadError = resolveApiErrorMessage(uploadErr);
+                    }
+                }
+
+                if (uploadError) {
+                    showSnack(`İşletme oluşturuldu, resimler yüklenemedi. ${uploadError}`, true);
+                } else {
+                    showSnack(result.message, false);
+                }
                 dismiss();
             }
             else {

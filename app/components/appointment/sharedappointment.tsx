@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert, RefreshControl, Image, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Alert, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
 import { LegendList } from '@legendapp/list';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
@@ -13,11 +13,12 @@ import {
 } from "../../store/api";
 import { AppointmentStatus, AppointmentFilter, AppointmentGetDto, AppointmentRequester } from "../../types/appointment";
 import { useAuth } from "../../hook/useAuth";
-import { BarberType, UserType, PricingType } from "../../types";
+import { BarberType, UserType, PricingType, ImageOwnerType } from "../../types";
 import FilterChip from "../common/filter-chip";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import { RatingBottomSheet } from "./ratingbottomsheet";
 import { getAppointmentStatusColor, getAppointmentStatusText } from "../../utils/appointment/appointment-helpers";
+import { OwnerAvatar } from "../common/owneravatar";
 
 export default function SharedAppointmentScreen() {
     const { userId, userType } = useAuth();
@@ -373,13 +374,15 @@ export default function SharedAppointmentScreen() {
                         <View className="flex-row gap-3">
                             {item.customerUserId && (
                                 <View className="flex-1 flex-row items-start">
-                                    {item.customerImage ? (
-                                        <Image source={{ uri: item.customerImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                    ) : (
-                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                            <Icon source="account" size={24} color="#6b7280" />
-                                        </View>
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={item.customerUserId}
+                                        ownerType={ImageOwnerType.User}
+                                        fallbackUrl={item.customerImage}
+                                        imageClassName="w-12 h-12 rounded-full mr-2"
+                                        iconSource="account"
+                                        iconSize={24}
+                                        iconColor="#6b7280"
+                                    />
                                     <View className="flex-1">
                                         <Text className="text-[#9ca3af] text-xs">Müşterisi</Text>
                                         <Text className="text-white text-sm font-semibold">{item.customerName}</Text>
@@ -410,13 +413,15 @@ export default function SharedAppointmentScreen() {
                             <View className="flex-1">
                                 {item.freeBarberId ? (
                                     <View className="flex-row items-start">
-                                        {item.freeBarberImage ? (
-                                            <Image source={{ uri: item.freeBarberImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                        ) : (
-                                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                                <Icon source="account-supervisor" size={24} color="#6b7280" />
-                                            </View>
-                                        )}
+                                        <OwnerAvatar
+                                            ownerId={item.freeBarberId}
+                                            ownerType={ImageOwnerType.FreeBarber}
+                                            fallbackUrl={item.freeBarberImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-2"
+                                            iconSource="account-supervisor"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
+                                        />
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">Kiralayan Berber</Text>
                                             <Text className="text-white text-sm font-semibold">{item.freeBarberName || 'Serbest Berber'}</Text>
@@ -440,13 +445,15 @@ export default function SharedAppointmentScreen() {
                                     </View>
                                 ) : item.manuelBarberId ? (
                                     <View className="flex-row items-start">
-                                        {item.manuelBarberImage ? (
-                                            <Image source={{ uri: item.manuelBarberImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                        ) : (
-                                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                                <Icon source="account" size={24} color="#6b7280" />
-                                            </View>
-                                        )}
+                                        <OwnerAvatar
+                                            ownerId={item.manuelBarberId}
+                                            ownerType={ImageOwnerType.ManuelBarber}
+                                            fallbackUrl={item.manuelBarberImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-2"
+                                            iconSource="account"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
+                                        />
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
                                             <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>
@@ -478,13 +485,15 @@ export default function SharedAppointmentScreen() {
                         <View>
                             {item.barberStoreId && (
                                 <View className="flex-row items-start mb-2">
-                                    {item.storeImage ? (
-                                        <Image source={{ uri: item.storeImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                    ) : (
-                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                            <Icon source="store" size={24} color="#6b7280" />
-                                        </View>
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={item.barberStoreId}
+                                        ownerType={ImageOwnerType.Store}
+                                        fallbackUrl={item.storeImage}
+                                        imageClassName="w-12 h-12 rounded-full mr-2"
+                                        iconSource="store"
+                                        iconSize={24}
+                                        iconColor="#6b7280"
+                                    />
                                     <View className="flex-1">
                                         <Text className="text-[#9ca3af] text-xs">Dükkan Adı</Text>
                                         <Text className="text-white text-sm font-semibold">{item.storeName}</Text>
@@ -526,13 +535,15 @@ export default function SharedAppointmentScreen() {
                             )}
                             {item.customerUserId && (
                                 <View className="flex-row items-start">
-                                    {item.customerImage ? (
-                                        <Image source={{ uri: item.customerImage }} className="w-10 h-10 rounded-full mr-2" resizeMode="cover" />
-                                    ) : (
-                                        <View className="w-10 h-10 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                            <Icon source="account" size={20} color="#6b7280" />
-                                        </View>
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={item.customerUserId}
+                                        ownerType={ImageOwnerType.User}
+                                        fallbackUrl={item.customerImage}
+                                        imageClassName="w-10 h-10 rounded-full mr-2"
+                                        iconSource="account"
+                                        iconSize={20}
+                                        iconColor="#6b7280"
+                                    />
                                     <View className="flex-1">
                                         <Text className="text-[#9ca3af] text-xs">Müşterisi</Text>
                                         <Text className="text-white text-sm font-semibold">{item.customerName || 'Müşteri'}</Text>
@@ -567,13 +578,15 @@ export default function SharedAppointmentScreen() {
                         <View className="flex-row gap-3">
                             {item.barberStoreId && (
                                 <View className="flex-1 flex-row items-start">
-                                    {item.storeImage ? (
-                                        <Image source={{ uri: item.storeImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                    ) : (
-                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                            <Icon source="store" size={24} color="#6b7280" />
-                                        </View>
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={item.barberStoreId}
+                                        ownerType={ImageOwnerType.Store}
+                                        fallbackUrl={item.storeImage}
+                                        imageClassName="w-12 h-12 rounded-full mr-2"
+                                        iconSource="store"
+                                        iconSize={24}
+                                        iconColor="#6b7280"
+                                    />
                                     <View className="flex-1">
                                         <Text className="text-[#9ca3af] text-xs">Dükkan Adı</Text>
                                         <Text className="text-white text-sm font-semibold">{item.storeName}</Text>
@@ -612,13 +625,15 @@ export default function SharedAppointmentScreen() {
                             <View className="flex-1">
                                 {item.freeBarberId ? (
                                     <View className="flex-row items-start">
-                                        {item.freeBarberImage ? (
-                                            <Image source={{ uri: item.freeBarberImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                        ) : (
-                                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                                <Icon source="account-supervisor" size={24} color="#6b7280" />
-                                            </View>
-                                        )}
+                                        <OwnerAvatar
+                                            ownerId={item.freeBarberId}
+                                            ownerType={ImageOwnerType.FreeBarber}
+                                            fallbackUrl={item.freeBarberImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-2"
+                                            iconSource="account-supervisor"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
+                                        />
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">İşlemi Yapan</Text>
                                             <Text className="text-white text-sm font-semibold">{item.freeBarberName || 'Serbest Berber'}</Text>
@@ -646,13 +661,15 @@ export default function SharedAppointmentScreen() {
                                     </View>
                                 ) : item.manuelBarberId ? (
                                     <View className="flex-row items-start">
-                                        {item.manuelBarberImage ? (
-                                            <Image source={{ uri: item.manuelBarberImage }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                                        ) : (
-                                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                                <Icon source="account" size={24} color="#6b7280" />
-                                            </View>
-                                        )}
+                                        <OwnerAvatar
+                                            ownerId={item.manuelBarberId}
+                                            ownerType={ImageOwnerType.ManuelBarber}
+                                            fallbackUrl={item.manuelBarberImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-2"
+                                            iconSource="account"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
+                                        />
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs">İşlemi Yapan</Text>
                                             <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>

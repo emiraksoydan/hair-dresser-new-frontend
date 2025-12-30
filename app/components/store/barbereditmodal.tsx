@@ -1,11 +1,13 @@
 // components/BarberEditModal.tsx
+import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
-import { Avatar, Button, Dialog, HelperText, Icon, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Icon, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
-import { BarberFormValues } from '../../types';
-import { useAddManuelBarberMutation, useUpdateManuelBarberMutation } from '../../store/api';
-import { handlePickImage, pickImageAndSet } from '../../utils/form/pick-document';
+import { v4 as uuid } from 'uuid';
+import { BarberFormValues, ImageOwnerType } from '../../types';
+import { useAddManuelBarberMutation, useDeleteImageMutation, useLazyGetImagesByOwnerQuery, useUpdateManuelBarberMutation, useUploadImageMutation } from '../../store/api';
+import { handlePickImage } from '../../utils/form/pick-document';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 
 
@@ -39,6 +41,9 @@ export const BarberEditModal: React.FC<Props> = ({
     });
     const [addBarber, { isLoading: isAdding }] = useAddManuelBarberMutation();
     const [updateBarber, { isLoading: isUpdating }] = useUpdateManuelBarberMutation();
+    const [uploadImage] = useUploadImageMutation();
+    const [deleteImage] = useDeleteImageMutation();
+    const [triggerGetImagesByOwner] = useLazyGetImagesByOwnerQuery();
 
     const [snackVisible, setSnackVisible] = useState(false);
     const [snackMessage, setSnackMessage] = useState('');
@@ -71,16 +76,49 @@ export const BarberEditModal: React.FC<Props> = ({
         }
     }, [visible, initialValues, reset]);
 
+    const isRemoteUri = (uri?: string) =>
+        !!uri && (uri.startsWith("http://") || uri.startsWith("https://"));
+
+    const deleteExistingImages = async (ownerId: string) => {
+        const images = await triggerGetImagesByOwner({
+            ownerId,
+            ownerType: ImageOwnerType.ManuelBarber,
+        }).unwrap();
+
+        for (const img of images ?? []) {
+            const deleteResult = await deleteImage(img.id).unwrap();
+            if (!deleteResult.success) {
+                throw new Error(deleteResult.message || "Resim silinemedi.");
+            }
+        }
+    };
+
+    const uploadProfileImage = async (ownerId: string, file: BarberFormValues["profileImage"]) => {
+        if (!file || !file.uri) return;
+        const formData = new FormData();
+        formData.append("file", {
+            uri: file.uri,
+            name: file.name ?? "photo.jpg",
+            type: file.type ?? "image/jpeg",
+        } as any);
+        formData.append("ownerType", String(ImageOwnerType.ManuelBarber));
+        formData.append("ownerId", ownerId);
+        const uploadResult = await uploadImage(formData).unwrap();
+        if (!uploadResult.success) {
+            throw new Error(uploadResult.message || "Resim yüklenemedi.");
+        }
+    };
+
     const submit = async (values: BarberFormValues) => {
         try {
             const isCreate = !values.id;
+            const barberId = values.id && values.id.trim() ? values.id : uuid();
             let result: { message: string; success: boolean };
             if (isCreate) {
                 result = await addBarber({
                     dto: {
-                        id: undefined,
+                        id: barberId,
                         fullName: values.name!,
-                        profileImageUrl: values.profileImage?.uri,
                         storeId: storeId,
                     },
                 }).unwrap();
@@ -88,15 +126,49 @@ export const BarberEditModal: React.FC<Props> = ({
             } else {
                 result = await updateBarber({
                     dto: {
-                        id: values.id!,
+                        id: barberId,
                         fullName: values.name!,
-                        profileImageUrl: values.profileImage?.uri,
                     },
                 }).unwrap();
             }
 
-            setSnackMessage(result?.message ?? 'İşlem başarılı');
-            setSnackIsError(false);
+            if (!result?.success) {
+                setSnackMessage(result?.message ?? 'İşlem başarısız');
+                setSnackIsError(true);
+                setSnackVisible(true);
+                return;
+            }
+
+            let uploadError: string | null = null;
+            const profileImage = values.profileImage;
+            try {
+                if (isCreate) {
+                    if (profileImage?.uri && !isRemoteUri(profileImage.uri)) {
+                        await deleteExistingImages(barberId);
+                        await uploadProfileImage(barberId, profileImage);
+                    }
+                } else {
+                    if (!profileImage?.uri) {
+                        await deleteExistingImages(barberId);
+                    } else if (!isRemoteUri(profileImage.uri)) {
+                        await deleteExistingImages(barberId);
+                        await uploadProfileImage(barberId, profileImage);
+                    }
+                }
+            } catch (uploadErr: any) {
+                uploadError = resolveApiErrorMessage(uploadErr);
+            }
+
+            if (uploadError) {
+                const baseMessage = isCreate
+                    ? "Berber eklendi, resim yüklenemedi."
+                    : "Berber güncellendi, resim yüklenemedi.";
+                setSnackMessage(`${baseMessage} ${uploadError}`);
+                setSnackIsError(true);
+            } else {
+                setSnackMessage(result?.message ?? 'İşlem başarılı');
+                setSnackIsError(false);
+            }
             setSnackVisible(true);
             onClose();
         } catch (e: any) {

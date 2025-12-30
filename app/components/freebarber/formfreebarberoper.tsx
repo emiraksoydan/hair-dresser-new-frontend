@@ -1,23 +1,26 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Divider, Icon, IconButton, TextInput, HelperText, Button, Switch } from "react-native-paper";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dropdown, MultiSelect } from "react-native-element-dropdown";
-import { handlePickImage, handlePickMultipleImages, pickPdf, truncateFileName } from "../../utils/form/pick-document";
+import { handlePickMultipleImages, pickPdf, truncateFileName } from "../../utils/form/pick-document";
 import { parseTR } from "../../utils/form/money-helper";
 import { ImageOwnerType, ServiceOfferingCreateDto, ServiceOfferingUpdateDto } from "../../types";
 import { useSheet } from "../../context/bottomsheet";
 import { resolveApiErrorMessage } from "../../utils/common/error";
-import { BUSINESS_TYPES, SERVICE_BY_TYPE, trMoneyRegex } from "../../constants";
+import { trMoneyRegex } from "../../constants";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
 import { useSnackbar } from "../../hook/useSnackbar";
 import { mapBarberType, mapTypeToDisplayName } from "../../utils/form/form-mappers";
 import {
     useAddFreeBarberPanelMutation,
+    useDeleteImageMutation,
+    useLazyGetFreeBarberMinePanelQuery,
     useLazyGetFreeBarberMinePanelDetailQuery,
     useUpdateFreeBarberPanelMutation,
+    useUploadMultipleImagesMutation,
     useGetParentCategoriesQuery,
     useLazyGetChildCategoriesQuery,
 } from "../../store/api";
@@ -93,8 +96,11 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     const { showSnack, SnackbarComponent } = useSnackbar();
 
     const [triggerGetFreeBarberPanel, { data }] = useLazyGetFreeBarberMinePanelDetailQuery();
+    const [triggerGetFreeBarberMinePanel] = useLazyGetFreeBarberMinePanelQuery();
     const [addFreeBarber, { isLoading: addFreeBarberLoad }] = useAddFreeBarberPanelMutation();
     const [updateFreeBarber, { isLoading: updateFreeBarberLoad }] = useUpdateFreeBarberPanelMutation();
+    const [uploadMultipleImages] = useUploadMultipleImagesMutation();
+    const [deleteImage] = useDeleteImageMutation();
 
     const { dismiss } = useSheet("freeBarberMinePanel");
 
@@ -146,7 +152,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
 
     // Seçilen parent kategoriye göre child kategorileri yükle
     // Data yüklendiğinde de child kategorileri yükle
-    React.useEffect(() => {
+    useEffect(() => {
         // selectedType varsa onu kullan, yoksa data.type'ı display name'e çevir
         const typeToLoad = selectedType || (data?.type != null ? mapTypeToDisplayName(data.type) : undefined);
         if (typeToLoad && allowedParentCategories.length > 0) {
@@ -344,8 +350,13 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             }
         }
 
-        const existingImages = data?.imageList ?? [];
-        const existingOfferings = data?.offerings ?? [];
+        const existingImages = isEdit ? (data?.imageList ?? []) : [];
+        const existingOfferings = isEdit ? (data?.offerings ?? []) : [];
+        const formImages = form.images ?? [];
+        const existingImageUrls = new Set(existingImages.map((img) => img.imageUrl));
+        const formImageUrls = new Set(formImages.map((img) => img.uri));
+        const removedImages = existingImages.filter((img) => !formImageUrls.has(img.imageUrl));
+        const newImages = formImages.filter((img) => !existingImageUrls.has(img.uri));
 
         const offeringsMapped = (form.selectedCategories ?? [])
             .map((categoryName) => {
@@ -370,21 +381,6 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             })
             .filter((x): x is NonNullable<typeof x> => x !== null);
 
-        const imageControl = !isEdit
-            ? (form.images ?? []).map((img) => ({
-                imageUrl: img.uri,
-                ownerType: ImageOwnerType.FreeBarber,
-            }))
-            : (form.images ?? []).map((img, index) => {
-                const existingImage = existingImages[index];
-                return {
-                    id: existingImage?.id,
-                    imageUrl: img.uri,
-                    imageOwnerId: freeBarberId!,
-                    ownerType: ImageOwnerType.FreeBarber,
-                };
-            });
-
         const offerings = !isEdit
             ? (offeringsMapped as ServiceOfferingCreateDto[])
             : (offeringsMapped as ServiceOfferingUpdateDto[]);
@@ -393,7 +389,6 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             ...(isEdit ? { id: data?.id } : {}),
             firstName: form.name.trim(),
             lastName: form.surname.trim(),
-            imageList: imageControl,
             type: mapBarberType(form.type),
             latitude: form.location.latitude,
             longitude: form.location.longitude,
@@ -406,7 +401,56 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         try {
             const result = !isEdit ? await addFreeBarber(payload).unwrap() : await updateFreeBarber(payload).unwrap();
             if (result.success) {
-                showSnack(result.message, false);
+                let uploadError: string | null = null;
+                const hasImageChanges = isEdit ? (removedImages.length > 0 || newImages.length > 0) : newImages.length > 0;
+
+                if (hasImageChanges) {
+                    try {
+                        let ownerId = isEdit ? (data?.id ?? freeBarberId ?? "") : "";
+                        if (!ownerId) {
+                            const panel = await triggerGetFreeBarberMinePanel().unwrap();
+                            ownerId = panel?.id ?? "";
+                        }
+                        if (!ownerId) {
+                            throw new Error("Panel id'si bulunamadı.");
+                        }
+
+                        if (isEdit) {
+                            for (const img of removedImages) {
+                                const deleteResult = await deleteImage(img.id).unwrap();
+                                if (!deleteResult.success) {
+                                    throw new Error(deleteResult.message || "Resim silinemedi.");
+                                }
+                            }
+                        }
+
+                        if (newImages.length > 0) {
+                            const formData = new FormData();
+                            newImages.forEach((img) => {
+                                formData.append("files", {
+                                    uri: img.uri,
+                                    name: img.name ?? "photo.jpg",
+                                    type: img.type ?? "image/jpeg",
+                                } as any);
+                            });
+                            formData.append("ownerType", String(ImageOwnerType.FreeBarber));
+                            formData.append("ownerId", ownerId);
+                            const uploadResult = await uploadMultipleImages(formData).unwrap();
+                            if (!uploadResult.success) {
+                                throw new Error(uploadResult.message || "Panel resimleri yüklenemedi.");
+                            }
+                        }
+                    } catch (uploadErr: any) {
+                        uploadError = resolveApiErrorMessage(uploadErr);
+                    }
+                }
+
+                if (uploadError) {
+                    const baseMessage = isEdit ? "Panel güncellendi, resimler yüklenemedi." : "Panel oluşturuldu, resimler yüklenemedi.";
+                    showSnack(`${baseMessage} ${uploadError}`, true);
+                } else {
+                    showSnack(result.message, false);
+                }
                 dismiss();
             } else {
                 showSnack(result.message, true);
@@ -414,7 +458,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         } catch (error: any) {
             showSnack(resolveApiErrorMessage(error), true);
         }
-    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, dismiss, getValues, setLocationNow]);
+    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, dismiss, getValues, setLocationNow, triggerGetFreeBarberMinePanel, deleteImage, uploadMultipleImages]);
 
     const onErrors = React.useCallback((errors: any) => {
         // Validation errors are displayed to user via form state
@@ -450,7 +494,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                 <View className="px-4 mt-4">
                                     <View className="flex-row flex-wrap gap-2">
                                         {(images ?? []).map((img, index) => (
-                                            <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                            <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16 / 9 }}>
                                                 <Image
                                                     className="w-full h-full rounded-xl"
                                                     source={{ uri: img.uri }}
@@ -469,7 +513,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                             <TouchableOpacity
                                                 onPress={pickMultipleImages}
                                                 className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                                style={{ width: '48%', aspectRatio: 16/9 }}
+                                                style={{ width: '48%', aspectRatio: 16 / 9 }}
                                                 activeOpacity={0.85}
                                             >
                                                 <Icon source="image-plus" size={40} color="#888" />

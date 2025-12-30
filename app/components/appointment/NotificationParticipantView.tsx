@@ -1,14 +1,15 @@
-﻿/**
+/**
  * Notification Participant View Component
  * Displays participant information in notifications based on recipient role
  */
 
 import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from 'react-native-paper';
 import type { NotificationPayload } from '../../types';
-import { UserType, BarberType } from '../../types';
+import { UserType, BarberType, ImageOwnerType } from '../../types';
 import { getBarberTypeName } from '../../utils/store/barber-type';
+import { OwnerAvatar } from '../common/owneravatar';
 
 interface NotificationParticipantViewProps {
     payload: NotificationPayload;
@@ -40,13 +41,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
             <View className="flex-row gap-3">
                 {payload.customer && (
                     <View className="flex-1 flex-row items-start">
-                        {payload.customer.avatarUrl ? (
-                            <Image source={{ uri: payload.customer.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                        ) : (
-                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                <Icon source="account" size={24} color="#6b7280" />
-                            </View>
-                        )}
+                        <OwnerAvatar
+                            ownerId={payload.customer.userId}
+                            ownerType={ImageOwnerType.User}
+                            fallbackUrl={payload.customer.avatarUrl}
+                            imageClassName="w-12 h-12 rounded-full mr-2"
+                            iconSource="account"
+                            iconSize={24}
+                        />
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                             <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
@@ -62,13 +64,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                 <View className="flex-1">
                     {payload.freeBarber ? (
                         <View className="flex-row items-start">
-                            {payload.freeBarber.avatarUrl ? (
-                                <Image source={{ uri: payload.freeBarber.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                            ) : (
-                                <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                    <Icon source="account-supervisor" size={24} color="#6b7280" />
-                                </View>
-                            )}
+                            <OwnerAvatar
+                                ownerId={payload.freeBarber.userId}
+                                ownerType={ImageOwnerType.User}
+                                fallbackUrl={payload.freeBarber.avatarUrl}
+                                imageClassName="w-12 h-12 rounded-full mr-2"
+                                iconSource="account-supervisor"
+                                iconSize={24}
+                            />
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
@@ -87,13 +90,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                         </View>
                     ) : hasManualBarber ? (
                         <View className="flex-row items-start">
-                            {payload?.chair?.manuelBarberImageUrl ? (
-                                <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                            ) : (
-                                <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                    <Icon source="account" size={24} color="#6b7280" />
-                                </View>
-                            )}
+                            <OwnerAvatar
+                                ownerId={payload?.chair?.manuelBarberId}
+                                ownerType={ImageOwnerType.ManuelBarber}
+                                fallbackUrl={payload?.chair?.manuelBarberImageUrl}
+                                imageClassName="w-12 h-12 rounded-full mr-2"
+                                iconSource="account"
+                                iconSize={24}
+                            />
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
                                 <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
@@ -124,13 +128,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
             <View>
                 {payload.store && (
                     <View className="flex-row items-start mb-2">
-                        {payload.store.imageUrl ? (
-                            <Image source={{ uri: payload.store.imageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                        ) : (
-                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                <Icon source="store" size={24} color="#6b7280" />
-                            </View>
-                        )}
+                        <OwnerAvatar
+                            ownerId={payload.store.storeId}
+                            ownerType={ImageOwnerType.Store}
+                            fallbackUrl={payload.store.imageUrl}
+                            imageClassName="w-12 h-12 rounded-full mr-2"
+                            iconSource="store"
+                            iconSize={24}
+                        />
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                             <Text className="text-white text-sm font-semibold">{payload.store.storeName}</Text>
@@ -158,13 +163,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                 )}
                 {payload.customer && (
                     <View className="flex-row items-start">
-                        {payload.customer.avatarUrl ? (
-                            <Image source={{ uri: payload.customer.avatarUrl }} className="w-10 h-10 rounded-full mr-2" resizeMode="cover" />
-                        ) : (
-                            <View className="w-10 h-10 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                <Icon source="account" size={20} color="#6b7280" />
-                            </View>
-                        )}
+                        <OwnerAvatar
+                            ownerId={payload.customer.userId}
+                            ownerType={ImageOwnerType.User}
+                            fallbackUrl={payload.customer.avatarUrl}
+                            imageClassName="w-10 h-10 rounded-full mr-2"
+                            iconSource="account"
+                            iconSize={20}
+                        />
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                             <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
@@ -186,13 +192,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
             <View className="flex-row gap-3">
                 {payload.store && (
                     <View className="flex-1 flex-row items-start">
-                        {payload.store.imageUrl ? (
-                            <Image source={{ uri: payload.store.imageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                        ) : (
-                            <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                <Icon source="store" size={24} color="#6b7280" />
-                            </View>
-                        )}
+                        <OwnerAvatar
+                            ownerId={payload.store.storeId}
+                            ownerType={ImageOwnerType.Store}
+                            fallbackUrl={payload.store.imageUrl}
+                            imageClassName="w-12 h-12 rounded-full mr-2"
+                            iconSource="store"
+                            iconSize={24}
+                        />
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Berber Dükkanı</Text>
                             <Text className="text-white text-sm font-semibold">{payload.store.storeName}</Text>
@@ -228,13 +235,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                 <View className="flex-1">
                     {payload.freeBarber ? (
                         <View className="flex-row items-start">
-                            {payload.freeBarber.avatarUrl ? (
-                                <Image source={{ uri: payload.freeBarber.avatarUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                            ) : (
-                                <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                    <Icon source="account-supervisor" size={24} color="#6b7280" />
-                                </View>
-                            )}
+                            <OwnerAvatar
+                                ownerId={payload.freeBarber.userId}
+                                ownerType={ImageOwnerType.User}
+                                fallbackUrl={payload.freeBarber.avatarUrl}
+                                imageClassName="w-12 h-12 rounded-full mr-2"
+                                iconSource="account-supervisor"
+                                iconSize={24}
+                            />
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload.freeBarber?.displayName || 'Serbest Berber'}</Text>
@@ -259,13 +267,14 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                         </View>
                     ) : hasManualBarber ? (
                         <View className="flex-row items-start">
-                            {payload?.chair?.manuelBarberImageUrl ? (
-                                <Image source={{ uri: payload.chair.manuelBarberImageUrl }} className="w-12 h-12 rounded-full mr-2" resizeMode="cover" />
-                            ) : (
-                                <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
-                                    <Icon source="account" size={24} color="#6b7280" />
-                                </View>
-                            )}
+                            <OwnerAvatar
+                                ownerId={payload?.chair?.manuelBarberId}
+                                ownerType={ImageOwnerType.ManuelBarber}
+                                fallbackUrl={payload?.chair?.manuelBarberImageUrl}
+                                imageClassName="w-12 h-12 rounded-full mr-2"
+                                iconSource="account"
+                                iconSize={24}
+                            />
                             <View className="flex-1">
                                 <Text className="text-[#9ca3af] text-xs">Manuel Berber</Text>
                                 <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
@@ -299,4 +308,3 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
 
     return null;
 };
-

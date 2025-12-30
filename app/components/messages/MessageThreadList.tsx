@@ -4,14 +4,15 @@
  */
 
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
-import { ChatThreadListItemDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType } from '../../types';
+import { ChatThreadListItemDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType, ImageOwnerType } from '../../types';
 import { LottieViewComponent } from '../common/lottieview';
 import { SkeletonComponent } from '../common/skeleton';
+import { OwnerAvatar } from '../common/owneravatar';
 import { useFormatTime } from '../../utils/time/time-formatter';
 import { getAppointmentStatusColor } from '../../utils/appointment/appointment-helpers';
 import { COLORS } from '../../constants/colors';
@@ -111,25 +112,22 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 <View key={participant.userId} className={!isFirst ? 'mt-3' : ''} style={{ maxWidth: '100%' }}>
                     <View className="flex-row items-start" style={{ maxWidth: '100%' }}>
                         <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center" style={{ flexShrink: 0 }}>
-                            {participant.imageUrl ? (
-                                <Image
-                                    source={{ uri: participant.imageUrl }}
-                                    className="w-full h-full"
-                                    resizeMode="cover"
-                                />
-                            ) : (
-                                <Icon
-                                    source={
-                                        participant.userType === UserType.BarberStore
-                                            ? "store"
-                                            : participant.userType === UserType.FreeBarber
-                                                ? "account-supervisor"
-                                                : "account"
-                                    }
-                                    size={20}
-                                    color="white"
-                                />
-                            )}
+                            <OwnerAvatar
+                                ownerId={participant.userId}
+                                ownerType={ImageOwnerType.User}
+                                fallbackUrl={participant.imageUrl}
+                                imageClassName="w-full h-full"
+                                iconSource={
+                                    participant.userType === UserType.BarberStore
+                                        ? "store"
+                                        : participant.userType === UserType.FreeBarber
+                                            ? "account-supervisor"
+                                            : "account"
+                                }
+                                iconSize={20}
+                                iconColor="white"
+                                iconContainerClassName="bg-transparent"
+                            />
                         </View>
                         <View className="ml-2 gap-1 flex-1" style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
                             <View className="flex-row gap-2 items-center flex-wrap" style={{ minWidth: 0, maxWidth: '100%' }}>

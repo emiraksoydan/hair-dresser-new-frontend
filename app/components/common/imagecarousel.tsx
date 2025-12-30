@@ -5,25 +5,29 @@ import { ImageGetDto } from '../../types/common';
 
 interface ImageCarouselProps {
   images: ImageGetDto[];
+  width?: number;
   height?: number;
+  autoPlay?: boolean;
   borderRadiusClass?: string;
   containerStyle?: StyleProp<ViewStyle>;
 }
 
 export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   images,
+  width: widthProp,
   height = 250,
+  autoPlay = true,
   borderRadiusClass = '',
   containerStyle,
 }) => {
-  const width = Dimensions.get('window').width;
+  const width = widthProp ?? Dimensions.get('window').width;
 
   // If no images or empty array, show placeholder
   if (!images || images.length === 0) {
     return (
       <View style={[{ width, height }, containerStyle]} className={borderRadiusClass}>
         <Image
-          source={{ uri: 'https://picsum.photos/900/600' }}
+          source={require('../../../assets/images/empty.png')}
           className={`w-full h-full ${borderRadiusClass}`}
           resizeMode="cover"
         />
@@ -36,7 +40,11 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
     return (
       <View style={[{ width, height }, containerStyle]} className={borderRadiusClass}>
         <Image
-          source={{ uri: images[0].imageUrl || 'https://picsum.photos/900/600' }}
+          source={
+            images[0].imageUrl
+              ? { uri: images[0].imageUrl }
+              : require('../../../assets/images/empty.png')
+          }
           className={`w-full h-full ${borderRadiusClass}`}
           resizeMode="cover"
         />
@@ -51,14 +59,18 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         loop
         width={width}
         height={height}
-        autoPlay={true}
+        autoPlay={autoPlay}
         autoPlayInterval={3000}
         data={images}
         scrollAnimationDuration={1000}
         renderItem={({ item }) => (
           <View className="w-full h-full">
             <Image
-              source={{ uri: item.imageUrl || 'https://picsum.photos/900/600' }}
+              source={
+                item.imageUrl
+                  ? { uri: item.imageUrl }
+                  : require('../../../assets/images/empty.png')
+              }
               className={`w-full h-full ${borderRadiusClass}`}
               resizeMode="cover"
             />

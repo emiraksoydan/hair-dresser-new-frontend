@@ -9,7 +9,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../../context/bottomsheet';
 import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
-import { useDeleteManuelBarberMutation, useDeleteStoreChairMutation, useLazyGetStoreByIdQuery, useUpdateBarberStoreMutation, useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
+import {
+    useDeleteImageMutation,
+    useDeleteManuelBarberMutation,
+    useDeleteStoreChairMutation,
+    useGetParentCategoriesQuery,
+    useLazyGetChildCategoriesQuery,
+    useLazyGetStoreByIdQuery,
+    useUpdateBarberStoreMutation,
+    useUploadMultipleImagesMutation,
+} from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
 import { pickImageAndSet, handlePickMultipleImages, pickPdf, truncateFileName } from '../../utils/form/pick-document';
 import { LegendList } from '@legendapp/list';
@@ -191,6 +200,8 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     const { dismiss } = useSheet('updateStoreMine');
     const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
     const [updateStore, { isLoading: updateLoading, isSuccess }] = useUpdateBarberStoreMutation();
+    const [uploadMultipleImages] = useUploadMultipleImagesMutation();
+    const [deleteImage] = useDeleteImageMutation();
 
     useEffect(() => {
         if (enabled && storeId) {
@@ -671,18 +682,15 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
     const OnSubmit = async (form: FormUpdateValues) => {
         const existingImages = data?.imageList ?? [];
+        const formImages = form.storeImages ?? [];
+        const existingImageUrls = new Set(existingImages.map((img) => img.imageUrl));
+        const formImageUrls = new Set(formImages.map((img) => img.uri));
+        const removedImages = existingImages.filter((img) => !formImageUrls.has(img.imageUrl));
+        const newImages = formImages.filter((img) => !existingImageUrls.has(img.uri));
+
         const payload: BarberStoreUpdateDto = {
             id: storeId,
             storeName: form.storeName,
-            storeImageList: (form.storeImages ?? []).map((img, index) => {
-                const existingImage = existingImages[index];
-                return {
-                    id: existingImage?.id,
-                    imageUrl: img.uri,
-                    imageOwnerId: storeId,
-                    ownerType: ImageOwnerType.Store,
-                };
-            }),
             type: mapBarberType(form.type),
             pricingType: mapPricingType(form.pricingType.mode),
             addressDescription: form.location.addressDescription,
@@ -722,7 +730,6 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             manuelBarbers: form.barbers!.map((barber) => {
                 return {
                     id: barber.id,
-                    profileImageUrl: barber.avatar?.uri,
                     fullName: barber.name,
                     storeId: storeId,
                 }
@@ -734,7 +741,43 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             var result = await updateStore(payload).unwrap();
             // Result handled by RTK Query mutation
             if (result.success) {
-                showSnack(result.message, false);
+                let uploadError: string | null = null;
+                const hasImageChanges = removedImages.length > 0 || newImages.length > 0;
+                if (hasImageChanges) {
+                    try {
+                        for (const img of removedImages) {
+                            const deleteResult = await deleteImage(img.id).unwrap();
+                            if (!deleteResult.success) {
+                                throw new Error(deleteResult.message || "Resim silinemedi.");
+                            }
+                        }
+
+                        if (newImages.length > 0) {
+                            const formData = new FormData();
+                            newImages.forEach((img) => {
+                                formData.append("files", {
+                                    uri: img.uri,
+                                    name: img.name ?? "photo.jpg",
+                                    type: img.type ?? "image/jpeg",
+                                } as any);
+                            });
+                            formData.append("ownerType", String(ImageOwnerType.Store));
+                            formData.append("ownerId", storeId);
+                            const uploadResult = await uploadMultipleImages(formData).unwrap();
+                            if (!uploadResult.success) {
+                                throw new Error(uploadResult.message || "İşletme resimleri yüklenemedi.");
+                            }
+                        }
+                    } catch (uploadErr: any) {
+                        uploadError = resolveApiErrorMessage(uploadErr);
+                    }
+                }
+
+                if (uploadError) {
+                    showSnack(`İşletme güncellendi, resimler yüklenemedi. ${uploadError}`, true);
+                } else {
+                    showSnack(result.message, false);
+                }
                 dismiss();
             }
             else {

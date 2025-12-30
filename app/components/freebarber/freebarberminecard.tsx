@@ -1,12 +1,13 @@
 // app/components/StoreCard.tsx
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreMineDto, FreeBarberPanelDto } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { useDispatch } from 'react-redux';
+import { ImageCarousel } from '../common/imagecarousel';
 
 type Props = {
     freeBarber: FreeBarberPanelDto;
@@ -18,7 +19,10 @@ type Props = {
 };
 
 const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, onPressRatings }) => {
-    const coverImage = freeBarber.imageList?.[0]?.imageUrl;
+    const images = freeBarber.imageList ?? [];
+    const carouselWidth = Math.max(0, cardWidthFreeBarber - 8);
+    const imageWidth = isList ? carouselWidth : 112;
+    const imageHeight = isList ? 320 : 112;
     const { isAuthenticated } = useAuth();
     const dispatch = useDispatch();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
@@ -96,15 +100,13 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    <Image
-                        defaultSource={require('../../../assets/images/empty.png')}
-                        className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
-                        source={
-                            coverImage
-                                ? { uri: coverImage }
-                                : require('../../../assets/images/empty.png')
-                        }
-                        resizeMode={'cover'}
+                    <ImageCarousel
+                        images={images}
+                        width={imageWidth}
+                        height={imageHeight}
+                        autoPlay={false}
+                        borderRadiusClass="rounded-lg"
+                        containerStyle={!isList ? { marginRight: 8 } : undefined}
                     />
                     {/* Image üzerinde bilgiler - hem list hem card modunda */}
                     <View className={`absolute ${isList ? 'top-3 right-3' : 'top-1 right-1'} flex-row gap-2 z-10`}>

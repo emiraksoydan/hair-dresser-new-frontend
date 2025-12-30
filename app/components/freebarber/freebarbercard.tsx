@@ -5,6 +5,7 @@ import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, FreeBarGetDto } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery, useCallFreeBarberMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { ImageCarousel } from '../common/imagecarousel';
 
 type Props = {
     freeBarber: FreeBarGetDto;
@@ -22,6 +23,7 @@ type Props = {
 
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
+    const carouselWidth = Math.max(0, cardWidthFreeBarber - 8);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
@@ -154,16 +156,26 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    <Image
-                        defaultSource={require('../../../assets/images/empty.png')}
-                        className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
-                        source={
-                            coverImage
-                                ? { uri: coverImage }
-                                : require('../../../assets/images/empty.png')
-                        }
-                        resizeMode={'cover'}
-                    />
+                    {isList ? (
+                        <ImageCarousel
+                            images={freeBarber.imageList ?? []}
+                            width={carouselWidth}
+                            height={320}
+                            autoPlay={false}
+                            borderRadiusClass="rounded-lg"
+                        />
+                    ) : (
+                        <Image
+                            defaultSource={require('../../../assets/images/empty.png')}
+                            className="h-28 w-28 mr-2 rounded-lg mb-0"
+                            source={
+                                coverImage
+                                    ? { uri: coverImage }
+                                    : require('../../../assets/images/empty.png')
+                            }
+                            resizeMode={'cover'}
+                        />
+                    )}
                     {isList && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
                             {typeLabel && (

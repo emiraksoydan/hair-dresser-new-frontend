@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Icon } from 'react-native-paper';
 import StarRating from 'react-native-star-rating-widget';
 import { useCreateRatingMutation } from '../../store/api';
-import { CreateRatingDto } from '../../types';
+import { CreateRatingDto, ImageOwnerType } from '../../types';
+import { OwnerAvatar } from '../common/owneravatar';
 
 type RatingBottomSheetProps = {
     appointmentId: string;
@@ -29,6 +30,20 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
     const [comment, setComment] = useState('');
     const [createRating, { isLoading }] = useCreateRatingMutation();
 
+    const normalizedTargetImage =
+        targetImage && Platform.OS === 'ios' && targetImage.startsWith('file://')
+            ? targetImage.replace(/ /g, '%20')
+            : targetImage;
+
+    const targetOwnerType: ImageOwnerType =
+        targetType === 'store'
+            ? ImageOwnerType.Store
+            : targetType === 'freeBarber'
+                ? ImageOwnerType.FreeBarber
+                : targetType === 'manuelBarber'
+                    ? ImageOwnerType.ManuelBarber
+                    : ImageOwnerType.User;
+
     const handleSubmit = useCallback(async () => {
         if (rating === 0) {
             Alert.alert('Uyarı', 'Lütfen bir puan seçin.');
@@ -51,7 +66,6 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
             Alert.alert('Hata', error?.data?.message || 'Değerlendirme kaydedilemedi.');
         }
     }, [rating, comment, appointmentId, targetId, createRating, onClose, onSuccess]);
-    console.log(targetImage);
 
     return (
         <BottomSheetView className="flex-1 bg-[#151618]">
@@ -84,31 +98,21 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
                     <View className="mb-3">
                         <View className="flex-row items-center gap-3 mb-2">
                             {/* Fotoğraf */}
-                            {targetImage ? (
-                                <Image
-                                    source={{
-                                        uri: Platform.OS === 'ios' && targetImage.startsWith('file://')
-                                            ? targetImage.replace(/ /g, '%20')
-                                            : targetImage
-                                    }}
-                                    className=" rounded-full"
-                                    resizeMode="cover"
-                                    style={{ width: 50, height: 50 }}
-                                />
-                            ) : (
-                                <View className="p-1 rounded-full bg-[#2a2c30] items-center justify-center">
-                                    <Icon
-                                        source={
-                                            targetType === 'store' ? 'store' :
-                                                targetType === 'freeBarber' ? 'account-supervisor' :
-                                                    targetType === 'manuelBarber' ? 'account' :
-                                                        'account'
-                                        }
-                                        size={30}
-                                        color="#6b7280"
-                                    />
-                                </View>
-                            )}
+                            <OwnerAvatar
+                                ownerId={targetId}
+                                ownerType={targetOwnerType}
+                                fallbackUrl={normalizedTargetImage}
+                                imageClassName="w-12 h-12 rounded-full"
+                                iconSource={
+                                    targetType === 'store'
+                                        ? 'store'
+                                        : targetType === 'freeBarber'
+                                            ? 'account-supervisor'
+                                            : 'account'
+                                }
+                                iconSize={30}
+                                iconColor="#6b7280"
+                            />
                             <View className="flex-1">
                                 <View className="flex-row items-center gap-2 mb-1">
                                     <Text className="text-[#9ca3af] text-xs">

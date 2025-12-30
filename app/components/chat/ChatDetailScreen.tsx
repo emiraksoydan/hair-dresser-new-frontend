@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import {
@@ -11,13 +11,14 @@ import {
     useNotifyTypingMutation,
     api
 } from '../../store/api';
-import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType } from '../../types';
+import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType, ImageOwnerType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../store/redux-store';
 import { setActiveThreadId } from '../../lib/activeChatThread';
+import { OwnerAvatar } from '../common/owneravatar';
 
 interface ChatDetailScreenProps {
     threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
@@ -437,25 +438,22 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                     return (
                                         <View key={participant.userId} className="flex-row items-center mr-4">
                                             <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
-                                                {participant.imageUrl ? (
-                                                    <Image
-                                                        source={{ uri: participant.imageUrl }}
-                                                        className="w-full h-full"
-                                                        resizeMode="cover"
-                                                    />
-                                                ) : (
-                                                    <Icon
-                                                        source={
-                                                            participant.userType === UserType.BarberStore
-                                                                ? "store"
-                                                                : participant.userType === UserType.FreeBarber
-                                                                    ? "account-supervisor"
-                                                                    : "account"
-                                                        }
-                                                        size={20}
-                                                        color="white"
-                                                    />
-                                                )}
+                                                <OwnerAvatar
+                                                    ownerId={participant.userId}
+                                                    ownerType={ImageOwnerType.User}
+                                                    fallbackUrl={participant.imageUrl}
+                                                    imageClassName="w-full h-full"
+                                                    iconSource={
+                                                        participant.userType === UserType.BarberStore
+                                                            ? "store"
+                                                            : participant.userType === UserType.FreeBarber
+                                                                ? "account-supervisor"
+                                                                : "account"
+                                                    }
+                                                    iconSize={20}
+                                                    iconColor="white"
+                                                    iconContainerClassName="bg-transparent"
+                                                />
                                             </View>
                                             <View>
                                                 <View className="flex-row items-center gap-1 flex-wrap">
@@ -535,25 +533,22 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                         <View className={`flex-row items-start gap-2 mb-3 ${isMe ? 'justify-end' : 'justify-start'}`} style={{ flexShrink: 1 }}>
                             {!isMe && (
                                 <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center" style={{ flexShrink: 0 }}>
-                                    {displayInfo.imageUrl ? (
-                                        <Image
-                                            source={{ uri: displayInfo.imageUrl }}
-                                            className="w-full h-full"
-                                            resizeMode="cover"
-                                        />
-                                    ) : (
-                                        <Icon
-                                            source={
-                                                displayInfo.userType === UserType.BarberStore
-                                                    ? "store"
-                                                    : displayInfo.userType === UserType.FreeBarber
-                                                        ? "account-supervisor"
-                                                        : "account"
-                                            }
-                                            size={20}
-                                            color="white"
-                                        />
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={displayInfo.userId}
+                                        ownerType={ImageOwnerType.User}
+                                        fallbackUrl={displayInfo.imageUrl}
+                                        imageClassName="w-full h-full"
+                                        iconSource={
+                                            displayInfo.userType === UserType.BarberStore
+                                                ? "store"
+                                                : displayInfo.userType === UserType.FreeBarber
+                                                    ? "account-supervisor"
+                                                    : "account"
+                                        }
+                                        iconSize={20}
+                                        iconColor="white"
+                                        iconContainerClassName="bg-transparent"
+                                    />
                                 </View>
                             )}
 
@@ -597,25 +592,22 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
                             {isMe && (
                                 <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
-                                    {currentThread?.currentUserImageUrl ? (
-                                        <Image
-                                            source={{ uri: currentThread.currentUserImageUrl }}
-                                            className="w-full h-full"
-                                            resizeMode="cover"
-                                        />
-                                    ) : (
-                                        <Icon
-                                            source={
-                                                currentUserType === UserType.BarberStore
-                                                    ? "store"
-                                                    : currentUserType === UserType.FreeBarber
-                                                        ? "account-supervisor"
-                                                        : "account"
-                                            }
-                                            size={20}
-                                            color="white"
-                                        />
-                                    )}
+                                    <OwnerAvatar
+                                        ownerId={currentUserId}
+                                        ownerType={ImageOwnerType.User}
+                                        fallbackUrl={currentThread?.currentUserImageUrl}
+                                        imageClassName="w-full h-full"
+                                        iconSource={
+                                            currentUserType === UserType.BarberStore
+                                                ? "store"
+                                                : currentUserType === UserType.FreeBarber
+                                                    ? "account-supervisor"
+                                                    : "account"
+                                        }
+                                        iconSize={20}
+                                        iconColor="white"
+                                        iconContainerClassName="bg-transparent"
+                                    />
                                 </View>
                             )}
                         </View>

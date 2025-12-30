@@ -172,7 +172,7 @@ const Index = () => {
 
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredStores = useMemo(() => {
-        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "D�kkan";
+        const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
         if (!shouldShowStores) return [];
 
         return filterStores(stores, {
