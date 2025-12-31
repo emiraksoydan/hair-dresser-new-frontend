@@ -4,7 +4,7 @@ import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip 
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { handlePickImage, handlePickMultipleImages, pickPdf, truncateFileName } from '../../utils/form/pick-document';
+import { handlePickImage, handlePickMultipleImages, truncateFileName } from '../../utils/form/pick-document';
 import { useSheet } from '../../context/bottomsheet';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants';
@@ -106,25 +106,21 @@ const WorkingDaySchema = z.object({
     if (diffMin > 1080) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Çalışma süresi en fazla 18 saat olmalı' });
 });
 
-const PdfAssetSchema = z.object({
+const ImageAssetSchema = z.object({
     uri: z.string().min(1),
-    name: z.string().min(1).regex(/\.pdf$/i, "PDF uzantılı olmalı"),
-    mimeType: z.string().optional(),
-    size: z.number().optional(),
-}).refine(v => !v.size || v.size <= 5 * 1024 * 1024, {
-    message: "En fazla 5 MB",
-    path: ["size"],
-})
-const TaxDocumentFileField = z
-    .custom<{ uri: string; name: string; mimeType?: string; size?: number }>(
+    name: z.string().min(1),
+    type: z.string().optional(),
+});
+
+const TaxDocumentImageField = z
+    .custom<{ uri: string; name: string; type?: string }>(
         (v) =>
             !!v &&
             typeof v === "object" &&
-            (("uri" in (v as any) && (v as any).uri) ||
-                ("name" in (v as any) && (v as any).name)),
-        { message: "Lütfen PDF seçiniz." }
+            "uri" in (v as any) && (v as any).uri,
+        { message: "Lütfen vergi levhası resmi seçiniz." }
     )
-    .pipe(PdfAssetSchema);
+    .pipe(ImageAssetSchema);
 const BarberSchema = z.object({
     id: z.string(),
     name: z.string().trim().min(1, "Berber adı gerekli"),
@@ -174,7 +170,7 @@ const schema = z.object({
     workingHours: z.array(WorkingDaySchema).length(7, "7 gün olmalı"),
     holidayDays: z.array(z.number().int().min(0).max(6)).default([]),
     location: LocationSchema,
-    taxDocumentFilePath: TaxDocumentFileField,
+    taxDocumentImage: TaxDocumentImageField,
 
 })
 
@@ -302,6 +298,30 @@ const FormStoreAdd = () => {
                 hasExistingSnapshot = false;
             }
         }
+
+        // Tax document image upload (tekli resim)
+        let taxDocumentImageId: string | undefined;
+        if (data.taxDocumentImage) {
+            try {
+                const formData = new FormData();
+                formData.append("file", {
+                    uri: data.taxDocumentImage.uri,
+                    name: data.taxDocumentImage.name ?? "tax-document.jpg",
+                    type: data.taxDocumentImage.type ?? "image/jpeg",
+                } as any);
+
+                const uploadResult = await uploadImage(formData).unwrap();
+                if (!uploadResult.success || !uploadResult.data) {
+                    showSnack("Vergi levhası resmi yüklenemedi", true);
+                    return;
+                }
+                taxDocumentImageId = uploadResult.data;
+            } catch (err: any) {
+                showSnack(resolveApiErrorMessage(err) || "Vergi levhası yüklenirken hata oluştu", true);
+                return;
+            }
+        }
+
         const payload: BarberStoreCreateDto = {
             storeName: data.storeName,
             type: mapBarberType(data.type),
@@ -310,8 +330,8 @@ const FormStoreAdd = () => {
             latitude: data.location.latitude,
             longitude: data.location.longitude,
             pricingValue: data.pricingType.mode == 'percent' ? data.pricingType.percent! : (parseTR(data.pricingType.rent ?? undefined) ?? 0),
-            taxDocumentFilePath: data.taxDocumentFilePath.uri,
-            chairs: data.chairs!.map((c, index) => {
+            taxDocumentImageId: taxDocumentImageId,
+            chairs: data.chairs!.map((c) => {
                 return {
                     id: c.id,
                     barberId: c.barberId,
@@ -596,10 +616,9 @@ const FormStoreAdd = () => {
             }
         } catch { }
     }
-    const tXErrorText =
-        (errors.taxDocumentFilePath as any)?.message ||
-        (errors.taxDocumentFilePath as any)?.name?.message ||
-        (errors.taxDocumentFilePath as any)?.size?.message;
+    const taxDocErrorText =
+        (errors.taxDocumentImage as any)?.message ||
+        (errors.taxDocumentImage as any)?.name?.message;
     const barberErrorText = React.useMemo(() => {
         if (!errors.barbers) return "";
         const msgs: string[] = [];
@@ -671,34 +690,35 @@ const FormStoreAdd = () => {
                 <View className="mt-2 px-4">
                     <Controller
                         control={control}
-                        name="taxDocumentFilePath"
+                        name="taxDocumentImage"
                         render={({ field: { value, onChange } }) => (
                             <>
                                 <TouchableOpacity
                                     activeOpacity={0.85}
                                     onPress={async () => {
-                                        const file = await pickPdf();
+                                        const file = await handlePickImage();
                                         if (!file) return;
                                         onChange(file);
                                     }}
                                 >
                                     <TextInput
-                                        label="Vergi levhası (PDF)"
+                                        label="Vergi Levhası Resmi"
                                         mode="outlined"
-                                        value={truncateFileName(value?.name ?? "")}
+                                        value={value?.name ? truncateFileName(value.name) : "Resim seçilmedi"}
                                         editable={false}
                                         dense
                                         pointerEvents="none"
                                         textColor="white"
-                                        outlineColor={errors.taxDocumentFilePath ? "#b00020" : "#444"}
+                                        outlineColor={errors.taxDocumentImage ? "#b00020" : "#444"}
+                                        right={<TextInput.Icon icon="image" color="white" />}
                                         theme={{
                                             roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
                                         }}
                                         style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
                                     />
                                 </TouchableOpacity>
-                                <HelperText type="error" visible={!!errors.taxDocumentFilePath}>
-                                    {tXErrorText}
+                                <HelperText type="error" visible={!!errors.taxDocumentImage}>
+                                    {taxDocErrorText}
                                 </HelperText>
                             </>
                         )}

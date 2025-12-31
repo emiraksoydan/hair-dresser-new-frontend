@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dropdown, MultiSelect } from "react-native-element-dropdown";
-import { handlePickMultipleImages, pickPdf, truncateFileName } from "../../utils/form/pick-document";
+import { handlePickMultipleImages, handlePickImage, truncateFileName } from "../../utils/form/pick-document";
 import { parseTR } from "../../utils/form/money-helper";
 import { ImageOwnerType, ServiceOfferingCreateDto, ServiceOfferingUpdateDto } from "../../types";
 import { useSheet } from "../../context/bottomsheet";
@@ -21,6 +21,7 @@ import {
     useLazyGetFreeBarberMinePanelDetailQuery,
     useUpdateFreeBarberPanelMutation,
     useUploadMultipleImagesMutation,
+    useUploadImageMutation,
     useGetParentCategoriesQuery,
     useLazyGetChildCategoriesQuery,
 } from "../../store/api";
@@ -37,27 +38,22 @@ const LocationSchema = z
         path: ["latitude"],
     });
 
-const PdfAssetSchema = z
+const ImageAssetSchema = z
     .object({
         uri: z.string().min(1),
-        name: z.string().min(1).regex(/\.pdf$/i, "PDF uzantılı olmalı"),
-        mimeType: z.string().optional(),
-        size: z.number().optional(),
-    })
-    .refine((v) => !v.size || v.size <= 5 * 1024 * 1024, {
-        message: "En fazla 5 MB",
-        path: ["size"],
+        name: z.string().min(1),
+        type: z.string().optional(),
     });
 
-const FreeBarberFileField = z
-    .custom<{ uri: string; name: string; mimeType?: string; size?: number }>(
+const CertificateImageField = z
+    .custom<{ uri: string; name: string; type?: string }>(
         (v) =>
             !!v &&
             typeof v === "object" &&
-            (("uri" in (v as any) && (v as any).uri) || ("name" in (v as any) && (v as any).name)),
-        { message: "Lütfen PDF seçiniz." }
+            "uri" in (v as any) && (v as any).uri,
+        { message: "Lütfen sertifika resmi seçiniz." }
     )
-    .pipe(PdfAssetSchema);
+    .pipe(ImageAssetSchema);
 
 const schema = z.object({
     name: z.string({ required_error: 'İsim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
@@ -82,7 +78,7 @@ const schema = z.object({
             .regex(trMoneyRegex, "Lütfen fiyatı türkiye standartlarında girin")
     ),
     location: LocationSchema, // UI yok ama form state'de olacak
-    freeBarberFile: FreeBarberFileField,
+    certificateImage: CertificateImageField,
     isAvailable: z.boolean().default(true),
 });
 
@@ -100,6 +96,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     const [addFreeBarber, { isLoading: addFreeBarberLoad }] = useAddFreeBarberPanelMutation();
     const [updateFreeBarber, { isLoading: updateFreeBarberLoad }] = useUpdateFreeBarberPanelMutation();
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
+    const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
 
     const { dismiss } = useSheet("freeBarberMinePanel");
@@ -231,17 +228,9 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             type: img.imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
         }));
 
-        const taxPath = (data as any).barberCertificate as string | undefined;
-        let pdfName = "tax-document.pdf"; // Varsayılan isim
-        if (taxPath) {
-            const extractedName = taxPath.split("/").pop();
-            if (extractedName) {
-                // Eğer çekilen isim .pdf ile bitmiyorsa, biz ekleyelim ki Zod hata vermesin
-                pdfName = extractedName.toLowerCase().endsWith('.pdf')
-                    ? extractedName
-                    : `${extractedName}.pdf`;
-            }
-        }
+        // Certificate image - backend'den Guid gelecek ama biz UI'da göstermek için gerekli
+        // Edit modunda sertifika resmi varsa, placeholder olarak sakla
+        const certificateImageId = (data as any).barberCertificateImageId as string | undefined;
         const initialCategories = (data?.offerings ?? []).map((s: any) => s.serviceName);
         const initialPrices = (data?.offerings ?? []).reduce((acc: Record<string, string>, s: any) => {
             acc[s.serviceName] = String(s.price);
@@ -256,13 +245,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             type: initialType,
             isAvailable: data?.isAvailable ?? true,
             images: initialImages.length > 0 ? initialImages : undefined,
-            freeBarberFile: taxPath
-                ? {
-                    uri: taxPath,
-                    name: pdfName, // Düzeltilmiş ismi buraya veriyoruz
-                    mimeType: "application/pdf",
-                }
-                : undefined,
+            certificateImage: undefined, // Edit modunda mevcut sertifika resmi gösterilmeyecek, yeni yüklemek gerekirse kullanıcı seçecek
             location: {
                 latitude: (data as any)?.latitude ?? 0,
                 longitude: (data as any)?.longitude ?? 0
@@ -385,6 +368,31 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             ? (offeringsMapped as ServiceOfferingCreateDto[])
             : (offeringsMapped as ServiceOfferingUpdateDto[]);
 
+        // Certificate image upload (tekli resim)
+        let certImageId: string | undefined;
+
+        if (form.certificateImage) {
+            try {
+                const formData = new FormData();
+                formData.append("file", {
+                    uri: form.certificateImage.uri,
+                    name: form.certificateImage.name ?? "certificate.jpg",
+                    type: form.certificateImage.type ?? "image/jpeg",
+                } as any);
+
+                // Certificate için owner bilgisi gerekmiyor, sadece upload ediyoruz
+                const uploadResult = await uploadImage(formData).unwrap();
+                if (!uploadResult.success || !uploadResult.data) {
+                    showSnack("Sertifika resmi yüklenemedi", true);
+                    return;
+                }
+                certImageId = uploadResult.data;
+            } catch (err: any) {
+                showSnack(resolveApiErrorMessage(err) || "Sertifika resmi yüklenirken hata oluştu", true);
+                return;
+            }
+        }
+
         const payload: any = {
             ...(isEdit ? { id: data?.id } : {}),
             firstName: form.name.trim(),
@@ -393,7 +401,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             latitude: form.location.latitude,
             longitude: form.location.longitude,
             offerings,
-            barberCertificate: form.freeBarberFile.uri,
+            barberCertificateImageId: certImageId,
             isAvailable: isEdit ? form.isAvailable : true,
         };
         // Payload validation passed, proceed with submission
@@ -532,36 +540,36 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
 
                         <Text className="text-white text-xl mt-6 px-4">Panel Bilgileri</Text>
 
-                        {/* PDF */}
+                        {/* Certificate Image */}
                         <View className="px-4 mt-2">
                             <Controller
                                 control={control}
-                                name="freeBarberFile"
+                                name="certificateImage"
                                 render={({ field: { value, onChange } }) => (
                                     <>
                                         <TouchableOpacity
                                             activeOpacity={0.85}
                                             onPress={async () => {
-                                                const file = await pickPdf();
+                                                const file = await handlePickImage();
                                                 if (file) onChange(file);
                                             }}
                                         >
                                             <TextInput
-                                                label="Vergi levhası (PDF)"
+                                                label="Sertifika Resmi"
                                                 mode="outlined"
-                                                value={truncateFileName(value?.name ?? "")}
+                                                value={value?.name ? truncateFileName(value.name) : "Resim seçilmedi"}
                                                 editable={false}
                                                 dense
                                                 pointerEvents="none"
                                                 textColor="white"
-                                                outlineColor={errors.freeBarberFile ? "#b00020" : "#444"}
-                                                right={<TextInput.Icon icon="file-pdf-box" color="white" />}
+                                                outlineColor={errors.certificateImage ? "#b00020" : "#444"}
+                                                right={<TextInput.Icon icon="image" color="white" />}
                                                 theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
                                                 style={{ backgroundColor: "#1F2937" }}
                                             />
                                         </TouchableOpacity>
-                                        <HelperText type="error" visible={!!errors.freeBarberFile}>
-                                            {errors?.freeBarberFile?.message as string}
+                                        <HelperText type="error" visible={!!errors.certificateImage}>
+                                            {errors?.certificateImage?.message as string}
                                         </HelperText>
                                     </>
                                 )}

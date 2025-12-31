@@ -26,7 +26,7 @@ export type BarberStoreCreateDto = {
   latitude: number;
   longitude: number;
   pricingValue: number;
-  taxDocumentFilePath: string;
+  taxDocumentImageId?: string;
   chairs: BarberChairCreateDto[];
   offerings: ServiceOfferingCreateDto[];
   manuelBarbers: ManuelBarberCreateDto[];
@@ -43,7 +43,7 @@ export type BarberStoreUpdateDto = {
   latitude: number;
   longitude: number;
   pricingValue: number;
-  taxDocumentFilePath: string;
+  taxDocumentImageId?: string;
   chairs: BarberChairUpdateDto[];
   offerings: ServiceOfferingUpdateDto[];
   manuelBarbers: ManuelBarberUpdateDto[];
@@ -100,7 +100,7 @@ export type BarberStoreDetail = {
   manuelBarbers: ManuelBarberDto[];
   serviceOfferings: ServiceOfferingGetDto[];
   workingHours: WorkingHourGetDto[];
-  taxDocumentFilePath: string;
+  taxDocumentImageId?: string;
 };
 
 // Sub-entities

@@ -13,7 +13,7 @@ export type FreeBarberCreateDto = {
   latitude: number;
   longitude: number;
   isAvailable: boolean;
-  barberCertificate: string;
+  barberCertificateImageId?: string;
   offerings: ServiceOfferingCreateDto[];
 };
 
@@ -26,7 +26,7 @@ export type FreeBarberUpdateDto = {
   latitude: number;
   longitude: number;
   isAvailable: boolean;
-  barberCertificate: string;
+  barberCertificateImageId?: string;
   offerings: ServiceOfferingUpdateDto[];
 };
 

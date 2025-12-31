@@ -47,3 +47,19 @@ export interface VerifyOtpRequest {
   password?: string;
 }
 
+export interface UpdateUserDto {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+}
+
+export interface UserProfileDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  userType: UserType;
+  imageId?: string;
+  isActive: boolean;
+}
+

@@ -1,44 +1,276 @@
 import { useRouter } from 'expo-router';
-import { InteractionManager, Text, View } from 'react-native'
-import { Avatar, Button, Divider, IconButton } from 'react-native-paper';
-import { useRevokeMutation } from '../../store/api';
+import { InteractionManager, Text, View, ScrollView, TouchableOpacity } from 'react-native'
+import { Avatar, Button, Divider, IconButton, TextInput, HelperText } from 'react-native-paper';
+import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
-import { clearStoredTokens } from '../../lib/tokenStorage';
+import { clearStoredTokens, saveTokens } from '../../lib/tokenStorage';
+import { useForm, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { handlePickImage } from '../../utils/form/pick-document';
+import { ImageOwnerType } from '../../types';
+import { useSnackbar } from '../../hook/useSnackbar';
+import { useEffect, useState } from 'react';
+
+const profileSchema = z.object({
+    firstName: z.string()
+        .min(2, "İsim en az 2 karakter olmalıdır")
+        .max(20, "İsim en fazla 20 karakter olabilir")
+        .regex(/^[^\s]+$/, "İsim boşluk içeremez"),
+    lastName: z.string()
+        .min(2, "Soyisim en az 2 karakter olmalıdır")
+        .max(20, "Soyisim en fazla 20 karakter olabilir")
+        .regex(/^[^\s]+$/, "Soyisim boşluk içeremez"),
+    phoneNumber: z.string()
+        .length(10, "Telefon numarası 10 haneli olmalıdır"),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const Index = () => {
     const expoRouter = useRouter();
-    const [logout, { isLoading, isError, data, error }] = useRevokeMutation();
+    const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
+    const { data: userData, isLoading: isLoadingUser } = useGetMeQuery();
+    const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
+    const [uploadImage] = useUploadImageMutation();
+    const { showSnack, SnackbarComponent } = useSnackbar();
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+
+    const {
+        control,
+        handleSubmit,
+        formState: { errors, isDirty },
+        reset,
+        setValue,
+    } = useForm<ProfileFormValues>({
+        resolver: zodResolver(profileSchema),
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            phoneNumber: '',
+        },
+    });
+
+    useEffect(() => {
+        if (userData?.data) {
+            const phone = userData.data.phoneNumber.startsWith('+90')
+                ? userData.data.phoneNumber.substring(3)
+                : userData.data.phoneNumber;
+
+            reset({
+                firstName: userData.data.firstName,
+                lastName: userData.data.lastName,
+                phoneNumber: phone,
+            });
+        }
+    }, [userData, reset]);
+
+    const onSubmit = async (data: ProfileFormValues) => {
+        try {
+            const phoneNumber = data.phoneNumber.startsWith('+90')
+                ? data.phoneNumber
+                : `+90${data.phoneNumber}`;
+
+            const result = await updateProfile({
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: phoneNumber,
+            }).unwrap();
+
+            if (result.success && result.data) {
+                // Yeni token'ı kaydet
+                tokenStore.set({
+                    accessToken: result.data.token,
+                    refreshToken: result.data.refreshToken,
+                });
+                await saveTokens({
+                    accessToken: result.data.token,
+                    refreshToken: result.data.refreshToken,
+                });
+
+                showSnack('Profil başarıyla güncellendi', false);
+                reset(data);
+            } else {
+                showSnack(result.message || 'Bir hata oluştu', true);
+            }
+        } catch (error: any) {
+            showSnack(error?.data?.message || 'Profil güncellenemedi', true);
+        }
+    };
+
+    const handleImagePick = async () => {
+        try {
+            const file = await handlePickImage();
+            if (!file || !userData?.data?.id) return;
+
+            const formData = new FormData();
+            formData.append('file', {
+                uri: file.uri,
+                name: file.name,
+                type: file.type,
+            } as any);
+            formData.append('ownerType', String(ImageOwnerType.User));
+            formData.append('ownerId', userData.data.id);
+
+            const uploadResult = await uploadImage(formData).unwrap();
+            if (uploadResult.success) {
+                setProfileImage(file.uri);
+                showSnack('Profil fotoğrafı güncellendi', false);
+            } else {
+                showSnack('Fotoğraf yüklenemedi', true);
+            }
+        } catch (error) {
+            showSnack('Fotoğraf yüklenirken hata oluştu', true);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            const tokenLoad = tokenStore.refresh;
+            if (tokenLoad !== null && tokenLoad !== undefined) {
+                const res = await logout({ refreshToken: tokenLoad }).unwrap();
+                if (res.success)
+                    InteractionManager.runAfterInteractions(() => {
+                        tokenStore.clear();
+                        clearStoredTokens();
+                        expoRouter.replace("(auth)");
+                    });
+            }
+        } catch {
+            // Error handled silently
+        }
+    };
+
+    if (isLoadingUser) {
+        return (
+            <View className='flex-1 bg-[#151618] items-center justify-center'>
+                <Text className='text-white'>Yükleniyor...</Text>
+            </View>
+        );
+    }
+
     return (
-        <View className='flex-1 flex pl-0 pt-4   bg-[#151618]'>
+        <ScrollView className='flex-1 pl-0 pt-4 bg-[#151618]'>
             <View className='items-center'>
-                <View className="relative  h-[120px] w-[120px]">
+                <View className="relative h-[120px] w-[120px]">
                     <Avatar.Image
                         size={120}
-                        source={{ uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
+                        source={{ uri: profileImage || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
                     />
                     <IconButton
                         icon="pencil"
                         size={20}
                         iconColor="white"
                         style={{ position: 'absolute', bottom: -5, right: -0, backgroundColor: '#38393b', }}
-                        onPress={() => {
-                        }}
+                        onPress={handleImagePick}
                     />
                 </View>
-                <Text className='font-ibm-plex-sans-regular text-center mt-3 text-white' style={{ fontSize: 20 }}>Emir Aksoydan</Text>
+                <Text className='font-ibm-plex-sans-regular text-center mt-3 text-white' style={{ fontSize: 20 }}>
+                    {userData?.data?.firstName} {userData?.data?.lastName}
+                </Text>
                 <View className='w-full px-8 pt-6'>
                     <Divider style={{ borderWidth: 0.1, width: "100%", }}></Divider>
                 </View>
             </View>
-            <View className='px-6  pt-6'>
-                <View className="flex-row items-center justify-between py-0  ">
-                    <View className="flex-row items-center">
-                        <IconButton icon="account-edit" size={24} iconColor="white" />
-                        <Text className="text-white font-ibm-plex-sans-regular ">Profili Düzenle</Text>
-                    </View>
-                    <IconButton icon="chevron-right" size={24} iconColor="gray" />
+
+            <View className='px-6 pt-6'>
+                <Text className='text-white text-lg mb-4 font-ibm-plex-sans-regular'>Profil Bilgileri</Text>
+
+                <Controller
+                    control={control}
+                    name="firstName"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                        <>
+                            <TextInput
+                                label="İsim"
+                                mode="outlined"
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                textColor="white"
+                                outlineColor={errors.firstName ? "#b00020" : "#444"}
+                                theme={{
+                                    roundness: 10,
+                                    colors: { onSurfaceVariant: "gray", primary: "white" }
+                                }}
+                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
+                            />
+                            <HelperText type="error" visible={!!errors.firstName}>
+                                {errors.firstName?.message}
+                            </HelperText>
+                        </>
+                    )}
+                />
+
+                <Controller
+                    control={control}
+                    name="lastName"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                        <>
+                            <TextInput
+                                label="Soyisim"
+                                mode="outlined"
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                textColor="white"
+                                outlineColor={errors.lastName ? "#b00020" : "#444"}
+                                theme={{
+                                    roundness: 10,
+                                    colors: { onSurfaceVariant: "gray", primary: "white" }
+                                }}
+                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
+                            />
+                            <HelperText type="error" visible={!!errors.lastName}>
+                                {errors.lastName?.message}
+                            </HelperText>
+                        </>
+                    )}
+                />
+
+                <Controller
+                    control={control}
+                    name="phoneNumber"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                        <>
+                            <TextInput
+                                label="Telefon (10 haneli)"
+                                mode="outlined"
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                keyboardType="phone-pad"
+                                textColor="white"
+                                outlineColor={errors.phoneNumber ? "#b00020" : "#444"}
+                                theme={{
+                                    roundness: 10,
+                                    colors: { onSurfaceVariant: "gray", primary: "white" }
+                                }}
+                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
+                            />
+                            <HelperText type="error" visible={!!errors.phoneNumber}>
+                                {errors.phoneNumber?.message}
+                            </HelperText>
+                        </>
+                    )}
+                />
+
+                <Button
+                    mode="contained"
+                    onPress={handleSubmit(onSubmit)}
+                    loading={isUpdating}
+                    disabled={!isDirty || isUpdating}
+                    style={{ marginTop: 16, borderRadius: 10 }}
+                    buttonColor="#10B981"
+                >
+                    Kaydet
+                </Button>
+
+                <View className='w-full px-0 pt-6'>
+                    <Divider style={{ borderWidth: 0.1, width: "100%", }}></Divider>
                 </View>
-                <View className="flex-row items-center justify-between py-0 mt-[-5px]">
+
+                <View className="flex-row items-center justify-between py-0 mt-4">
                     <View className="flex-row items-center">
                         <IconButton icon="security" size={24} iconColor="white" />
                         <Text className="text-white font-ibm-plex-sans-regular">Güvenlik</Text>
@@ -55,25 +287,8 @@ const Index = () => {
                 <Button
                     mode='text'
                     icon="logout"
-                    onPress={async () => {
-                        try {
-                            const tokenLoad = tokenStore.refresh;
-                            if (tokenLoad !== null && tokenLoad !== undefined) {
-                                const res = await logout({ refreshToken: tokenLoad }).unwrap();
-                                if (res.success)
-                                    InteractionManager.runAfterInteractions(() => {
-                                        tokenStore.clear();
-                                        clearStoredTokens();
-                                        expoRouter.replace("(auth)");
-                                    });
-
-                            }
-                        } catch {
-                            // Error handled silently
-                        }
-
-
-                    }}
+                    onPress={handleLogout}
+                    loading={isLoggingOut}
                     contentStyle={{
                         alignItems: 'center',
                         justifyContent: 'flex-start',
@@ -88,9 +303,9 @@ const Index = () => {
                     Çıkış Yap
                 </Button>
             </View>
-        </View>
+            <SnackbarComponent />
+        </ScrollView>
     );
 }
 
 export default Index
-

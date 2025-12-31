@@ -13,14 +13,15 @@ import {
     CreateRatingDto, RatingGetDto,
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
     ImageGetDto, ImageOwnerType,
-    AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto
+    AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto,
+    UpdateUserDto, UserProfileDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile"],
     refetchOnReconnect: true,
     refetchOnFocus: true,
     endpoints: (builder) => ({
@@ -872,6 +873,22 @@ export const api = createApi({
             invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
         }),
 
+        // --- USER API ---
+        getMe: builder.query<ApiResponse<UserProfileDto>, void>({
+            query: () => 'User/me',
+            providesTags: ['UserProfile'],
+            keepUnusedDataFor: 60, // 1 dakika cache
+        }),
+
+        updateProfile: builder.mutation<ApiResponse<AccessTokenDto>, UpdateUserDto>({
+            query: (dto) => ({
+                url: 'User/update-profile',
+                method: 'PUT',
+                body: dto,
+            }),
+            invalidatesTags: ['UserProfile'],
+        }),
+
     }),
 });
 
@@ -949,4 +966,6 @@ export const {
     useUploadImageMutation,
     useUploadMultipleImagesMutation,
     useDeleteImageMutation,
+    useGetMeQuery,
+    useUpdateProfileMutation,
 } = api;
