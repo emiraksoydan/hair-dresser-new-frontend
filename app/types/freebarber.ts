@@ -67,6 +67,8 @@ export type FreeBarberMinePanelDetailDto = {
   lastName: string;
   type: BarberType;
   isAvailable: boolean;
+  barberCertificateImageId?: string;
+  barberCertificateImage?: ImageGetDto;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
   latitude?: number;

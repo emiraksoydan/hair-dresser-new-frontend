@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Divider, Icon, IconButton, TextInput, HelperText, Button, Switch } from "react-native-paper";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -98,6 +98,9 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
+    const [isImagePickerLoading, setIsImagePickerLoading] = React.useState(false);
+    const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
+    const [loadedImages, setLoadedImages] = React.useState<Set<number>>(new Set());
 
     const { dismiss } = useSheet("freeBarberMinePanel");
 
@@ -173,11 +176,16 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
 
 
     const pickMultipleImages = async () => {
-        const files = await handlePickMultipleImages(3);
-        if (files && files.length > 0) {
-            const currentImages = getValues("images") || [];
-            const newImages = [...currentImages, ...files].slice(0, 3);
-            setValue("images", newImages, { shouldDirty: true, shouldValidate: true });
+        setIsImagePickerLoading(true);
+        try {
+            const files = await handlePickMultipleImages(3);
+            if (files && files.length > 0) {
+                const currentImages = getValues("images") || [];
+                const newImages = [...currentImages, ...files].slice(0, 3);
+                setValue("images", newImages, { shouldDirty: true, shouldValidate: true });
+            }
+        } finally {
+            setIsImagePickerLoading(false);
         }
     };
 
@@ -245,7 +253,11 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             type: initialType,
             isAvailable: data?.isAvailable ?? true,
             images: initialImages.length > 0 ? initialImages : undefined,
-            certificateImage: undefined, // Edit modunda mevcut sertifika resmi gösterilmeyecek, yeni yüklemek gerekirse kullanıcı seçecek
+            certificateImage: (data as any)?.barberCertificateImage ? {
+                uri: (data as any).barberCertificateImage.imageUrl,
+                name: (data as any).barberCertificateImage.imageUrl.split("/").pop() ?? "certificate.jpg",
+                type: "image/jpeg",
+            } : undefined,
             location: {
                 latitude: (data as any)?.latitude ?? 0,
                 longitude: (data as any)?.longitude ?? 0
@@ -379,8 +391,9 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                     name: form.certificateImage.name ?? "certificate.jpg",
                     type: form.certificateImage.type ?? "image/jpeg",
                 } as any);
+                formData.append("ownerType", String(ImageOwnerType.FreeBarber));
+                formData.append("ownerId", "00000000-0000-0000-0000-000000000000");
 
-                // Certificate için owner bilgisi gerekmiyor, sadece upload ediyoruz
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
                     showSnack("Sertifika resmi yüklenemedi", true);
@@ -499,40 +512,59 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                             control={control}
                             name="images"
                             render={() => (
-                                <View className="px-4 mt-4">
-                                    <View className="flex-row flex-wrap gap-2">
+                                <View className="mt-4">
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                                    >
                                         {(images ?? []).map((img, index) => (
-                                            <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16 / 9 }}>
+                                            <View key={index} className="relative" style={{ width: 200, height: 150 }}>
                                                 <Image
                                                     className="w-full h-full rounded-xl"
                                                     source={{ uri: img.uri }}
                                                     resizeMode="cover"
+                                                    onLoad={() => setLoadedImages(prev => new Set(prev).add(index))}
                                                 />
+                                                {!loadedImages.has(index) && (
+                                                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10 }}>
+                                                        <ActivityIndicator size="large" color="#888" />
+                                                    </View>
+                                                )}
                                                 <TouchableOpacity
                                                     onPress={() => removeImage(index)}
-                                                    className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                                    className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
                                                     activeOpacity={0.85}
                                                 >
-                                                    <Icon source="close" size={16} color="white" />
+                                                    <Icon source="close" size={18} color="white" />
                                                 </TouchableOpacity>
                                             </View>
                                         ))}
                                         {(!images || images.length < 3) && (
                                             <TouchableOpacity
                                                 onPress={pickMultipleImages}
+                                                disabled={isImagePickerLoading}
                                                 className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                                style={{ width: '48%', aspectRatio: 16 / 9 }}
+                                                style={{ width: 200, height: 150 }}
                                                 activeOpacity={0.85}
                                             >
-                                                <Icon source="image-plus" size={40} color="#888" />
-                                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                                {isImagePickerLoading ? (
+                                                    <ActivityIndicator size="large" color="#888" />
+                                                ) : (
+                                                    <>
+                                                        <Icon source="image-plus" size={40} color="#888" />
+                                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                                    </>
+                                                )}
                                             </TouchableOpacity>
                                         )}
-                                    </View>
+                                    </ScrollView>
                                     {errors.images && (
-                                        <HelperText type="error" visible={!!errors.images}>
-                                            {errors.images.message as string}
-                                        </HelperText>
+                                        <View className="px-4">
+                                            <HelperText type="error" visible={!!errors.images}>
+                                                {errors.images.message as string}
+                                            </HelperText>
+                                        </View>
                                     )}
                                 </View>
                             )}
@@ -549,9 +581,15 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                     <>
                                         <TouchableOpacity
                                             activeOpacity={0.85}
+                                            disabled={isCertificateLoading}
                                             onPress={async () => {
-                                                const file = await handlePickImage();
-                                                if (file) onChange(file);
+                                                setIsCertificateLoading(true);
+                                                try {
+                                                    const file = await handlePickImage();
+                                                    if (file) onChange(file);
+                                                } finally {
+                                                    setIsCertificateLoading(false);
+                                                }
                                             }}
                                         >
                                             <TextInput
@@ -563,11 +601,24 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                                 pointerEvents="none"
                                                 textColor="white"
                                                 outlineColor={errors.certificateImage ? "#b00020" : "#444"}
-                                                right={<TextInput.Icon icon="image" color="white" />}
+                                                right={
+                                                    isCertificateLoading ?
+                                                        <ActivityIndicator size="small" color="#888" style={{ marginRight: 12 }} /> :
+                                                        <TextInput.Icon icon="image" color="white" />
+                                                }
                                                 theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
                                                 style={{ backgroundColor: "#1F2937" }}
                                             />
                                         </TouchableOpacity>
+                                        {value?.uri && !isCertificateLoading && (
+                                            <View className="mt-2 mb-2 w-full">
+                                                <Image
+                                                    source={{ uri: value.uri }}
+                                                    style={{ width: '100%', height: 200, borderRadius: 10 }}
+                                                    resizeMode="cover"
+                                                />
+                                            </View>
+                                        )}
                                         <HelperText type="error" visible={!!errors.certificateImage}>
                                             {errors?.certificateImage?.message as string}
                                         </HelperText>

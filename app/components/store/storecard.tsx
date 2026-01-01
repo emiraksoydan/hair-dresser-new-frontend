@@ -22,7 +22,7 @@ type Props = {
 
 const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
-    const carouselWidth = Math.max(0, cardWidthStore - 8);
+    const carouselWidth = Math.max(0, cardWidthStore);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
@@ -103,8 +103,9 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                         <ImageCarousel
                             images={store.imageList ?? []}
                             width={carouselWidth}
-                            height={320}
-                            autoPlay={false}
+                            autoPlay={true}
+                            mode={"default"}
+                            autoPlayInterval={2000}
                             borderRadiusClass="rounded-lg"
                         />
                     ) : (

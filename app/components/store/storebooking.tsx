@@ -144,6 +144,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
             <View className="relative">
                 <ImageCarousel
                     images={storeData?.imageList ?? []}
+                    mode={"default"}
                     height={250}
                 />
                 <View className="absolute top-0 left-0 right-0 bottom-0 bg-black opacity-50" />

@@ -101,6 +101,7 @@ export type BarberStoreDetail = {
   serviceOfferings: ServiceOfferingGetDto[];
   workingHours: WorkingHourGetDto[];
   taxDocumentImageId?: string;
+  taxDocumentImage?: ImageGetDto;
 };
 
 // Sub-entities
@@ -143,7 +144,7 @@ export type ManuelBarberCreateDto = {
 };
 
 export type ManuelBarberUpdateDto = {
-  id?: string;
+  id: string;
   fullName: string;
   profileImageUrl?: string;
 };

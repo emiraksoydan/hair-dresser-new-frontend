@@ -104,7 +104,8 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                         images={images}
                         width={imageWidth}
                         height={imageHeight}
-                        autoPlay={false}
+                        autoPlay={true}
+                        mode={"default"}
                         borderRadiusClass="rounded-lg"
                         containerStyle={!isList ? { marginRight: 8 } : undefined}
                     />

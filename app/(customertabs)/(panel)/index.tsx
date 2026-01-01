@@ -126,7 +126,7 @@ const Index = () => {
             setRefreshing(true);
             // Hard refresh: Cache'i bypass ederek fresh data çek
             await Promise.all([
-                manualFetchStores(), 
+                manualFetchStores(),
                 manualFetchFreeBarbers()
             ]);
         } finally {

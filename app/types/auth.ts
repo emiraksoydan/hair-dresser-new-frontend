@@ -60,6 +60,12 @@ export interface UserProfileDto {
   phoneNumber: string;
   userType: UserType;
   imageId?: string;
+  image?: {
+    id: string;
+    imageUrl: string;
+    ownerType: number;
+    imageOwnerId: string;
+  };
   isActive: boolean;
 }
 

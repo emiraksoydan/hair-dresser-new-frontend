@@ -1,4 +1,4 @@
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip } from 'react-native-paper';
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
@@ -255,6 +255,7 @@ const FormStoreAdd = () => {
     const [triggerGetMineStores] = useLazyGetMineStoresQuery();
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
+    const [isImagePickerLoading, setIsImagePickerLoading] = useState(false);
     const [activeDay, setActiveDay] = useState<number>(1);
     const [activeStart, setActiveStart] = useState(fromHHmm("09:00"));
     const [activeEnd, setActiveEnd] = useState(fromHHmm("18:00"));
@@ -309,6 +310,8 @@ const FormStoreAdd = () => {
                     name: data.taxDocumentImage.name ?? "tax-document.jpg",
                     type: data.taxDocumentImage.type ?? "image/jpeg",
                 } as any);
+                formData.append("ownerType", String(ImageOwnerType.Store));
+                formData.append("ownerId", "00000000-0000-0000-0000-000000000000");
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
@@ -352,7 +355,7 @@ const FormStoreAdd = () => {
                     price: priceNum,
                 };
             }).filter((x): x is { serviceName: string; price: number } => x !== null),
-            manuelBarbers: data.barbers!.map((barber) => {
+            manuelBarbers: (data.barbers || []).map((barber) => {
                 return {
                     id: barber.id,
                     fullName: barber.name,
@@ -507,11 +510,16 @@ const FormStoreAdd = () => {
 
 
     const pickMultipleImages = async () => {
-        const files = await handlePickMultipleImages(3);
-        if (files && files.length > 0) {
-            const currentImages = getValues("storeImages") || [];
-            const newImages = [...currentImages, ...files].slice(0, 3);
-            setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+        setIsImagePickerLoading(true);
+        try {
+            const files = await handlePickMultipleImages(3);
+            if (files && files.length > 0) {
+                const currentImages = getValues("storeImages") || [];
+                const newImages = [...currentImages, ...files].slice(0, 3);
+                setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+            }
+        } finally {
+            setIsImagePickerLoading(false);
         }
     };
 
@@ -653,10 +661,14 @@ const FormStoreAdd = () => {
                     control={control}
                     name="storeImages"
                     render={() => (
-                        <View className="px-4 mt-4">
-                            <View className="flex-row flex-wrap gap-2">
+                        <View className="mt-4">
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                            >
                                 {(images ?? []).map((img, index) => (
-                                    <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                    <View key={index} className="relative" style={{ width: 200, height: 150 }}>
                                         <Image
                                             className="w-full h-full rounded-xl"
                                             source={{ uri: img.uri }}
@@ -664,25 +676,32 @@ const FormStoreAdd = () => {
                                         />
                                         <TouchableOpacity
                                             onPress={() => removeImage(index)}
-                                            className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                            className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
                                             activeOpacity={0.85}
                                         >
-                                            <Icon source="close" size={16} color="white" />
+                                            <Icon source="close" size={18} color="white" />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
                                 {(!images || images.length < 3) && (
                                     <TouchableOpacity
                                         onPress={pickMultipleImages}
+                                        disabled={isImagePickerLoading}
                                         className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                        style={{ width: '48%', aspectRatio: 16/9 }}
+                                        style={{ width: 200, height: 150 }}
                                         activeOpacity={0.85}
                                     >
-                                        <Icon source="image-plus" size={40} color="#888" />
-                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                        {isImagePickerLoading ? (
+                                            <ActivityIndicator size="large" color="#888" />
+                                        ) : (
+                                            <>
+                                                <Icon source="image-plus" size={40} color="#888" />
+                                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                            </>
+                                        )}
                                     </TouchableOpacity>
                                 )}
-                            </View>
+                            </ScrollView>
                         </View>
                     )}
                 />

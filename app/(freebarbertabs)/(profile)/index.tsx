@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { InteractionManager, Text, View, ScrollView, TouchableOpacity } from 'react-native'
+import { InteractionManager, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Avatar, Button, Divider, IconButton, TextInput, HelperText } from 'react-native-paper';
 import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
@@ -30,11 +30,11 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const Index = () => {
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
-    const { data: userData, isLoading: isLoadingUser } = useGetMeQuery();
+    const { data: userData, isLoading: isLoadingUser, refetch } = useGetMeQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
-    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [isAvatarLoading, setIsAvatarLoading] = useState(true);
 
     const {
         control,
@@ -53,15 +53,18 @@ const Index = () => {
 
     useEffect(() => {
         if (userData?.data) {
-            const phone = userData.data.phoneNumber.startsWith('+90')
+            const phone = userData.data.phoneNumber?.startsWith('+90')
                 ? userData.data.phoneNumber.substring(3)
-                : userData.data.phoneNumber;
+                : userData.data.phoneNumber || '';
 
             reset({
-                firstName: userData.data.firstName,
-                lastName: userData.data.lastName,
+                firstName: userData.data.firstName || '',
+                lastName: userData.data.lastName || '',
                 phoneNumber: phone,
             });
+
+            // Avatar loading'i kapat
+            setIsAvatarLoading(false);
         }
     }, [userData, reset]);
 
@@ -114,8 +117,9 @@ const Index = () => {
 
             const uploadResult = await uploadImage(formData).unwrap();
             if (uploadResult.success) {
-                setProfileImage(file.uri);
                 showSnack('Profil fotoğrafı güncellendi', false);
+                // Refetch user data to get updated image
+                await refetch();
             } else {
                 showSnack('Fotoğraf yüklenemedi', true);
             }
@@ -155,8 +159,13 @@ const Index = () => {
                 <View className="relative h-[120px] w-[120px]">
                     <Avatar.Image
                         size={120}
-                        source={{ uri: profileImage || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
+                        source={{ uri: userData?.data?.image?.imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
                     />
+                    {isAvatarLoading && (
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#38393b', borderRadius: 60 }}>
+                            <ActivityIndicator size="large" color="#888" />
+                        </View>
+                    )}
                     <IconButton
                         icon="pencil"
                         size={20}
@@ -174,131 +183,128 @@ const Index = () => {
             </View>
 
             <View className='px-6 pt-6'>
-                <Text className='text-white text-lg mb-4 font-ibm-plex-sans-regular'>Profil Bilgileri</Text>
-
-                <Controller
-                    control={control}
-                    name="firstName"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                        <>
-                            <TextInput
-                                label="İsim"
-                                mode="outlined"
-                                value={value}
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                textColor="white"
-                                outlineColor={errors.firstName ? "#b00020" : "#444"}
-                                theme={{
-                                    roundness: 10,
-                                    colors: { onSurfaceVariant: "gray", primary: "white" }
-                                }}
-                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
+                <Text className='text-white text-lg mb-4 font-ibm-plex-sans-semibold'>Profil Bilgileri</Text>
+                <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
+                    <View className='flex-row gap-3'>
+                        <View className='flex-1'>
+                            <Controller
+                                control={control}
+                                name="firstName"
+                                render={({ field: { onChange, onBlur, value } }) => (
+                                    <TextInput
+                                        dense
+                                        label="İsim"
+                                        mode="outlined"
+                                        value={value}
+                                        onChangeText={onChange}
+                                        onBlur={onBlur}
+                                        textColor="white"
+                                        error={!!errors.firstName}
+                                        outlineColor={errors.firstName ? "#b00020" : "#444"}
+                                        theme={{
+                                            roundness: 10,
+                                            colors: { onSurfaceVariant: "gray", primary: "white" }
+                                        }}
+                                        style={{ backgroundColor: '#2D3748', marginBottom: 0 }}
+                                    />
+                                )}
                             />
-                            <HelperText type="error" visible={!!errors.firstName}>
-                                {errors.firstName?.message}
-                            </HelperText>
-                        </>
-                    )}
-                />
+                        </View>
 
-                <Controller
-                    control={control}
-                    name="lastName"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                        <>
-                            <TextInput
-                                label="Soyisim"
-                                mode="outlined"
-                                value={value}
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                textColor="white"
-                                outlineColor={errors.lastName ? "#b00020" : "#444"}
-                                theme={{
-                                    roundness: 10,
-                                    colors: { onSurfaceVariant: "gray", primary: "white" }
-                                }}
-                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
+                        <View className='flex-1'>
+                            <Controller
+                                control={control}
+                                name="lastName"
+                                render={({ field: { onChange, onBlur, value } }) => (
+                                    <TextInput
+                                        dense
+                                        label="Soyisim"
+                                        mode="outlined"
+                                        value={value}
+                                        onChangeText={onChange}
+                                        onBlur={onBlur}
+                                        textColor="white"
+                                        error={!!errors.lastName}
+                                        outlineColor={errors.lastName ? "#b00020" : "#444"}
+                                        theme={{
+                                            roundness: 10,
+                                            colors: { onSurfaceVariant: "gray", primary: "white" }
+                                        }}
+                                        style={{ backgroundColor: '#2D3748', marginBottom: 0 }}
+                                    />
+                                )}
                             />
-                            <HelperText type="error" visible={!!errors.lastName}>
-                                {errors.lastName?.message}
-                            </HelperText>
-                        </>
-                    )}
-                />
-
-                <Controller
-                    control={control}
-                    name="phoneNumber"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                        <>
-                            <TextInput
-                                label="Telefon (10 haneli)"
-                                mode="outlined"
-                                value={value}
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                keyboardType="phone-pad"
-                                textColor="white"
-                                outlineColor={errors.phoneNumber ? "#b00020" : "#444"}
-                                theme={{
-                                    roundness: 10,
-                                    colors: { onSurfaceVariant: "gray", primary: "white" }
-                                }}
-                                style={{ backgroundColor: '#1F2937', marginBottom: 4 }}
-                            />
-                            <HelperText type="error" visible={!!errors.phoneNumber}>
-                                {errors.phoneNumber?.message}
-                            </HelperText>
-                        </>
-                    )}
-                />
-
-                <Button
-                    mode="contained"
-                    onPress={handleSubmit(onSubmit)}
-                    loading={isUpdating}
-                    disabled={!isDirty || isUpdating}
-                    style={{ marginTop: 16, borderRadius: 10 }}
-                    buttonColor="#10B981"
-                >
-                    Kaydet
-                </Button>
-
-                <View className='w-full px-0 pt-6'>
-                    <Divider style={{ borderWidth: 0.1, width: "100%", }}></Divider>
-                </View>
-
-                <View className="flex-row items-center justify-between py-0 mt-4">
-                    <View className="flex-row items-center">
-                        <IconButton icon="security" size={24} iconColor="white" />
-                        <Text className="text-white font-ibm-plex-sans-regular">Güvenlik</Text>
+                        </View>
                     </View>
-                    <IconButton icon="chevron-right" size={24} iconColor="gray" />
-                </View>
-                <View className="flex-row items-center justify-between py-0 mt-[-5px]">
-                    <View className="flex-row items-center">
-                        <IconButton icon="cog-outline" size={24} iconColor="white" />
-                        <Text className="text-white font-ibm-plex-sans-regular">Ayarlar</Text>
-                    </View>
-                    <IconButton icon="chevron-right" size={24} iconColor="gray" />
+                    {(errors.firstName || errors.lastName) && (
+                        <View className='flex-row gap-3 mt-[-8px]'>
+                            <View className='flex-1'>
+                                <HelperText type="error" visible={!!errors.firstName} style={{ marginTop: 0, paddingTop: 0 }}>
+                                    {errors.firstName?.message || ' '}
+                                </HelperText>
+                            </View>
+                            <View className='flex-1'>
+                                <HelperText type="error" visible={!!errors.lastName} style={{ marginTop: 0, paddingTop: 0 }}>
+                                    {errors.lastName?.message || ' '}
+                                </HelperText>
+                            </View>
+                        </View>
+                    )}
+
+                    <Controller
+                        control={control}
+                        name="phoneNumber"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                            <>
+                                <TextInput
+                                    dense
+                                    label="Telefon (10 haneli)"
+                                    mode="outlined"
+                                    value={value}
+                                    onChangeText={onChange}
+                                    onBlur={onBlur}
+                                    keyboardType="phone-pad"
+                                    textColor="white"
+                                    error={!!errors.phoneNumber}
+                                    outlineColor={errors.phoneNumber ? "#b00020" : "#444"}
+                                    theme={{
+                                        roundness: 10,
+                                        colors: { onSurfaceVariant: "gray", primary: "white" }
+                                    }}
+                                    style={{ backgroundColor: '#2D3748', marginBottom: 0, marginTop: 8 }}
+                                />
+                                {errors.phoneNumber && (
+                                    <HelperText type="error" visible={true} style={{ marginTop: 0, paddingTop: 0 }}>
+                                        {errors.phoneNumber?.message}
+                                    </HelperText>
+                                )}
+                            </>
+                        )}
+                    />
+
+                    <Button
+                        mode="contained"
+                        onPress={handleSubmit(onSubmit)}
+                        loading={isUpdating}
+                        disabled={!isDirty || isUpdating}
+                        style={{ marginTop: 10, borderRadius: 10 }}
+                        buttonColor="#10B981"
+                    >
+                        Kaydet
+                    </Button>
                 </View>
                 <Button
-                    mode='text'
+                    mode='contained'
                     icon="logout"
                     onPress={handleLogout}
                     loading={isLoggingOut}
                     contentStyle={{
                         alignItems: 'center',
-                        justifyContent: 'flex-start',
-                        paddingLeft: 5
+                        justifyContent: 'center',
                     }}
-                    labelStyle={{
-                        marginLeft: 25,
-                    }}
-                    textColor="red"
-                    style={{ marginTop: 5, }}
+                    buttonColor='red'
+                    textColor="white"
+                    style={{ marginTop: 0, borderRadius: 10, }}
                 >
                     Çıkış Yap
                 </Button>

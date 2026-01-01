@@ -1,4 +1,4 @@
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
 import { z } from "zod";
 import { BUSINESS_TYPES, DAYS_TR, PRICING_OPTIONS, SERVICE_BY_TYPE, trMoneyRegex } from '../../constants';
@@ -7,7 +7,7 @@ import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, normalizeTime, timeHHmmRegex, toMin
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSheet } from '../../context/bottomsheet';
-import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button, ActivityIndicator } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import {
     useDeleteImageMutation,
@@ -200,6 +200,9 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
+    const [isImagePickerLoading, setIsImagePickerLoading] = React.useState(false);
+    const [isTaxDocumentLoading, setIsTaxDocumentLoading] = React.useState(false);
+    const [loadedStoreImages, setLoadedStoreImages] = React.useState<Set<number>>(new Set());
 
     useEffect(() => {
         if (enabled && storeId) {
@@ -217,11 +220,16 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     }, [isError, errorText, showSnack])
 
     const pickMultipleImages = async () => {
-        const files = await handlePickMultipleImages(3);
-        if (files && files.length > 0) {
-            const currentImages = getValues("storeImages") || [];
-            const newImages = [...currentImages, ...files].slice(0, 3);
-            setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+        setIsImagePickerLoading(true);
+        try {
+            const files = await handlePickMultipleImages(3);
+            if (files && files.length > 0) {
+                const currentImages = getValues("storeImages") || [];
+                const newImages = [...currentImages, ...files].slice(0, 3);
+                setValue("storeImages", newImages, { shouldDirty: true, shouldValidate: true });
+            }
+        } finally {
+            setIsImagePickerLoading(false);
         }
     };
 
@@ -366,7 +374,11 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             // BarberStoreDetail.type backend'den string gelebilir (örn: "MaleHairdresser")
             type: mapTypeToDisplayName(data.type as any),
             storeImages: initialImages.length > 0 ? initialImages : undefined,
-            taxDocumentImage: undefined,
+            taxDocumentImage: data.taxDocumentImage ? {
+                uri: data.taxDocumentImage.imageUrl,
+                name: data.taxDocumentImage.imageUrl.split("/").pop() ?? "tax-document.jpg",
+                type: "image/jpeg",
+            } : undefined,
             location: {
                 latitude: c0?.lat ?? 0,
                 longitude: c0?.lon ?? 0,
@@ -741,11 +753,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                     return dto;
                 })
                 .filter((x): x is ServiceOfferingUpdateDto => x !== null),
-            manuelBarbers: form.barbers!.map((barber) => {
+            manuelBarbers: (form.barbers || []).map((barber) => {
                 return {
                     id: barber.id,
                     fullName: barber.name,
-                    storeId: storeId,
                 }
             }),
             workingHours: form.workingHours
@@ -821,36 +832,53 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                 <>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
                         <Text className="text-white text-xl mt-4 px-4">İşletme Resimleri (Maks 3)</Text>
-                        <View className="px-4 mt-4">
-                            <View className="flex-row flex-wrap gap-2">
+                        <View className="mt-4">
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                            >
                                 {(images ?? []).map((img, index) => (
-                                    <View key={index} className="relative" style={{ width: '48%', aspectRatio: 16/9 }}>
+                                    <View key={index} className="relative" style={{ width: 200, height: 150 }}>
                                         <Image
                                             className="w-full h-full rounded-xl"
                                             source={{ uri: img.uri }}
                                             resizeMode="cover"
+                                            onLoad={() => setLoadedStoreImages(prev => new Set(prev).add(index))}
                                         />
+                                        {!loadedStoreImages.has(index) && (
+                                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10 }}>
+                                                <ActivityIndicator size="large" color="#888" />
+                                            </View>
+                                        )}
                                         <TouchableOpacity
                                             onPress={() => removeImage(index)}
-                                            className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
+                                            className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
                                             activeOpacity={0.85}
                                         >
-                                            <Icon source="close" size={16} color="white" />
+                                            <Icon source="close" size={18} color="white" />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
                                 {(!images || images.length < 3) && (
                                     <TouchableOpacity
                                         onPress={pickMultipleImages}
+                                        disabled={isImagePickerLoading}
                                         className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                        style={{ width: '48%', aspectRatio: 16/9 }}
+                                        style={{ width: 200, height: 150 }}
                                         activeOpacity={0.85}
                                     >
-                                        <Icon source="image-plus" size={40} color="#888" />
-                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                        {isImagePickerLoading ? (
+                                            <ActivityIndicator size="large" color="#888" />
+                                        ) : (
+                                            <>
+                                                <Icon source="image-plus" size={40} color="#888" />
+                                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                            </>
+                                        )}
                                     </TouchableOpacity>
                                 )}
-                            </View>
+                            </ScrollView>
                         </View>
                         <Text className="text-white text-xl mt-6 px-4">İşletme Bilgileri</Text>
                         <View className="mt-2 px-4">
@@ -861,9 +889,15 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                     <>
                                         <TouchableOpacity
                                             activeOpacity={0.85}
+                                            disabled={isTaxDocumentLoading}
                                             onPress={async () => {
-                                                const file = await handlePickImage();
-                                                if (file) onChange(file);
+                                                setIsTaxDocumentLoading(true);
+                                                try {
+                                                    const file = await handlePickImage();
+                                                    if (file) onChange(file);
+                                                } finally {
+                                                    setIsTaxDocumentLoading(false);
+                                                }
                                             }}
                                         >
                                             <TextInput
@@ -875,13 +909,26 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                 pointerEvents="none"
                                                 textColor="white"
                                                 outlineColor={errors.taxDocumentImage ? "#b00020" : "#444"}
-                                                right={<TextInput.Icon icon="image" color="white" />}
+                                                right={
+                                                    isTaxDocumentLoading ?
+                                                        <ActivityIndicator size="small" color="#888" style={{ marginRight: 12 }} /> :
+                                                        <TextInput.Icon icon="image" color="white" />
+                                                }
                                                 theme={{
                                                     roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
                                                 }}
                                                 style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
                                             />
                                         </TouchableOpacity>
+                                        {value?.uri && !isTaxDocumentLoading && (
+                                            <View className="mt-2 mb-2 w-full">
+                                                <Image
+                                                    source={{ uri: value.uri }}
+                                                    style={{ width: '100%', height: 200, borderRadius: 10 }}
+                                                    resizeMode="cover"
+                                                />
+                                            </View>
+                                        )}
                                         <HelperText type="error" visible={!!errors.taxDocumentImage}>
                                             {taxDocErrorText}
                                         </HelperText>
