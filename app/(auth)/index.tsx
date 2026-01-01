@@ -4,7 +4,6 @@ import { Button, TextInput, HelperText, Snackbar, ActivityIndicator, Portal, Mod
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { pickPdf, truncateFileName } from '../utils/form/pick-document';
 import { Dropdown } from "react-native-element-dropdown";
 import { userTypeItems } from '../constants';
 import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation, api } from '../store/api';
@@ -17,25 +16,6 @@ import { pathByUserType } from '../utils/auth/redirect-by-user-type';
 import { useAppDispatch } from '../store/hook';
 import { getUserTypeFromToken } from '../utils/auth/auth';
 
-const PdfAssetSchema = z.object({
-    uri: z.string().min(1),
-    name: z.string().min(1).regex(/\.pdf$/i, "PDF uzantılı olmalı"),
-    mimeType: z.string().optional(),
-    size: z.number().optional(),
-}).refine(v => !v.size || v.size <= 5 * 1024 * 1024, {
-    message: "En fazla 5 MB",
-    path: ["size"],
-})
-const CertificationFileField = z
-    .custom<{ uri: string; name: string; mimeType?: string; size?: number }>(
-        (v) =>
-            !!v &&
-            typeof v === "object" &&
-            (("uri" in (v as any) && (v as any).uri) ||
-                ("name" in (v as any) && (v as any).name)),
-        { message: "Lütfen PDF seçiniz." }
-    )
-    .pipe(PdfAssetSchema);
 
 const registerSchema = z.object({
     mode: z.literal("register"),
@@ -45,7 +25,6 @@ const registerSchema = z.object({
     surname: z.string({ required_error: "Soyisim gerekli" })
         .max(20, "Karakter sayısı maximum 20 yi geçmemeli").min(2, "Karakter sayısı minimum 2 olmalı").regex(/^\S+$/, "Boşluk kullanmayın").transform(value => value.replace(/\s+/g, '')).transform(value => value.replace(/\s+/g, '')),
     phone: z.string({ required_error: "Telefon gerekli" }).length(10, "Numara 10 haneli olmalı"),
-    certificationFile: CertificationFileField,
     userType: z.enum(["customer", "freeBarber", "barberStore"], {
         errorMap: () => ({ message: "Kullanıcı türü zorunludur" }),
     }),
@@ -55,7 +34,6 @@ const loginSchema = z.object({
     phone: z.string({ required_error: "Telefon gerekli" }).length(10, "Numara 10 haneli olmalı"),
     firstName: z.string().optional(),
     surname: z.string().optional(),
-    certificationFile: CertificationFileField.optional(),
     userType: z.enum(["customer", "freeBarber", "barberStore"]).optional(),
 
 });
@@ -90,11 +68,7 @@ const Index = () => {
     const [left, setLeft] = useState(0);
     const isRegister = watch("mode") === "register";
 
-    const cfErrorText = isRegister
-        ? (errors.certificationFile?.message ||
-            (errors.certificationFile as any)?.name?.message ||
-            (errors.certificationFile as any)?.size?.message)
-        : undefined;
+
     const toggleMode = () => setValue("mode", isRegister === true ? "login" : "register");
     const [sendOtp, { isLoading, isError, data, error }] = useSendOtpMutation();
 
@@ -156,7 +130,6 @@ const Index = () => {
                 firstName: f.firstName ?? '',
                 lastName: f.surname ?? '',
                 phoneNumber: phone,
-                certificateFilePath: f.certificationFile?.uri ?? '',
                 code: code,
                 device: null,
                 userType: userTypeToSend,
@@ -296,50 +269,6 @@ const Index = () => {
                                     />
                                 </View>
                             </View>
-                            <View className="w-full mt-[-8px]">
-                                <Controller
-                                    control={control}
-                                    name="certificationFile"
-                                    render={({ field: { value, onChange } }) => (
-                                        <>
-                                            <TouchableOpacity
-                                                activeOpacity={0.85}
-                                                onPress={async () => {
-                                                    const file = await pickPdf();
-                                                    if (!file) return;
-                                                    onChange(file);
-                                                }}
-                                            >
-                                                <TextInput
-                                                    label="Kalfalık / Ustalık Belgesi (PDF)"
-                                                    mode="outlined"
-                                                    value={truncateFileName(value?.name ?? "")}
-                                                    editable={false}
-                                                    dense
-                                                    pointerEvents="none"
-                                                    textColor="white"
-                                                    outlineColor="white"
-                                                    theme={{
-                                                        colors: {
-                                                            onSurfaceVariant: "white",
-                                                            background: "#2a2b2d",
-                                                            primary: "white",
-                                                        },
-                                                    }}
-                                                    style={{
-                                                        flexShrink: 1,
-                                                        minWidth: 0,
-                                                        overflow: "hidden",
-                                                    }}
-                                                />
-                                            </TouchableOpacity>
-                                            <HelperText type="error" visible={!!isRegister && !!errors.certificationFile}>
-                                                {cfErrorText}
-                                            </HelperText>
-                                        </>
-                                    )}
-                                />
-                            </View>
                             <View className="w-full mt-[-4px]">
                                 <Controller
                                     control={control}
@@ -420,195 +349,6 @@ const Index = () => {
                             )}
                         />
                     </View>
-                    {/* <View className='flex flex-row gap-2'>
-                        <View className='flex-1'>
-                            <Controller
-                                control={control}
-                                name="firstName"
-                                render={({ field: { onChange, onBlur, value } }) => (
-                                    <>
-                                        <TextInput
-                                            mode='outlined'
-                                            textColor='white'
-                                            outlineColor='white'
-                                            theme={{
-                                                colors: {
-                                                    onSurfaceVariant: 'white',
-                                                    background: '#2a2b2d',
-                                                    primary: 'white',
-                                                },
-                                            }}
-                                            label="İsim"
-                                            dense
-                                            onBlur={onBlur}
-                                            value={value}
-                                            onChangeText={onChange}
-                                            returnKeyType="next"
-                                            onSubmitEditing={() => setFocus("firstName")}
-                                        />
-                                        <HelperText type="error" visible={!!errors.firstName}>
-                                            {errors.firstName?.message}
-                                        </HelperText>
-                                    </>
-                                )}
-                            />
-                        </View>
-                        <View className='w-1/2'>
-                            <Controller
-                                control={control}
-                                name="surname"
-                                render={({ field: { onChange, onBlur, value } }) => (
-                                    <>
-                                        <TextInput
-                                            textColor='white'
-                                            outlineColor='white'
-                                            theme={{
-                                                colors: {
-                                                    onSurfaceVariant: 'white',
-                                                    background: '#2a2b2d',
-                                                    primary: 'white',
-                                                },
-                                            }}
-                                            label="Soyisim"
-                                            mode='outlined'
-                                            dense
-                                            onBlur={onBlur}
-                                            value={value}
-                                            onChangeText={onChange}
-                                            returnKeyType="next"
-                                            onSubmitEditing={() => setFocus("surname")}
-                                        />
-                                        <HelperText type="error" visible={!!errors.surname}>
-                                            {errors.surname?.message}
-                                        </HelperText>
-                                    </>
-                                )}
-                            />
-                        </View>
-                    </View>
-                    <View className='mt-[-8px]'>
-                        <Controller
-                            control={control}
-                            name="phone"
-                            render={({ field: { onChange, onBlur, value } }) => (
-                                <>
-                                    <TextInput
-                                        label="Telefon"
-                                        mode='outlined'
-                                        textColor='white'
-                                        dense
-                                        outlineColor='white'
-                                        keyboardType="number-pad"
-                                        onBlur={onBlur}
-                                        value={value}
-                                        onChangeText={onChange}
-                                        returnKeyType="done"
-                                        placeholderTextColor={'gray'}
-                                        placeholder='555-555-5555'
-                                        onSubmitEditing={() => setFocus("phone")}
-                                        theme={{
-                                            colors: {
-                                                onSurfaceVariant: 'white',
-                                                background: '#2a2b2d',
-                                                primary: 'white',
-                                            },
-                                        }}
-                                    />
-                                    <HelperText type="error" visible={!!errors.phone}>
-                                        {errors.phone?.message}
-                                    </HelperText>
-                                </>
-                            )}
-                        />
-                    </View>
-                    <View className="w-full mt-[-8px]">
-                        <Controller
-                            control={control}
-                            name="certificationFile"
-                            render={({ field: { value, onChange } }) => (
-                                <>
-                                    <TouchableOpacity
-                                        activeOpacity={0.85}
-                                        onPress={async () => {
-                                            const file = await pickPdf();
-                                            if (!file) return;
-                                            onChange(file);
-                                        }}
-                                    >
-                                        <TextInput
-                                            label="Kalfalık / Ustalık Belgesi (PDF)"
-                                            mode="outlined"
-                                            value={truncateFileName(value?.name ?? "")}
-                                            editable={false}
-                                            dense
-                                            pointerEvents="none"
-                                            textColor="white"
-                                            outlineColor="white"
-                                            theme={{
-                                                colors: {
-                                                    onSurfaceVariant: "white",
-                                                    background: "#2a2b2d",
-                                                    primary: "white",
-                                                },
-                                            }}
-                                            style={{ flexShrink: 1, minWidth: 0, overflow: "hidden" }}
-
-                                        />
-                                    </TouchableOpacity>
-                                    <HelperText type="error" visible={!!errors.certificationFile}>
-                                        {cfErrorText}
-                                    </HelperText>
-                                </>
-                            )}
-                        />
-                    </View>
-                    <View className="w-full mt-[-4px]">
-                        <Controller
-                            control={control}
-                            name="userType"
-                            render={({ field: { value, onChange } }) => {
-                                return (
-                                    <View>
-                                        <Dropdown
-                                            data={userTypeItems}
-                                            labelField="label"
-                                            valueField="value"
-                                            value={value ?? null}
-                                            placeholder="Kullanıcı türü seçin"
-                                            search={false}
-                                            style={{
-                                                backgroundColor: "#2a2b2d",
-                                                borderWidth: 1,
-                                                borderColor: errors.userType ? "#ef4444" : "white",
-                                                borderRadius: 4,
-                                                paddingHorizontal: 12,
-                                                height: 42,
-                                            }}
-                                            placeholderStyle={{ color: "#cfcfcf" }}
-                                            selectedTextStyle={{ color: "white", }}
-                                            itemTextStyle={{ color: "white", fontSize: 10, }}
-                                            containerStyle={{
-                                                backgroundColor: "#2a2b2d",
-                                                borderWidth: 1,
-                                                borderColor: "#3a3a3a",
-                                                elevation: 12,
-                                                borderRadius: 10,
-                                                overflow: 'hidden',
-                                            }}
-                                            activeColor="#3a3a3a"
-                                            onChange={item => {
-                                                onChange(item.value);
-                                            }}
-                                            dropdownPosition="top"
-                                        />
-                                        <HelperText type="error" visible={!!errors.userType}>
-                                            {errors.userType?.message as string}
-                                        </HelperText>
-                                    </View>
-                                );
-                            }}
-                        />
-                    </View> */}
                 </View>
                 <Button style={{ width: '95%', borderRadius: 5 }} buttonColor='black' mode="contained" onPress={handleSubmit(onSubmit)} disabled={isLoading}>
                     {isLoading ? <ActivityIndicator /> : "İleri"}

@@ -11,6 +11,7 @@ import { handlePickImage } from '../../utils/form/pick-document';
 import { ImageOwnerType } from '../../types';
 import { useSnackbar } from '../../hook/useSnackbar';
 import { useEffect, useState } from 'react';
+import { ProfileSkeleton } from '../../components/common/profileskeleton';
 
 const profileSchema = z.object({
     firstName: z.string()
@@ -35,7 +36,6 @@ const Index = () => {
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
-    const [isAvatarLoading, setIsAvatarLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const {
@@ -68,9 +68,6 @@ const Index = () => {
                 lastName: userData.data.lastName || '',
                 phoneNumber: phone,
             });
-
-            // Avatar loading'i kapat
-            setIsAvatarLoading(false);
         }
     }, [userData, reset]);
 
@@ -163,11 +160,7 @@ const Index = () => {
     };
 
     if (isLoadingUser) {
-        return (
-            <View className='flex-1 bg-[#151618] items-center justify-center'>
-                <Text className='text-white'>Yükleniyor...</Text>
-            </View>
-        );
+        return <ProfileSkeleton />;
     }
 
     return (
@@ -188,11 +181,6 @@ const Index = () => {
                         size={120}
                         source={{ uri: userData?.data?.image?.imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
                     />
-                    {isAvatarLoading && (
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#38393b', borderRadius: 60 }}>
-                            <ActivityIndicator size="large" color="#888" />
-                        </View>
-                    )}
                     <IconButton
                         icon="pencil"
                         size={20}

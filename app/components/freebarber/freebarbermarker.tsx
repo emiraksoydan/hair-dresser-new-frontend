@@ -13,7 +13,7 @@ interface FreeBarberMarkerProps {
 }
 
 export const FreeBarberMarker = memo(({ barberId, coordinate, title, imageUrl, barberType, onPress }: FreeBarberMarkerProps) => {
-    const [imageLoading, setImageLoading] = useState(true);
+    const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
 
     const bg = barberType == 0 ? "#2563eb" : barberType == 1 ? "#db2777" : "#16a34a";

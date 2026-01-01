@@ -39,7 +39,6 @@ export interface VerifyOtpRequest {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  certificateFilePath: string;
   code: string;
   device: string | null;
   userType: number;

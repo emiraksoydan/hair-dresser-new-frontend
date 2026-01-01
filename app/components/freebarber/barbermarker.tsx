@@ -15,7 +15,7 @@ interface BarberMarkerProps {
 export const BarberMarker = memo(({ barber, onPress }: BarberMarkerProps) => {
     // Marker her mount olduğunda (listeye girdiğinde) TRUE başlar
     const [tracksViewChanges, setTracksViewChanges] = useState(true);
-    const [imageLoading, setImageLoading] = useState(true);
+    const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
     const id = (barber as any).id;
 
