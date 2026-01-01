@@ -27,6 +27,8 @@ import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocatio
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 import { filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
+import { StoreMarker } from "../../components/common/storemarker";
+import { FreeBarberMarker } from "../../components/freebarber/freebarbermarker";
 
 const Index = () => {
     const router = useRouter();
@@ -332,33 +334,18 @@ const Index = () => {
             const c = safeCoord(store.latitude, store.longitude);
             if (!c) return null;
 
-            const avatarUrl = store?.imageList?.[0]?.imageUrl;
-            const bg = store.type == 0 ? "#2563eb" : store.type == 1 ? "#db2777" : "#16a34a";
-            const iconName = store.type == 2 ? "store" : store.type == 0 ? "face-man" : "face-woman";
-            return <Marker
-                key={store.id}
-                coordinate={{ latitude: c.lat, longitude: c.lon }}
-                title={store.storeName}
-                description={store.addressDescription}
-                tracksViewChanges={false}
-                onPress={() => handleMarkerPress(store)}
-            >
-                <View
-                    className="items-center justify-center w-8 h-8 rounded-full"
-                    style={{
-                        elevation: 4,
-                        borderWidth: avatarUrl ? 0 : 1,
-                        borderColor: "white",
-                        backgroundColor: bg,
-                    }}
-                >
-                    {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
-                    ) : (
-                        <Icon source={iconName} color="white" size={20} />
-                    )}
-                </View>
-            </Marker>;
+            return (
+                <StoreMarker
+                    key={store.id}
+                    storeId={store.id}
+                    coordinate={{ latitude: c.lat, longitude: c.lon }}
+                    title={store.storeName}
+                    description={store.addressDescription}
+                    imageUrl={store?.imageList?.[0]?.imageUrl}
+                    storeType={store.type}
+                    onPress={() => handleMarkerPress(store)}
+                />
+            );
         });
     }, [filteredStores, hasStoreBarbers, handleMarkerPress]);
 
@@ -366,32 +353,17 @@ const Index = () => {
         const c = safeCoord(freeBarber?.latitude, freeBarber?.longitude);
         if (!c) return null;
 
-        const avatarUrl = freeBarber?.imageList?.[0]?.imageUrl;
-        const bg = freeBarber?.type == 0 ? "#2563eb" : freeBarber?.type == 1 ? "#db2777" : "#16a34a";
-        const iconName = freeBarber?.type == 0 ? "face-man" : "face-woman";
-        return <Marker
-            key={freeBarber?.id}
-            coordinate={{ latitude: c.lat, longitude: c.lon }}
-            title={freeBarber?.fullName}
-            tracksViewChanges={false}
-            onPress={() => handleOpenPanel(freeBarber?.id!)}
-        >
-            <View
-                className="items-center justify-center w-8 h-8 rounded-full"
-                style={{
-                    elevation: 4,
-                    borderWidth: avatarUrl ? 0 : 1,
-                    borderColor: "white",
-                    backgroundColor: bg,
-                }}
-            >
-                {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
-                ) : (
-                    <Icon source={iconName} color="white" size={20} />
-                )}
-            </View>
-        </Marker>;
+        return (
+            <FreeBarberMarker
+                key={freeBarber?.id}
+                barberId={freeBarber?.id!}
+                coordinate={{ latitude: c.lat, longitude: c.lon }}
+                title={freeBarber?.fullName || ''}
+                imageUrl={freeBarber?.imageList?.[0]?.imageUrl}
+                barberType={freeBarber?.type || 0}
+                onPress={() => handleOpenPanel(freeBarber?.id!)}
+            />
+        );
     }, [freeBarber, handleOpenPanel]);
 
     const { isTracking, isUpdating } = useTrackFreeBarberLocation(

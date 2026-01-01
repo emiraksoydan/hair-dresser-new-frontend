@@ -26,6 +26,7 @@ import { BarberMarker } from "../../components/freebarber/barbermarker";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 import { filterFreeBarbers, filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
+import { StoreMarker } from "../../components/common/storemarker";
 
 const Index = () => {
     // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
@@ -388,33 +389,18 @@ const Index = () => {
             const c = safeCoord(store.latitude, store.longitude);
             if (!c) return null;
 
-            const avatarUrl = store?.imageList?.[0]?.imageUrl;
-            const bg = store.type == 0 ? "#2563eb" : store.type == 1 ? "#db2777" : "#16a34a";
-            const iconName = store.type == 2 ? "store" : store.type == 0 ? "face-man" : "face-woman";
-            return <Marker
-                key={store.id}
-                coordinate={{ latitude: c.lat, longitude: c.lon }}
-                title={store.storeName}
-                description={store.addressDescription}
-                tracksViewChanges={false}
-                onPress={() => handlePressUpdateStore(store)}
-            >
-                <View
-                    className="items-center justify-center w-8 h-8 rounded-full"
-                    style={{
-                        elevation: 4,
-                        borderWidth: avatarUrl ? 0 : 1,
-                        borderColor: "white",
-                        backgroundColor: bg,
-                    }}
-                >
-                    {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
-                    ) : (
-                        <Icon source={iconName} color="white" size={20} />
-                    )}
-                </View>
-            </Marker>;
+            return (
+                <StoreMarker
+                    key={store.id}
+                    storeId={store.id}
+                    coordinate={{ latitude: c.lat, longitude: c.lon }}
+                    title={store.storeName}
+                    description={store.addressDescription}
+                    imageUrl={store?.imageList?.[0]?.imageUrl}
+                    storeType={store.type}
+                    onPress={() => handlePressUpdateStore(store)}
+                />
+            );
         });
     }, [filteredStores, handlePressUpdateStore]);
 

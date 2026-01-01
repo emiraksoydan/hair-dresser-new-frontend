@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { InteractionManager, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { InteractionManager, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
 import { Avatar, Button, Divider, IconButton, TextInput, HelperText } from 'react-native-paper';
 import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
@@ -22,7 +22,8 @@ const profileSchema = z.object({
         .max(20, "Soyisim en fazla 20 karakter olabilir")
         .regex(/^[^\s]+$/, "Soyisim boşluk içeremez"),
     phoneNumber: z.string()
-        .length(10, "Telefon numarası 10 haneli olmalıdır"),
+        .min(1, "Telefon numarası gereklidir")
+        .refine((val) => val.length === 10 || val.startsWith('+90'), "Telefon numarası 10 haneli olmalıdır veya +90 ile başlamalıdır"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -30,11 +31,12 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const Index = () => {
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
-    const { data: userData, isLoading: isLoadingUser, refetch } = useGetMeQuery();
+    const { data: userData, isLoading: isLoadingUser, refetch, isFetching } = useGetMeQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
     const [isAvatarLoading, setIsAvatarLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const {
         control,
@@ -53,9 +55,13 @@ const Index = () => {
 
     useEffect(() => {
         if (userData?.data) {
-            const phone = userData.data.phoneNumber?.startsWith('+90')
-                ? userData.data.phoneNumber.substring(3)
-                : userData.data.phoneNumber || '';
+            // Telefon numarasını işle - +90 ile başlıyorsa kaldır, null/undefined ise boş string yapma
+            let phone = '';
+            if (userData.data.phoneNumber) {
+                phone = userData.data.phoneNumber.startsWith('+90')
+                    ? userData.data.phoneNumber.substring(3)
+                    : userData.data.phoneNumber;
+            }
 
             reset({
                 firstName: userData.data.firstName || '',
@@ -128,6 +134,17 @@ const Index = () => {
         }
     };
 
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refetch();
+        } catch (error) {
+            showSnack('Yenileme başarısız', true);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const handleLogout = async () => {
         try {
             const tokenLoad = tokenStore.refresh;
@@ -154,7 +171,17 @@ const Index = () => {
     }
 
     return (
-        <ScrollView className='flex-1 pl-0 pt-4 bg-[#151618]'>
+        <ScrollView
+            className='flex-1 pl-0 pt-4 bg-[#151618]'
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    colors={['#10B981']}
+                    tintColor='#10B981'
+                />
+            }
+        >
             <View className='items-center'>
                 <View className="relative h-[120px] w-[120px]">
                     <Avatar.Image

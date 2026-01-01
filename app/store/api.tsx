@@ -61,7 +61,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - lokasyon değişikliklerinde hard refresh yapılıyor
+            keepUnusedDataFor: 0,
             providesTags: (result) =>
                 result
                     ? [
@@ -76,8 +76,7 @@ export const api = createApi({
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
-            keepUnusedDataFor: 0, // ✅ Cache süresi azaltıldı - 30 saniye (beğeni ve yorum güncellemeleri için)
-            // refetchOnMountOrArgChange hook seviyesinde kullanılır, endpoint tanımında değil
+            keepUnusedDataFor: 0,
             providesTags: (result) =>
                 result
                     ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
@@ -877,7 +876,7 @@ export const api = createApi({
         getMe: builder.query<ApiResponse<UserProfileDto>, void>({
             query: () => 'User/me',
             providesTags: ['UserProfile'],
-            keepUnusedDataFor: 60, // 1 dakika cache
+            keepUnusedDataFor: 0,
         }),
 
         updateProfile: builder.mutation<ApiResponse<AccessTokenDto>, UpdateUserDto>({
