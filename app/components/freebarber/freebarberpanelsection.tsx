@@ -10,6 +10,8 @@ import { toggleExpand } from '../../utils/common/expand-toggle';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { FreeBarberPanelDto } from '../../types';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
+import { shouldShowFreeBarberPanel } from '../../utils/filter/panel-filters';
+import type { AppliedFilters } from '../../utils/filter/panel-filters';
 
 interface Props {
     isList: boolean;
@@ -24,6 +26,9 @@ interface Props {
     error: any;
     isTracking: boolean;
     isUpdating: boolean;
+    searchQuery?: string;
+    appliedFilters?: AppliedFilters;
+    categoryNameById?: Map<string, string>;
 }
 
 // React.memo ile sarmaladık. Sadece props değişirse render olur.
@@ -32,7 +37,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
     freeBarber,
     isLoading,
     isError,
-    error, isTracking, isUpdating }: Props) => {
+    error, isTracking, isUpdating, searchQuery = '', appliedFilters, categoryNameById }: Props) => {
 
 
     const [expandedMineStore, setExpandedMineStore] = useState(true);
@@ -41,6 +46,21 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
         () => (expandedMineStore ? screenWidth * 0.92 : screenWidth * 0.94),
         [expandedMineStore, screenWidth]
     );
+
+    // Filtre kontrolü - freeBarber paneli filtrelere uyuyor mu?
+    const shouldShow = useMemo(() => {
+        if (!appliedFilters || !categoryNameById) return true;
+        return shouldShowFreeBarberPanel(freeBarber, {
+            searchQuery,
+            filters: appliedFilters,
+            categoryNameById
+        });
+    }, [freeBarber, searchQuery, appliedFilters, categoryNameById]);
+
+    // Filtre sonucu gösterilmemeli ise null dön
+    if (hasMineFreeBarber && !shouldShow) {
+        return null;
+    }
 
     return (
         <>

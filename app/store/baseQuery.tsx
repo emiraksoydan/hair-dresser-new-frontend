@@ -40,12 +40,16 @@ export const normalizeLoaded = (raw: any) => {
 
 const raw = fetchBaseQuery({
   baseUrl: API,
+  timeout: API_CONFIG.REQUEST_TIMEOUT_MS,
   prepareHeaders: (h) => {
     if (tokenStore.access) h.set('Authorization', `Bearer ${tokenStore.access}`);
     return h;
   },
 });
-const rawNoAuth = fetchBaseQuery({ baseUrl: API });
+const rawNoAuth = fetchBaseQuery({
+  baseUrl: API,
+  timeout: API_CONFIG.REQUEST_TIMEOUT_MS
+});
 
 let refreshing: Promise<any> | null = null;
 
@@ -56,6 +60,26 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
 
       // Backend'den gelen error response'u normalize et
       if (res.error) {
+        // Network hatası mı kontrol et
+        if (res.error.status === 'FETCH_ERROR') {
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: { message: 'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.' }
+            }
+          } as any;
+        }
+
+        // Timeout hatası mı kontrol et
+        if (res.error.status === 'TIMEOUT_ERROR') {
+          return {
+            error: {
+              status: 'TIMEOUT_ERROR',
+              data: { message: 'Sunucudan cevap yok. Lütfen tekrar deneyin.' }
+            }
+          } as any;
+        }
+
         // Backend'den gelen error data'sını kontrol et (IDataResult formatında olabilir)
         const errorData = res.error.data as any;
         if (errorData) {

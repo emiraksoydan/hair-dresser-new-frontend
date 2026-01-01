@@ -35,10 +35,26 @@ export const EmptyStateFunc = ({ loading, hasData, hasLocation, locationStatus, 
     </View>
 );
 
-export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters }: any) => {
+export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error }: any) => {
     const [expanded, setExpanded] = useState(true);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
+
+    // Network/Server error durumu - öncelikli göster
+    if (error) {
+        const isNetworkError = error?.status === 'FETCH_ERROR' || error?.status === 'TIMEOUT_ERROR';
+        const errorMessage = error?.data?.message ||
+            (isNetworkError ? 'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.' : 'Bir hata oluştu. Lütfen tekrar deneyin.');
+
+        return (
+            <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <LottieViewComponent
+                    animationSource={require('../../../assets/animations/error.json')}
+                    message={errorMessage}
+                />
+            </View>
+        );
+    }
 
     if (loading && !stores.length) return <SkeletonList count={2} />;
     if (!stores.length) {
@@ -110,10 +126,26 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
     );
 });
 
-export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters }: any) => {
+export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error }: any) => {
     const [expanded, setExpanded] = useState(false);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
+
+    // Network/Server error durumu - öncelikli göster
+    if (error) {
+        const isNetworkError = error?.status === 'FETCH_ERROR' || error?.status === 'TIMEOUT_ERROR';
+        const errorMessage = error?.data?.message ||
+            (isNetworkError ? 'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.' : 'Bir hata oluştu. Lütfen tekrar deneyin.');
+
+        return (
+            <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <LottieViewComponent
+                    animationSource={require('../../../assets/animations/error.json')}
+                    message={errorMessage}
+                />
+            </View>
+        );
+    }
 
     if (loading && !freeBarbers.length) return <SkeletonList count={2} />;
     if (!freeBarbers.length) {

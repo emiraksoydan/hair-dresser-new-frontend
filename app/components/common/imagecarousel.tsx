@@ -134,13 +134,15 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   );
 }, (prevProps, nextProps) => {
   // Custom comparison to prevent unnecessary re-renders
-  return (
-    prevProps.images === nextProps.images &&
-    prevProps.width === nextProps.width &&
-    prevProps.height === nextProps.height &&
-    prevProps.autoPlay === nextProps.autoPlay &&
-    prevProps.isMapMode === nextProps.isMapMode
-  );
+  // IMPORTANT: width/height değiştiğinde bile aynı resmi tekrar yüklemememiz için
+  // sadece images array'inin kendisini karşılaştırıyoruz
+  const sameImages = prevProps.images === nextProps.images;
+  const sameAutoPlay = prevProps.autoPlay === nextProps.autoPlay;
+  const sameMapMode = prevProps.isMapMode === nextProps.isMapMode;
+  const sameBorderRadius = prevProps.borderRadiusClass === nextProps.borderRadiusClass;
+
+  // Width/height değişikliği re-render'a sebep olacak ama loadedImages state'i korunacak
+  return sameImages && sameAutoPlay && sameMapMode && sameBorderRadius;
 });
 
 ImageCarousel.displayName = 'ImageCarousel';

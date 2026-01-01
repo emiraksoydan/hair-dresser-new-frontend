@@ -40,6 +40,7 @@ const Index = () => {
         hasLocation: storesHasLocation,
         location: storesLocation,
         fetchedOnce: storesFetchedOnce,
+        error: storesError,
         manualFetch: manualFetchStores
     } = useNearbyStores(true);
 
@@ -50,6 +51,7 @@ const Index = () => {
         hasLocation: freeBarbersHasLocation,
         location: freeBarbersLocation,
         fetchedOnce: freeBarbersFetchedOnce,
+        error: freeBarbersError,
         manualFetch: manualFetchFreeBarbers
     } = useNearbyFreeBarber(true);
 
@@ -269,6 +271,7 @@ const Index = () => {
                         hasLocation={storesHasLocation}
                         locationStatus={storesLocationStatus}
                         fetchedOnce={storesFetchedOnce}
+                        error={storesError}
                         isList={isList}
                         onPressStore={goStoreDetail}
                         onPressRatings={handlePressRatings}
@@ -282,6 +285,7 @@ const Index = () => {
                         hasLocation={freeBarbersHasLocation}
                         locationStatus={freeBarbersLocationStatus}
                         fetchedOnce={freeBarbersFetchedOnce}
+                        error={freeBarbersError}
                         isList={isList}
                         onPressFreeBarber={goFreeBarberDetail}
                         onPressRatings={handlePressRatings}

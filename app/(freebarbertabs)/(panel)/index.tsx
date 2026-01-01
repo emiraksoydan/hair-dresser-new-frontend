@@ -424,6 +424,9 @@ const Index = () => {
                                     error={error}
                                     isUpdating={isUpdating}
                                     isTracking={isTracking}
+                                    searchQuery={searchQuery}
+                                    appliedFilters={appliedFilters}
+                                    categoryNameById={categoryNameById}
                                 />
                             );
                         }

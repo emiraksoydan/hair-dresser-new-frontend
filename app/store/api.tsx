@@ -84,12 +84,12 @@ export const api = createApi({
         }),
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
-            keepUnusedDataFor: 0, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
             providesTags: (result, error, id) => [{ type: 'GetStoreById' as const, id }],
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
             query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
-            keepUnusedDataFor: 0, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
             providesTags: (result, error, storeId) => [{ type: 'StoreForUsers' as const, id: storeId }],
         }),
 
@@ -136,12 +136,12 @@ export const api = createApi({
         }),
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
             query: (id) => `FreeBarber/${id}`,
-            keepUnusedDataFor: 0, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
             providesTags: (result, error, id) => [{ type: 'MineFreeBarberPanel' as const, id }],
         }),
         getFreeBarberForUsers: builder.query<FreeBarberPanelDto, string>({
             query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
-            keepUnusedDataFor: 0, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
             providesTags: (result, error, freeBarberId) => [{ type: 'FreeBarberForUsers' as const, id: freeBarberId }],
         }),
 
@@ -197,7 +197,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { filter },
             }),
-            keepUnusedDataFor: 0, // 30 saniye cache (appointment listesi için)
+            keepUnusedDataFor: 30, // 30 saniye cache (appointment listesi için)
             transformResponse: (response: any) => {
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
@@ -368,7 +368,7 @@ export const api = createApi({
                 if (Array.isArray(res?.data)) return res.data;
                 return [];
             },
-            keepUnusedDataFor: 0, // 2 dakika cache (working hours nadiren değişir)
+            keepUnusedDataFor: 120, // 2 dakika cache (working hours nadiren değişir)
         }),
 
         // --- NOTIFICATION API ---
@@ -788,7 +788,7 @@ export const api = createApi({
         // --- CATEGORY API ---
         getAllCategories: builder.query<any[], void>({
             query: () => 'Categories',
-            keepUnusedDataFor: 0, // 5 dakika cache (kategoriler sık değişmez)
+            keepUnusedDataFor: 300, // 5 dakika cache (kategoriler sık değişmez)
             transformResponse: (response: any) => {
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
@@ -797,7 +797,7 @@ export const api = createApi({
         }),
         getParentCategories: builder.query<any[], void>({
             query: () => 'Categories/parents',
-            keepUnusedDataFor: 0, // 5 dakika cache
+            keepUnusedDataFor: 300, // 5 dakika cache
             transformResponse: (response: any) => {
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
@@ -806,7 +806,7 @@ export const api = createApi({
         }),
         getChildCategories: builder.query<any[], string>({
             query: (parentId) => `Categories/children/${parentId}`,
-            keepUnusedDataFor: 0, // 5 dakika cache
+            keepUnusedDataFor: 300, // 5 dakika cache
             transformResponse: (response: any) => {
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;
@@ -876,7 +876,7 @@ export const api = createApi({
         getMe: builder.query<ApiResponse<UserProfileDto>, void>({
             query: () => 'User/me',
             providesTags: ['UserProfile'],
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 60, // 1 dakika cache (profil değişikliği olduğunda invalidate edilir)
         }),
 
         updateProfile: builder.mutation<ApiResponse<AccessTokenDto>, UpdateUserDto>({

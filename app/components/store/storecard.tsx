@@ -99,27 +99,17 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    {isList ? (
-                        <ImageCarousel
-                            images={store.imageList ?? []}
-                            width={carouselWidth}
-                            autoPlay={true}
-                            mode={"default"}
-                            autoPlayInterval={2000}
-                            borderRadiusClass="rounded-lg"
-                        />
-                    ) : (
-                        <Image
-                            defaultSource={require('../../../assets/images/empty.png')}
-                            className="h-28 w-28 mr-2 rounded-lg mb-0"
-                            source={
-                                coverImage
-                                    ? { uri: coverImage }
-                                    : require('../../../assets/images/empty.png')
-                            }
-                            resizeMode={'cover'}
-                        />
-                    )}
+                    <ImageCarousel
+                        key={`store-${store.id}`}
+                        images={store.imageList ?? []}
+                        width={isList ? carouselWidth : 112}
+                        height={isList ? 250 : 112}
+                        autoPlay={isList}
+                        mode={"default"}
+                        autoPlayInterval={2000}
+                        borderRadiusClass="rounded-lg"
+                        showPagination={isList}
+                    />
                     {/* Image üzerinde bilgiler - hem list hem card modunda */}
                     <View className={`absolute ${isList ? 'top-3 right-3' : 'top-1 right-1'} flex-row gap-2 z-10`}>
                         {isList && typeLabel && (

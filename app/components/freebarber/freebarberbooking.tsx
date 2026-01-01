@@ -179,6 +179,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                 <View className={`relative w-full h-[250px]`}>
                     <ImageCarousel
                         images={freeBarberData?.imageList ?? []}
+                        autoPlay={true}
+                        mode={'default'}
                         height={250}
                         borderRadiusClass={borderRadiusClass}
                     />

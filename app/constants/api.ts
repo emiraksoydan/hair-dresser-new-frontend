@@ -8,7 +8,7 @@ export const API_CONSTANTS = {
     SIGNALR_HUB_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://192.168.1.103:5149/hubs/app',
 
     // Timeouts
-    REQUEST_TIMEOUT_MS: 30000,
+    REQUEST_TIMEOUT_MS: 15000, // 10 saniye - sunucu kapalıysa hızlıca fail et
     REFRESH_TOKEN_SKEW_MS: 30000,
 
     // Retry configuration

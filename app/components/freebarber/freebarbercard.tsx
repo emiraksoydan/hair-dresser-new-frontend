@@ -34,6 +34,9 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     const [hasCalled, setHasCalled] = useState(false);
     const previousAvailableRef = useRef<boolean | null>(null);
 
+    // Image loading state'ini toggle değişiminde korumak için
+    const [imageLoaded, setImageLoaded] = useState(false);
+
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(freeBarber);
@@ -156,26 +159,16 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    {isList ? (
-                        <ImageCarousel
-                            images={freeBarber.imageList ?? []}
-                            width={carouselWidth}
-                            height={320}
-                            autoPlay={false}
-                            borderRadiusClass="rounded-lg"
-                        />
-                    ) : (
-                        <Image
-                            defaultSource={require('../../../assets/images/empty.png')}
-                            className="h-28 w-28 mr-2 rounded-lg mb-0"
-                            source={
-                                coverImage
-                                    ? { uri: coverImage }
-                                    : require('../../../assets/images/empty.png')
-                            }
-                            resizeMode={'cover'}
-                        />
-                    )}
+                    <ImageCarousel
+                        key={`freebarber-${freeBarber.id}`}
+                        images={freeBarber.imageList ?? []}
+                        width={isList ? carouselWidth : 112}
+                        mode={'default'}
+                        height={isList ? 320 : 112}
+                        autoPlay={true}
+                        borderRadiusClass="rounded-lg"
+                        showPagination={isList}
+                    />
                     {isList && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
                             {typeLabel && (

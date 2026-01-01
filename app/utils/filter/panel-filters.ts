@@ -209,3 +209,61 @@ export const filterFreeBarbers = (
 
   return result;
 };
+
+export const shouldShowFreeBarberPanel = (
+  freeBarber: any | undefined,
+  { searchQuery, filters, categoryNameById }: Omit<FilterContext, 'favoriteIds'>
+): boolean => {
+  if (!freeBarber?.fullName) return true; // Panel yoksa göster (boş state için)
+
+  // Search query kontrolü
+  if (searchQuery) {
+    const needle = normalizeSearch(searchQuery);
+    if (!normalizeSearch(freeBarber.fullName ?? "").includes(needle)) {
+      return false;
+    }
+  }
+
+  // Main category kontrolü
+  if (!matchesMainCategory(filters.mainCategory, freeBarber.type)) {
+    return false;
+  }
+
+  // Services kontrolü
+  if (filters.services.length > 0) {
+    if (!matchesServices(freeBarber.offerings, filters.services, categoryNameById)) {
+      return false;
+    }
+  }
+
+  // Rating kontrolü
+  if (!matchesRating(freeBarber.rating, filters.rating)) {
+    return false;
+  }
+
+  // Price kontrolü
+  if (filters.minPrice || filters.maxPrice) {
+    const price = getFreeBarberPrice(freeBarber.offerings);
+
+    if (filters.minPrice) {
+      const minVal = parseFloat(filters.minPrice);
+      if (!Number.isNaN(minVal) && (price === undefined || price < minVal)) {
+        return false;
+      }
+    }
+
+    if (filters.maxPrice) {
+      const maxVal = parseFloat(filters.maxPrice);
+      if (!Number.isNaN(maxVal) && (price === undefined || price > maxVal)) {
+        return false;
+      }
+    }
+  }
+
+  // Availability kontrolü
+  if (!matchesAvailability(filters.availability, freeBarber.isAvailable)) {
+    return false;
+  }
+
+  return true;
+};

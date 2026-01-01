@@ -104,7 +104,8 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                         images={images}
                         width={imageWidth}
                         height={imageHeight}
-                        autoPlay={false}
+                        mode={'default'}
+                        autoPlay={true}
                         borderRadiusClass="rounded-lg"
                         containerStyle={!isList ? { marginRight: 8 } : undefined}
                     />

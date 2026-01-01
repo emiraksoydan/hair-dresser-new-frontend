@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Portal, Snackbar } from 'react-native-paper';
 
 export interface UseSnackbarReturn {
@@ -19,15 +19,15 @@ export const useSnackbar = (): UseSnackbarReturn => {
   const [snackText, setSnackText] = useState('');
   const [snackIsError, setSnackIsError] = useState(false);
 
-  const showSnack = (message: string, isError: boolean = false) => {
+  const showSnack = React.useCallback((message: string, isError: boolean = false) => {
     setSnackText(message);
     setSnackIsError(isError);
     setSnackVisible(true);
-  };
+  }, []);
 
-  const hideSnack = () => {
+  const hideSnack = React.useCallback(() => {
     setSnackVisible(false);
-  };
+  }, []);
 
   const SnackbarComponent: React.FC = () => (
     <Portal>
