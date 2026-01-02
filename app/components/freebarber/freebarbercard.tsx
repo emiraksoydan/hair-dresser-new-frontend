@@ -23,7 +23,7 @@ type Props = {
 
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId }) => {
     const coverImage = freeBarber.imageList?.[0]?.imageUrl;
-    const carouselWidth = Math.max(0, cardWidthFreeBarber - 8);
+    const carouselWidth = Math.max(0, cardWidthFreeBarber);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
@@ -159,15 +159,16 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
+
                     <ImageCarousel
                         key={`freebarber-${freeBarber.id}`}
                         images={freeBarber.imageList ?? []}
                         width={isList ? carouselWidth : 112}
                         mode={'default'}
-                        height={isList ? 320 : 112}
+                        height={isList ? 250 : 112}
                         autoPlay={true}
                         borderRadiusClass="rounded-lg"
-                        showPagination={isList}
+                        showPagination={true}
                     />
                     {isList && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
@@ -349,6 +350,7 @@ export const FreeBarberCardInner = React.memo(
             prev.freeBarber.favoriteCount === next.freeBarber.favoriteCount &&
             prev.freeBarber.imageList === next.freeBarber.imageList &&
             prev.freeBarber.offerings === next.freeBarber.offerings;
+
 
         const sameProps =
             prev.isList === next.isList &&
