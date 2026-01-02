@@ -22,7 +22,6 @@ import {
 } from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
 import { pickImageAndSet, handlePickMultipleImages, handlePickImage, truncateFileName } from '../../utils/form/pick-document';
-import { LegendList } from '@legendapp/list';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MapPicker } from '../common/mappicker';
 import { createStoreLocationHelpers } from '../../utils/store/store-location-helper';
@@ -33,6 +32,9 @@ import { resolveApiErrorMessage } from '../../utils/common/error';
 import { ChairEditModal } from './chaireditmodal';
 import { safeCoord } from '../../utils/location/geo';
 import { useSnackbar } from '../../hook/useSnackbar';
+import { ChairItem } from './ChairItem';
+import { ManuelBarberItem } from './ManuelBarberItem';
+import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 import { mapBarberType, mapPricingType, mapTypeToDisplayName } from '../../utils/form/form-mappers';
 
 
@@ -400,6 +402,17 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
     const barbers = watch('barbers') ?? [];
     const chairs = watch("chairs") ?? [];
     const pricingMode = watch("pricingType.mode");
+
+    // Memoized barber lookup map to avoid O(n²) operations
+    const barberMap = useMemo(() => {
+        const map = new Map<string, string>();
+        barbers.forEach(b => {
+            if (b.id && b.name) {
+                map.set(b.id, b.name);
+            }
+        });
+        return map;
+    }, [barbers]);
     const taxDocErrorText =
         (errors.taxDocumentImage as any)?.message ||
         (errors.taxDocumentImage as any)?.name?.message ||
@@ -482,7 +495,6 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
     );
-    console.log(categoryOptions);
     const categoryOptionsWithSelected = useMemo(() => {
         const base = [...categoryOptions];
         const seen = new Set(base.map((o) => o.value));
@@ -494,6 +506,33 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         });
         return base;
     }, [categoryOptions, selectedCategories]);
+
+    // Memoized category label lookup map to avoid O(n²) operations
+    const categoryLabelMap = useMemo(() => {
+        const map = new Map<string, string>();
+        categoryOptionsWithSelected.forEach(opt => {
+            map.set(opt.value, opt.label);
+        });
+        return map;
+    }, [categoryOptionsWithSelected]);
+
+    // Memoized category value set for O(1) validation
+    const categoryValueSet = useMemo(() =>
+        new Set(categoryOptionsWithSelected.map(opt => opt.value)),
+        [categoryOptionsWithSelected]
+    );
+
+    // Memoized parent categories dropdown data
+    const parentCategoriesDropdownData = useMemo(() =>
+        parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
+        [parentCategories]
+    );
+
+    // Memoized parent categories value set for validation
+    const parentCategoriesValueSet = useMemo(() =>
+        new Set(parentCategories.map((cat: any) => cat.name)),
+        [parentCategories]
+    );
 
     useEffect(() => {
         const idx = (working ?? []).findIndex(w => w.dayOfWeek === activeDay);
@@ -968,15 +1007,13 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                         control={control}
                                         name="type"
                                         render={({ field: { value, onChange } }) => {
-                                            // Dropdown data'sını memoize et
-                                            const dropdownData = parentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }));
-                                            // Value'nun data'da olup olmadığını kontrol et
-                                            const isValueValid = value && dropdownData.some(item => item.value === value);
+                                            // Use memoized dropdown data and validation set
+                                            const isValueValid = value && parentCategoriesValueSet.has(value);
 
                                             return (
                                                 <>
                                                     <Dropdown
-                                                        data={dropdownData}
+                                                        data={parentCategoriesDropdownData}
                                                         labelField="label"
                                                         valueField="value"
                                                         placeholder="Ana Kategori Seç"
@@ -1022,7 +1059,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                         data={categoryOptionsWithSelected}
                                                         labelField="label"
                                                         valueField="value"
-                                                        value={(value ?? []).filter(v => categoryOptionsWithSelected.some(o => o.value === v))}
+                                                        value={(value ?? []).filter(v => categoryValueSet.has(v))}
                                                         onChange={(vals: string[]) => onChange(vals)}
                                                         placeholder="Hizmet seçin"
                                                         dropdownPosition="top"
@@ -1073,7 +1110,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                             {selectedCategories.length > 0 && (
                                 <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
                                     {selectedCategories.map((categoryId) => {
-                                        const label = categoryOptionsWithSelected.find(i => i.value === categoryId)?.label ?? categoryId;
+                                        const label = categoryLabelMap.get(categoryId) ?? categoryId;
                                         return (
                                             <View key={categoryId}>
                                                 <View className="flex-row items-center gap-2 mb-0">
@@ -1123,48 +1160,38 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                 <Button mode="text" textColor="#c2a523" onPress={openCreateBarberModal}>Berber Ekle</Button>
                             </View>
                             {barberFields.length > 0 && (
-                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 ">
-                                    <View style={{ height: 64 * barberFields.length }}>
-                                        <LegendList
-                                            data={barberFields}
-                                            keyExtractor={(item) => item._key}
-                                            estimatedItemSize={64}
-                                            renderItem={({ item }) => {
-                                                const index = barberFields.findIndex(f => f._key === item._key);
-                                                return (
-                                                    <View className="flex-row items-center mb-3 gap-3">
-                                                        {barbers[index]?.avatar?.uri
-                                                            ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
-                                                            : <Avatar.Icon size={40} icon="account-circle" />}
+                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
+                                    {barberFields.map((item, index) => (
+                                        <View key={item._key} className="flex-row items-center mb-3 gap-3">
+                                            {barbers[index]?.avatar?.uri
+                                                ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
+                                                : <Avatar.Icon size={40} icon="account-circle" />}
 
-                                                        <Controller
-                                                            control={control}
-                                                            name={`barbers.${index}.name` as const}
-                                                            render={({ field: { value, onChange, onBlur } }) => (
-                                                                <TextInput
-                                                                    label="Berber adı"
-                                                                    mode="outlined"
-                                                                    dense
-                                                                    value={value}
-                                                                    readOnly
-                                                                    textColor="white"
-                                                                    outlineColor="#444"
-                                                                    theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                                    style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1 }}
-                                                                />
-                                                            )}
-                                                        />
-                                                        <TouchableOpacity onPress={() => openEditBarberModal(index)}>
-                                                            <Icon size={22} source="update" color="#c2a523" />
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity onPress={() => handleDeleteBarber(index)}>
-                                                            <Icon size={22} source="delete" color="#ef4444" />
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                )
-                                            }}
-                                        />
-                                    </View>
+                                            <Controller
+                                                control={control}
+                                                name={`barbers.${index}.name`}
+                                                render={({ field: { value } }) => (
+                                                    <TextInput
+                                                        label="Berber adı"
+                                                        mode="outlined"
+                                                        dense
+                                                        value={value ?? ''}
+                                                        readOnly
+                                                        textColor="white"
+                                                        outlineColor="#444"
+                                                        theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
+                                                        style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1 }}
+                                                    />
+                                                )}
+                                            />
+                                            <TouchableOpacity onPress={() => openEditBarberModal(index)}>
+                                                <Icon size={22} source="update" color="#c2a523" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleDeleteBarber(index)}>
+                                                <Icon size={22} source="delete" color="#ef4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
                                     <HelperText type="error" visible={!!barberErrorText}>
                                         {barberErrorText}
                                     </HelperText>
@@ -1176,45 +1203,36 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                             </View>
                             {chairFields.length > 0 && (
                                 <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
-                                    <View style={{ height: 64 * chairFields.length }}>
-                                        <LegendList
-                                            data={chairFields}
-                                            keyExtractor={(item) => item._key}
-                                            estimatedItemSize={64}
-                                            renderItem={({ item }) => {
-                                                const index = chairFields.findIndex(f => f._key === item._key);
-                                                if (index === -1) return null;
-                                                const chair = chairs[index];
-                                                if (!chair) return null;
-                                                const isBarberChair = !!chair.barberId;
-                                                const modeLabel = isBarberChair ? "Berber koltuğu" : "İsimli koltuk";
-                                                const barberName = isBarberChair
-                                                    ? (barbers.find(b => b.id === chair.barberId)?.name ?? "Atanmamış")
-                                                    : "-";
-                                                return (
-                                                    <View className="flex-row items-center gap-3 mt-2  mb-3">
-                                                        <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
-                                                        <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
-                                                            <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
-                                                        </View>
-                                                        <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
-                                                            {!isBarberChair ? (
-                                                                <Text className='text-white text-xs mb-1'>{chair.name}</Text>
-                                                            ) : (
-                                                                <Text className='text-white text-xs mb-1'>{barberName}</Text>
-                                                            )}
-                                                        </View>
-                                                        <TouchableOpacity onPress={() => openEditChairModal(index)}>
-                                                            <Icon size={22} source="update" color="#c2a523" />
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity onPress={() => handleChair(index)}>
-                                                            <Icon size={22} source="delete" color="#ef4444" />
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                );
-                                            }}
-                                        />
-                                    </View>
+                                    {chairFields.map((item, index) => {
+                                        const chair = chairs[index];
+                                        if (!chair) return null;
+                                        const isBarberChair = !!chair.barberId;
+                                        const modeLabel = isBarberChair ? "Berber koltuğu" : "İsimli koltuk";
+                                        const barberName = isBarberChair
+                                            ? (barberMap.get(chair.barberId!) ?? "Atanmamış")
+                                            : "-";
+                                        return (
+                                            <View key={item._key} className="flex-row items-center gap-3 mt-2  mb-3">
+                                                <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
+                                                <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                    <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
+                                                </View>
+                                                <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                    {!isBarberChair ? (
+                                                        <Text className='text-white text-xs mb-1'>{chair.name}</Text>
+                                                    ) : (
+                                                        <Text className='text-white text-xs mb-1'>{barberName}</Text>
+                                                    )}
+                                                </View>
+                                                <TouchableOpacity onPress={() => openEditChairModal(index)}>
+                                                    <Icon size={22} source="update" color="#c2a523" />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => handleChair(index)}>
+                                                    <Icon size={22} source="delete" color="#ef4444" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        );
+                                    })}
                                     <HelperText type="error" visible={!!chairsErrorText}>
                                         {chairsErrorText}
                                     </HelperText>

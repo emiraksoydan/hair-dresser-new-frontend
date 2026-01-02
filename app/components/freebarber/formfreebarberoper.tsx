@@ -288,6 +288,32 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         return base;
     }, [categoryOptions, selectedCategories]);
 
+    // Memoized category label lookup map to avoid O(n²) operations
+    const categoryLabelMap = useMemo(() => {
+        const map = new Map<string, string>();
+        categoryOptionsWithSelected.forEach(opt => {
+            map.set(opt.value, opt.label);
+        });
+        return map;
+    }, [categoryOptionsWithSelected]);
+
+    // Memoized category value set for O(1) validation
+    const categoryValueSet = useMemo(() =>
+        new Set(categoryOptionsWithSelected.map(opt => opt.value)),
+        [categoryOptionsWithSelected]
+    );
+
+    // Memoized parent categories dropdown data
+    const parentCategoriesDropdownData = useMemo(() =>
+        allowedParentCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
+        [allowedParentCategories]
+    );
+
+    // Memoized parent categories value set for validation
+    const parentCategoriesValueSet = useMemo(() =>
+        new Set(allowedParentCategories.map((cat: any) => cat.name)),
+        [allowedParentCategories]
+    );
 
     // Tip değişince category/price reset
     const prevTypeRef = useRef<string | undefined>(undefined);
@@ -687,15 +713,13 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                 control={control}
                                 name="type"
                                 render={({ field: { value, onChange }, fieldState: { error } }) => {
-                                    // Dropdown data'sını memoize et
-                                    const dropdownData = allowedParentCategories.map((cat: any) => ({ label: cat.name, value: cat.name }));
-                                    // Value'nun data'da olup olmadığını kontrol et
-                                    const isValueValid = value && dropdownData.some(item => item.value === value);
+                                    // Use memoized dropdown data and validation set
+                                    const isValueValid = value && parentCategoriesValueSet.has(value);
 
                                     return (
                                         <>
                                             <Dropdown
-                                                data={dropdownData}
+                                                data={parentCategoriesDropdownData}
                                                 labelField="label"
                                                 valueField="value"
                                                 placeholder="Ana kategori seç (Erkek Berber / Bayan Kuaför)"
@@ -789,7 +813,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                         {(selectedCategories ?? []).length > 0 && (
                             <View className="mt-3 mx-4 rounded-xl bg-gray-800 p-4">
                                 {(selectedCategories ?? []).map((categoryId) => {
-                                    const label = categoryOptionsWithSelected.find((i) => i.value === categoryId)?.label ?? categoryId;
+                                    const label = categoryLabelMap.get(categoryId) ?? categoryId;
                                     return (
                                         <View key={categoryId} className="flex-row items-center justify-between mb-2">
                                             <Text className="text-white w-[40%]" numberOfLines={1}>

@@ -29,6 +29,8 @@ import { filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
 import { StoreMarker } from "../../components/common/storemarker";
 import { FreeBarberMarker } from "../../components/freebarber/freebarbermarker";
+import { DeferredRender } from "../../components/common/deferredrender";
+import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
 
 const Index = () => {
     const router = useRouter();
@@ -171,6 +173,8 @@ const Index = () => {
     const { present: presentRatings } = useSheet('ratings');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
+    const [isMapDetailOpen, setIsMapDetailOpen] = useState(false);
+    const [isRatingsSheetOpen, setIsRatingsSheetOpen] = useState(false);
 
     const [freeBarberId, setFreeBarberId] = useState<string | null>(null);
 
@@ -577,12 +581,22 @@ const Index = () => {
                 enablePanDownToClose={isMapMode}
             >
                 <BottomSheetView className='h-full pt-2'>
-                    <FormFreeBarberOperation freeBarberId={freeBarberId} enabled={isSheetOpen} />
+                    <DeferredRender
+                        active={isSheetOpen}
+                        placeholder={
+                            <View className="flex-1 pt-4">
+                                <CrudSkeletonComponent />
+                            </View>
+                        }
+                    >
+                        <FormFreeBarberOperation freeBarberId={freeBarberId} enabled={isSheetOpen} />
+                    </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
 
             <BottomSheetModal
                 ref={(inst) => setRef("mapDetail", inst)}
+                onChange={(index) => setIsMapDetailOpen(index >= 0)}
                 snapPoints={["65%"]}
                 enablePanDownToClose={true}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
@@ -590,15 +604,24 @@ const Index = () => {
                 backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
-                    {selectedMapItem && (
-                        <StoreBookingContent
-                            storeId={(selectedMapItem as any).id}
-                            isBottomSheet={true}
-                            isFreeBarber={true}
-                            mode={effectiveAppointmentId ? "add-store" : undefined}
-                            appointmentId={effectiveAppointmentId}
-                        />
-                    )}
+                    <DeferredRender
+                        active={isMapDetailOpen && !!selectedMapItem}
+                        placeholder={
+                            <View className="flex-1 pt-4">
+                                <SkeletonComponent />
+                            </View>
+                        }
+                    >
+                        {selectedMapItem && (
+                            <StoreBookingContent
+                                storeId={(selectedMapItem as any).id}
+                                isBottomSheet={true}
+                                isFreeBarber={true}
+                                mode={effectiveAppointmentId ? "add-store" : undefined}
+                                appointmentId={effectiveAppointmentId}
+                            />
+                        )}
+                    </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
 
@@ -613,18 +636,31 @@ const Index = () => {
                 onChange={(index) => {
                     if (index < 0) {
                         setSelectedRatingsTarget(null);
+                        setIsRatingsSheetOpen(false);
+                    } else {
+                        setIsRatingsSheetOpen(true);
                     }
                 }}
             >
-                {selectedRatingsTarget && (
-                    <RatingsBottomSheet
-                        targetId={selectedRatingsTarget.targetId}
-                        targetName={selectedRatingsTarget.targetName}
-                        onClose={() => {
-                            setSelectedRatingsTarget(null);
-                        }}
-                    />
-                )}
+                <DeferredRender
+                    active={isRatingsSheetOpen && !!selectedRatingsTarget}
+                    placeholder={
+                        <View className="flex-1 pt-4">
+                            <SkeletonComponent />
+                        </View>
+                    }
+                >
+                    {selectedRatingsTarget && (
+                        <RatingsBottomSheet
+                            targetId={selectedRatingsTarget.targetId}
+                            targetName={selectedRatingsTarget.targetName}
+                            onClose={() => {
+                                setSelectedRatingsTarget(null);
+                                setIsRatingsSheetOpen(false);
+                            }}
+                        />
+                    )}
+                </DeferredRender>
             </BottomSheetModal>
         </View>
     )

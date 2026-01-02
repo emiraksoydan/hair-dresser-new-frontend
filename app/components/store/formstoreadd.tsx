@@ -18,7 +18,6 @@ import {
 } from '../../store/api';
 import 'react-native-get-random-values';
 import { v4 as uuid } from "uuid";
-import { LegendList } from '@legendapp/list';
 import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, timeHHmmRegex, toMinutes } from '../../utils/time/time-helper';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { parseTR } from '../../utils/form/money-helper';
@@ -28,6 +27,9 @@ import { BarberStoreCreateDto, ImageOwnerType } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { useSnackbar } from '../../hook/useSnackbar';
 import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
+import { ChairItem } from './ChairItem';
+import { ManuelBarberItem } from './ManuelBarberItem';
+import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 
 
 const ChairPricingSchema = z.object({
@@ -453,13 +455,13 @@ const FormStoreAdd = () => {
         fields: chairFields,
         append: addChair,
         remove: removeChair,
-        update: updateChair,
     } = useFieldArray({ control, name: "chairs", keyName: "_key" });
 
+    // Optimized chair options hook
+    const { getBarberOptions } = useOptimizedChairOptions(control, 'barbers', 'chairs');
 
     const barbers = useWatch({ control, name: "barbers" }) ?? [];
     const chairs = useWatch({ control, name: "chairs" }) ?? [];
-
 
     const validBarbers = React.useMemo(
         () => (barbers ?? []).filter(b => !!b.name?.trim()),
@@ -474,38 +476,6 @@ const FormStoreAdd = () => {
             }
         });
     }, [validBarbers]);
-
-    const barberNamesVersion = useMemo(
-        () => (barbers ?? []).map(b => `${b.id}:${b.name?.trim() ?? ''}`).join('|'),
-        [barbers]
-    );
-
-    const chairAssignVersion = useMemo(
-        () => (chairs ?? []).map(c => `${c.id}:${c.mode}:${c.barberId ?? ''}`).join('|'),
-        [chairs]
-    );
-
-    const barberOptionsMap = React.useMemo(() => {
-        const used = new Map<string, number>();
-        chairs.forEach(c => {
-            if (c.mode === "barber" && c.barberId) {
-                used.set(c.barberId, (used.get(c.barberId) ?? 0) + 1);
-            }
-        });
-        const map = new Map<string, { label: string; value: string }[]>();
-        chairs.forEach(c => {
-            const usedExceptSelf = new Map(used);
-            if (c.mode === "barber" && c.barberId) {
-                const left = (usedExceptSelf.get(c.barberId) ?? 0) - 1;
-                left > 0 ? usedExceptSelf.set(c.barberId, left) : usedExceptSelf.delete(c.barberId);
-            }
-            const opts = validBarbers // <— sadece isimli berberler
-                .filter(b => !usedExceptSelf.has(b.id))
-                .map(b => ({ label: b.name!.trim(), value: b.id }));
-            map.set(c.id, opts);
-        });
-        return map;
-    }, [chairs, validBarbers]);
 
 
 
@@ -533,10 +503,6 @@ const FormStoreAdd = () => {
         // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için en stabil yaklaşım.
         () => childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
         [childCategories]
-    );
-    const chairExtra = useMemo(
-        () => `${barberNamesVersion}|${chairAssignVersion}`,
-        [barberNamesVersion, chairAssignVersion]
     );
     useEffect(() => {
         setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
@@ -923,53 +889,26 @@ const FormStoreAdd = () => {
                     </View>
                     {barberFields.length > 0 && (
                         <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
-                            <View style={{ height: 64 * barberFields.length }}>
-                                <LegendList
-                                    data={barberFields}
-                                    keyExtractor={(item) => item._key}
-                                    estimatedItemSize={64}
-                                    extraData={barberNamesVersion}
-                                    renderItem={({ item }) => {
-                                        const index = barberFields.findIndex(f => f.id === item.id);
-                                        return (
-                                            <View className="flex-row items-center gap-3 mb-3">
-                                                <TouchableOpacity
-                                                    activeOpacity={0.85}
-                                                    onPress={async () => {
-                                                        const file = await handlePickImage();
-                                                        if (file) updateBarber(index, { ...(getValues(`barbers.${index}` as const) as any), avatar: file });
-                                                    }}
-                                                >
-                                                    {barbers[index]?.avatar?.uri
-                                                        ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
-                                                        : <Avatar.Icon size={40} icon="account-circle" />}
-                                                </TouchableOpacity>
-
-                                                <Controller
-                                                    control={control}
-                                                    name={`barbers.${index}.name` as const}
-                                                    render={({ field: { value, onChange, onBlur } }) => (
-                                                        <TextInput
-                                                            label="Berber adı"
-                                                            mode="outlined"
-                                                            dense
-                                                            value={value}
-                                                            onChangeText={onChange}
-                                                            onBlur={onBlur}
-                                                            textColor="white"
-                                                            outlineColor="#444"
-                                                            theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                            style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1 }}
-                                                        />
-                                                    )}
-                                                />
-
-                                                <IconButton icon="delete" iconColor="#ef4444" onPress={() => removeBarber(index)} />
-                                            </View>
-                                        )
+                            {barberFields.map((item, index) => (
+                                <ManuelBarberItem
+                                    key={item._key}
+                                    control={control}
+                                    index={index}
+                                    barberId={item.id}
+                                    avatarUri={barbers[index]?.avatar?.uri}
+                                    errors={errors}
+                                    onRemove={() => removeBarber(index)}
+                                    onAvatarPress={async () => {
+                                        const file = await handlePickImage();
+                                        if (file) {
+                                            updateBarber(index, {
+                                                ...(getValues(`barbers.${index}`) as any),
+                                                avatar: file
+                                            });
+                                        }
                                     }}
                                 />
-                            </View>
+                            ))}
                             <HelperText type="error" visible={!!barberErrorText}>
                                 {barberErrorText}
                             </HelperText>
@@ -983,105 +922,26 @@ const FormStoreAdd = () => {
 
                     {chairFields.length > 0 && (
                         <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
-                            <View style={{ height: 64 * chairFields.length }}>
-                                <LegendList
-                                    data={chairFields}
-                                    keyExtractor={(item) => item._key}
-                                    estimatedItemSize={64}
-                                    extraData={chairExtra}
-                                    renderItem={({ item }) => {
-                                        const index = chairFields.findIndex(f => f.id === item.id);
-                                        const chair = chairs[index];
-                                        return (
-                                            <View className="flex-row items-center gap-3 mb-3">
-                                                <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
-                                                <View className='flex-1'>
-                                                    <Controller
-                                                        control={control}
-                                                        name={`chairs.${index}.mode` as const}
-                                                        render={({ field: { value, onChange } }) => (
-                                                            <Dropdown
-                                                                data={[{ label: "İsim ata", value: "named" }, { label: "Berber ata", value: "barber" }]}
-                                                                labelField="label"
-                                                                valueField="value"
-                                                                value={value ?? null}
-                                                                onChange={(it: any) => {
-                                                                    onChange(it.value);
-                                                                    if (it.value === "named") {
-                                                                        setValue(`chairs.${index}.barberId`, undefined, { shouldDirty: true, shouldValidate: true });
-                                                                    } else {
-                                                                        setValue(`chairs.${index}.name`, undefined, { shouldDirty: true, shouldValidate: true });
-                                                                    }
-                                                                }}
-                                                                style={{ height: 42, borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#1F2937", borderWidth: 1, borderColor: "#444", justifyContent: "center" }}
-                                                                placeholderStyle={{ color: "gray" }}
-                                                                selectedTextStyle={{ color: "white" }}
-                                                                itemTextStyle={{ color: "white" }}
-                                                                containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10, overflow: "hidden" }}
-                                                                activeColor="#3a3b3d"
-                                                            />
-                                                        )}
-                                                    />
-                                                </View>
-                                                <View className='flex-1'>
-                                                    {chair?.mode === "named" ? (
-                                                        <Controller
-                                                            key={`named-${item._key}`}
-                                                            control={control}
-                                                            name={`chairs.${index}.name` as const}
-                                                            render={({ field: { value, onChange, onBlur } }) => (
-                                                                <TextInput
-                                                                    label="Koltuk adı"
-                                                                    mode="outlined"
-                                                                    dense
-                                                                    value={value}
-                                                                    onChangeText={onChange}
-                                                                    onBlur={onBlur}
-                                                                    textColor="white"
-                                                                    outlineColor="#444"
-                                                                    theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                                    style={{ backgroundColor: "#1F2937", borderWidth: 0, marginTop: -5 }}
-                                                                />
-                                                            )}
-                                                        />
-
-                                                    ) : (
-                                                        <Controller
-                                                            key={`barber-dd-${item._key}-${barberNamesVersion}`}
-                                                            control={control}
-                                                            name={`chairs.${index}.barberId` as const}
-                                                            render={({ field: { value, onChange } }) => {
-                                                                const options = barberOptionsMap.get(chair.id) ?? [];
-                                                                const disabled = options.length === 0;
-                                                                return (
-                                                                    <Dropdown
-                                                                        data={options}
-                                                                        labelField="label"
-                                                                        valueField="value"
-                                                                        value={value ?? null}
-                                                                        onChange={(item: any) => onChange(item.value)}
-                                                                        placeholder={disabled ? "Önce isimli berber ekleyin" : "Berber seç"}
-                                                                        disable={disabled}
-                                                                        style={{ height: 42, borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#1F2937", borderWidth: 1, borderColor: "#444", justifyContent: "center" }}
-                                                                        containerStyle={{ backgroundColor: "#1F2937", borderWidth: 0, borderRadius: 10, overflow: "hidden" }}
-                                                                        placeholderStyle={{ color: "gray" }}
-                                                                        selectedTextStyle={{ color: "white" }}
-                                                                        itemTextStyle={{ color: "white" }}
-                                                                        activeColor="#0f766e"
-                                                                    />
-                                                                )
-                                                            }
-
-                                                            }
-                                                        />
-                                                    )}
-                                                </View>
-                                                <IconButton icon="delete" iconColor="#ef4444" onPress={() => removeChair(index)} />
-                                            </View>
-                                        );
+                            {chairFields.map((item, index) => (
+                                <ChairItem
+                                    key={item._key}
+                                    control={control}
+                                    index={index}
+                                    chairId={item.id}
+                                    mode={chairs[index]?.mode ?? 'named'}
+                                    barberOptions={getBarberOptions(item.id)}
+                                    errors={errors}
+                                    onRemove={() => removeChair(index)}
+                                    onModeChange={(mode) => {
+                                        setValue(`chairs.${index}.mode`, mode, { shouldDirty: true, shouldValidate: true });
+                                        if (mode === 'named') {
+                                            setValue(`chairs.${index}.barberId`, undefined, { shouldDirty: true, shouldValidate: true });
+                                        } else {
+                                            setValue(`chairs.${index}.name`, undefined, { shouldDirty: true, shouldValidate: true });
+                                        }
                                     }}
                                 />
-                            </View>
+                            ))}
                             <HelperText type="error" visible={!!chairsErrorText}>
                                 {chairsErrorText}
                             </HelperText>

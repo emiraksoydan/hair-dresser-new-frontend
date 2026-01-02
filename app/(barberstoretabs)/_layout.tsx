@@ -1,13 +1,16 @@
-import { Dimensions, Text, TouchableOpacity, View } from 'react-native'
+import { Text, TouchableOpacity, View } from 'react-native'
 import { Tabs } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import React from 'react';
 import FormStoreAdd from '../components/store/formstoreadd';
 import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
 import { useAuth } from '../hook/useAuth';
+import { DeferredRender } from '../components/common/deferredrender';
+import { CrudSkeletonComponent } from '../components/common/crudskeleton';
 
 const BarberStoreLayout = () => {
 
@@ -15,6 +18,7 @@ const BarberStoreLayout = () => {
     const { present } = useSheet('addStore');
     const { present: presentNoti, dismiss: dismissNoti } = useSheet("notifications");
     const { userName } = useAuth();
+    const [isAddStoreSheetOpen, setIsAddStoreSheetOpen] = React.useState(false);
 
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
@@ -291,9 +295,19 @@ const BarberStoreLayout = () => {
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
                 ref={(inst) => setRef('addStore', inst)}
+                onChange={(index) => setIsAddStoreSheetOpen(index >= 0)}
                 snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
                 <BottomSheetView className='h-full pt-2'>
-                    <FormStoreAdd  ></FormStoreAdd>
+                    <DeferredRender
+                        active={isAddStoreSheetOpen}
+                        placeholder={
+                            <View className="flex-1 pt-4">
+                                <CrudSkeletonComponent />
+                            </View>
+                        }
+                    >
+                        <FormStoreAdd />
+                    </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
         </>
