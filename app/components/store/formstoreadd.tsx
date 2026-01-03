@@ -523,9 +523,10 @@ const FormStoreAdd = () => {
             }
         });
         if (changed) {
-            setValue('prices', next, { shouldDirty: true, shouldValidate: true });
+            // Use shouldValidate: false to prevent validation cascade
+            setValue('prices', next, { shouldDirty: true, shouldValidate: false });
         }
-    }, [selectedCategories]);
+    }, [selectedCategories, currentPrices, setValue]);
     useEffect(() => {
         if (pricingMode === "rent") {
             setValue("pricingType.percent", null, { shouldValidate: false, shouldDirty: false });
@@ -788,12 +789,17 @@ const FormStoreAdd = () => {
                                                 labelField="label"
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
-                                                onChange={(vals: string[]) => onChange(vals)}
+                                                onChange={onChange}
                                                 placeholder="Hizmet seçin"
                                                 dropdownPosition="top"
                                                 inside
                                                 alwaysRenderSelectedItem
                                                 visibleSelectedItem
+                                                flatListProps={{
+                                                    initialNumToRender: 10,
+                                                    maxToRenderPerBatch: 10,
+                                                    windowSize: 5,
+                                                }}
                                                 style={{
                                                     backgroundColor: "#1F2937",
                                                     borderColor: errors.selectedCategories ? "#b00020" : "#444",

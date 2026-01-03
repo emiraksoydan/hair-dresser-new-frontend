@@ -355,7 +355,8 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
             }
         });
 
-        if (changed) setValue("prices", next, { shouldDirty: true, shouldValidate: true });
+        // Use shouldValidate: false to prevent validation cascade
+        if (changed) setValue("prices", next, { shouldDirty: true, shouldValidate: false });
     }, [selectedCategories, currentPrices, setValue]);
 
     const OnSubmit = React.useCallback(async (form: FormFreeBarberValues) => {
@@ -771,6 +772,11 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                                                 inside
                                                 alwaysRenderSelectedItem
                                                 visibleSelectedItem
+                                                flatListProps={{
+                                                    initialNumToRender: 10,
+                                                    maxToRenderPerBatch: 10,
+                                                    windowSize: 5,
+                                                }}
                                                 style={{
                                                     backgroundColor: "#1F2937",
                                                     borderColor: errors.selectedCategories ? "#b00020" : "#444",

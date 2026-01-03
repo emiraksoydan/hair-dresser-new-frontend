@@ -714,9 +714,10 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
             }
         });
         if (changed) {
+            // Use shouldValidate: false to prevent validation cascade
             setValue("prices", next, {
                 shouldDirty: true,
-                shouldValidate: true,
+                shouldValidate: false,
             });
         }
     }, [selectedCategories, currentPrices, setValue]);
@@ -1060,12 +1061,17 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                                                         labelField="label"
                                                         valueField="value"
                                                         value={(value ?? []).filter(v => categoryValueSet.has(v))}
-                                                        onChange={(vals: string[]) => onChange(vals)}
+                                                        onChange={onChange}
                                                         placeholder="Hizmet seçin"
                                                         dropdownPosition="top"
                                                         inside
                                                         alwaysRenderSelectedItem
                                                         visibleSelectedItem
+                                                        flatListProps={{
+                                                            initialNumToRender: 10,
+                                                            maxToRenderPerBatch: 10,
+                                                            windowSize: 5,
+                                                        }}
                                                         style={{
                                                             backgroundColor: "#1F2937",
                                                             borderColor: errors.selectedCategories ? "#b00020" : "#444",
