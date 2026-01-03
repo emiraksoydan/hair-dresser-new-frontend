@@ -101,15 +101,10 @@ export const useSignalR = () => {
                 });
 
                 conn.on("notification.received", (dto: NotificationDto) => {
-                    let addedUnread = 0;
-                    let removedUnread = 0;
                     // Notification'ı listeye ekle veya güncelle
                     dispatch(
                         api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
                             if (!draft) {
-                                if (!dto.isRead) {
-                                    addedUnread = 1;
-                                }
                                 return;
                             }
 
@@ -129,9 +124,6 @@ export const useSignalR = () => {
                                     });
                                     // Tersten kaldır (indeksler bozulmasın diye)
                                     oldCreatedIndexes.reverse().forEach(idx => {
-                                        if (!draft[idx].isRead) {
-                                            removedUnread++;
-                                        }
                                         draft.splice(idx, 1);
                                     });
                                 }
@@ -144,21 +136,12 @@ export const useSignalR = () => {
                                 );
                                 if (duplicateIndex >= 0) {
                                     // Eski duplicate notification'ı kaldır
-                                    if (!draft[duplicateIndex].isRead) {
-                                        removedUnread++;
-                                    }
                                     draft.splice(duplicateIndex, 1);
                                 }
                             }
 
                             // Eğer aynı notification zaten varsa güncelle
                             const existingIndex = draft.findIndex(n => n.id === dto.id);
-                            const wasRead = existingIndex >= 0 ? draft[existingIndex].isRead : null;
-                            if (existingIndex < 0 && !dto.isRead) {
-                                addedUnread = 1;
-                            } else if (existingIndex >= 0 && wasRead && !dto.isRead) {
-                                addedUnread = 1;
-                            }
                             if (existingIndex >= 0) {
                                 // Mevcut notification'ı tamamen güncelle (payload dahil)
                                 draft[existingIndex] = { ...dto };
@@ -167,7 +150,7 @@ export const useSignalR = () => {
                                 draft.unshift(dto);
                             }
 
-                            // Appointment-related notification'lar için: Aynı appointmentId'ye sahip 
+                            // Appointment-related notification'lar için: Aynı appointmentId'ye sahip
                             // diğer notification'ların payload'larını da güncelle (status değişikliği için)
                             if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
                                 try {
@@ -216,22 +199,9 @@ export const useSignalR = () => {
                         })
                     );
 
-
-                    const unreadDelta = addedUnread - removedUnread;
-                    if (unreadDelta !== 0) {
-                        dispatch(
-                            api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                                if (!draft) {
-                                    if (unreadDelta > 0) {
-                                        return { unreadNotifications: unreadDelta, unreadMessages: 0 };
-                                    }
-                                    return;
-                                }
-                                const nextUnread = Math.max(0, (draft.unreadNotifications ?? 0) + unreadDelta);
-                                draft.unreadNotifications = nextUnread;
-                            })
-                        );
-                    }
+                    // Badge count güncellemesini backend'e bırak
+                    // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
+                    // Bu sayede race condition ve duplicate hesaplama sorunları ortadan kalkacak
 
                     // Appointment status değiştiğinde slot availability'yi güncelle
                     if (dto.appointmentId && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {

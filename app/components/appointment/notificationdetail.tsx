@@ -260,16 +260,6 @@ export const NotificationItem = React.memo(({
 
                 {payload && (
                     <View className="mt-2 pt-3 border-t border-[#2a2c30]">
-                        {/* Randevu ID */}
-                        {item.appointmentId && (
-                            <View className="mb-3 pb-2 border-b border-[#2a2c30]">
-                                <View className="flex-row items-center gap-2">
-                                    <Icon source="tag" size={14} color="#6b7280" />
-                                    <Text className="text-[#6b7280] text-xs">Randevu ID: {item.appointmentId}</Text>
-                                </View>
-                            </View>
-                        )}
-
                         {/* Tarih ve Saat */}
                         {payload.date && payload.startTime && payload.endTime && (
                             <View className="flex-row justify-end items-center mb-3">

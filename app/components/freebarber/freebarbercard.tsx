@@ -145,167 +145,172 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
     return (
         <View
             style={{ width: cardWidthFreeBarber, overflow: 'hidden' }}
-            className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'
-                }`}
+            className={expanded ? 'mt-4' : 'mt-0'}
         >
-            {!isList && (
-                <View className='flex-row justify-end px-2 pb-2'>
-                    <View className={`${freeBarber.isAvailable ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                        <Text className="text-white text-sm font-ibm-plex-sans-medium">
-                            {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
-                        </Text>
-                    </View>
-                </View>
-            )}
-            <View className={`${!isList ? 'flex flex-row ' : ''}`}>
-                <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
 
-                    <ImageCarousel
-                        key={`freebarber-${freeBarber.id}`}
-                        images={freeBarber.imageList ?? []}
-                        width={isList ? carouselWidth : 112}
-                        mode={'default'}
-                        height={isList ? 250 : 112}
-                        autoPlay={true}
-                        borderRadiusClass="rounded-lg"
-                        showPagination={true}
-                    />
-                    {isList && (
-                        <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
-                            {typeLabel && (
-                                <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                    <Text className="text-white text-base font-ibm-plex-sans-medium">
-                                        {typeLabel}
-                                    </Text>
-                                </View>
-                            )}
-                            <TouchableOpacity
-                                onPress={() => { }}
-                                className={` ${freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7]' : 'bg-[#ff69b4]'}  flex-row items-center px-2 py-2 rounded-full shadow-sm`}
-                                style={{ elevation: 5 }}
-                            >
-                                <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
-                                    {freeBarber.type == BarberType.MaleHairdresser ? "Erkek" : "Kadın"}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => { }}
-                                className={`  ${isAvailable ? 'bg-[#2e6a45]' : 'bg-[#b24949]'}  flex-row items-center px-2 py-2 rounded-full shadow-sm`}
-                                style={{ elevation: 5 }}
-                            >
-                                <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
-                                    {isAvailable ? "Müsait" : "Meşgul"}
-                                </Text>
-                            </TouchableOpacity>
-                            {mode === 'barbershop' && isAvailable && !hasCalled && (
+            <View className={isList ? '' : 'pl-4 py-2 rounded-lg bg-[#202123]'}>
+                {!isList && (
+                    <View className='flex-row justify-end px-2 pb-2'>
+                        <View className={freeBarber.isAvailable ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
+                            <Text className="text-white text-sm font-ibm-plex-sans-medium">
+                                {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+                <View className={isList ? '' : 'flex flex-row'}>
+
+                    <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
+                        <ImageCarousel
+                            key={`freebarber-${freeBarber.id}`}
+                            images={freeBarber.imageList ?? []}
+                            width={isList ? carouselWidth : 112}
+                            mode={'default'}
+                            height={isList ? 250 : 112}
+                            autoPlay={true}
+                            borderRadiusClass="rounded-lg"
+                            showPagination={true}
+                        />
+                        {isList && (
+                            <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
+                                {typeLabel && (
+                                    <View className={typeLabelColor + ' px-2 py-1 rounded-xl flex-row items-center justify-center'}>
+                                        <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                            {typeLabel}
+                                        </Text>
+                                    </View>
+                                )}
                                 <TouchableOpacity
-                                    onPress={handleCallFreeBarber}
-                                    disabled={isCalling}
-                                    className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
+                                    onPress={() => { }}
+                                    className={freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#ff69b4] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
                                     style={{ elevation: 5 }}
                                 >
                                     <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
-                                        {isCalling ? 'Çağırılıyor...' : 'Berberi Çağır'}
+                                        {freeBarber.type == BarberType.MaleHairdresser ? "Erkek" : "Kadın"}
                                     </Text>
                                 </TouchableOpacity>
-                            )}
-                        </View>
-                    )}
-
-                </TouchableOpacity>
-                <View className="flex-1 flex-col gap-2">
-                    <View
-                        className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'
-                            }`}
-                    >
-                        <View className={`flex-row h-8 flex-1 ${isList ? 'items-center' : ''}`}>
-                            <Text
-                                numberOfLines={1}
-                                ellipsizeMode={'tail'}
-                                style={{ fontSize: 20 }}
-                                className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
-                            >
-                                {freeBarber.fullName}
-                            </Text>
-
-                            <IconButton
-                                iconColor="gray"
-                                size={20}
-                                style={{
-                                    marginTop: 0,
-                                    paddingRight: 5,
-                                    paddingTop: isList ? 5 : 0,
-                                    paddingBottom: !isList ? 10 : 0,
-                                    flexShrink: 1,
-                                }}
-                                icon={
-                                    freeBarber.type === BarberType.MaleHairdresser
-                                        ? 'face-man'
-                                        : 'face-woman'
-                                }
-                            />
-                        </View>
-
-                        {isList && (
-                            <View className="flex-row items-center">
-                                <IconButton
-                                    size={25}
-                                    iconColor={isFavorite ? "red" : "gray"}
-                                    icon={isFavorite ? "heart" : "heart-outline"}
-                                    style={{
-                                        marginTop: !isList ? -5 : 0,
-                                        marginRight: !isList ? 0 : -8,
-                                    }}
-                                    onPress={handleToggleFavorite}
-                                    disabled={isTogglingFavorite}
-                                />
-                                <Text
-                                    className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
-                                        }`}
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className={isAvailable ? 'bg-[#2e6a45] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#b24949] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
+                                    style={{ elevation: 5 }}
                                 >
-                                    ({favoriteCount})
-                                </Text>
+                                    <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                        {isAvailable ? "Müsait" : "Meşgul"}
+                                    </Text>
+                                </TouchableOpacity>
+                                {mode === 'barbershop' && isAvailable && !hasCalled && (
+                                    <TouchableOpacity
+                                        onPress={handleCallFreeBarber}
+                                        disabled={isCalling}
+                                        className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
+                                        style={{ elevation: 5 }}
+                                    >
+                                        <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                            {isCalling ? 'Çağırılıyor...' : 'Berberi Çağır'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         )}
-                    </View>
-                    {!isList && (
-                        <View className="flex-row  justify-between pr-2 ">
-                            <Text className='text-base text-gray-500'>{freeBarber.type === BarberType.MaleHairdresser ? "Erkek" : 'Kadın'}</Text>
-                            <TouchableOpacity
-                                onPress={handleToggleFavorite}
-                                disabled={isTogglingFavorite}
-                                className="flex-row items-center gap-1"
-                            >
-                                <Icon
-                                    size={25}
-                                    color={isFavorite ? "red" : "gray"}
-                                    source={isFavorite ? "heart" : "heart-outline"}
-                                />
-                                <Text
-                                    className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
-                                >
-                                    ({favoriteCount})
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
 
-                    <View
-                        className="flex-row justify-between items-center"
-                        style={{ marginTop: !isList ? -5 : -10 }}
-                    >
-                        <View className="flex-row items-center gap-1">
-                            <StarRatingDisplay
-                                rating={freeBarber.rating}
-                                starSize={15}
-                                starStyle={{ marginHorizontal: 0 }}
-                            />
-                            <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                            <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
-                                <Text className="text-white underline mr-1 mb-0 text-xs">
-                                    Yorumlar ({freeBarber.reviewCount})
+                    </TouchableOpacity>
+
+                    <View className="flex-1 flex-col gap-2">
+
+                        <View
+                            className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'
+                                }`}
+                        >
+
+                            <View className={`flex-row h-8 flex-1 ${isList ? 'items-center' : ''}`}>
+                                <Text
+                                    numberOfLines={1}
+                                    ellipsizeMode={'tail'}
+                                    style={{ fontSize: 20 }}
+                                    className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                >
+                                    {freeBarber.fullName}
                                 </Text>
-                            </TouchableOpacity>
+
+                                <IconButton
+                                    iconColor="gray"
+                                    size={20}
+                                    style={{
+                                        marginTop: 0,
+                                        paddingRight: 5,
+                                        paddingTop: isList ? 5 : 0,
+                                        paddingBottom: !isList ? 10 : 0,
+                                        flexShrink: 1,
+                                    }}
+                                    icon={
+                                        freeBarber.type === BarberType.MaleHairdresser
+                                            ? 'face-man'
+                                            : 'face-woman'
+                                    }
+                                />
+                            </View>
+
+                            {isList && (
+                                <View className="flex-row items-center">
+                                    <IconButton
+                                        size={25}
+                                        iconColor={isFavorite ? "red" : "gray"}
+                                        icon={isFavorite ? "heart" : "heart-outline"}
+                                        style={{
+                                            marginTop: !isList ? -5 : 0,
+                                            marginRight: !isList ? 0 : -8,
+                                        }}
+                                        onPress={handleToggleFavorite}
+                                        disabled={isTogglingFavorite}
+                                    />
+                                    <Text
+                                        className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
+                                            }`}
+                                    >
+                                        ({favoriteCount})
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                        {!isList && (
+                            <View className="flex-row  justify-between pr-2 ">
+                                <Text className='text-base text-gray-500'>{freeBarber.type === BarberType.MaleHairdresser ? "Erkek" : 'Kadın'}</Text>
+                                <TouchableOpacity
+                                    onPress={handleToggleFavorite}
+                                    disabled={isTogglingFavorite}
+                                    className="flex-row items-center gap-1"
+                                >
+                                    <Icon
+                                        size={25}
+                                        color={isFavorite ? "red" : "gray"}
+                                        source={isFavorite ? "heart" : "heart-outline"}
+                                    />
+                                    <Text
+                                        className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
+                                    >
+                                        ({favoriteCount})
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        <View
+                            className="flex-row justify-between items-center"
+                            style={{ marginTop: !isList ? -5 : -10 }}
+                        >
+                            <View className="flex-row items-center gap-1">
+                                <StarRatingDisplay
+                                    rating={freeBarber.rating}
+                                    starSize={15}
+                                    starStyle={{ marginHorizontal: 0 }}
+                                />
+                                <Text className="text-white flex-1">{freeBarber.rating}</Text>
+                                <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
+                                    <Text className="text-white underline mr-1 mb-0 text-xs">
+                                        Yorumlar ({freeBarber.reviewCount})
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                 </View>

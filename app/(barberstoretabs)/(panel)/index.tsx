@@ -462,24 +462,24 @@ const Index = () => {
                         }
                         if (item.type === 'stores-empty') {
                             // Filtre veya search aktif mi kontrol et
-                            const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" || 
-                                                      appliedFilters.services.length > 0 || 
-                                                      appliedFilters.priceSort !== 'none' ||
-                                                      appliedFilters.minPrice !== '' ||
-                                                      appliedFilters.maxPrice !== '' ||
-                                                      appliedFilters.pricingType !== 'Hepsi' ||
-                                                      appliedFilters.availability !== 'all' ||
-                                                      appliedFilters.rating > 0 ||
-                                                      appliedFilters.favoritesOnly;
-                            
+                            const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
+                                appliedFilters.services.length > 0 ||
+                                appliedFilters.priceSort !== 'none' ||
+                                appliedFilters.minPrice !== '' ||
+                                appliedFilters.maxPrice !== '' ||
+                                appliedFilters.pricingType !== 'Hepsi' ||
+                                appliedFilters.availability !== 'all' ||
+                                appliedFilters.rating > 0 ||
+                                appliedFilters.favoritesOnly;
+
                             const isFiltering = searchQuery || hasActiveFilters;
-                            
+
                             return (
                                 <View style={{ minHeight: 200, maxHeight: 400 }}>
                                     {isFiltering ? (
-                                        <LottieViewComponent 
-                                            animationSource={require('../../../assets/animations/empty.json')} 
-                                            message="Filtreleme kriterlerine uygun işletme bulunamadı" 
+                                        <LottieViewComponent
+                                            animationSource={require('../../../assets/animations/empty.json')}
+                                            message="Filtreleme kriterlerine uygun işletme bulunamadı"
                                         />
                                     ) : (
                                         <EmptyState
@@ -537,24 +537,24 @@ const Index = () => {
                         }
                         if (item.type === 'freebarbers-empty') {
                             // Filtre veya search aktif mi kontrol et
-                            const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" || 
-                                                      appliedFilters.services.length > 0 || 
-                                                      appliedFilters.priceSort !== 'none' ||
-                                                      appliedFilters.minPrice !== '' ||
-                                                      appliedFilters.maxPrice !== '' ||
-                                                      appliedFilters.pricingType !== 'Hepsi' ||
-                                                      appliedFilters.availability !== 'all' ||
-                                                      appliedFilters.rating > 0 ||
-                                                      appliedFilters.favoritesOnly;
-                            
+                            const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
+                                appliedFilters.services.length > 0 ||
+                                appliedFilters.priceSort !== 'none' ||
+                                appliedFilters.minPrice !== '' ||
+                                appliedFilters.maxPrice !== '' ||
+                                appliedFilters.pricingType !== 'Hepsi' ||
+                                appliedFilters.availability !== 'all' ||
+                                appliedFilters.rating > 0 ||
+                                appliedFilters.favoritesOnly;
+
                             const isFiltering = searchQuery || hasActiveFilters;
-                            
+
                             return (
                                 <View style={{ minHeight: 200, maxHeight: 400 }}>
                                     {isFiltering ? (
-                                        <LottieViewComponent 
-                                            animationSource={require('../../../assets/animations/empty.json')} 
-                                            message="Filtreleme kriterlerine uygun sonuç bulunamadı" 
+                                        <LottieViewComponent
+                                            animationSource={require('../../../assets/animations/empty.json')}
+                                            message="Filtreleme kriterlerine uygun sonuç bulunamadı"
                                         />
                                     ) : (
                                         <EmptyState

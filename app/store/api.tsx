@@ -61,7 +61,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 5,
             providesTags: (result) =>
                 result
                     ? [
@@ -76,7 +76,7 @@ export const api = createApi({
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 5,
             providesTags: (result) =>
                 result
                     ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
@@ -116,7 +116,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - lokasyon değişikliklerinde hard refresh yapılıyor
+            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
             providesTags: (result) =>
                 result
                     ? [
@@ -131,7 +131,7 @@ export const api = createApi({
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
-            keepUnusedDataFor: 0, // ✅ Cache süresi azaltıldı - 30 saniye (beğeni ve yorum güncellemeleri için)
+            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
             providesTags: ['MineFreeBarberPanel'],
         }),
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
@@ -187,7 +187,7 @@ export const api = createApi({
                 { type: 'Appointment' as const, id: `availability-${storeId}-${dateOnly}` },
                 { type: 'Appointment' as const, id: 'availability' },
             ],
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
         }),
 
         // 2. YENİ EKLENEN: Filtreli Randevu Listesi (Active/Completed/Cancelled)
@@ -413,7 +413,7 @@ export const api = createApi({
                 return [];
             },
             providesTags: ['Chat'],
-            keepUnusedDataFor: 0, // 10 saniye cache (SignalR ile güncellenir)
+            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
         }),
         getChatMessages: builder.query<ChatMessageItemDto[], { appointmentId: string; before?: string }>({
             query: ({ appointmentId, before }) => ({
@@ -421,7 +421,7 @@ export const api = createApi({
                 method: 'GET',
                 params: before ? { before } : undefined,
             }),
-            keepUnusedDataFor: 0, // 10 saniye cache (SignalR ile güncellenir)
+            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
         }),
         getChatMessagesByThread: builder.query<ChatMessageItemDto[], { threadId: string; before?: string }>({
             query: ({ threadId, before }) => ({
@@ -429,7 +429,7 @@ export const api = createApi({
                 method: 'GET',
                 params: before ? { before } : undefined,
             }),
-            keepUnusedDataFor: 0, // 10 saniye cache (SignalR ile güncellenir)
+            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
             transformResponse: (response: any) => {
                 // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
                 if (Array.isArray(response)) return response;
@@ -760,7 +760,7 @@ export const api = createApi({
         }),
         isFavorite: builder.query<boolean, string>({
             query: (targetId) => `Favorite/check/${targetId}`,
-            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - favoriler anlık güncellenmeli
+            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
             providesTags: (result, error, targetId) => [{ type: 'IsFavorite' as const, id: targetId }],
             transformResponse: (response: any) => {
                 // Backend zaten camelCase döndürüyor: { success: boolean, data: boolean, message?: string }
@@ -771,7 +771,7 @@ export const api = createApi({
         }),
         getMyFavorites: builder.query<FavoriteGetDto[], void>({
             query: () => 'Favorite/my-favorites',
-            keepUnusedDataFor: 0, // ✅ Cache kaldırıldı - favoriler anlık güncellenmeli
+            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
             providesTags: ['Favorite'],
             transformResponse: (response: any) => {
                 // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
@@ -839,7 +839,7 @@ export const api = createApi({
                 url: `Image/owner/${ownerId}`,
                 params: { ownerType },
             }),
-            keepUnusedDataFor: 0,
+            keepUnusedDataFor: 30, // Image'lar sık değişmez
             transformResponse: (response: any) => {
                 if (Array.isArray(response)) return response;
                 if (Array.isArray(response?.data)) return response.data;

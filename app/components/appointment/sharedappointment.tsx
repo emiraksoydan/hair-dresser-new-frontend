@@ -247,7 +247,6 @@ export default function SharedAppointmentScreen() {
         const passed = hasSchedule ? isTimePassed(item.appointmentDate, item.endTime) : false;
         const isApproved = item.status === AppointmentStatus.Approved;
         const isUnanswered = item.status === AppointmentStatus.Unanswered;
-        const canRateNow = canRate(item);
         const isStoreCallWithoutSchedule =
             item.appointmentRequester === AppointmentRequester.Store && !hasSchedule;
 
@@ -282,13 +281,6 @@ export default function SharedAppointmentScreen() {
 
         return (
             <View className={`bg-[#151618] rounded-xl p-4 mb-3 border ${isCompletedOrCancelled ? 'border-[#2a2c30]' : 'border-[#1f2023]'}`}>
-                {/* Randevu ID - Her zaman göster */}
-                <View className="mb-2 pb-2 border-b border-[#2a2c30]">
-                    <View className="flex-row items-center gap-2">
-                        <Icon source="tag" size={14} color="#6b7280" />
-                        <Text className="text-[#6b7280] text-xs">Randevu ID: {item.id}</Text>
-                    </View>
-                </View>
 
                 {/* Durum Badge'i - Active tab'ında ve tamamlanan/iptal durumlarında göster */}
                 {(activeFilter === AppointmentFilter.Active || isCompletedOrCancelled) && (

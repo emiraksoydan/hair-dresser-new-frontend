@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Image, Dimensions, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { ImageGetDto } from '../../types/common';
@@ -35,9 +35,13 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   // Memoize image data to prevent re-renders
   const imageData = useMemo(() => images || [], [images]);
 
+  // Width, height veya images değiştiğinde loading state'ini sıfırla
+
+
   const handleImageLoad = (index: number) => {
     setLoadedImages(prev => new Set([...prev, index]));
   };
+
 
   // If no images or empty array, show placeholder
   if (!imageData || imageData.length === 0) {
@@ -52,40 +56,17 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
     );
   }
 
-  // If only one image, show it without carousel
-  if (imageData.length === 1) {
-    return (
-      <View style={[{ width, height }, containerStyle]} className={borderRadiusClass}>
-        <Image
-          source={
-            imageData[0].imageUrl
-              ? { uri: imageData[0].imageUrl }
-              : require('../../../assets/images/empty.png')
-          }
-          className={`w-full h-full ${borderRadiusClass}`}
-          resizeMode="cover"
-          onLoadStart={() => setLoadedImages(new Set())}
-          onLoad={() => handleImageLoad(0)}
-        />
-        {!loadedImages.has(0) && (
-          <View className="absolute inset-0 items-center justify-center bg-gray-800">
-            <ActivityIndicator size="large" color="#888" />
-          </View>
-        )}
-      </View>
-    );
-  }
 
   // Multiple images - show carousel
   // Always use full width to show only 1 photo at a time
   return (
     <View style={[{ width, height }, containerStyle]}>
       <Carousel
-        loop
+        loop={imageData.length === 1 ? false : true}
         width={width}
         height={height}
-        autoPlay={autoPlay}
-        autoPlayInterval={autoPlayInterval}
+        autoPlay={imageData.length === 1 ? false : autoPlay}
+        autoPlayInterval={imageData.length === 1 ? 0 : autoPlayInterval}
         data={imageData}
         scrollAnimationDuration={800}
         onSnapToItem={(index) => setActiveIndex(index)}
@@ -106,6 +87,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
               className={`w-full h-full ${borderRadiusClass}`}
               resizeMode="cover"
               onLoad={() => handleImageLoad(index)}
+
             />
             {!loadedImages.has(index) && (
               <View className="absolute inset-0 items-center justify-center bg-gray-800 rounded-xl">
@@ -134,15 +116,16 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   );
 }, (prevProps, nextProps) => {
   // Custom comparison to prevent unnecessary re-renders
-  // IMPORTANT: width/height değiştiğinde bile aynı resmi tekrar yüklemememiz için
-  // sadece images array'inin kendisini karşılaştırıyoruz
   const sameImages = prevProps.images === nextProps.images;
   const sameAutoPlay = prevProps.autoPlay === nextProps.autoPlay;
   const sameMapMode = prevProps.isMapMode === nextProps.isMapMode;
   const sameBorderRadius = prevProps.borderRadiusClass === nextProps.borderRadiusClass;
+  const sameWidth = prevProps.width === nextProps.width;
+  const sameHeight = prevProps.height === nextProps.height;
+  const samePagination = prevProps.showPagination === nextProps.showPagination;
 
-  // Width/height değişikliği re-render'a sebep olacak ama loadedImages state'i korunacak
-  return sameImages && sameAutoPlay && sameMapMode && sameBorderRadius;
+  // Width/height değiştiğinde de re-render yap
+  return sameImages && sameAutoPlay && sameMapMode && sameBorderRadius && sameWidth && sameHeight && samePagination;
 });
 
 ImageCarousel.displayName = 'ImageCarousel';

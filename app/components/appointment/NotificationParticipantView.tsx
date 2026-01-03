@@ -29,11 +29,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
     isFreeBarberInFavorites,
     isCustomerInFavorites,
     formatRating,
-    onToggleFavorite,
-    isTogglingFavorite = false,
 }) => {
-    const hasStore = !!payload?.store;
-    const hasFreeBarber = !!payload?.freeBarber;
     const hasManualBarber = !!payload?.chair?.manuelBarberId || !!payload?.chair?.manuelBarberName;
 
     if (recipientRole === 'store') {
@@ -276,7 +272,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                                 iconSize={24}
                             />
                             <View className="flex-1">
-                                <Text className="text-[#9ca3af] text-xs">Manuel Berber</Text>
+                                <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
                                 <Text className="text-white text-sm font-semibold">{payload?.chair?.manuelBarberName}</Text>
                                 {payload?.chair?.manuelBarberType !== undefined && (
                                     <Text className="text-[#9ca3af] text-xs mt-0.5">
