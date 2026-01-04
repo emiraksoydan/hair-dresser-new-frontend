@@ -14,7 +14,6 @@ import { Stack, Tabs, Link } from 'expo-router';
 import {
   BottomSheetModalProvider,
 } from '@gorhom/bottom-sheet';
-import { BottomSheetRegistryProvider } from './context/bottomsheet';
 import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
 import { useSignalR } from './hook/useSignalR';
@@ -47,24 +46,22 @@ const RootLayout = () => {
       <ReduxProvider store={store}>
         <GestureHandlerRootView className="flex flex-1">
           <PaperProvider>
-            <BottomSheetRegistryProvider>
-              <BottomSheetModalProvider>
-                <SignalRBootstrap />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: '#151618' },
-                  }}
-                >
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(barberstoretabs)" />
-                  <Stack.Screen name="(freebarbertabs)" />
-                  <Stack.Screen name="(customertabs)" />
-                  <Stack.Screen name="(screens)" />
-                </Stack>
-                <StatusBar />
-              </BottomSheetModalProvider>
-            </BottomSheetRegistryProvider>
+            <BottomSheetModalProvider>
+              <SignalRBootstrap />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: '#151618' },
+                }}
+              >
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(barberstoretabs)" />
+                <Stack.Screen name="(freebarbertabs)" />
+                <Stack.Screen name="(customertabs)" />
+                <Stack.Screen name="(screens)" />
+              </Stack>
+              <StatusBar />
+            </BottomSheetModalProvider>
           </PaperProvider>
         </GestureHandlerRootView>
       </ReduxProvider>

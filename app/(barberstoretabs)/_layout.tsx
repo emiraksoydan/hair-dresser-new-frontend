@@ -1,24 +1,46 @@
 import { Text, TouchableOpacity, View } from 'react-native'
 import { Tabs } from 'expo-router';
-import { Icon, IconButton } from 'react-native-paper';
+import { Icon, IconButton, Snackbar, Portal } from 'react-native-paper';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import React from 'react';
+import React, { useState } from 'react';
 import FormStoreAdd from '../components/store/formstoreadd';
-import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
+import { useBottomSheet } from '../hook/useBottomSheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
 import { useAuth } from '../hook/useAuth';
 import { DeferredRender } from '../components/common/deferredrender';
 import { CrudSkeletonComponent } from '../components/common/crudskeleton';
+import { InfoModal } from '../components/common/infomodal';
 
 const BarberStoreLayout = () => {
-
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const { present } = useSheet('addStore');
-    const { present: presentNoti, dismiss: dismissNoti } = useSheet("notifications");
     const { userName } = useAuth();
-    const [isAddStoreSheetOpen, setIsAddStoreSheetOpen] = React.useState(false);
+    const [infoModalVisible, setInfoModalVisible] = useState(false);
+
+    // Bottom sheet hooks
+    const addStoreSheet = useBottomSheet({
+        snapPoints: ['100%'],
+        enablePanDownToClose: false,
+        enableOverDrag: false,
+    });
+    const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState("");
+    const [snackbarIsError, setSnackbarIsError] = useState(false);
+
+    const notificationsSheet = useBottomSheet({
+        snapPoints: ["100%"],
+        enablePanDownToClose: true,
+        enableOverDrag: false,
+    });
+
+    // Info modal items - kullanıcı buraya uygulamanın kullanım bilgilerini ekleyecek
+    const infoItems = [
+        {
+            title: "Uygulama Kullanım Bilgileri",
+            description: "Buraya uygulamanın kullanım bilgileri eklenecek",
+        },
+        // Daha fazla item eklenebilir
+    ];
 
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
@@ -68,7 +90,20 @@ const BarberStoreLayout = () => {
                         headerRight: () => (
                             <View className='flex-row'>
                                 <TouchableOpacity
-                                    onPress={present}
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => addStoreSheet.present()}
                                     className='items-center justify-center mr-[-5px]'
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
@@ -78,7 +113,8 @@ const BarberStoreLayout = () => {
                                     iconColor="white"
                                     size={20}
                                     badgeCount={unreadNoti}
-                                    onPress={presentNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
                                 />
                             </View>
                         ),
@@ -116,7 +152,20 @@ const BarberStoreLayout = () => {
                         headerRight: () => (
                             <View className='flex-row'>
                                 <TouchableOpacity
-                                    onPress={present}
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => addStoreSheet.present()}
                                     className='items-center justify-center mr-[-5px]'
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
@@ -126,7 +175,8 @@ const BarberStoreLayout = () => {
                                     iconColor="white"
                                     size={20}
                                     badgeCount={unreadNoti}
-                                    onPress={presentNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
                                 />
                             </View>
                         ),
@@ -165,7 +215,20 @@ const BarberStoreLayout = () => {
                         headerRight: () => (
                             <View className='flex-row'>
                                 <TouchableOpacity
-                                    onPress={present}
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => addStoreSheet.present()}
                                     className='items-center justify-center mr-[-5px]'
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
@@ -175,7 +238,8 @@ const BarberStoreLayout = () => {
                                     iconColor="white"
                                     size={20}
                                     badgeCount={unreadNoti}
-                                    onPress={presentNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
                                 />
                             </View>
                         ),
@@ -213,7 +277,20 @@ const BarberStoreLayout = () => {
                         headerRight: () => (
                             <View className='flex-row'>
                                 <TouchableOpacity
-                                    onPress={present}
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => addStoreSheet.present()}
                                     className='items-center justify-center mr-[-5px]'
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
@@ -223,7 +300,8 @@ const BarberStoreLayout = () => {
                                     iconColor="white"
                                     size={20}
                                     badgeCount={unreadNoti}
-                                    onPress={presentNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
                                 />
                             </View>
                         ),
@@ -261,7 +339,20 @@ const BarberStoreLayout = () => {
                         headerRight: () => (
                             <View className='flex-row'>
                                 <TouchableOpacity
-                                    onPress={present}
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => addStoreSheet.present()}
                                     className='items-center justify-center mr-[-5px]'
                                 >
                                     <Icon source={"plus"} size={25} color='white'></Icon>
@@ -271,7 +362,8 @@ const BarberStoreLayout = () => {
                                     iconColor="white"
                                     size={20}
                                     badgeCount={unreadNoti}
-                                    onPress={presentNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
                                 />
                             </View>
                         ),
@@ -280,36 +372,74 @@ const BarberStoreLayout = () => {
                 />
             </Tabs>
             <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                ref={notificationsSheet.ref}
+                backdropComponent={notificationsSheet.makeBackdrop()}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                ref={(inst) => setRef("notifications", inst)}
-                snapPoints={["100%"]}
-                enableOverDrag={false}
-                enablePanDownToClose
+                snapPoints={notificationsSheet.snapPoints}
+                enableOverDrag={notificationsSheet.enableOverDrag}
+                enablePanDownToClose={notificationsSheet.enablePanDownToClose}
+                onChange={notificationsSheet.handleChange}
             >
-                <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
+                <NotificationsSheet
+                    onClose={() => notificationsSheet.dismiss()}
+                    autoOpenFirstUnread={true}
+                    onDeleteSuccess={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(false);
+                        setSnackbarVisible(true);
+                    }}
+                    onDeleteInfo={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(true);
+                        setSnackbarVisible(true);
+                    }}
+                    onDeleteError={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(true);
+                        setSnackbarVisible(true);
+                    }}
+                />
             </BottomSheetModal>
             <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
+                ref={addStoreSheet.ref}
+                backdropComponent={addStoreSheet.makeBackdrop()}
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
-                ref={(inst) => setRef('addStore', inst)}
-                onChange={(index) => setIsAddStoreSheetOpen(index >= 0)}
-                snapPoints={['100%']} enableOverDrag={false} enablePanDownToClose={false}>
+                onChange={addStoreSheet.handleChange}
+                snapPoints={addStoreSheet.snapPoints}
+                enableOverDrag={addStoreSheet.enableOverDrag}
+                enablePanDownToClose={addStoreSheet.enablePanDownToClose}
+            >
                 <BottomSheetView className='h-full pt-2'>
                     <DeferredRender
-                        active={isAddStoreSheetOpen}
+                        active={addStoreSheet.isOpen}
                         placeholder={
                             <View className="flex-1 pt-4">
                                 <CrudSkeletonComponent />
                             </View>
                         }
                     >
-                        <FormStoreAdd />
+                        <FormStoreAdd onClose={() => addStoreSheet.dismiss()} />
                     </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
+            <Portal>
+                <Snackbar
+                    visible={snackbarVisible}
+                    onDismiss={() => setSnackbarVisible(false)}
+                    duration={3000}
+                    style={{ backgroundColor: snackbarIsError ? '#f59e0b' : '#10b981' }}
+                >
+                    {snackbarMessage}
+                </Snackbar>
+            </Portal>
+            <InfoModal
+                visible={infoModalVisible}
+                onClose={() => setInfoModalVisible(false)}
+                title="Kullanım Bilgileri"
+                items={infoItems}
+            />
         </>
 
 

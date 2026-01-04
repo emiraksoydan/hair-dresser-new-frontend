@@ -29,6 +29,7 @@ interface Props {
     searchQuery?: string;
     appliedFilters?: AppliedFilters;
     categoryNameById?: Map<string, string>;
+    showImageAnimation?: boolean;
 }
 
 // React.memo ile sarmaladık. Sadece props değişirse render olur.
@@ -37,7 +38,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
     freeBarber,
     isLoading,
     isError,
-    error, isTracking, isUpdating, searchQuery = '', appliedFilters, categoryNameById }: Props) => {
+    error, isTracking, isUpdating, searchQuery = '', appliedFilters, categoryNameById, showImageAnimation = true }: Props) => {
 
 
     const [expandedMineStore, setExpandedMineStore] = useState(true);
@@ -112,6 +113,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
                         cardWidthFreeBarber={cardWidthFreeBarber}
                         onPressUpdate={(barber) => onOpenPanel(barber.id)}
                         onPressRatings={onPressRatings}
+                        showImageAnimation={showImageAnimation}
                     />
                 </View>
 

@@ -59,6 +59,7 @@ export type BarberStoreGetDto = {
   rating: number;
   distanceKm: number;
   favoriteCount: number;
+  isFavorited?: boolean;
   latitude: number;
   longitude: number;
   addressDescription: string;

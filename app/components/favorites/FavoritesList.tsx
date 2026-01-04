@@ -1,7 +1,7 @@
 ﻿import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, Dimensions, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { LegendList } from '@legendapp/list';
-import { useGetMyFavoritesQuery } from '../../store/api';
+import { useGetMyFavoritesQuery, useGetMeQuery, useGetMineStoresQuery, useGetFreeBarberMinePanelQuery, useGetSettingQuery } from '../../store/api';
 import { FavoriteGetDto, FavoriteTargetType } from '../../types';
 import { StoreCardInner } from '../store/storecard';
 import { FreeBarberCardInner } from '../freebarber/freebarbercard';
@@ -10,37 +10,88 @@ import { ManuelBarberCardInner } from '../manuelbarber/manuelbarbercard';
 import { useRouter } from 'expo-router';
 import { BarberStoreGetDto, FreeBarGetDto, UserFavoriteDto, ManuelBarberFavoriteDto } from '../../types';
 import { Icon } from 'react-native-paper';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { RatingsBottomSheet } from '../rating/ratingsbottomsheet';
-import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
+import { useBottomSheet } from '../../hook/useBottomSheet';
+import { LottieViewComponent } from '../common/lottieview';
+import { resolveApiErrorMessage } from '../../utils/common/error';
+import FormStoreUpdate from '../store/formstoreupdate';
+import { FormFreeBarberOperation } from '../freebarber/formfreebarberoper';
+import { SkeletonComponent } from '../common/skeleton';
 
 type FavoritesListProps = {
     mode?: 'store' | 'customer' | 'freebarber';
 };
 
 const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
-    const { data: favorites, isLoading, refetch, isFetching } = useGetMyFavoritesQuery();
+    const { data: favorites, isLoading, refetch, isFetching, error, isError } = useGetMyFavoritesQuery();
+    const { data: currentUser } = useGetMeQuery();
+    // Favoriler listesinde hem store hem freeBarber olabileceği için her zaman query'leri çalıştır
+    const { data: myStores = [] } = useGetMineStoresQuery();
+    const { data: myFreeBarber } = useGetFreeBarberMinePanelQuery();
+    const { data: settingData } = useGetSettingQuery();
     const router = useRouter();
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const { present: presentRatings } = useSheet("ratings");
+
+    // Bottom sheet hooks
+    const ratingsSheet = useBottomSheet({
+        snapPoints: ["50%", "85%"],
+        enablePanDownToClose: true,
+    });
+    const updateStoreSheet = useBottomSheet({
+        snapPoints: ["100%"],
+        enablePanDownToClose: true,
+    });
+    const updateFreeBarberSheet = useBottomSheet({
+        snapPoints: ["100%"],
+        enablePanDownToClose: true,
+    });
+
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
+    const [selectedStoreForUpdate, setSelectedStoreForUpdate] = useState<BarberStoreGetDto | null>(null);
 
     const screenWidth = Dimensions.get("window").width;
     const cardWidth = screenWidth * 0.92;
 
+    // Kullanıcının kendi store ID'lerini al
+    const myStoreIds = useMemo(() => {
+        return new Set(myStores.map(s => s.id));
+    }, [myStores]);
+
+    // Kullanıcının kendi freeBarber user ID'sini al
+    const myFreeBarberUserId = useMemo(() => {
+        return currentUser?.data?.id;
+    }, [currentUser]);
+
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
+        // Eğer kullanıcının kendi store'u ise update sheet'e yönlendir
+        if (myStoreIds.has(store.id)) {
+            setSelectedStoreForUpdate(store);
+            setTimeout(() => {
+                updateStoreSheet.present();
+            }, 100);
+            return;
+        }
+
         router.push({
             pathname: "/store/[storeId]",
             params: { storeId: store.id, mode: mode },
         });
-    }, [router, mode]);
+    }, [router, mode, myStoreIds, updateStoreSheet]);
 
     const goFreeBarberDetail = useCallback((freeBarber: FreeBarGetDto) => {
+        // Eğer kullanıcının kendi freeBarber paneli ise update sheet'e yönlendir
+        if (freeBarber.freeBarberUserId && myFreeBarberUserId && freeBarber.freeBarberUserId === myFreeBarberUserId) {
+            setTimeout(() => {
+                updateFreeBarberSheet.present();
+            }, 100);
+            return;
+        }
+
         router.push({
             pathname: "/freebarber/[freeBarberId]",
             params: { freeBarberId: freeBarber.id },
         });
-    }, [router]);
+    }, [router, myFreeBarberUserId, updateFreeBarberSheet]);
 
 
 
@@ -48,8 +99,11 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
-        presentRatings();
-    }, [presentRatings]);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            ratingsSheet.present();
+        }, 100);
+    }, [ratingsSheet]);
 
     // Store, FreeBarber, Customer ve ManuelBarber favorilerini ayır
     const storeFavorites = useMemo(() => {
@@ -120,6 +174,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     onPressUpdate={goStoreDetail}
                     onPressRatings={handlePressRatings}
                     isViewerFromFreeBr={mode === 'freebarber'}
+                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                 />
             );
         } else if (item.targetType === FavoriteTargetType.FreeBarber && item.freeBarber) {
@@ -133,6 +188,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     typeLabelColor={typeLabelColor}
                     onPressUpdate={goFreeBarberDetail}
                     onPressRatings={handlePressRatings}
+                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                 />
             );
         } else if (item.targetType === FavoriteTargetType.Customer && item.customer) {
@@ -160,12 +216,37 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
             );
         }
         return null;
-    }, [cardWidth, goStoreDetail, goFreeBarberDetail, getTargetTypeLabel, getTargetTypeColor, mode, handlePressRatings]);
+    }, [cardWidth, goStoreDetail, goFreeBarberDetail, getTargetTypeLabel, getTargetTypeColor, mode, handlePressRatings, settingData]);
 
     if (isLoading) {
         return (
             <View className="flex-1 bg-[#151618] justify-center items-center">
                 <ActivityIndicator size="large" color="#f05e23" />
+            </View>
+        );
+    }
+
+    // Network/Server error durumu - öncelikli göster
+    if (isError && error) {
+        const errorMessage = resolveApiErrorMessage(error);
+
+        return (
+            <View className="flex-1 bg-[#151618]">
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isFetching && !isLoading}
+                            onRefresh={refetch}
+                            tintColor="#f05e23"
+                        />
+                    }
+                >
+                    <LottieViewComponent
+                        animationSource={require('../../../assets/animations/error.json')}
+                        message={errorMessage}
+                    />
+                </ScrollView>
             </View>
         );
     }
@@ -200,27 +281,91 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 
             {/* Yorumlar Bottom Sheet */}
             <BottomSheetModal
-                ref={(inst) => setRef("ratings", inst)}
-                snapPoints={["50%", "85%"]}
-                enablePanDownToClose={true}
+                ref={ratingsSheet.ref}
+                snapPoints={ratingsSheet.snapPoints}
+                enablePanDownToClose={ratingsSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={ratingsSheet.makeBackdrop()}
                 onChange={(index) => {
+                    ratingsSheet.handleChange(index);
                     if (index < 0) {
                         setSelectedRatingsTarget(null);
                     }
                 }}
             >
-                {selectedRatingsTarget && (
+                {selectedRatingsTarget ? (
                     <RatingsBottomSheet
                         targetId={selectedRatingsTarget.targetId}
                         targetName={selectedRatingsTarget.targetName}
                         onClose={() => {
                             setSelectedRatingsTarget(null);
+                            ratingsSheet.dismiss();
                         }}
                     />
+                ) : (
+                    <View className="flex-1 pt-4">
+                        <SkeletonComponent />
+                    </View>
                 )}
+            </BottomSheetModal>
+
+            {/* Store Update Bottom Sheet */}
+            <BottomSheetModal
+                ref={updateStoreSheet.ref}
+                snapPoints={updateStoreSheet.snapPoints}
+                enablePanDownToClose={updateStoreSheet.enablePanDownToClose}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={updateStoreSheet.makeBackdrop()}
+                onChange={(index) => {
+                    updateStoreSheet.handleChange(index);
+                    if (index < 0) {
+                        setSelectedStoreForUpdate(null);
+                        refetch();
+                    }
+                }}
+            >
+                <BottomSheetView className="h-full pt-2">
+                    {selectedStoreForUpdate && (
+                        <FormStoreUpdate
+                            storeId={selectedStoreForUpdate.id}
+                            enabled={updateStoreSheet.isOpen}
+                            onClose={() => {
+                                updateStoreSheet.dismiss();
+                                setSelectedStoreForUpdate(null);
+                            }}
+                        />
+                    )}
+                </BottomSheetView>
+            </BottomSheetModal>
+
+            {/* FreeBarber Update Bottom Sheet */}
+            <BottomSheetModal
+                ref={updateFreeBarberSheet.ref}
+                snapPoints={updateFreeBarberSheet.snapPoints}
+                enablePanDownToClose={updateFreeBarberSheet.enablePanDownToClose}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+                backgroundStyle={{ backgroundColor: "#151618" }}
+                backdropComponent={updateFreeBarberSheet.makeBackdrop()}
+                onChange={(index) => {
+                    updateFreeBarberSheet.handleChange(index);
+                    if (index < 0) {
+                        refetch();
+                    }
+                }}
+            >
+                <BottomSheetView className="h-full pt-2">
+                    {myFreeBarber && updateFreeBarberSheet.isOpen && (
+                        <FormFreeBarberOperation
+                            freeBarberId={myFreeBarber.id}
+                            enabled={true}
+                            onClose={() => {
+                                updateFreeBarberSheet.dismiss();
+                            }}
+                        />
+                    )}
+                </BottomSheetView>
             </BottomSheetModal>
         </View>
     );

@@ -8,26 +8,22 @@ import {
     ManuelBarberCreateDto, ManuelBarberUpdateDto, NearbyRequest, NotificationDto,
     OtpPurpose, UpdateLocationDto, UserType, VerifyOtpRequest, WorkingHourGetDto,
     ChatThreadListItemDto, ChatMessageItemDto, ChatMessageDto,
-    // YENİ EKLENEN TİPLER:
     AppointmentGetDto, AppointmentFilter,
     CreateRatingDto, RatingGetDto,
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
     ImageGetDto, ImageOwnerType,
     AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto,
-    UpdateUserDto, UserProfileDto
+    UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting"],
     refetchOnReconnect: true,
     refetchOnFocus: true,
     endpoints: (builder) => ({
-
-        // ... (Auth, BarberStore, FreeBarber, ManuelBarber kısımları aynı kalıyor) ...
-        // ... (Kodun okunabilirliği için sadece Appointment ve değişen yerleri gösteriyorum) ...
 
         // --- AUTH API ---
         sendOtp: builder.mutation<{ message: string; success: boolean }, { phoneNumber: string, userType?: UserType, Otppurpose: OtpPurpose }>({
@@ -359,6 +355,25 @@ export const api = createApi({
             ],
         }),
 
+        deleteAppointment: builder.mutation<ApiResponse<boolean>, string>({
+            query: (id) => ({ url: `Appointment/${id}`, method: 'DELETE' }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Appointment' as const, id },
+                { type: 'Appointment' as const, id: 'LIST' },
+                'Badge',
+                'Chat',
+            ],
+        }),
+        deleteAllAppointments: builder.mutation<ApiResponse<boolean>, void>({
+            query: () => ({ url: 'Appointment/all', method: 'DELETE' }),
+            invalidatesTags: [
+                { type: 'Appointment' as const, id: 'LIST' },
+                'Appointment',
+                'Badge',
+                'Chat',
+            ],
+        }),
+
         // --- WORKING HOURS API ---
         getWorkingHoursByTarget: builder.query<WorkingHourGetDto[], string>({
             query: (targetId) => `Working/${targetId}`,
@@ -401,6 +416,22 @@ export const api = createApi({
         markNotificationRead: builder.mutation<void, string>({
             query: (id) => ({ url: `Notification/read/${id}`, method: 'POST' }),
             invalidatesTags: (result, error, id) => [{ type: 'Notification' as const, id }, 'Badge'],
+        }),
+        deleteNotification: builder.mutation<ApiResponse<boolean>, string>({
+            query: (id) => ({ url: `Notification/${id}`, method: 'DELETE' }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Notification' as const, id },
+                { type: 'Notification' as const, id: 'LIST' },
+                'Badge',
+            ],
+        }),
+        deleteAllNotifications: builder.mutation<ApiResponse<boolean>, void>({
+            query: () => ({ url: 'Notification/all', method: 'DELETE' }),
+            invalidatesTags: [
+                { type: 'Notification' as const, id: 'LIST' },
+                'Notification',
+                'Badge',
+            ],
         }),
 
         // --- CHAT API ---
@@ -522,14 +553,14 @@ export const api = createApi({
         toggleFavorite: builder.mutation<ApiResponse<ToggleFavoriteResponseDto>, ToggleFavoriteDto>({
             query: (body) => ({ url: 'Favorite/toggle', method: 'POST', body }),
             async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
-                // ✅ PERFORMANS İYİLEŞTİRME: Optimistic update ile anında UI güncelleme
+                // Optimistic update ile anında UI güncelleme
                 const targetId = arg.targetId;
                 const state = getState() as any;
 
                 // Optimistic update için patch'leri sakla (rollback için)
                 const patchResults: any[] = [];
 
-                // ✅ Optimistic update: Anında UI'ı güncelle
+                // Optimistic update: Anında UI'ı güncelle
                 const optimisticUpdateCache = (endpointName: string, optimisticToggle: boolean) => {
                     try {
                         const apiState = (state as any).api;
@@ -603,6 +634,16 @@ export const api = createApi({
 
                 const optimisticToggle = !currentIsFavorite;
 
+                // isFavorite query'sini optimistic olarak güncelle (anında UI feedback)
+                try {
+                    dispatch(
+                        api.util.updateQueryData('isFavorite', targetId, () => optimisticToggle)
+                    );
+                } catch (e) {
+                    // Hata durumunda sessizce devam et
+                }
+                // Not: Favoriler listesi invalidateTags ile otomatik refetch yapılacak ('Favorite' tag'i)
+
                 // Tüm ilgili cache'leri optimistic olarak güncelle
                 optimisticUpdateCache('getNearbyStores', optimisticToggle);
                 optimisticUpdateCache('getMineStores', optimisticToggle);
@@ -610,53 +651,6 @@ export const api = createApi({
                 optimisticUpdateCache('getFreeBarberMinePanel', optimisticToggle);
                 optimisticUpdateCache('getStoreForUsers', optimisticToggle);
                 optimisticUpdateCache('getFreeBarberForUsers', optimisticToggle);
-
-                // Helper function: Backend'den dönen favoriteCount ile cache'i güncelle
-                const updateCacheWithFavoriteCount = (endpointName: string, favoriteCount: number, isFavorite: boolean) => {
-                    try {
-                        const apiState = (state as any).api;
-                        if (!apiState?.queries) return;
-
-                        Object.keys(apiState.queries).forEach((queryKey) => {
-                            const queryState = apiState.queries[queryKey];
-                            if (queryState?.endpointName === endpointName && queryState?.data) {
-                                try {
-                                    let queryArgs = queryState.originalArgs;
-
-                                    if (!queryArgs && queryState.queryCacheKey) {
-                                        const match = queryState.queryCacheKey.match(/\((.+)\)$/);
-                                        if (match) {
-                                            try {
-                                                queryArgs = JSON.parse(match[1]);
-                                            } catch (e) {
-                                                // Parse edilemezse atla
-                                            }
-                                        }
-                                    }
-
-                                    if (queryArgs) {
-                                        dispatch(
-                                            api.util.updateQueryData(endpointName as any, queryArgs, (draft: any) => {
-                                                if (Array.isArray(draft)) {
-                                                    const item = draft.find((s: any) => s.id === targetId);
-                                                    if (item) {
-                                                        item.favoriteCount = favoriteCount;
-                                                    }
-                                                } else if (draft && draft.id === targetId) {
-                                                    draft.favoriteCount = favoriteCount;
-                                                }
-                                            })
-                                        );
-                                    }
-                                } catch (e) {
-                                    // Hata durumunda sessizce devam et
-                                }
-                            }
-                        });
-                    } catch (e) {
-                        // Hata durumunda sessizce devam et
-                    }
-                };
 
                 // Appointment listesi için isFavorite flag'ini güncelle
                 const updateAppointmentFavoriteFlag = (isFavorite: boolean) => {
@@ -703,28 +697,19 @@ export const api = createApi({
                     }
                 };
 
-                // Backend'den dönen response'u bekle ve cache'i gerçek değerle düzelt
+                // Backend'den dönen response'u bekle
                 try {
                     const result = await queryFulfilled;
                     const responseData = result.data?.data || result.data;
 
                     if (responseData) {
-                        const favoriteCount = responseData.favoriteCount ?? 0;
                         const isFavorite = responseData.isFavorite ?? false;
-
-                        // ✅ Backend'den gelen gerçek değerlerle cache'i düzelt
-                        updateCacheWithFavoriteCount('getNearbyStores', favoriteCount, isFavorite);
-                        updateCacheWithFavoriteCount('getMineStores', favoriteCount, isFavorite);
-                        updateCacheWithFavoriteCount('getNearbyFreeBarber', favoriteCount, isFavorite);
-                        updateCacheWithFavoriteCount('getFreeBarberMinePanel', favoriteCount, isFavorite);
-                        updateCacheWithFavoriteCount('getStoreForUsers', favoriteCount, isFavorite);
-                        updateCacheWithFavoriteCount('getFreeBarberForUsers', favoriteCount, isFavorite);
-
                         // Appointment favorite flag'lerini güncelle
                         updateAppointmentFavoriteFlag(isFavorite);
                     }
+                    // Not: invalidatesTags zaten cache'i temizleyecek ve refetch yapacak, bu yüzden updateCacheWithFavoriteCount gereksiz
                 } catch (error) {
-                    // ✅ Hata durumunda optimistic update'i geri al
+                    // Hata durumunda optimistic update'i geri al
                     patchResults.forEach(patchResult => {
                         patchResult.undo();
                     });
@@ -888,6 +873,27 @@ export const api = createApi({
             invalidatesTags: ['UserProfile'],
         }),
 
+        // --- SETTING API ---
+        getSetting: builder.query<ApiResponse<SettingGetDto>, void>({
+            query: () => 'Setting',
+            providesTags: ['Setting'],
+            keepUnusedDataFor: 60, // 1 dakika cache
+            transformResponse: (response: any) => {
+                if (response?.success !== undefined && response?.data !== undefined) {
+                    return response;
+                }
+                return response;
+            },
+        }),
+        updateSetting: builder.mutation<ApiResponse<boolean>, SettingUpdateDto>({
+            query: (dto) => ({
+                url: 'Setting',
+                method: 'PUT',
+                body: dto,
+            }),
+            invalidatesTags: ['Setting'],
+        }),
+
     }),
 });
 
@@ -916,8 +922,6 @@ export const {
     useAddFreeBarberPanelMutation,
     useUpdateFreeBarberPanelMutation,
     useGetAvailabilityQuery,
-
-    // YENİ EKLENEN QUERY
     useGetAllAppointmentByFilterQuery,
 
     useGetStoreForUsersQuery,
@@ -927,6 +931,8 @@ export const {
     useGetBadgeCountsQuery,
     useGetAllNotificationsQuery,
     useMarkNotificationReadMutation,
+    useDeleteNotificationMutation,
+    useDeleteAllNotificationsMutation,
     useCreateCustomerAppointmentMutation,
     useCreateCustomerToFreeBarberAppointmentMutation,
     useCreateFreeBarberAppointmentMutation,
@@ -938,6 +944,8 @@ export const {
     useCustomerDecisionMutation,
     useCancelAppointmentMutation,
     useCompleteAppointmentMutation,
+    useDeleteAppointmentMutation,
+    useDeleteAllAppointmentsMutation,
     useGetChatThreadsQuery,
     useGetChatMessagesQuery,
     useGetChatMessagesByThreadQuery,
@@ -967,4 +975,6 @@ export const {
     useDeleteImageMutation,
     useGetMeQuery,
     useUpdateProfileMutation,
+    useGetSettingQuery,
+    useUpdateSettingMutation,
 } = api;

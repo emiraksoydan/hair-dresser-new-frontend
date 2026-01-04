@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { View, Text, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
-import { useGetFreeBarberForUsersQuery, useCreateCustomerToFreeBarberAppointmentMutation, useCallFreeBarberMutation } from '../../store/api';
+import { useGetFreeBarberForUsersQuery, useCreateCustomerToFreeBarberAppointmentMutation, useCallFreeBarberMutation, useGetSettingQuery } from '../../store/api';
 import FilterChip from '../common/filter-chip';
 import { getBarberTypeName } from '../../utils/store/barber-type';
 import { SkeletonComponent } from '../common/skeleton';
@@ -13,7 +13,7 @@ import { MESSAGES } from '../../constants/messages';
 import { APPOINTMENT_CONSTANTS } from '../../constants/appointment';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
+import { useBottomSheet } from '../../hook/useBottomSheet';
 import StoreBookingContent from '../store/storebooking';
 import { StoreCardInner } from '../store/storecard';
 import { EmptyState } from '../common/emptystateresult';
@@ -39,6 +39,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     const router = useRouter();
     const isAddStoreMode = mode === "add-store";
     const { data: freeBarberData, isLoading } = useGetFreeBarberForUsersQuery(barberId, { skip: !barberId || isAddStoreMode });
+    const { data: settingData } = useGetSettingQuery();
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const { userType: currentUserType } = useAuth();
     const [storeSelectionType, setStoreSelectionType] = useState<StoreSelectionType | null>(null);
@@ -50,24 +51,34 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
     // Dükkan seçimi için
     const { stores, loading: storesLoading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(isAddStoreMode);
-    const storeSelectionSheetRef = useRef<BottomSheetModal>(null);
-    const storeBookingSheetRef = useRef<BottomSheetModal>(null);
-    const { setRef: setStoreSelectionRef, makeBackdrop } = useBottomSheetRegistry();
-    const { setRef: setStoreBookingRef } = useBottomSheetRegistry();
-    const { setRef: setRatingsRef } = useBottomSheetRegistry();
-    const { present: presentRatings } = useSheet("ratings");
     const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
     const [isMapMode, setIsMapMode] = useState(false);
+    
+    // Bottom sheet hooks - snapPoints dinamik olacak
+    const storeSelectionSnapPoints = useMemo(() => isMapMode ? ["75%", "100%"] : ["100%"], [isMapMode]);
+    const storeSelectionSheet = useBottomSheet({
+        snapPoints: storeSelectionSnapPoints,
+        enablePanDownToClose: isMapMode,
+        enableOverDrag: isMapMode,
+    });
+    const storeBookingSheet = useBottomSheet({
+        snapPoints: ["100%"],
+        enablePanDownToClose: true,
+    });
+    const ratingsSheet = useBottomSheet({
+        snapPoints: ["50%", "85%"],
+        enablePanDownToClose: true,
+    });
     const [expanded, setExpanded] = useState(true);
 
     useEffect(() => {
         if (!isAddStoreMode) return;
         const timer = setTimeout(() => {
-            storeSelectionSheetRef.current?.present();
+            storeSelectionSheet.present();
         }, 150);
         return () => clearTimeout(timer);
-    }, [isAddStoreMode]);
+    }, [isAddStoreMode, storeSelectionSheet]);
 
     const screenWidth = Dimensions.get("window").width;
     const cardWidthStore = useMemo(() => (expanded ? screenWidth * 0.92 : screenWidth * 0.94), [expanded, screenWidth]);
@@ -86,19 +97,19 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         setSelectedStoreId(store.id);
-        storeSelectionSheetRef.current?.dismiss();
+        storeSelectionSheet.dismiss();
         setTimeout(() => {
-            storeBookingSheetRef.current?.present();
+            storeBookingSheet.present();
         }, 300);
-    }, []);
+    }, [storeSelectionSheet, storeBookingSheet]);
 
     const handleMapItemPress = useCallback((store: BarberStoreGetDto) => {
         setSelectedStoreId(store.id);
-        storeSelectionSheetRef.current?.dismiss();
+        storeSelectionSheet.dismiss();
         setTimeout(() => {
-            storeBookingSheetRef.current?.present();
+            storeBookingSheet.present();
         }, 300);
-    }, []);
+    }, [storeSelectionSheet, storeBookingSheet]);
 
     const storeMarkers = useMemo(() => {
         if (!hasStores) return null;
@@ -141,8 +152,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
-        presentRatings();
-    }, [presentRatings]);
+        ratingsSheet.present();
+    }, [ratingsSheet]);
 
     const renderStoreItem = useCallback(({ item }: { item: BarberStoreGetDto }) => (
         <StoreCardInner
@@ -152,8 +163,9 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             cardWidthStore={cardWidthStore}
             onPressUpdate={goStoreDetail}
             onPressRatings={handlePressRatings}
+            showImageAnimation={settingData?.data?.showImageAnimation ?? true}
         />
-    ), [expanded, cardWidthStore, goStoreDetail, handlePressRatings]);
+    ), [expanded, cardWidthStore, goStoreDetail, handlePressRatings, settingData]);
 
     // Loading
     if (!isAddStoreMode && isLoading) {
@@ -213,7 +225,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                     <Text className="text-white font-ibm-plex-sans-bold text-lg">Dükkan Seçin</Text>
                     <Text className="text-gray-400 text-sm mt-1">Randevu için uygun işletmeyi seçin.</Text>
                     <TouchableOpacity
-                        onPress={() => storeSelectionSheetRef.current?.present()}
+                        onPress={() => storeSelectionSheet.present()}
                         className="mt-4 py-3 flex-row justify-center gap-2 rounded-xl items-center bg-[#3b82f6]"
                     >
                         <Icon source="store" size={18} color="white" />
@@ -532,20 +544,19 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             {/* Dükkan Seçimi Bottom Sheet - Customer Panel Yapısı */}
             {isAddStoreMode && (
                 <BottomSheetModal
-                    ref={(ref) => {
-                        storeSelectionSheetRef.current = ref;
-                        setStoreSelectionRef('freeBarberStoreSelection', ref);
-                    }}
+                    ref={storeSelectionSheet.ref}
                     index={0}
-                    snapPoints={isMapMode ? ["75%", "100%"] : ["100%"]}
-                    enableOverDrag={isMapMode}
-                    enablePanDownToClose={isMapMode}
+                    snapPoints={storeSelectionSheet.snapPoints}
+                    enableOverDrag={storeSelectionSheet.enableOverDrag}
+                    enablePanDownToClose={storeSelectionSheet.enablePanDownToClose}
                     handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                     backgroundStyle={{ backgroundColor: "#151618" }}
-                    backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
-                    onDismiss={() => {
-                        // Kapatildiginda iptal
-                        setSelectedStoreId(null);
+                    backdropComponent={storeSelectionSheet.makeBackdrop()}
+                    onChange={(index) => {
+                        storeSelectionSheet.handleChange(index);
+                        if (index < 0) {
+                            setSelectedStoreId(null);
+                        }
                     }}
                 >
                     <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
@@ -557,7 +568,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     iconColor="white"
                                     size={24}
                                     onPress={() => {
-                                        storeSelectionSheetRef.current?.dismiss();
+                                        storeSelectionSheet.dismiss();
                                     }}
                                 />
                             </View>
@@ -651,13 +662,12 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
             {isAddStoreMode && selectedStoreId && (
                 <BottomSheetModal
-                    ref={(ref) => {
-                        storeBookingSheetRef.current = ref;
-                        setStoreBookingRef('freeBarberStoreBooking', ref);
-                    }}
+                    ref={storeBookingSheet.ref}
                     index={0}
-                    snapPoints={['90%']}
+                    snapPoints={storeBookingSheet.snapPoints}
                     backgroundStyle={{ backgroundColor: '#151618' }}
+                    enablePanDownToClose={storeBookingSheet.enablePanDownToClose}
+                    onChange={storeBookingSheet.handleChange}
                 >
                     <BottomSheetView className="flex-1">
                         <StoreBookingContent
@@ -672,26 +682,32 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             )}
 
             <BottomSheetModal
-                ref={(inst) => setRatingsRef("ratings", inst)}
-                snapPoints={["50%", "85%"]}
-                enablePanDownToClose={true}
+                ref={ratingsSheet.ref}
+                snapPoints={ratingsSheet.snapPoints}
+                enablePanDownToClose={ratingsSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={ratingsSheet.makeBackdrop()}
                 onChange={(index) => {
+                    ratingsSheet.handleChange(index);
                     if (index < 0) {
                         setSelectedRatingsTarget(null);
                     }
                 }}
             >
-                {selectedRatingsTarget && (
+                {selectedRatingsTarget ? (
                     <RatingsBottomSheet
                         targetId={selectedRatingsTarget.targetId}
                         targetName={selectedRatingsTarget.targetName}
                         onClose={() => {
                             setSelectedRatingsTarget(null);
+                            ratingsSheet.dismiss();
                         }}
                     />
+                ) : (
+                    <View className="flex-1 pt-4">
+                        <SkeletonComponent />
+                    </View>
                 )}
             </BottomSheetModal>
         </View>

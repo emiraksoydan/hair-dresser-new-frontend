@@ -1,15 +1,17 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { View, Text, TouchableOpacity, FlatList, Alert, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
 import { LegendList } from '@legendapp/list';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
 import { StarRatingDisplay } from "react-native-star-rating-widget";
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import {
     useGetAllAppointmentByFilterQuery,
     useCancelAppointmentMutation,
     useCompleteAppointmentMutation,
-    useToggleFavoriteMutation
+    useToggleFavoriteMutation,
+    useDeleteAppointmentMutation,
+    useDeleteAllAppointmentsMutation
 } from "../../store/api";
 import { AppointmentStatus, AppointmentFilter, AppointmentGetDto, AppointmentRequester } from "../../types/appointment";
 import { useAuth } from "../../hook/useAuth";
@@ -19,12 +21,18 @@ import { getBarberTypeName } from "../../utils/store/barber-type";
 import { RatingBottomSheet } from "./ratingbottomsheet";
 import { getAppointmentStatusColor, getAppointmentStatusText } from "../../utils/appointment/appointment-helpers";
 import { OwnerAvatar } from "../common/owneravatar";
+import { LottieViewComponent } from "../common/lottieview";
+import { resolveApiErrorMessage } from "../../utils/common/error";
+import { useBottomSheet } from "../../hook/useBottomSheet";
 
 export default function SharedAppointmentScreen() {
     const { userId, userType } = useAuth();
     const insets = useSafeAreaInsets();
     const [activeFilter, setActiveFilter] = useState<AppointmentFilter>(AppointmentFilter.Active);
-    const ratingBottomSheetRef = useRef<BottomSheetModal>(null);
+    const ratingSheet = useBottomSheet({
+        snapPoints: ['60%', '100%'],
+        enablePanDownToClose: true,
+    });
     const [selectedRatingTarget, setSelectedRatingTarget] = useState<{
         appointmentId: string;
         targetId: string;
@@ -34,7 +42,7 @@ export default function SharedAppointmentScreen() {
     } | null>(null);
 
     // --- API ---
-    const { data: appointments, isLoading, refetch, isFetching } = useGetAllAppointmentByFilterQuery(activeFilter);
+    const { data: appointments, isLoading, refetch, isFetching, error, isError } = useGetAllAppointmentByFilterQuery(activeFilter);
 
     const filteredAppointments = useMemo(() => {
         const items = appointments ?? [];
@@ -61,6 +69,8 @@ export default function SharedAppointmentScreen() {
     const [cancelAppointment, { isLoading: isCancelling }] = useCancelAppointmentMutation();
     const [completeAppointment, { isLoading: isCompleting }] = useCompleteAppointmentMutation();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
+    const [deleteAppointment, { isLoading: isDeletingAppointment }] = useDeleteAppointmentMutation();
+    const [deleteAllAppointments, { isLoading: isDeletingAllAppointments }] = useDeleteAllAppointmentsMutation();
 
     // --- Helper Functions ---
     const formatPricingPolicy = useCallback((pricingType?: number, pricingValue?: number) => {
@@ -128,8 +138,11 @@ export default function SharedAppointmentScreen() {
     // Rating bottom sheet aç
     const openRatingSheet = useCallback((appointmentId: string, targetId: string, targetName: string, targetType: 'store' | 'freeBarber' | 'manuelBarber' | 'customer', targetImage?: string) => {
         setSelectedRatingTarget({ appointmentId, targetId, targetName, targetType, targetImage });
-        ratingBottomSheetRef.current?.present();
-    }, []);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            ratingSheet.present();
+        }, 100);
+    }, [ratingSheet]);
 
     // Favori toggle
     const handleToggleFavorite = useCallback(async (targetId: string, appointmentId?: string) => {
@@ -182,6 +195,52 @@ export default function SharedAppointmentScreen() {
         ]);
     };
 
+    const handleDelete = useCallback(async (appointmentId: string) => {
+        Alert.alert(
+            "Randevuyu Sil",
+            "Bu randevuyu silmek istediğinize emin misiniz?",
+            [
+                { text: "İptal", style: "cancel" },
+                {
+                    text: "Sil",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteAppointment(appointmentId).unwrap();
+                            Alert.alert("Başarılı", "Randevu başarıyla silindi.");
+                        } catch (error: any) {
+                            const errorMessage = error?.data?.message || error?.message || "Randevu silinemedi.";
+                            Alert.alert("Hata", errorMessage);
+                        }
+                    },
+                },
+            ]
+        );
+    }, [deleteAppointment]);
+
+    const handleDeleteAll = useCallback(async () => {
+        Alert.alert(
+            "Tüm Randevuları Sil",
+            "Silinebilir tüm randevuları silmek istediğinize emin misiniz?",
+            [
+                { text: "İptal", style: "cancel" },
+                {
+                    text: "Sil",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteAllAppointments().unwrap();
+                            Alert.alert("Başarılı", "Randevular başarıyla silindi.");
+                        } catch (error: any) {
+                            const errorMessage = error?.data?.message || error?.message || "Randevular silinemedi.";
+                            Alert.alert("Hata", errorMessage);
+                        }
+                    },
+                },
+            ]
+        );
+    }, [deleteAllAppointments]);
+
     // Rating Component - Ortalama rating ve kullanıcının rating'i göster
     const RatingDisplay = ({
         myRating,
@@ -197,7 +256,7 @@ export default function SharedAppointmentScreen() {
         onRatePress: () => void;
     }) => {
         return (
-            <View className="mt-2">
+            <View className="mt-3">
                 {/* Ortalama Rating - Her zaman göster (eğer varsa) */}
                 {averageRating !== undefined && averageRating !== null && (
                     <View className="flex-row items-center mb-2">
@@ -209,8 +268,8 @@ export default function SharedAppointmentScreen() {
 
                 {/* Kullanıcının Rating'i - Eğer yapmışsa göster */}
                 {myRating !== undefined && myRating !== null && myRating > 0 && (
-                    <View className="mt-1 mb-2">
-                        <View className="flex-row items-center mb-1">
+                    <View className="mb-2">
+                        <View className="flex-row items-center mb-2">
                             <StarRatingDisplay
                                 rating={myRating}
                                 starSize={14}
@@ -220,8 +279,10 @@ export default function SharedAppointmentScreen() {
                             <Text className="text-[#6b7280] text-xs ml-1">(Sizin yorumunuz)</Text>
                         </View>
                         {myComment && (
-                            <View className="bg-[#1f2023] rounded-lg p-2 mt-1">
-                                <Text className="text-[#d1d5db] text-xs italic">"{myComment}"</Text>
+                            <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-1">
+                                <Text className="text-[#d1d5db] text-xs leading-4" numberOfLines={3} ellipsizeMode="tail">
+                                    "{myComment}"
+                                </Text>
                             </View>
                         )}
                     </View>
@@ -231,7 +292,7 @@ export default function SharedAppointmentScreen() {
                 {canRateNow && (myRating === null || myRating === undefined || myRating === 0) && (
                     <TouchableOpacity
                         onPress={onRatePress}
-                        className="flex-row items-center mt-1 bg-[#1f2023] border border-[#f05e23]/30 rounded-lg px-3 py-2 self-start"
+                        className="flex-row items-center justify-center bg-[#1f2023] border border-[#f05e23]/30 rounded-lg px-3 py-2.5 mt-1"
                     >
                         <Icon source="star-outline" size={16} color="#f05e23" />
                         <Text className="text-[#f05e23] text-xs font-semibold ml-2">Yorum Yap</Text>
@@ -252,6 +313,7 @@ export default function SharedAppointmentScreen() {
 
         let showCompleteButton = false;
         let showCancelButton = false;
+        let showDeleteButton = false;
 
         if (activeFilter === AppointmentFilter.Active) {
             // Active tab'ında Pending/Approved randevular görünür
@@ -271,6 +333,12 @@ export default function SharedAppointmentScreen() {
             }
         }
 
+        // Delete butonu - Sadece Completed ve Cancelled tablarında gösterilir, Pending ve Approved durumunda gösterilmez
+        if ((activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled) &&
+            item.status !== AppointmentStatus.Pending && item.status !== AppointmentStatus.Approved) {
+            showDeleteButton = true;
+        }
+
         // Tamamlanan/iptal durumlarında kart tasarımını iyileştir
         const isCompletedOrCancelled = activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled;
 
@@ -280,7 +348,7 @@ export default function SharedAppointmentScreen() {
 
 
         return (
-            <View className={`bg-[#151618] rounded-xl p-4 mb-3 border ${isCompletedOrCancelled ? 'border-[#2a2c30]' : 'border-[#1f2023]'}`}>
+            <View className={`bg-[#151618] rounded-xl p-4 mb-4 border ${isCompletedOrCancelled ? 'border-[#2a2c30]' : 'border-[#1f2023]'}`}>
 
                 {/* Durum Badge'i - Active tab'ında ve tamamlanan/iptal durumlarında göster */}
                 {(activeFilter === AppointmentFilter.Active || isCompletedOrCancelled) && (
@@ -311,30 +379,29 @@ export default function SharedAppointmentScreen() {
                                     </View>
                                 )}
                             </View>
+                            {item.appointmentRequester != AppointmentRequester.Store && userType != UserType.FreeBarber && item.startTime && item.endTime && (
+                                <View className="flex-row items-center">
+                                    <Icon source="calendar" size={14} color="#6b7280" />
+                                    <Text className="text-[#9ca3af] text-xs ml-1.5">
+                                        {new Date(item.appointmentDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
+                                    </Text>
+                                    <Text className="text-[#6b7280] mx-1.5">•</Text>
+                                    <Icon source="clock-outline" size={14} color="#6b7280" />
+                                    <Text className="text-[#9ca3af] text-xs ml-1">
+                                        {item.startTime.substring(0, 5)} - {item.endTime.substring(0, 5)}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                 )}
-                <View className="flex-row justify-between items-start mb-3">
-                    {item.appointmentRequester != AppointmentRequester.Store && userType != UserType.FreeBarber && item.startTime && item.endTime && (
-                        <View className="flex-row items-center mb-3">
-                            <Icon source="calendar" size={16} color="#6b7280" />
-                            <Text className="text-[#9ca3af] text-sm ml-1.5">
-                                {new Date(item.appointmentDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
-                            </Text>
-                            <Text className="text-[#6b7280] mx-1.5">•</Text>
-                            <Icon source="clock-outline" size={14} color="#6b7280" />
-                            <Text className="text-[#9ca3af] text-sm ml-1">
-                                {item.startTime.substring(0, 5)} - {item.endTime.substring(0, 5)}
-                            </Text>
-                        </View>
-                    )}
-
-                    <View className="flex-row gap-2 mb-3 items-center">
+                <View className="mb-4">
+                    <View className="flex-row gap-2 items-center justify-end flex-wrap">
                         {showCompleteButton && (
                             <TouchableOpacity
                                 onPress={() => handleComplete(item.id)}
                                 disabled={isCompleting}
-                                className=" bg-green-600 p-1 rounded-xl flex-row items-center justify-center"
+                                className="bg-green-600 px-3 py-2 rounded-xl flex-row items-center justify-center"
                             >
                                 {isCompleting ? <ActivityIndicator color="white" size="small" /> : (
                                     <>
@@ -348,7 +415,7 @@ export default function SharedAppointmentScreen() {
                             <TouchableOpacity
                                 onPress={() => handleCancel(item.id)}
                                 disabled={isCancelling}
-                                className=" bg-[#2a2c30] border border-red-900/40 p-1 rounded-xl flex-row items-center justify-center"
+                                className="bg-[#2a2c30] border border-red-900/40 px-3 py-2 rounded-xl flex-row items-center justify-center"
                             >
                                 {isCancelling ? <ActivityIndicator color="#ef4444" size="small" /> : (
                                     <>
@@ -358,114 +425,152 @@ export default function SharedAppointmentScreen() {
                                 )}
                             </TouchableOpacity>
                         )}
+                        {showDeleteButton && (
+                            <TouchableOpacity
+                                onPress={() => handleDelete(item.id)}
+                                disabled={isDeletingAppointment}
+                                className={`bg-[#2a2c30] border border-red-900/40 px-3 py-2 rounded-xl flex-row items-center justify-center ${isDeletingAppointment ? 'opacity-60' : ''}`}
+                            >
+                                {isDeletingAppointment ? (
+                                    <ActivityIndicator color="#ef4444" size="small" />
+                                ) : (
+                                    <>
+                                        <Icon source="delete-outline" size={15} color="#ef4444" />
+                                        <Text className="text-[#ef4444] text-sm ml-2">Sil</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
-                <View className="mb-3">
+                <View className="mb-0">
                     {userType === UserType.BarberStore && (
-                        <View className="flex-row gap-3">
+                        <View className="flex-row gap-4">
                             {item.customerUserId && (
-                                <View className="flex-1 flex-row items-start">
-                                    <OwnerAvatar
-                                        ownerId={item.customerUserId}
-                                        ownerType={ImageOwnerType.User}
-                                        fallbackUrl={item.customerImage}
-                                        imageClassName="w-12 h-12 rounded-full mr-2"
-                                        iconSource="account"
-                                        iconSize={24}
-                                        iconColor="#6b7280"
-                                    />
-                                    <View className="flex-1">
-                                        <Text className="text-[#9ca3af] text-xs">Müşterisi</Text>
-                                        <Text className="text-white text-sm font-semibold">{item.customerName}</Text>
-                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <View className="flex-row items-center gap-2 mt-1">
-                                                <TouchableOpacity
-                                                    onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
-                                                    disabled={isTogglingFavorite}
-                                                    className="flex-row items-center"
-                                                >
-                                                    <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={16} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
-                                                    <Text className={`text-xs ml-1 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                        <RatingDisplay
-                                            myRating={item.myRatingForCustomer}
-                                            myComment={item.myCommentForCustomer}
-                                            averageRating={item.customerAverageRating}
-                                            canRateNow={canRateTarget(item, 'customer')}
-                                            onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
-                                        />
-                                    </View>
-                                </View>
-                            )}
-                            <View className="flex-1">
-                                {item.freeBarberId ? (
-                                    <View className="flex-row items-start">
+                                <View className="flex-1">
+                                    <View className="flex-row items-start mb-2">
                                         <OwnerAvatar
-                                            ownerId={item.freeBarberId}
-                                            ownerType={ImageOwnerType.FreeBarber}
-                                            fallbackUrl={item.freeBarberImage}
-                                            imageClassName="w-12 h-12 rounded-full mr-2"
-                                            iconSource="account-supervisor"
-                                            iconSize={24}
-                                            iconColor="#6b7280"
-                                        />
-                                        <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs">Kiralayan Berber</Text>
-                                            <Text className="text-white text-sm font-semibold">{item.freeBarberName || 'Serbest Berber'}</Text>
-                                            {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                                <TouchableOpacity
-                                                    onPress={() => item.freeBarberId && handleToggleFavorite(item.freeBarberId, item.id)}
-                                                    disabled={isTogglingFavorite}
-                                                    className="flex-row items-center mt-0.5"
-                                                >
-                                                    <Icon source={item.isFreeBarberFavorite ? "heart" : "heart-outline"} size={14} color={item.isFreeBarberFavorite ? "red" : "gray"} />
-                                                </TouchableOpacity>
-                                            )}
-                                            <RatingDisplay
-                                                myRating={item.myRatingForFreeBarber}
-                                                myComment={item.myCommentForFreeBarber}
-                                                averageRating={item.freeBarberAverageRating}
-                                                canRateNow={canRateTarget(item, 'freeBarber')}
-                                                onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
-                                            />
-                                        </View>
-                                    </View>
-                                ) : item.manuelBarberId ? (
-                                    <View className="flex-row items-start">
-                                        <OwnerAvatar
-                                            ownerId={item.manuelBarberId}
-                                            ownerType={ImageOwnerType.ManuelBarber}
-                                            fallbackUrl={item.manuelBarberImage}
-                                            imageClassName="w-12 h-12 rounded-full mr-2"
+                                            ownerId={item.customerUserId}
+                                            ownerType={ImageOwnerType.User}
+                                            fallbackUrl={item.customerImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-3"
                                             iconSource="account"
                                             iconSize={24}
                                             iconColor="#6b7280"
                                         />
                                         <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs">Dükkan Berberi</Text>
-                                            <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>
-                                            {/* Manuel barber için rating yapılabilir (sadece Customer) */}
-                                            <RatingDisplay
-                                                myRating={item.myRatingForManuelBarber}
-                                                myComment={item.myCommentForManuelBarber}
-                                                averageRating={item.manuelBarberAverageRating}
-                                                canRateNow={canRateTarget(item, 'manuelBarber')}
-                                                onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
-                                            />
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Müşterisi</Text>
+                                            <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.customerName}
+                                            </Text>
+                                            {item.customerNumber && (
+                                                <Text className="text-[#6b7280] text-xs">Müşteri No: {item.customerNumber}</Text>
+                                            )}
                                         </View>
+                                    </View>
+                                    {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                        <View className="mb-3">
+                                            <TouchableOpacity
+                                                onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
+                                                disabled={isTogglingFavorite}
+                                                className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                                            >
+                                                <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
+                                                <Text className={`text-xs ml-1.5 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                    {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <RatingDisplay
+                                        myRating={item.myRatingForCustomer}
+                                        myComment={item.myCommentForCustomer}
+                                        averageRating={item.customerAverageRating}
+                                        canRateNow={canRateTarget(item, 'customer')}
+                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
+                                    />
+                                </View>
+                            )}
+                            <View className="flex-1">
+                                {item.freeBarberId ? (
+                                    <View>
+                                        <View className="flex-row items-start mb-2">
+                                            <OwnerAvatar
+                                                ownerId={item.freeBarberId}
+                                                ownerType={ImageOwnerType.FreeBarber}
+                                                fallbackUrl={item.freeBarberImage}
+                                                imageClassName="w-12 h-12 rounded-full mr-3"
+                                                iconSource="account-supervisor"
+                                                iconSize={24}
+                                                iconColor="#6b7280"
+                                            />
+                                            <View className="flex-1">
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">Kiralayan Berber</Text>
+                                                <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                    {item.freeBarberName || 'Serbest Berber'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                            <View className="mb-3">
+                                                <TouchableOpacity
+                                                    onPress={() => item.freeBarberId && handleToggleFavorite(item.freeBarberId, item.id)}
+                                                    disabled={isTogglingFavorite}
+                                                    className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                                                >
+                                                    <Icon source={item.isFreeBarberFavorite ? "heart" : "heart-outline"} size={14} color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"} />
+                                                    <Text className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                        {item.isFreeBarberFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                        <RatingDisplay
+                                            myRating={item.myRatingForFreeBarber}
+                                            myComment={item.myCommentForFreeBarber}
+                                            averageRating={item.freeBarberAverageRating}
+                                            canRateNow={canRateTarget(item, 'freeBarber')}
+                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
+                                        />
+                                    </View>
+                                ) : item.manuelBarberId ? (
+                                    <View>
+                                        <View className="flex-row items-start mb-2">
+                                            <OwnerAvatar
+                                                ownerId={item.manuelBarberId}
+                                                ownerType={ImageOwnerType.ManuelBarber}
+                                                fallbackUrl={item.manuelBarberImage}
+                                                imageClassName="w-12 h-12 rounded-full mr-3"
+                                                iconSource="account"
+                                                iconSize={24}
+                                                iconColor="#6b7280"
+                                            />
+                                            <View className="flex-1">
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Berberi</Text>
+                                                <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                    {item.manuelBarberName}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        {/* Manuel barber için rating yapılabilir (sadece Customer) */}
+                                        <RatingDisplay
+                                            myRating={item.myRatingForManuelBarber}
+                                            myComment={item.myCommentForManuelBarber}
+                                            averageRating={item.manuelBarberAverageRating}
+                                            canRateNow={canRateTarget(item, 'manuelBarber')}
+                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
+                                        />
                                     </View>
                                 ) : (
                                     <View className="flex-row items-center">
-                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
+                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
                                             <Icon source="seat" size={24} color="#6b7280" />
                                         </View>
                                         <View className="flex-1">
-                                            <Text className="text-white text-sm font-semibold">{item.chairName}</Text>
+                                            <Text className="text-white text-sm font-semibold" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.chairName}
+                                            </Text>
                                         </View>
                                     </View>
                                 )}
@@ -476,213 +581,238 @@ export default function SharedAppointmentScreen() {
                     {userType === UserType.FreeBarber && (
                         <View>
                             {item.barberStoreId && (
-                                <View className="flex-row items-start mb-2">
-                                    <OwnerAvatar
-                                        ownerId={item.barberStoreId}
-                                        ownerType={ImageOwnerType.Store}
-                                        fallbackUrl={item.storeImage}
-                                        imageClassName="w-12 h-12 rounded-full mr-2"
-                                        iconSource="store"
-                                        iconSize={24}
-                                        iconColor="#6b7280"
-                                    />
-                                    <View className="flex-1">
-                                        <Text className="text-[#9ca3af] text-xs">Dükkan Adı</Text>
-                                        <Text className="text-white text-sm font-semibold">{item.storeName}</Text>
-                                        {item.storeType !== undefined && (
-                                            <Text className="text-[#9ca3af] text-xs mt-0.5">
-                                                {getBarberTypeName(item.storeType as BarberType)}
-                                            </Text>
-                                        )}
-                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <View className="flex-row items-center gap-2 mt-1">
-                                                <TouchableOpacity
-                                                    onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
-                                                    disabled={isTogglingFavorite}
-                                                    className="flex-row items-center"
-                                                >
-                                                    <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={16} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
-                                                    <Text className={`text-xs ml-1 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                        <RatingDisplay
-                                            myRating={item.myRatingForStore}
-                                            myComment={item.myCommentForStore}
-                                            averageRating={item.storeAverageRating}
-                                            canRateNow={canRateTarget(item, 'store')}
-                                            onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
+                                <View className="mb-4">
+                                    <View className="flex-row items-start mb-2">
+                                        <OwnerAvatar
+                                            ownerId={item.barberStoreId}
+                                            ownerType={ImageOwnerType.Store}
+                                            fallbackUrl={item.storeImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-3"
+                                            iconSource="store"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
                                         />
+                                        <View className="flex-1">
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Adı</Text>
+                                            <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.storeName}
+                                            </Text>
+                                            {item.storeType !== undefined && (
+                                                <Text className="text-[#9ca3af] text-xs">
+                                                    {getBarberTypeName(item.storeType as BarberType)}
+                                                </Text>
+                                            )}
+                                        </View>
                                     </View>
+                                    {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                        <View className="mb-3">
+                                            <TouchableOpacity
+                                                onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
+                                                disabled={isTogglingFavorite}
+                                                className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                                            >
+                                                <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
+                                                <Text className={`text-xs ml-1.5 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                    {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <RatingDisplay
+                                        myRating={item.myRatingForStore}
+                                        myComment={item.myCommentForStore}
+                                        averageRating={item.storeAverageRating}
+                                        canRateNow={canRateTarget(item, 'store')}
+                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
+                                    />
                                 </View>
                             )}
                             {item.freeBarberId && item.barberStoreId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
-                                <View className="bg-[#2a2c30] rounded-lg p-2 mb-2">
-                                    <Text className="text-[#9ca3af] text-xs">
+                                <View className="bg-[#2a2c30] rounded-lg p-3 mb-4">
+                                    <Text className="text-[#9ca3af] text-xs leading-4">
                                         {formatPricingPolicy(item.pricingType, item.pricingValue)}
                                     </Text>
                                 </View>
                             )}
                             {item.customerUserId && (
-                                <View className="flex-row items-start">
-                                    <OwnerAvatar
-                                        ownerId={item.customerUserId}
-                                        ownerType={ImageOwnerType.User}
-                                        fallbackUrl={item.customerImage}
-                                        imageClassName="w-10 h-10 rounded-full mr-2"
-                                        iconSource="account"
-                                        iconSize={20}
-                                        iconColor="#6b7280"
-                                    />
-                                    <View className="flex-1">
-                                        <Text className="text-[#9ca3af] text-xs">Müşterisi</Text>
-                                        <Text className="text-white text-sm font-semibold">{item.customerName || 'Müşteri'}</Text>
-                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <View className="flex-row items-center gap-2 mt-1">
-                                                <TouchableOpacity
-                                                    onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
-                                                    disabled={isTogglingFavorite}
-                                                    className="flex-row items-center"
-                                                >
-                                                    <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={16} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
-                                                    <Text className={`text-xs ml-1 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                        <RatingDisplay
-                                            myRating={item.myRatingForCustomer}
-                                            myComment={item.myCommentForCustomer}
-                                            averageRating={item.customerAverageRating}
-                                            canRateNow={canRateTarget(item, 'customer')}
-                                            onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
+                                <View className="mb-4">
+                                    <View className="flex-row items-start mb-2">
+                                        <OwnerAvatar
+                                            ownerId={item.customerUserId}
+                                            ownerType={ImageOwnerType.User}
+                                            fallbackUrl={item.customerImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-3"
+                                            iconSource="account"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
                                         />
+                                        <View className="flex-1">
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Müşterisi</Text>
+                                            <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.customerName || 'Müşteri'}
+                                            </Text>
+                                            {item.customerNumber && (
+                                                <Text className="text-[#6b7280] text-xs">Müşteri No: {item.customerNumber}</Text>
+                                            )}
+                                        </View>
                                     </View>
+                                    {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                        <View className="mb-3">
+                                            <TouchableOpacity
+                                                onPress={() => item.customerUserId && handleToggleFavorite(item.customerUserId, item.id)}
+                                                disabled={isTogglingFavorite}
+                                                className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                                            >
+                                                <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
+                                                <Text className={`text-xs ml-1.5 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                    {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <RatingDisplay
+                                        myRating={item.myRatingForCustomer}
+                                        myComment={item.myCommentForCustomer}
+                                        averageRating={item.customerAverageRating}
+                                        canRateNow={canRateTarget(item, 'customer')}
+                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
+                                    />
                                 </View>
                             )}
                         </View>
                     )}
 
                     {userType === UserType.Customer && (
-                        <View className="flex-row gap-3">
+                        <View className="flex-row gap-4">
                             {item.barberStoreId && (
-                                <View className="flex-1 flex-row items-start">
-                                    <OwnerAvatar
-                                        ownerId={item.barberStoreId}
-                                        ownerType={ImageOwnerType.Store}
-                                        fallbackUrl={item.storeImage}
-                                        imageClassName="w-12 h-12 rounded-full mr-2"
-                                        iconSource="store"
-                                        iconSize={24}
-                                        iconColor="#6b7280"
-                                    />
-                                    <View className="flex-1">
-                                        <Text className="text-[#9ca3af] text-xs">Dükkan Adı</Text>
-                                        <Text className="text-white text-sm font-semibold">{item.storeName}</Text>
-                                        {item.storeType !== undefined && (
-                                            <View className="mt-0.5">
+                                <View className="flex-1">
+                                    <View className="flex-row items-start mb-2">
+                                        <OwnerAvatar
+                                            ownerId={item.barberStoreId}
+                                            ownerType={ImageOwnerType.Store}
+                                            fallbackUrl={item.storeImage}
+                                            imageClassName="w-12 h-12 rounded-full mr-3"
+                                            iconSource="store"
+                                            iconSize={24}
+                                            iconColor="#6b7280"
+                                        />
+                                        <View className="flex-1">
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Adı</Text>
+                                            <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.storeName}
+                                            </Text>
+                                            {item.storeType !== undefined && (
                                                 <Text className="text-[#9ca3af] text-xs">
                                                     {getBarberTypeName(item.storeType as BarberType)}
                                                 </Text>
-                                            </View>
-                                        )}
-                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
-                                            <View className="flex-row items-center gap-2 mt-1">
-                                                <TouchableOpacity
-                                                    onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
-                                                    disabled={isTogglingFavorite}
-                                                    className="flex-row items-center"
-                                                >
-                                                    <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={16} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
-                                                    <Text className={`text-xs ml-1 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                        <RatingDisplay
-                                            myRating={item.myRatingForStore}
-                                            myComment={item.myCommentForStore}
-                                            averageRating={item.storeAverageRating}
-                                            canRateNow={canRateTarget(item, 'store')}
-                                            onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
-                                        />
+                                            )}
+                                        </View>
                                     </View>
+                                    {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                        <View className="mb-3">
+                                            <TouchableOpacity
+                                                onPress={() => item.barberStoreId && handleToggleFavorite(item.barberStoreId, item.id)}
+                                                disabled={isTogglingFavorite}
+                                                className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                                            >
+                                                <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
+                                                <Text className={`text-xs ml-1.5 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                    {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <RatingDisplay
+                                        myRating={item.myRatingForStore}
+                                        myComment={item.myCommentForStore}
+                                        averageRating={item.storeAverageRating}
+                                        canRateNow={canRateTarget(item, 'store')}
+                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
+                                    />
                                 </View>
                             )}
 
                             <View className="flex-1">
                                 {item.freeBarberId ? (
-                                    <View className="flex-row items-start">
-                                        <OwnerAvatar
-                                            ownerId={item.freeBarberId}
-                                            ownerType={ImageOwnerType.FreeBarber}
-                                            fallbackUrl={item.freeBarberImage}
-                                            imageClassName="w-12 h-12 rounded-full mr-2"
-                                            iconSource="account-supervisor"
-                                            iconSize={24}
-                                            iconColor="#6b7280"
-                                        />
-                                        <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs">İşlemi Yapan</Text>
-                                            <Text className="text-white text-sm font-semibold">{item.freeBarberName || 'Serbest Berber'}</Text>
-                                            <Text className="text-[#9ca3af] text-xs mt-0.5">Serbest Berber</Text>
-                                            {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                    <View>
+                                        <View className="flex-row items-start mb-2">
+                                            <OwnerAvatar
+                                                ownerId={item.freeBarberId}
+                                                ownerType={ImageOwnerType.FreeBarber}
+                                                fallbackUrl={item.freeBarberImage}
+                                                imageClassName="w-12 h-12 rounded-full mr-3"
+                                                iconSource="account-supervisor"
+                                                iconSize={24}
+                                                iconColor="#6b7280"
+                                            />
+                                            <View className="flex-1">
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">İşlemi Yapan</Text>
+                                                <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                    {item.freeBarberName || 'Serbest Berber'}
+                                                </Text>
+                                                <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
+                                            </View>
+                                        </View>
+                                        {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
+                                            <View className="mb-3">
                                                 <TouchableOpacity
                                                     onPress={() => item.freeBarberId && handleToggleFavorite(item.freeBarberId, item.id)}
                                                     disabled={isTogglingFavorite}
-                                                    className="flex-row items-center mt-1"
+                                                    className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                                                 >
                                                     <Icon source={item.isFreeBarberFavorite ? "heart" : "heart-outline"} size={14} color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"} />
-                                                    <Text className={`text-xs ml-1 ${item.isFreeBarberFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
+                                                    <Text className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
                                                         {item.isFreeBarberFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
                                                     </Text>
                                                 </TouchableOpacity>
-                                            )}
-                                            <RatingDisplay
-                                                myRating={item.myRatingForFreeBarber}
-                                                myComment={item.myCommentForFreeBarber}
-                                                averageRating={item.freeBarberAverageRating}
-                                                canRateNow={canRateTarget(item, 'freeBarber')}
-                                                onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
-                                            />
-                                        </View>
+                                            </View>
+                                        )}
+                                        <RatingDisplay
+                                            myRating={item.myRatingForFreeBarber}
+                                            myComment={item.myCommentForFreeBarber}
+                                            averageRating={item.freeBarberAverageRating}
+                                            canRateNow={canRateTarget(item, 'freeBarber')}
+                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
+                                        />
                                     </View>
                                 ) : item.manuelBarberId ? (
-                                    <View className="flex-row items-start">
-                                        <OwnerAvatar
-                                            ownerId={item.manuelBarberId}
-                                            ownerType={ImageOwnerType.ManuelBarber}
-                                            fallbackUrl={item.manuelBarberImage}
-                                            imageClassName="w-12 h-12 rounded-full mr-2"
-                                            iconSource="account"
-                                            iconSize={24}
-                                            iconColor="#6b7280"
-                                        />
-                                        <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs">İşlemi Yapan</Text>
-                                            <Text className="text-white text-sm font-semibold">{item.manuelBarberName}</Text>
-                                            <Text className="text-[#9ca3af] text-xs mt-0.5">Dükkan Çalışanı</Text>
-                                            {/* Manuel barber için rating yapılabilir (sadece Customer) */}
-                                            <RatingDisplay
-                                                myRating={item.myRatingForManuelBarber}
-                                                myComment={item.myCommentForManuelBarber}
-                                                averageRating={item.manuelBarberAverageRating}
-                                                canRateNow={canRateTarget(item, 'manuelBarber')}
-                                                onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
+                                    <View>
+                                        <View className="flex-row items-start mb-2">
+                                            <OwnerAvatar
+                                                ownerId={item.manuelBarberId}
+                                                ownerType={ImageOwnerType.ManuelBarber}
+                                                fallbackUrl={item.manuelBarberImage}
+                                                imageClassName="w-12 h-12 rounded-full mr-3"
+                                                iconSource="account"
+                                                iconSize={24}
+                                                iconColor="#6b7280"
                                             />
+                                            <View className="flex-1">
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">İşlemi Yapan</Text>
+                                                <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
+                                                    {item.manuelBarberName}
+                                                </Text>
+                                                <Text className="text-[#9ca3af] text-xs">Dükkan Çalışanı</Text>
+                                            </View>
                                         </View>
+                                        {/* Manuel barber için rating yapılabilir (sadece Customer) */}
+                                        <RatingDisplay
+                                            myRating={item.myRatingForManuelBarber}
+                                            myComment={item.myCommentForManuelBarber}
+                                            averageRating={item.manuelBarberAverageRating}
+                                            canRateNow={canRateTarget(item, 'manuelBarber')}
+                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
+                                        />
                                     </View>
                                 ) : (
                                     <View className="flex-row items-center">
-                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
+                                        <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
                                             <Icon source="seat" size={24} color="#6b7280" />
                                         </View>
                                         <View className="flex-1">
-                                            <Text className="text-white text-sm font-semibold">{item.chairName}</Text>
+                                            <Text className="text-white text-sm font-semibold" numberOfLines={1} ellipsizeMode="tail">
+                                                {item.chairName}
+                                            </Text>
                                         </View>
                                     </View>
                                 )}
@@ -693,44 +823,51 @@ export default function SharedAppointmentScreen() {
 
                 {/* Fiyatlandırma Bilgisi - Sadece FreeBarber ve Dükkan varsa göster */}
                 {item.freeBarberId && item.barberStoreId && formatPricingPolicy(item.pricingType, item.pricingValue) && (
-                    <View className="bg-[#1f2023] border border-[#2a2c30] flex-row items-center rounded-lg p-2 mt-2 mb-2 gap-1">
-                        <View className="flex-row items-center">
+                    <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-3 mb-3">
+                        <View className="flex-row items-center mb-1">
                             <Icon source="cash" size={14} color="#f05e23" />
                             <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">Fiyatlandırma:</Text>
                         </View>
-                        <Text className="text-[#d1d5db] text-xs">
+                        <Text className="text-[#d1d5db] text-xs leading-4 ml-5">
                             {formatPricingPolicy(item.pricingType, item.pricingValue)}
                         </Text>
                     </View>
                 )}
 
                 {item.storeAddressDescription && (
-                    <View className="mt-2 flex-row items-start  mb-1">
-                        <Text className="text-[#9ca3af] text-xs mb-2 font-semibold">
-                            Adres:
+                    <View className="mt-0 mb-3">
+                        <View className="flex-row items-center mb-1">
+                            <Icon source="map-marker" size={14} color="#6b7280" />
+                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">Adres:</Text>
+                        </View>
+                        <Text className="text-[#6b7280] text-xs leading-4 ml-5" numberOfLines={2} ellipsizeMode="tail">
+                            {item.storeAddressDescription}
                         </Text>
-                        <Text className="text-[#6b7280]  text-xs ml-1 flex-1">{item.storeAddressDescription}</Text>
                     </View>
                 )}
 
                 {/* Hizmetler */}
                 {item.services.length > 0 && (
-                    <View className="mb-2 mt-2 flex-row items-center gap-2">
-                        <Text className="text-[#9ca3af] text-xs mb-2 font-semibold">
-                            {userType === UserType.Customer ? 'İşlemlerim:' : 'Hizmetler:'}
-                        </Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-1.5">
-                            {item.services.map((service) => (
-                                <View key={service.serviceId} className="bg-[#2a2c30] gap-1 flex-row rounded-lg px-3 py-1.5 mr-2">
-                                    <Text className="text-white text-sm font-medium">
-                                        {service.serviceName} :
-                                    </Text>
-                                    <Text className="text-[#22c55e] text-xs mt-0.5">
-                                        ₺{Number(service.price).toFixed(0)}
-                                    </Text>
-                                </View>
-                            ))}
-                        </ScrollView>
+                    <View className="mt-3 mb-2">
+                        <View className="flex-row items-center mb-2">
+                            <Icon source="scissors-cutting" size={14} color="#6b7280" />
+                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
+                                {userType === UserType.Customer ? 'İşlemlerim:' : 'Hizmetler:'}
+                            </Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} >
+                                {item.services.map((service) => (
+                                    <View key={service.serviceId} className="bg-[#2a2c30] rounded-lg px-3 py-2 ml-2 flex-row items-center">
+                                        <Text className="text-white text-xs font-medium" numberOfLines={1} ellipsizeMode="tail">
+                                            {service.serviceName} :
+                                        </Text>
+                                        <Text className="text-[#22c55e] text-xs font-semibold">
+                                            ₺{Number(service.price).toFixed(0)}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                     </View>
                 )}
             </View>
@@ -740,28 +877,45 @@ export default function SharedAppointmentScreen() {
     return (
         <View className="flex-1 bg-[#0D0D0D]" style={{ paddingTop: insets.top }}>
             <View className="pt-0 pb-2">
-                <View className="px-4 mb-2 flex-row gap-2">
-                    <FilterChip
-                        itemKey="active"
-                        selected={activeFilter === AppointmentFilter.Active}
-                        onPress={() => setActiveFilter(AppointmentFilter.Active)}
-                    >
-                        Aktif
-                    </FilterChip>
-                    <FilterChip
-                        itemKey="completed"
-                        selected={activeFilter === AppointmentFilter.Completed}
-                        onPress={() => setActiveFilter(AppointmentFilter.Completed)}
-                    >
-                        Tamamlanan
-                    </FilterChip>
-                    <FilterChip
-                        itemKey="cancelled"
-                        selected={activeFilter === AppointmentFilter.Cancelled}
-                        onPress={() => setActiveFilter(AppointmentFilter.Cancelled)}
-                    >
-                        İptal / Geçmiş
-                    </FilterChip>
+                <View className="px-4 mb-2 flex-row justify-between items-center">
+                    <View className="flex-row gap-2">
+                        <FilterChip
+                            itemKey="active"
+                            selected={activeFilter === AppointmentFilter.Active}
+                            onPress={() => setActiveFilter(AppointmentFilter.Active)}
+                        >
+                            Aktif
+                        </FilterChip>
+                        <FilterChip
+                            itemKey="completed"
+                            selected={activeFilter === AppointmentFilter.Completed}
+                            onPress={() => setActiveFilter(AppointmentFilter.Completed)}
+                        >
+                            Tamamlanan
+                        </FilterChip>
+                        <FilterChip
+                            itemKey="cancelled"
+                            selected={activeFilter === AppointmentFilter.Cancelled}
+                            onPress={() => setActiveFilter(AppointmentFilter.Cancelled)}
+                        >
+                            İptal / Geçmiş
+                        </FilterChip>
+                    </View>
+                    {(activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled) &&
+                        filteredAppointments && filteredAppointments.length > 0 && (
+                            <TouchableOpacity
+                                onPress={handleDeleteAll}
+                                disabled={isDeletingAllAppointments}
+                                className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 ${isDeletingAllAppointments ? 'opacity-60' : ''}`}
+                            >
+                                {isDeletingAllAppointments ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Icon source="delete-sweep" size={18} color="white" />
+                                )}
+                                <Text className="text-white font-semibold text-sm">Tümünü Sil</Text>
+                            </TouchableOpacity>
+                        )}
                 </View>
             </View>
 
@@ -769,6 +923,23 @@ export default function SharedAppointmentScreen() {
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#f05e23" />
                 </View>
+            ) : isError && error ? (
+                <ScrollView
+                    className="flex-1"
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isFetching && !isLoading}
+                            onRefresh={refetch}
+                            tintColor="#f05e23"
+                        />
+                    }
+                >
+                    <LottieViewComponent
+                        animationSource={require('../../../assets/animations/error.json')}
+                        message={resolveApiErrorMessage(error)}
+                    />
+                </ScrollView>
             ) : (
                 <LegendList
                     data={filteredAppointments}
@@ -796,25 +967,34 @@ export default function SharedAppointmentScreen() {
 
             {/* Rating Bottom Sheet */}
             <BottomSheetModal
-                ref={ratingBottomSheetRef}
-                index={0}
-                snapPoints={['60%', '100%']}
-                enablePanDownToClose
+                ref={ratingSheet.ref}
+                snapPoints={ratingSheet.snapPoints}
+                enablePanDownToClose={ratingSheet.enablePanDownToClose}
+                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
+                backdropComponent={ratingSheet.makeBackdrop()}
+                onChange={(index) => {
+                    ratingSheet.handleChange(index);
+                    if (index < 0) {
+                        setSelectedRatingTarget(null);
+                    }
+                }}
             >
-                {selectedRatingTarget && (
-                    <RatingBottomSheet
-                        appointmentId={selectedRatingTarget.appointmentId}
-                        targetId={selectedRatingTarget.targetId}
-                        targetName={selectedRatingTarget.targetName}
-                        targetType={selectedRatingTarget.targetType}
-                        targetImage={selectedRatingTarget.targetImage}
-                        onClose={() => {
-                            ratingBottomSheetRef.current?.dismiss();
-                            setSelectedRatingTarget(null);
-                        }}
-                    />
-                )}
+                <BottomSheetView className="h-full pt-2">
+                    {selectedRatingTarget && (
+                        <RatingBottomSheet
+                            appointmentId={selectedRatingTarget.appointmentId}
+                            targetId={selectedRatingTarget.targetId}
+                            targetName={selectedRatingTarget.targetName}
+                            targetType={selectedRatingTarget.targetType}
+                            targetImage={selectedRatingTarget.targetImage}
+                            onClose={() => {
+                                setSelectedRatingTarget(null);
+                                ratingSheet.dismiss();
+                            }}
+                        />
+                    )}
+                </BottomSheetView>
             </BottomSheetModal>
         </View>
     );

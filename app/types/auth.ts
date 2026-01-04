@@ -58,6 +58,7 @@ export interface UserProfileDto {
   lastName: string;
   phoneNumber: string;
   userType: UserType;
+  customerNumber: string; // Müşteri numarası
   imageId?: string;
   image?: {
     id: string;
@@ -66,5 +67,15 @@ export interface UserProfileDto {
     imageOwnerId: string;
   };
   isActive: boolean;
+}
+
+export interface SettingGetDto {
+  id: string;
+  userId: string;
+  showImageAnimation: boolean;
+}
+
+export interface SettingUpdateDto {
+  showImageAnimation: boolean;
 }
 

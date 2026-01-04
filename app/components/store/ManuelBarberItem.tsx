@@ -28,7 +28,7 @@ export const ManuelBarberItem = React.memo<ManuelBarberItemProps>(({
     onRemove,
     onAvatarPress
 }) => {
-    const barberError = errors.barbers?.[index];
+    const barberError = (errors as any)?.barbers?.[index];
     const nameError = (barberError as any)?.name?.message;
 
     return (
@@ -72,11 +72,13 @@ export const ManuelBarberItem = React.memo<ManuelBarberItemProps>(({
     );
 }, (prev, next) => {
     // Custom comparison for optimal re-render prevention
+    const prevBarberError = (prev.errors as any)?.barbers?.[prev.index];
+    const nextBarberError = (next.errors as any)?.barbers?.[next.index];
     return (
         prev.index === next.index &&
         prev.barberId === next.barberId &&
         prev.avatarUri === next.avatarUri &&
-        JSON.stringify(prev.errors.barbers?.[prev.index]) === JSON.stringify(next.errors.barbers?.[next.index])
+        JSON.stringify(prevBarberError) === JSON.stringify(nextBarberError)
     );
 });
 

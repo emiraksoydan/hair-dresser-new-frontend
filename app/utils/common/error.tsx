@@ -29,6 +29,15 @@ const extractFirstValidationError = (errors: unknown): string | null => {
     }
 
     if (Array.isArray(errors)) {
+        // FluentValidation format: [{ field: "...", message: "..." }]
+        const firstErrorWithMessage = errors.find((item) => 
+            typeof item === 'object' && item !== null && (item as any).message
+        );
+        if (firstErrorWithMessage) {
+            return (firstErrorWithMessage as any).message;
+        }
+        
+        // String array format
         const firstString = errors.find((item) => typeof item === 'string');
         return firstString ?? null;
     }
@@ -61,16 +70,21 @@ export const extractErrorMessage = (error: unknown): string => {
 
     const e = error as ApiError;
 
+    // FluentValidation hatalarını kontrol et (hem array hem object formatında olabilir)
     const validationError = extractFirstValidationError(e?.data?.errors ?? e?.error?.data?.errors);
     if (validationError) {
         return validationError;
     }
 
+    // Backend'den gelen message'ı kontrol et (FluentValidation middleware'den gelen)
+    const backendMessage = e?.data?.message ?? e?.error?.data?.message;
+    if (backendMessage) {
+        return backendMessage;
+    }
+
     return (
-        e?.data?.message ??
         e?.data?.error ??
         e?.error?.message ??
-        e?.error?.data?.message ??
         e?.message ??
         'İşlem başarısız.'
     );

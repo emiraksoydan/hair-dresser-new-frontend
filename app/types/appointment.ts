@@ -85,7 +85,6 @@ export type AppointmentGetDto = {
   status: AppointmentStatus;
   createdAt: string;
 
-  // YENİ: Hizmetler ve Fiyat
   services: AppointmentServiceDto[];
   totalPrice: number;
   pricingType: PricingType;
@@ -124,6 +123,7 @@ export type AppointmentGetDto = {
   customerUserId?: string;
   customerName?: string;
   customerImage?: string;
+  customerNumber?: string; // Müşteri numarası
   isCustomerFavorite: boolean;
   myRatingForCustomer?: number;
   myCommentForCustomer?: string;

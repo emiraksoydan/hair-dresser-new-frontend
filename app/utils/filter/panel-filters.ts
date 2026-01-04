@@ -20,7 +20,6 @@ type FilterContext = {
   searchQuery: string;
   filters: AppliedFilters;
   categoryNameById: Map<string, string>;
-  favoriteIds?: Set<string>;
 };
 
 const normalizeSearch = (value: string) => value.trim().toLowerCase();
@@ -64,10 +63,9 @@ const matchesAvailability = (
   return value === false;
 };
 
-const matchesFavorites = (favoritesOnly: boolean, favoriteIds?: Set<string>, id?: string) => {
+const matchesFavorites = (favoritesOnly: boolean, isFavorited?: boolean) => {
   if (!favoritesOnly) return true;
-  if (!favoriteIds || !id) return false;
-  return favoriteIds.has(id);
+  return isFavorited === true;
 };
 
 const matchesPricingType = (pricingTypeFilter: string, pricingType: string | undefined) => {
@@ -85,7 +83,7 @@ const matchesPricingType = (pricingTypeFilter: string, pricingType: string | und
 
 export const filterStores = <T extends BarberStoreGetDto | BarberStoreMineDto>(
   stores: T[],
-  { searchQuery, filters, categoryNameById, favoriteIds }: FilterContext
+  { searchQuery, filters, categoryNameById }: FilterContext
 ): T[] => {
   let result = [...(stores ?? [])] as T[];
 
@@ -129,7 +127,7 @@ export const filterStores = <T extends BarberStoreGetDto | BarberStoreMineDto>(
   );
 
   result = result.filter((store) =>
-    matchesFavorites(filters.favoritesOnly, favoriteIds, store.id)
+    matchesFavorites(filters.favoritesOnly, 'isFavorited' in store ? store.isFavorited : false)
   );
 
   if (filters.priceSort !== "none") {
@@ -150,7 +148,7 @@ const getFreeBarberPrice = (offerings: ServiceOfferingGetDto[] | undefined) => {
 
 export const filterFreeBarbers = (
   freeBarbers: FreeBarGetDto[],
-  { searchQuery, filters, categoryNameById, favoriteIds }: FilterContext
+  { searchQuery, filters, categoryNameById }: FilterContext
 ) => {
   let result = [...(freeBarbers ?? [])];
 
@@ -196,7 +194,7 @@ export const filterFreeBarbers = (
   );
 
   result = result.filter((barber) =>
-    matchesFavorites(filters.favoritesOnly, favoriteIds, barber.id)
+    matchesFavorites(filters.favoritesOnly, barber.isFavorited)
   );
 
   if (filters.priceSort !== "none") {

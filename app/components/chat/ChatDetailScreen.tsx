@@ -325,20 +325,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             const participantIds = new Set(currentThread.participants.map(p => p.userId));
             const missingSenders = Array.from(messageSenderIds).filter(id => !participantIds.has(id));
 
-            console.log('=== PARTICIPANT CHECK ===');
-            console.log('Message sender IDs:', Array.from(messageSenderIds));
-            console.log('Participant IDs:', Array.from(participantIds));
-            console.log('Missing senders:', missingSenders);
-            console.log('Current participants:', currentThread.participants);
-
             if (missingSenders.length > 0) {
-                console.log('⚠️ Missing participants detected, refetching threads...');
                 setHasRefetched(true);
-                refetchThreads().then(() => {
-                    console.log('✅ Threads refetched successfully');
-                }).catch((error) => {
-                    console.error('❌ Refetch error:', error);
-                    setHasRefetched(false); // Hata olursa tekrar denesin
+                refetchThreads().catch(() => {
+                    setHasRefetched(false);
                 });
             }
         }

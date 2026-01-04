@@ -34,8 +34,9 @@ const loginSchema = z.object({
     phone: z.string({ required_error: "Telefon gerekli" }).length(10, "Numara 10 haneli olmalı"),
     firstName: z.string().optional(),
     surname: z.string().optional(),
-    userType: z.enum(["customer", "freeBarber", "barberStore"]).optional(),
-
+    userType: z.enum(["customer", "freeBarber", "barberStore"], {
+        errorMap: () => ({ message: "Kullanıcı türü zorunludur" }),
+    }),
 });
 
 const schema = z.discriminatedUnion("mode", [loginSchema, registerSchema]);
@@ -83,24 +84,16 @@ const Index = () => {
     }, [modalVisible, left]);
     const onSubmit = async (data: FormData) => {
         try {
-            if (data.phone.startsWith("0")) { data.phone = data.phone.substring(1); }
-            if (!data.phone.startsWith("+90")) { data.phone = `+90${data.phone}`; }
+            let normalizedPhone = data.phone;
+            if (normalizedPhone.startsWith("0")) { normalizedPhone = normalizedPhone.substring(1); }
+            if (!normalizedPhone.startsWith("+90")) { normalizedPhone = `+90${normalizedPhone}`; }
             const payloadForSendOtp: { phoneNumber: string; userType?: UserType; Otppurpose: OtpPurpose; } = {
-                phoneNumber: data.phone,
+                phoneNumber: normalizedPhone,
                 Otppurpose: isRegister ? OtpPurpose.Register : OtpPurpose.Login,
                 ...(isRegister ? { userType: mapUserTypeToNumber(data.userType) } : {}),
             };
-            setPhone(data.phone);
-            doVerify("123456");
-            // const res = await sendOtp(payloadForSendOtp).unwrap();
-            // if (res.success) {
-            //     setPhone(data.phone);
-            //     setLeft(600);
-            //     setModalVisible(true);
-            // } else {
-            //     setSnackVisible(true);
-            //     setSnackText(res.message);
-            // }
+            setPhone(normalizedPhone);
+            doVerify("123456", normalizedPhone);
         } catch (err: any) {
             // Error is already handled by RTK Query, no need to log here
             setSnackText(err.data.message);
@@ -112,24 +105,27 @@ const Index = () => {
         const s = (left % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
     }, [left]);
-    const doVerify = async (code: string) => {
+    const doVerify = async (code: string, phoneNumber?: string) => {
 
         try {
             const f = getValues();
-            // const result = await verifyOtp({ firstName: f.firstName ?? '', lastName: f.surname ?? '', phoneNumber: phone, certificateFilePath: f.certificationFile?.uri ?? '', code: code, device: null, userType: mapUserTypeToNumber(f.userType) ?? 0, mode: isRegister ? 'register' : 'login' }).unwrap();
-
-            // Login modunda userType göndermiyoruz (backend mevcut kullanıcının userType'ını kullanacak)
-            // Register modunda userType zorunlu
-            // Backend'de login modunda mevcut kullanıcının userType'ı kullanılacak
-            // Register modunda gönderilen userType kullanılacak
-            const userTypeToSend = isRegister
-                ? (mapUserTypeToNumber(f.userType) ?? UserType.Customer) // Register: userType zorunlu, yoksa Customer
-                : 0; // Login: backend mevcut kullanıcının userType'ını kullanacak, burada 0 gönderiyoruz (backend ignore edecek)
+            // Login ve Register modunda userType zorunlu
+            const userTypeToSend = mapUserTypeToNumber(f.userType) ?? UserType.Customer;
+            
+            // phoneNumber parametresi varsa onu kullan, yoksa phone state'ini kullan
+            const phoneToSend = phoneNumber || phone;
+            
+            // phoneToSend boşsa hata ver
+            if (!phoneToSend || phoneToSend.trim() === '') {
+                setSnackText('Telefon numarası gerekli');
+                setSnackVisible(true);
+                return;
+            }
 
             const result = await sendPassword({
                 firstName: f.firstName ?? '',
                 lastName: f.surname ?? '',
-                phoneNumber: phone,
+                phoneNumber: phoneToSend,
                 code: code,
                 device: null,
                 userType: userTypeToSend,
@@ -174,19 +170,7 @@ const Index = () => {
     };
     const canResend = left === 0;
     const onResend = async () => {
-        // if (!canResend) return;
-        // try {
-        //     const res = await sendOtp({ phoneNumber: phone, Otppurpose: isRegister ? OtpPurpose.Register : OtpPurpose.Login }).unwrap();
-        //     if (res.success) {
-        //         setLeft(600);
-        //     } else {
-        //         setSnackVisible(true);
-        //         setSnackText(res.message);
-        //     }
-        // } catch (err: any) {
-        //     setSnackText(err.data.message);
-        //     setSnackVisible(true);
-        // }
+        // OTP resend functionality can be implemented here if needed
     };
     return (
         <View className='flex-1'>
@@ -269,51 +253,51 @@ const Index = () => {
                                     />
                                 </View>
                             </View>
-                            <View className="w-full mt-[-4px]">
-                                <Controller
-                                    control={control}
-                                    name="userType"
-                                    render={({ field: { value, onChange } }) => (
-                                        <View>
-                                            <Dropdown
-                                                data={userTypeItems}
-                                                labelField="label"
-                                                valueField="value"
-                                                value={value ?? null}
-                                                placeholder="Kullanıcı türü seçin"
-                                                search={false}
-                                                style={{
-                                                    backgroundColor: "#2a2b2d",
-                                                    borderWidth: 1,
-                                                    borderColor: errors.userType ? "#ef4444" : "white",
-                                                    borderRadius: 4,
-                                                    paddingHorizontal: 12,
-                                                    height: 42,
-                                                }}
-                                                placeholderStyle={{ color: "#cfcfcf" }}
-                                                selectedTextStyle={{ color: "white" }}
-                                                itemTextStyle={{ color: "white", fontSize: 10 }}
-                                                containerStyle={{
-                                                    backgroundColor: "#2a2b2d",
-                                                    borderWidth: 1,
-                                                    borderColor: "#3a3a3a",
-                                                    elevation: 12,
-                                                    borderRadius: 10,
-                                                    overflow: "hidden",
-                                                }}
-                                                activeColor="#3a3a3a"
-                                                onChange={item => onChange(item.value)}
-                                                dropdownPosition="top"
-                                            />
-                                            <HelperText type="error" visible={!!isRegister && !!errors.userType}>
-                                                {errors.userType?.message as string}
-                                            </HelperText>
-                                        </View>
-                                    )}
-                                />
-                            </View>
                         </>
                     )}
+                    <View className="w-full mt-[-4px]">
+                        <Controller
+                            control={control}
+                            name="userType"
+                            render={({ field: { value, onChange } }) => (
+                                <View>
+                                    <Dropdown
+                                        data={userTypeItems}
+                                        labelField="label"
+                                        valueField="value"
+                                        value={value ?? null}
+                                        placeholder="Kullanıcı türü seçin"
+                                        search={false}
+                                        style={{
+                                            backgroundColor: "#2a2b2d",
+                                            borderWidth: 1,
+                                            borderColor: errors.userType ? "#ef4444" : "white",
+                                            borderRadius: 4,
+                                            paddingHorizontal: 12,
+                                            height: 42,
+                                        }}
+                                        placeholderStyle={{ color: "#cfcfcf" }}
+                                        selectedTextStyle={{ color: "white" }}
+                                        itemTextStyle={{ color: "white", fontSize: 10 }}
+                                        containerStyle={{
+                                            backgroundColor: "#2a2b2d",
+                                            borderWidth: 1,
+                                            borderColor: "#3a3a3a",
+                                            elevation: 12,
+                                            borderRadius: 10,
+                                            overflow: "hidden",
+                                        }}
+                                        activeColor="#3a3a3a"
+                                        onChange={item => onChange(item.value)}
+                                        dropdownPosition="top"
+                                    />
+                                    <HelperText type="error" visible={!!errors.userType}>
+                                        {errors.userType?.message as string}
+                                    </HelperText>
+                                </View>
+                            )}
+                        />
+                    </View>
                     <View className="mt-[-8px]">
                         <Controller
                             control={control}
@@ -380,7 +364,7 @@ const Index = () => {
 
                     <OtpInput
                         numberOfDigits={6}
-                        onFilled={(code: any) => doVerify(code)}
+                        onFilled={(code: any) => doVerify(code, phone)}
                         focusColor="#6200EE"
                         theme={{
                             containerStyle: { marginBottom: 12 },

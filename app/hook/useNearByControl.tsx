@@ -35,7 +35,7 @@ export function useNearbyControl({
     const watchRef = useRef<Location.LocationSubscription | null>(null);
     const inflightFetch = useRef(false);
 
-    // ✅ DÜZELTİLEN SATIR: Başlangıç değeri undefined olarak ayarlandı
+    // Başlangıç değeri undefined olarak ayarlandı
     const savedFetchHandler = useRef<((lat: number, lon: number) => Promise<void>) | undefined>(undefined);
 
     const initialLoading = !fetchedOnce && locationStatus !== "denied";

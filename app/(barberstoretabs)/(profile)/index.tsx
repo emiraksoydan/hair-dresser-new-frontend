@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { InteractionManager, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
-import { Avatar, Button, Divider, IconButton, TextInput, HelperText } from 'react-native-paper';
-import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation } from '../../store/api';
+import { Avatar, Button, Divider, IconButton, TextInput, HelperText, Switch } from 'react-native-paper';
+import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation, useGetSettingQuery, useUpdateSettingMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
 import { clearStoredTokens, saveTokens } from '../../lib/tokenStorage';
 import { useForm, Controller } from 'react-hook-form';
@@ -12,6 +12,8 @@ import { ImageOwnerType } from '../../types';
 import { useSnackbar } from '../../hook/useSnackbar';
 import { useEffect, useState } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
+import { resolveApiErrorMessage } from '../../utils/common/error';
+import { LottieViewComponent } from '../../components/common/lottieview';
 
 const profileSchema = z.object({
     firstName: z.string()
@@ -32,9 +34,11 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const Index = () => {
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
-    const { data: userData, isLoading: isLoadingUser, refetch, isFetching } = useGetMeQuery();
+    const { data: userData, isLoading: isLoadingUser, refetch, isFetching, error: userError, isError: isUserError } = useGetMeQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
+    const { data: settingData, isLoading: isLoadingSetting, refetch: refetchSetting } = useGetSettingQuery();
+    const [updateSetting, { isLoading: isUpdatingSetting }] = useUpdateSettingMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
     const [refreshing, setRefreshing] = useState(false);
 
@@ -161,6 +165,31 @@ const Index = () => {
 
     if (isLoadingUser) {
         return <ProfileSkeleton />;
+    }
+
+    // Error durumu - refresh edildiğinde de göster
+    if (isUserError && userError) {
+        const errorMessage = resolveApiErrorMessage(userError);
+        return (
+            <View className="flex-1 bg-[#151618]">
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing || isFetching}
+                            onRefresh={handleRefresh}
+                            colors={['#f05e23']}
+                            tintColor='#f05e23'
+                        />
+                    }
+                >
+                    <LottieViewComponent
+                        animationSource={require('../../../assets/animations/error.json')}
+                        message={errorMessage}
+                    />
+                </ScrollView>
+            </View>
+        );
     }
 
     return (
@@ -308,6 +337,33 @@ const Index = () => {
                         Kaydet
                     </Button>
                 </View>
+
+                {/* Ayarlar Bölümü */}
+                <Text className='text-white text-lg mb-4 mt-6 font-ibm-plex-sans-semibold'>Ayarlar</Text>
+                <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
+                    <View className='flex-row items-center justify-between'>
+                        <View className='flex-1 mr-4'>
+                            <Text className='text-white text-base font-medium mb-1'>Görsel Animasyonu</Text>
+                            <Text className='text-gray-400 text-sm'>Panel ve harita görsellerinde animasyon göster/gizle</Text>
+                        </View>
+                        <Switch
+                            value={settingData?.data?.showImageAnimation ?? true}
+                            onValueChange={async (value) => {
+                                try {
+                                    await updateSetting({
+                                        showImageAnimation: value,
+                                    }).unwrap();
+                                    await refetchSetting();
+                                    showSnack('Ayar güncellendi', false);
+                                } catch (error: any) {
+                                    showSnack(error?.data?.message || 'Ayar güncellenemedi', true);
+                                }
+                            }}
+                            disabled={isUpdatingSetting || isLoadingSetting}
+                        />
+                    </View>
+                </View>
+
                 <Button
                     mode='contained'
                     icon="logout"

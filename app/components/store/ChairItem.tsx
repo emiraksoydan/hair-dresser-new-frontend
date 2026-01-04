@@ -25,7 +25,7 @@ export const ChairItem = React.memo<ChairItemProps>(({
     onRemove,
     onModeChange
 }) => {
-    const chairError = errors.chairs?.[index];
+    const chairError = (errors as any)?.chairs?.[index];
     const nameError = (chairError as any)?.name?.message;
     const barberIdError = (chairError as any)?.barberId?.message;
 
@@ -111,12 +111,14 @@ export const ChairItem = React.memo<ChairItemProps>(({
     );
 }, (prev, next) => {
     // Custom comparison for optimal re-render prevention
+    const prevChairError = (prev.errors as any)?.chairs?.[prev.index];
+    const nextChairError = (next.errors as any)?.chairs?.[next.index];
     return (
         prev.index === next.index &&
         prev.chairId === next.chairId &&
         prev.mode === next.mode &&
         prev.barberOptions.length === next.barberOptions.length &&
-        JSON.stringify(prev.errors.chairs?.[prev.index]) === JSON.stringify(next.errors.chairs?.[next.index])
+        JSON.stringify(prevChairError) === JSON.stringify(nextChairError)
     );
 });
 

@@ -5,7 +5,6 @@ import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { handlePickImage, handlePickMultipleImages, truncateFileName } from '../../utils/form/pick-document';
-import { useSheet } from '../../context/bottomsheet';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import { BUSINESS_TYPES, trMoneyRegex, SERVICE_BY_TYPE, PRICING_OPTIONS, DAYS_TR, IST } from '../../constants';
 import {
@@ -217,9 +216,27 @@ export const fullSchema = schema.extend({
             );
         }
     }
+    // Berberlerin toplamı 30'u geçmemeli
+    const validBarbersCount = barbers.filter(b => !!b.name?.trim()).length;
+    if (validBarbersCount > 30) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["barbers"],
+            message: `Berber sayısı 30'u geçemez. Mevcut sayı: ${validBarbersCount}`,
+        });
+    }
+    // Koltukların toplamı 30'u geçmemeli
+    const validChairsCount = chairs.length;
+    if (validChairsCount > 30) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["chairs"],
+            message: `Koltuk sayısı 30'u geçemez. Mevcut sayı: ${validChairsCount}`,
+        });
+    }
 });
 export type FormValues = z.input<typeof fullSchema>;
-const FormStoreAdd = () => {
+const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const {
         control,
         handleSubmit,
@@ -286,7 +303,6 @@ const FormStoreAdd = () => {
     const longitude = watch("location.longitude");
     const address = watch("location.addressDescription");
     const { showSnack, SnackbarComponent } = useSnackbar();
-    const { dismiss } = useSheet('addStore');
     const OnSubmit = async (data: FormValues) => {
         const hasUploads = (data.storeImages?.length ?? 0) > 0 || (data.barbers ?? []).some((b) => b.avatar?.uri);
         let existingStoreIds = new Set<string>();
@@ -435,7 +451,7 @@ const FormStoreAdd = () => {
                 } else {
                     showSnack(result.message, false);
                 }
-                dismiss();
+                onClose?.();
             }
             else {
                 showSnack(result.message, true);
@@ -619,7 +635,7 @@ const FormStoreAdd = () => {
         <View className='h-full'>
             <View className='flex-row justify-between items-center px-4'>
                 <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">İşletme Ekle</Text>
-                <IconButton onPress={dismiss} icon="close" iconColor="white" />
+                <IconButton onPress={onClose} icon="close" iconColor="white" />
             </View>
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
             <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>

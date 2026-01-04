@@ -63,6 +63,7 @@ export interface NotificationPayload {
     type?: number; // FreeBarber için BarberType
     rating?: number; // FreeBarber için rating
     isInFavorites?: boolean; // Bu müşteri favorilerde mi?
+    customerNumber?: string; // Müşteri numarası
   };
   freeBarber?: {
     userId: string;
@@ -72,6 +73,7 @@ export interface NotificationPayload {
     type?: number; // BarberType: 0 = MaleHairdresser, 1 = FemaleHairdresser, 2 = BeautySalon
     rating?: number;
     isInFavorites?: boolean; // Bu serbest berber favorilerde mi?
+    customerNumber?: string; // Müşteri numarası
   };
   chair?: {
     chairId: string;

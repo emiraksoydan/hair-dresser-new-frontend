@@ -48,6 +48,9 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                             <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
+                            {payload.customer?.customerNumber && (
+                                <Text className="text-[#6b7280] text-xs mt-0.5">Müşteri No: {payload.customer.customerNumber}</Text>
+                            )}
                             {isCustomerInFavorites && (
                                 <View className="flex-row items-center mt-0.5">
                                     <Icon source="heart" size={12} color="#f05e23" />
@@ -170,6 +173,9 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                         <View className="flex-1">
                             <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
                             <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
+                            {payload.customer?.customerNumber && (
+                                <Text className="text-[#6b7280] text-xs mt-0.5">Müşteri No: {payload.customer.customerNumber}</Text>
+                            )}
                             {isCustomerInFavorites && (
                                 <View className="flex-row items-center mt-0.5">
                                     <Icon source="heart" size={12} color="#f05e23" />

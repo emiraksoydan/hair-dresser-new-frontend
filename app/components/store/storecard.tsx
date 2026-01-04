@@ -1,10 +1,10 @@
 // app/components/StoreCard.tsx
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreGetDto, PricingType } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
+import { useToggleFavoriteMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
 
@@ -18,39 +18,30 @@ type Props = {
     typeLabelColor?: string;
     onPressUpdate?: (store: BarberStoreGetDto) => void;
     onPressRatings?: (storeId: string, storeName: string) => void;
+    showImageAnimation?: boolean;
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings }) => {
+const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const carouselWidth = Math.max(0, cardWidthStore);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
-    const [isFavorite, setIsFavorite] = useState(false);
+    const [isFavorite, setIsFavorite] = useState(store.isFavorited ?? false);
     const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
-    const [isToggling, setIsToggling] = useState(false);
 
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(store);
     }, [onPressUpdate, store]);
 
-    // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
+    // store.isFavorited ve favoriteCount değiştiğinde state'i güncelle (API.tsx'teki optimistic update ve invalidateTags sonrası)
     useEffect(() => {
-        if (isFavoriteData !== undefined) {
-            setIsFavorite(isFavoriteData);
+        if (store.isFavorited !== undefined) {
+            setIsFavorite(store.isFavorited);
         }
-    }, [isFavoriteData]);
-
-    // store.favoriteCount değiştiğinde state'i güncelle
-    // ÖNEMLİ: Cache'den gelen değer her zaman öncelikli (backend'den gelen gerçek değer)
-    useEffect(() => {
-        // Cache güncellemesi geldiğinde direkt kullan (optimistic update'i override et)
         if (store.favoriteCount !== undefined && store.favoriteCount !== null) {
             setFavoriteCount(store.favoriteCount);
-            // Cache güncellemesi geldi, toggle flag'ini kaldır
-            setIsToggling(false);
         }
-    }, [store.favoriteCount]);
+    }, [store.isFavorited, store.favoriteCount]);
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
@@ -58,38 +49,16 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
             return;
         }
 
-        // ÖNEMLİ: Component'te optimistic update yapmıyoruz, sadece API.tsx'teki optimistic update yeterli
-        // Bu sayede "fazladan ekliyor sonra azaltıyor" sorunu çözülür
-        const previousIsFavorite = isFavorite;
-        const previousCount = favoriteCount;
-        const nextIsFavorite = !previousIsFavorite;
-        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
-
-        setIsFavorite(nextIsFavorite);
-        setFavoriteCount(nextCount);
-        setIsToggling(true);
-
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId: store.id,
                 appointmentId: null,
             }).unwrap();
-
-            const responseData: any = (result as any)?.data ?? result;
-            if (typeof responseData?.isFavorite === "boolean") {
-                setIsFavorite(responseData.isFavorite);
-            }
-            if (typeof responseData?.favoriteCount === "number") {
-                setFavoriteCount(responseData.favoriteCount);
-            }
+            // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
-        } finally {
-            setIsToggling(false);
         }
-    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount]);
+    }, [isAuthenticated, store.id, toggleFavorite]);
 
     return (
         <View
@@ -113,7 +82,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                             images={store.imageList ?? []}
                             width={isList ? carouselWidth : 112}
                             height={isList ? 250 : 112}
-                            autoPlay={true}
+                            autoPlay={showImageAnimation}
                             mode={"default"}
                             autoPlayInterval={2000}
                             borderRadiusClass="rounded-lg"
@@ -234,7 +203,12 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                     starStyle={{ marginHorizontal: 0 }}
                                 />
                                 <Text className="text-white flex-1" style={{ flexShrink: 0 }}>{store.rating}</Text>
-                                <TouchableOpacity onPress={() => onPressRatings?.(store.id, store.storeName)} style={{ flexShrink: 0 }}>
+                                <TouchableOpacity
+                                    onPress={() => onPressRatings?.(store.id, store.storeName)}
+                                    style={{ flexShrink: 0 }}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
                                     <Text className="text-white underline mr-1 mb-0 text-xs" numberOfLines={1}>
                                         Yorumlar ({store.reviewCount})
                                     </Text>
@@ -304,7 +278,8 @@ export const StoreCardInner = React.memo(
             prev.typeLabel === next.typeLabel &&
             prev.typeLabelColor === next.typeLabelColor &&
             prev.onPressUpdate === next.onPressUpdate &&
-            prev.onPressRatings === next.onPressRatings;
+            prev.onPressRatings === next.onPressRatings &&
+            prev.showImageAnimation === next.showImageAnimation;
 
         return sameStore && sameProps;
     }

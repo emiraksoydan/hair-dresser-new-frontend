@@ -12,6 +12,8 @@ import { ImageOwnerType } from '../../types';
 import { useSnackbar } from '../../hook/useSnackbar';
 import { useEffect, useState } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
+import { resolveApiErrorMessage } from '../../utils/common/error';
+import { LottieViewComponent } from '../../components/common/lottieview';
 
 const profileSchema = z.object({
     firstName: z.string()
@@ -32,7 +34,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const Index = () => {
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
-    const { data: userData, isLoading: isLoadingUser, refetch, isFetching } = useGetMeQuery();
+    const { data: userData, isLoading: isLoadingUser, refetch, isFetching, error: userError, isError: isUserError } = useGetMeQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
@@ -161,6 +163,31 @@ const Index = () => {
 
     if (isLoadingUser) {
         return <ProfileSkeleton />;
+    }
+
+    // Error durumu - refresh edildiğinde de göster
+    if (isUserError && userError) {
+        const errorMessage = resolveApiErrorMessage(userError);
+        return (
+            <View className="flex-1 bg-[#151618]">
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing || isFetching}
+                            onRefresh={handleRefresh}
+                            colors={['#c2a523']}
+                            tintColor='#c2a523'
+                        />
+                    }
+                >
+                    <LottieViewComponent
+                        animationSource={require('../../../assets/animations/error.json')}
+                        message={errorMessage}
+                    />
+                </ScrollView>
+            </View>
+        );
     }
 
     return (

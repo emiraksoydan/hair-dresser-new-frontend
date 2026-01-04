@@ -36,6 +36,7 @@ export type FreeBarGetDto = {
   fullName: string;
   rating: number;
   favoriteCount: number;
+  isFavorited?: boolean;
   isAvailable: boolean;
   distanceKm: number;
   type: BarberType;

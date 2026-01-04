@@ -34,7 +34,6 @@ const CustomerCard: React.FC<Props> = ({
     const { data: isFavoriteData } = useIsFavoriteQuery(customer.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(customer.favoriteCount || 0);
-    const [isToggling, setIsToggling] = useState(false);
 
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(customer);
@@ -51,7 +50,6 @@ const CustomerCard: React.FC<Props> = ({
     useEffect(() => {
         if (customer.favoriteCount !== undefined && customer.favoriteCount !== null) {
             setFavoriteCount(customer.favoriteCount);
-            setIsToggling(false);
         }
     }, [customer.favoriteCount]);
 
@@ -61,36 +59,16 @@ const CustomerCard: React.FC<Props> = ({
             return;
         }
 
-        const previousIsFavorite = isFavorite;
-        const previousCount = favoriteCount;
-        const nextIsFavorite = !previousIsFavorite;
-        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
-
-        setIsFavorite(nextIsFavorite);
-        setFavoriteCount(nextCount);
-        setIsToggling(true);
-
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId: customer.id,
                 targetType: FavoriteTargetType.Customer,
             }).unwrap();
-
-            const responseData: any = (result as any)?.data ?? result;
-            if (typeof responseData?.isFavorite === "boolean") {
-                setIsFavorite(responseData.isFavorite);
-            }
-            if (typeof responseData?.favoriteCount === "number") {
-                setFavoriteCount(responseData.favoriteCount);
-            }
+            // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
-        } finally {
-            setIsToggling(false);
         }
-    }, [isAuthenticated, customer.id, toggleFavorite, isFavorite, favoriteCount]);
+    }, [isAuthenticated, customer.id, toggleFavorite]);
 
     return (
         <View
@@ -203,7 +181,11 @@ const CustomerCard: React.FC<Props> = ({
                             />
                             <Text className="text-white flex-1">{customer.rating?.toFixed(1) || '0.0'}</Text>
                             {
-                                <TouchableOpacity onPress={() => onPressRatings?.(customer.id, `${customer.firstName} ${customer.lastName}`)}>
+                                <TouchableOpacity 
+                                    onPress={() => onPressRatings?.(customer.id, `${customer.firstName} ${customer.lastName}`)}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
                                     <Text className="text-white underline mr-0 mb-0 text-xs">
                                         Yorumlar
                                     </Text>

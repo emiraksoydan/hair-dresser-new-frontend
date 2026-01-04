@@ -83,10 +83,29 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
         // Backend'den gelen error data'sını kontrol et (IDataResult formatında olabilir)
         const errorData = res.error.data as any;
         if (errorData) {
-          // Backend'den gelen message'ı kullan (PascalCase veya camelCase olabilir)
-          const errorMessage = errorData.message || errorData.Message || errorData.data?.message || errorData.Data?.message;
-          if (errorMessage) {
-            res.error.data = { message: errorMessage };
+          // FluentValidation hatalarını kontrol et (errors array)
+          // Backend'den gelen format: { success: false, message: "...", errors: [{ field: "...", message: "..." }] }
+          if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+            // FluentValidation errors array formatını işle
+            // Her error: { field: "PhoneNumber", message: "Telefon numarası zorunludur" }
+            const errorMessages = errorData.errors
+              .map((e: any) => e?.message || e?.Message)
+              .filter(Boolean);
+            
+            const errorMessage = errorMessages.length > 0 
+              ? errorMessages.join(', ') 
+              : (errorData.message || errorData.Message || 'Doğrulama hatası');
+            
+            res.error.data = { 
+              message: errorMessage,
+              errors: errorData.errors // Tüm hataları da gönder (field bazlı hata gösterimi için)
+            };
+          } else {
+            // Backend'den gelen message'ı kullan (PascalCase veya camelCase olabilir)
+            const errorMessage = errorData.message || errorData.Message || errorData.data?.message || errorData.Data?.message;
+            if (errorMessage) {
+              res.error.data = { message: errorMessage };
+            }
           }
         }
       }

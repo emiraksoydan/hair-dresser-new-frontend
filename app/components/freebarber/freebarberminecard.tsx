@@ -16,9 +16,10 @@ type Props = {
     cardWidthFreeBarber: number;
     onPressUpdate?: (store: FreeBarberPanelDto) => void;
     onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
+    showImageAnimation?: boolean;
 };
 
-const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, onPressRatings }) => {
+const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, onPressUpdate, onPressRatings, showImageAnimation = true }) => {
     const images = freeBarber.imageList ?? [];
     const carouselWidth = Math.max(0, cardWidthFreeBarber - 8);
     const imageWidth = isList ? carouselWidth : 112;
@@ -75,14 +76,6 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                 setFavoriteCount(responseData.favoriteCount);
             }
 
-            // 2. Parent query'leri invalidate et (favoriteCount güncellenmesi için)
-            // Not: toggleFavorite mutation'ı zaten tüm gerekli tag'leri invalidate ediyor
-            // Burada ekstra invalidate etmeye gerek yok, ama güvenlik için yapıyoruz
-            dispatch(api.util.invalidateTags([
-                { type: 'MineFreeBarberPanel' as const, id: freeBarber.id },
-                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
-                { type: 'FreeBarberForUsers' as const, id: freeBarber.id },
-            ]));
         } catch (error: any) {
             setIsFavorite(previousIsFavorite);
             setFavoriteCount(previousCount);
@@ -105,7 +98,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                         width={imageWidth}
                         height={imageHeight}
                         mode={'default'}
-                        autoPlay={true}
+                        autoPlay={showImageAnimation}
                         borderRadiusClass="rounded-lg"
                         containerStyle={!isList ? { marginRight: 8 } : undefined}
                     />
@@ -215,7 +208,11 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                 starStyle={{ marginHorizontal: 0 }}
                             />
                             <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                            <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
+                            <TouchableOpacity
+                                onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}
+                                activeOpacity={0.7}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
                                 <Text className="text-white underline mr-1 mb-0 text-xs">
                                     Yorumlar ({freeBarber.reviewCount})
                                 </Text>
@@ -260,5 +257,6 @@ export const FreeBarberMineCardComp = React.memo(
         prev.freeBarber === next.freeBarber &&
         prev.isList === next.isList &&
         prev.expanded === next.expanded &&
-        prev.cardWidthFreeBarber === next.cardWidthFreeBarber
+        prev.cardWidthFreeBarber === next.cardWidthFreeBarber &&
+        prev.showImageAnimation === next.showImageAnimation
 );

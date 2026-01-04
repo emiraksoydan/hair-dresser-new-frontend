@@ -1,20 +1,40 @@
 import { Tabs } from 'expo-router'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { Icon, IconButton } from 'react-native-paper'
+import { Icon, IconButton, Snackbar, Portal } from 'react-native-paper'
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { useAuth } from '../hook/useAuth';
-import { useBottomSheetRegistry, useSheet } from '../context/bottomsheet';
+import { useBottomSheet } from '../hook/useBottomSheet';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
+import React, { useState } from 'react';
+import { InfoModal } from '../components/common/infomodal';
 
 const FreeBarberLayout = () => {
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const { present: presentNoti, dismiss: dismissNoti } = useSheet("notifications");
+    const [infoModalVisible, setInfoModalVisible] = useState(false);
+    const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState("");
+    const [snackbarIsError, setSnackbarIsError] = useState(false);
+
+    // Bottom sheet hook
+    const notificationsSheet = useBottomSheet({
+        snapPoints: ["100%"],
+        enablePanDownToClose: true,
+        enableOverDrag: false,
+    });
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
     const unreadMsg = badge?.unreadMessages ?? 0;
     const { userName } = useAuth();
+
+    // Info modal items - kullanıcı buraya uygulamanın kullanım bilgilerini ekleyecek
+    const infoItems = [
+        {
+            title: "Uygulama Kullanım Bilgileri",
+            description: "Buraya uygulamanın kullanım bilgileri eklenecek",
+        },
+        // Daha fazla item eklenebilir
+    ];
 
     return (
         <>
@@ -57,13 +77,29 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'left',
                         headerRight: () => (
-                            <BadgeIconButton
-                                icon="bell-outline"
-                                iconColor="white"
-                                size={20}
-                                badgeCount={unreadNoti}
-                                onPress={presentNoti}
-                            />
+                            <View className='items-center justify-center flex-row'>
+                                <TouchableOpacity
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <BadgeIconButton
+                                    icon="bell-outline"
+                                    iconColor="white"
+                                    size={20}
+                                    badgeCount={unreadNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
+                                />
+                            </View>
                         ),
 
                     }}
@@ -97,13 +133,29 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <BadgeIconButton
-                                icon="bell-outline"
-                                iconColor="white"
-                                size={20}
-                                badgeCount={unreadNoti}
-                                onPress={presentNoti}
-                            />
+                            <View className='items-center justify-center flex-row'>
+                                <TouchableOpacity
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <BadgeIconButton
+                                    icon="bell-outline"
+                                    iconColor="white"
+                                    size={20}
+                                    badgeCount={unreadNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
+                                />
+                            </View>
                         ),
 
                     }}
@@ -138,13 +190,29 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <BadgeIconButton
-                                icon="bell-outline"
-                                iconColor="white"
-                                size={20}
-                                badgeCount={unreadNoti}
-                                onPress={presentNoti}
-                            />
+                            <View className='items-center justify-center flex-row'>
+                                <TouchableOpacity
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <BadgeIconButton
+                                    icon="bell-outline"
+                                    iconColor="white"
+                                    size={20}
+                                    badgeCount={unreadNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
+                                />
+                            </View>
                         ),
 
                     }}
@@ -178,13 +246,29 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <BadgeIconButton
-                                icon="bell-outline"
-                                iconColor="white"
-                                size={20}
-                                badgeCount={unreadNoti}
-                                onPress={presentNoti}
-                            />
+                            <View className='items-center justify-center flex-row'>
+                                <TouchableOpacity
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <BadgeIconButton
+                                    icon="bell-outline"
+                                    iconColor="white"
+                                    size={20}
+                                    badgeCount={unreadNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
+                                />
+                            </View>
                         ),
 
                     }}
@@ -218,13 +302,29 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <BadgeIconButton
-                                icon="bell-outline"
-                                iconColor="white"
-                                size={20}
-                                badgeCount={unreadNoti}
-                                onPress={presentNoti}
-                            />
+                            <View className='items-center justify-center flex-row'>
+                                <TouchableOpacity
+                                    onPress={() => setInfoModalVisible(true)}
+                                    className=' items-center justify-center mr-[7px]'
+                                >
+                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { }}
+                                    className=' items-center justify-center'
+                                >
+                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
+
+                                </TouchableOpacity>
+                                <BadgeIconButton
+                                    icon="bell-outline"
+                                    iconColor="white"
+                                    size={20}
+                                    badgeCount={unreadNoti}
+                                    onPress={() => notificationsSheet.present()}
+                                    animateWhenActive={true}
+                                />
+                            </View>
                         ),
 
                     }}
@@ -232,16 +332,51 @@ const FreeBarberLayout = () => {
 
             </Tabs>
             <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                ref={notificationsSheet.ref}
+                backdropComponent={notificationsSheet.makeBackdrop()}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                ref={(inst) => setRef("notifications", inst)}
-                snapPoints={["100%"]}
-                enableOverDrag={false}
-                enablePanDownToClose
+                snapPoints={notificationsSheet.snapPoints}
+                enableOverDrag={notificationsSheet.enableOverDrag}
+                enablePanDownToClose={notificationsSheet.enablePanDownToClose}
+                onChange={notificationsSheet.handleChange}
             >
-                <NotificationsSheet onClose={dismissNoti} autoOpenFirstUnread={true} />
+                <NotificationsSheet
+                    onClose={() => notificationsSheet.dismiss()}
+                    autoOpenFirstUnread={true}
+                    onDeleteSuccess={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(false);
+                        setSnackbarVisible(true);
+                    }}
+                    onDeleteInfo={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(true);
+                        setSnackbarVisible(true);
+                    }}
+                    onDeleteError={(message) => {
+                        setSnackbarMessage(message);
+                        setSnackbarIsError(true);
+                        setSnackbarVisible(true);
+                    }}
+                />
             </BottomSheetModal>
+            <Portal>
+                <Snackbar
+                    visible={snackbarVisible}
+                    onDismiss={() => setSnackbarVisible(false)}
+                    duration={3000}
+                    style={{ backgroundColor: snackbarIsError ? '#f59e0b' : '#10b981' }}
+                >
+                    {snackbarMessage}
+                </Snackbar>
+            </Portal>
+            <InfoModal
+                visible={infoModalVisible}
+                onClose={() => setInfoModalVisible(false)}
+                title="Kullanım Bilgileri"
+                items={infoItems}
+            />
         </>
     )
 }

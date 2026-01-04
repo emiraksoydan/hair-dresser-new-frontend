@@ -43,24 +43,36 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   };
 
 
+  // Parse borderRadiusClass to get border radius value
+  const getBorderRadius = () => {
+    if (borderRadiusClass.includes('rounded-full')) return height / 2;
+    if (borderRadiusClass.includes('rounded-xl')) return 12;
+    if (borderRadiusClass.includes('rounded-lg')) return 8;
+    if (borderRadiusClass.includes('rounded-md')) return 6;
+    if (borderRadiusClass.includes('rounded-sm')) return 4;
+    if (borderRadiusClass.includes('rounded-t-sm')) return 4; // top only
+    return 0;
+  };
+
+  const borderRadiusValue = getBorderRadius();
+
   // If no images or empty array, show placeholder
   if (!imageData || imageData.length === 0) {
     return (
-      <View style={[{ width, height }, containerStyle]} className={borderRadiusClass}>
+      <View style={[{ width, height, borderRadius: borderRadiusValue, overflow: 'hidden' }, containerStyle]}>
         <Image
           source={require('../../../assets/images/empty.png')}
-          className={`w-full h-full ${borderRadiusClass}`}
+          style={{ width: '100%', height: '100%', borderRadius: borderRadiusValue }}
           resizeMode="cover"
         />
       </View>
     );
   }
 
-
   // Multiple images - show carousel
   // Always use full width to show only 1 photo at a time
   return (
-    <View style={[{ width, height }, containerStyle]}>
+    <View style={[{ width, height, overflow: 'hidden', borderRadius: borderRadiusValue }, containerStyle]}>
       <Carousel
         loop={imageData.length === 1 ? false : true}
         width={width}
@@ -73,9 +85,11 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
         mode={mode}
         renderItem={({ item, index }) => (
           <View
-            className={`h-full ${borderRadiusClass}`}
             style={{
               width: width,
+              height: height,
+              borderRadius: borderRadiusValue,
+              overflow: 'hidden',
             }}
           >
             <Image
@@ -84,13 +98,17 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
                   ? { uri: item.imageUrl }
                   : require('../../../assets/images/empty.png')
               }
-              className={`w-full h-full ${borderRadiusClass}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: borderRadiusValue,
+              }}
               resizeMode="cover"
               onLoad={() => handleImageLoad(index)}
 
             />
             {!loadedImages.has(index) && (
-              <View className="absolute inset-0 items-center justify-center bg-gray-800 rounded-xl">
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937', borderRadius: borderRadiusValue }}>
                 <ActivityIndicator size="large" color="#888" />
               </View>
             )}

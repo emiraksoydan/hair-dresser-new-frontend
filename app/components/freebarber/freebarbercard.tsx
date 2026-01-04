@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, Alert } fr
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, FreeBarGetDto } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery, useCallFreeBarberMutation } from '../../store/api';
+import { useToggleFavoriteMutation, useCallFreeBarberMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
 
@@ -19,46 +19,34 @@ type Props = {
     onPressRatings?: (freeBarberId: string, freeBarberName: string) => void;
     onCallFreeBarber?: (freeBarberId: string) => void;
     storeId?: string;
+    showImageAnimation?: boolean;
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId }) => {
-    const coverImage = freeBarber.imageList?.[0]?.imageUrl;
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId, showImageAnimation = true }) => {
     const carouselWidth = Math.max(0, cardWidthFreeBarber);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
-    const { data: isFavoriteData } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
-    const [isFavorite, setIsFavorite] = useState(false);
+    const [isFavorite, setIsFavorite] = useState(freeBarber.isFavorited ?? false);
     const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
-    const [isToggling, setIsToggling] = useState(false);
     const [hasCalled, setHasCalled] = useState(false);
     const previousAvailableRef = useRef<boolean | null>(null);
 
-    // Image loading state'ini toggle değişiminde korumak için
-    const [imageLoaded, setImageLoaded] = useState(false);
 
     const isAvailable = freeBarber.isAvailable ?? true;
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(freeBarber);
     }, [onPressUpdate, freeBarber]);
 
-    // isFavoriteData değiştiğinde state'i güncelle (query yüklendiğinde)
+    // freeBarber.isFavorited ve favoriteCount değiştiğinde state'i güncelle
     useEffect(() => {
-        if (isFavoriteData !== undefined) {
-            setIsFavorite(isFavoriteData);
+        if (freeBarber.isFavorited !== undefined) {
+            setIsFavorite(freeBarber.isFavorited);
         }
-    }, [isFavoriteData]);
-
-    // freeBarber.favoriteCount değiştiğinde state'i güncelle
-    // ÖNEMLİ: Cache'den gelen değer her zaman öncelikli (backend'den gelen gerçek değer)
-    useEffect(() => {
-        // Cache güncellemesi geldiğinde direkt kullan (optimistic update'i override et)
         if (freeBarber.favoriteCount !== undefined && freeBarber.favoriteCount !== null) {
             setFavoriteCount(freeBarber.favoriteCount);
-            // Cache güncellemesi geldi, toggle flag'ini kaldır
-            setIsToggling(false);
         }
-    }, [freeBarber.favoriteCount]);
+    }, [freeBarber.isFavorited, freeBarber.favoriteCount]);
 
     useEffect(() => {
         if (previousAvailableRef.current === false && isAvailable) {
@@ -73,36 +61,16 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             return;
         }
 
-        const previousIsFavorite = isFavorite;
-        const previousCount = favoriteCount;
-        const nextIsFavorite = !previousIsFavorite;
-        const nextCount = Math.max(0, previousCount + (nextIsFavorite ? 1 : -1));
-
-        setIsFavorite(nextIsFavorite);
-        setFavoriteCount(nextCount);
-        setIsToggling(true);
-
         try {
-            const result = await toggleFavorite({
+            await toggleFavorite({
                 targetId: freeBarber.id,
                 appointmentId: null,
             }).unwrap();
-
-            const responseData: any = (result as any)?.data ?? result;
-            if (typeof responseData?.isFavorite === "boolean") {
-                setIsFavorite(responseData.isFavorite);
-            }
-            if (typeof responseData?.favoriteCount === "number") {
-                setFavoriteCount(responseData.favoriteCount);
-            }
+            // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            setIsFavorite(previousIsFavorite);
-            setFavoriteCount(previousCount);
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
-        } finally {
-            setIsToggling(false);
         }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount]);
+    }, [isAuthenticated, freeBarber.id, toggleFavorite]);
 
     const handleCallFreeBarber = useCallback(async () => {
         if (!storeId) {
@@ -167,7 +135,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             width={isList ? carouselWidth : 112}
                             mode={'default'}
                             height={isList ? 250 : 112}
-                            autoPlay={true}
+                            autoPlay={showImageAnimation}
                             borderRadiusClass="rounded-lg"
                             showPagination={true}
                         />
@@ -305,7 +273,11 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                     starStyle={{ marginHorizontal: 0 }}
                                 />
                                 <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                                <TouchableOpacity onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}>
+                                <TouchableOpacity
+                                    onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
                                     <Text className="text-white underline mr-1 mb-0 text-xs">
                                         Yorumlar ({freeBarber.reviewCount})
                                     </Text>
@@ -367,7 +339,8 @@ export const FreeBarberCardInner = React.memo(
             prev.storeId === next.storeId &&
             prev.onPressUpdate === next.onPressUpdate &&
             prev.onPressRatings === next.onPressRatings &&
-            prev.onCallFreeBarber === next.onCallFreeBarber;
+            prev.onCallFreeBarber === next.onCallFreeBarber &&
+            prev.showImageAnimation === next.showImageAnimation;
 
         return sameFreeBarber && sameProps;
     }

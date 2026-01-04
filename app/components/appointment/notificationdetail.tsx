@@ -17,7 +17,9 @@ export const NotificationItem = React.memo(({
     userType,
     onMarkRead,
     onDecision,
+    onDelete,
     isProcessing,
+    isDeleting,
     formatDate,
     formatTime,
     formatPricingPolicy,
@@ -28,7 +30,9 @@ export const NotificationItem = React.memo(({
     userType: number | null;
     onMarkRead: (n: NotificationDto) => void;
     onDecision: (n: NotificationDto, approve: boolean) => void;
+    onDelete?: (n: NotificationDto) => void;
     isProcessing: boolean;
+    isDeleting?: boolean;
     formatDate: (d: string) => string;
     formatTime: (t?: string) => string;
     formatPricingPolicy: (t?: number, v?: number) => any;
@@ -88,11 +92,17 @@ export const NotificationItem = React.memo(({
     // Boolean değerler backend bug'ı olabilir, bu durumda decision verilmemiş sayıyoruz
 
     // Decision değerini normalize et: sadece geçerli number değerlerini kabul et
+    const normalizeDecision = (v: any): DecisionStatus | null | undefined => {
+        if (v === undefined) return undefined;
+        if (v === null) return null;
+        if (typeof v === 'boolean') return undefined;
+        if (typeof v === 'number') return v as DecisionStatus;
+        return undefined;
+    };
 
-
-    const storeDecision = payload?.storeDecision;
-    const freeBarberDecision = payload?.freeBarberDecision;
-    const customerDecision = payload?.customerDecision;
+    const storeDecision = normalizeDecision(payload?.storeDecision);
+    const freeBarberDecision = normalizeDecision(payload?.freeBarberDecision);
+    const customerDecision = normalizeDecision(payload?.customerDecision);
 
     // Butonları göstermek için decision kontrolü:
     // - Decision undefined veya null ise → butonlar gösterilir (henüz decision eklenmemiş)
@@ -203,10 +213,48 @@ export const NotificationItem = React.memo(({
         showFreeBarberRejectButton; // FreeBarber red butonu da dahil
 
 
+    // Durum gösterimi:
+    // - Approved/Rejected/Cancelled/Completed/Unanswered statülerinde gösterilir
+    // - Ayrıca AppointmentCreated (aksiyon bildirimi) Pending olsa bile, ilgili kullanıcının kararı verilmişse sonucu gösterir
+    const resolvedRecipientRole =
+        recipientRole ??
+        (userType === UserType.BarberStore ? 'store' :
+            userType === UserType.FreeBarber ? 'freebarber' :
+                userType === UserType.Customer ? 'customer' : null);
 
-    // Durum gösterimi: Approved, Rejected, Cancelled, Completed, Unanswered durumlarında durum gösterilmeli
-    // Pending durumunda durum gösterilmez (butonlar gösterilir)
-    const showDecisionStatus = isApproved || isRejected || isCancelled || isCompleted || isUnanswered;
+    const decisionForRecipient =
+        resolvedRecipientRole === 'store' ? storeDecision :
+            resolvedRecipientRole === 'freebarber' ? freeBarberDecision :
+                resolvedRecipientRole === 'customer' ? customerDecision :
+                    undefined;
+
+    const decisionOutcomeKind: 'approved' | 'rejected' | 'unanswered' | 'unknown' | null =
+        item.type === NotificationType.AppointmentCreated &&
+            isPending &&
+            decisionForRecipient !== undefined &&
+            decisionForRecipient !== null &&
+            decisionForRecipient !== DecisionStatus.Pending
+            ? (decisionForRecipient === DecisionStatus.Approved ? 'approved' :
+                decisionForRecipient === DecisionStatus.Rejected ? 'rejected' :
+                    decisionForRecipient === DecisionStatus.NoAnswer ? 'unanswered' :
+                        'unknown')
+            : null;
+
+    const displayStatusKind: 'approved' | 'rejected' | 'cancelled' | 'completed' | 'unanswered' | 'unknown' | null =
+        isApproved ? 'approved' :
+            isRejected ? 'rejected' :
+                isCancelled ? 'cancelled' :
+                    isCompleted ? 'completed' :
+                        isUnanswered ? 'unanswered' :
+                            decisionOutcomeKind;
+
+    const showDecisionStatus = !!displayStatusKind;
+
+    const displayApproved = displayStatusKind === 'approved';
+    const displayRejected = displayStatusKind === 'rejected';
+    const displayCancelled = displayStatusKind === 'cancelled';
+    const displayCompleted = displayStatusKind === 'completed';
+    const displayUnanswered = displayStatusKind === 'unanswered';
 
     // Karar verilmesi gereken (Pending) bir bildirim mi?
     // AppointmentCreated notification'ında ve status Pending ise karar bekleniyor demektir
@@ -253,9 +301,24 @@ export const NotificationItem = React.memo(({
                     <Text className={`text-white flex-1 text-base ${unread ? "font-bold" : "font-medium"}`}>
                         {item.title}
                     </Text>
-                    <Text className="text-[#8b8c90] text-xs">
-                        {formatDate(item.createdAt)}
-                    </Text>
+                    <View className="flex-row items-center gap-2">
+                        {onDelete && (
+                            <TouchableOpacity
+                                onPress={() => onDelete(item)}
+                                disabled={isDeleting}
+                                className={`p-1 ${isDeleting ? 'opacity-60' : ''}`}
+                            >
+                                {isDeleting ? (
+                                    <ActivityIndicator size="small" color="#ef4444" />
+                                ) : (
+                                    <Icon source="delete-outline" size={18} color="#ef4444" />
+                                )}
+                            </TouchableOpacity>
+                        )}
+                        <Text className="text-[#8b8c90] text-xs">
+                            {formatDate(item.createdAt)}
+                        </Text>
+                    </View>
                 </View>
 
                 {payload && (
@@ -314,45 +377,45 @@ export const NotificationItem = React.memo(({
 
                         {showDecisionStatus && (
                             <View className="mt-3 pt-3 border-t border-[#2a2c30]">
-                                <View className={`p-3 rounded-lg border ${isApproved ? 'bg-green-900/20 border-green-800/30' :
-                                    isRejected ? 'bg-red-900/20 border-red-800/30' :
-                                        isCancelled ? 'bg-orange-900/20 border-orange-800/30' :
-                                            isCompleted ? 'bg-blue-900/20 border-blue-800/30' :
-                                                isUnanswered ? 'bg-yellow-900/20 border-yellow-800/30' :
+                                <View className={`p-3 rounded-lg border ${displayApproved ? 'bg-green-900/20 border-green-800/30' :
+                                    displayRejected ? 'bg-red-900/20 border-red-800/30' :
+                                        displayCancelled ? 'bg-orange-900/20 border-orange-800/30' :
+                                            displayCompleted ? 'bg-blue-900/20 border-blue-800/30' :
+                                                displayUnanswered ? 'bg-yellow-900/20 border-yellow-800/30' :
                                                     'bg-gray-900/20 border-gray-800/30'
                                     }`}>
                                     <View className="flex-row items-center justify-center">
                                         <Icon
                                             source={
-                                                isApproved ? "check-circle" :
-                                                    isRejected ? "close-circle" :
-                                                        isCancelled ? "cancel" :
-                                                            isCompleted ? "check-all" :
-                                                                isUnanswered ? "clock-alert" :
+                                                displayApproved ? "check-circle" :
+                                                    displayRejected ? "close-circle" :
+                                                        displayCancelled ? "cancel" :
+                                                            displayCompleted ? "check-all" :
+                                                                displayUnanswered ? "clock-alert" :
                                                                     "information"
                                             }
                                             size={20}
                                             color={
-                                                isApproved ? "#10b981" :
-                                                    isRejected ? "#ef4444" :
-                                                        isCancelled ? "#f97316" :
-                                                            isCompleted ? "#3b82f6" :
-                                                                isUnanswered ? "#fbbf24" :
+                                                displayApproved ? "#10b981" :
+                                                    displayRejected ? "#ef4444" :
+                                                        displayCancelled ? "#f97316" :
+                                                            displayCompleted ? "#3b82f6" :
+                                                                displayUnanswered ? "#fbbf24" :
                                                                     "#9ca3af"
                                             }
                                         />
-                                        <Text className={`text-xs text-center font-semibold ml-2 ${isApproved ? 'text-green-400' :
-                                            isRejected ? 'text-red-400' :
-                                                isCancelled ? 'text-orange-400' :
-                                                    isCompleted ? 'text-blue-400' :
-                                                        isUnanswered ? 'text-yellow-400' :
+                                        <Text className={`text-xs text-center font-semibold ml-2 ${displayApproved ? 'text-green-400' :
+                                            displayRejected ? 'text-red-400' :
+                                                displayCancelled ? 'text-orange-400' :
+                                                    displayCompleted ? 'text-blue-400' :
+                                                        displayUnanswered ? 'text-yellow-400' :
                                                             'text-gray-400'
                                             }`}>
-                                            {isApproved ? "Kabul edildi" :
-                                                isRejected ? "Reddedildi" :
-                                                    isCancelled ? "İptal edildi" :
-                                                        isCompleted ? "Tamamlandı" :
-                                                            isUnanswered ? "Cevaplanmadı" :
+                                            {displayApproved ? "Kabul edildi" :
+                                                displayRejected ? "Reddedildi" :
+                                                    displayCancelled ? "İptal edildi" :
+                                                        displayCompleted ? "Tamamlandı" :
+                                                            displayUnanswered ? "Cevaplanmadı" :
                                                                 "Bilinmeyen durum"}
                                         </Text>
                                     </View>

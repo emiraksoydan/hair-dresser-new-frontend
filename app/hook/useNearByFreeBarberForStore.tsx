@@ -23,6 +23,7 @@ export function useNearbyStoresControl({
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
     const [freeBarbers, setFreeBarbers] = useState<FreeBarGetDto[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<any>(null);
     const [location, setLocation] = useState<{ latitude: number; longitude: number } | undefined>(undefined);
 
     // Konum izni kontrolü
@@ -68,8 +69,9 @@ export function useNearbyStoresControl({
             });
 
             setFreeBarbers(Array.from(allBarbers.values()));
+            setError(null);
         } catch (error) {
-            // Error handled by RTK Query
+            setError(error);
         } finally {
             setIsLoading(false);
         }
@@ -93,6 +95,7 @@ export function useNearbyStoresControl({
         locationStatus,
         hasLocation: locationStatus === "granted",
         location,
+        error,
         manualFetch: fetchNearby, // İstersen elle çağırmak için
     };
 }

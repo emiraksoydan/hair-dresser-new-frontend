@@ -42,8 +42,6 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
     const { userType: currentUserType } = useAuth();
 
-    console.log("mode", appointmentId);
-
     // FreeBarber seçimi artık koltuk seçiminde gösteriliyor (barberId koltuğa atanmışsa)
 
 

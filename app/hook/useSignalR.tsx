@@ -383,6 +383,8 @@ export const useSignalR = () => {
                             }
                         })
                     );
+                    // Thread kaldırıldığında badge count'u invalidate et (backend'de unread count'lar sıfırlandı)
+                    dispatch(api.util.invalidateTags(["Badge"]));
                 });
 
                 // Typing indicator event handler

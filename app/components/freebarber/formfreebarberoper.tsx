@@ -8,7 +8,6 @@ import { Dropdown, MultiSelect } from "react-native-element-dropdown";
 import { handlePickMultipleImages, handlePickImage, truncateFileName } from "../../utils/form/pick-document";
 import { parseTR } from "../../utils/form/money-helper";
 import { ImageOwnerType, ServiceOfferingCreateDto, ServiceOfferingUpdateDto } from "../../types";
-import { useSheet } from "../../context/bottomsheet";
 import { resolveApiErrorMessage } from "../../utils/common/error";
 import { trMoneyRegex } from "../../constants";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
@@ -84,9 +83,9 @@ const schema = z.object({
 
 export type FormFreeBarberValues = z.input<typeof schema>;
 
-type Props = { freeBarberId: string | null; enabled: boolean };
+type Props = { freeBarberId: string | null; enabled: boolean; onClose?: () => void };
 
-export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Props) => {
+export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onClose }: Props) => {
     const isEdit = freeBarberId != null;
 
     const { showSnack, SnackbarComponent } = useSnackbar();
@@ -102,7 +101,6 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
     const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
     const [loadedImages, setLoadedImages] = React.useState<Set<number>>(new Set());
 
-    const { dismiss } = useSheet("freeBarberMinePanel");
 
     const {
         control,
@@ -215,7 +213,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
         }
     };
 
-    // ✅ Create modunda: form açılınca 1 kere konumu al ve set et
+    // Create modunda: form açılınca 1 kere konumu al ve set et
     const didInitCreateLoc = useRef(false);
     useEffect(() => {
         if (!enabled) return;
@@ -499,14 +497,14 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                 } else {
                     showSnack(result.message, false);
                 }
-                dismiss();
+                onClose?.();
             } else {
                 showSnack(result.message, true);
             }
         } catch (error: any) {
             showSnack(resolveApiErrorMessage(error), true);
         }
-    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, dismiss, getValues, setLocationNow, triggerGetFreeBarberMinePanel, deleteImage, uploadMultipleImages]);
+    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, onClose, getValues, setLocationNow, triggerGetFreeBarberMinePanel, deleteImage, uploadMultipleImages]);
 
     const onErrors = React.useCallback((errors: any) => {
         // Validation errors are displayed to user via form state
@@ -521,7 +519,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled }: Pr
                 <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">
                     {!isEdit ? "Panel Oluştur" : "Panel Düzenleme"}
                 </Text>
-                <IconButton onPress={dismiss} icon="close" iconColor="white" />
+                <IconButton onPress={() => onClose?.()} icon="close" iconColor="white" />
             </View>
 
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />

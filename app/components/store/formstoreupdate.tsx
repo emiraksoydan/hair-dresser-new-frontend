@@ -6,7 +6,6 @@ import { parseTR } from '../../utils/form/money-helper';
 import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, normalizeTime, timeHHmmRegex, toMinutes } from '../../utils/time/time-helper';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSheet } from '../../context/bottomsheet';
 import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button } from 'react-native-paper';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import {
@@ -190,13 +189,33 @@ const schema = z.object({
     taxDocumentImage: TaxDocumentImageField,
     barbers: z.array(BarberSchema).default([]),
     chairs: z.array(ChairSchema).min(1, "En az 1 koltuk olmalı").default([]),
-})
+}).superRefine((data, ctx) => {
+    const barbers = (data.barbers ?? []) as Array<z.infer<typeof BarberSchema>>;
+    const chairs = (data.chairs ?? []) as Array<z.infer<typeof ChairSchema>>;
+    // Berberlerin toplamı 30'u geçmemeli
+    const validBarbersCount = barbers.filter(b => !!b.name?.trim()).length;
+    if (validBarbersCount > 30) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["barbers"],
+            message: `Berber sayısı 30'u geçemez. Mevcut sayı: ${validBarbersCount}`,
+        });
+    }
+    // Koltukların toplamı 30'u geçmemeli
+    const validChairsCount = chairs.length;
+    if (validChairsCount > 30) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["chairs"],
+            message: `Koltuk sayısı 30'u geçemez. Mevcut sayı: ${validChairsCount}`,
+        });
+    }
+});
 export type FormUpdateValues = z.input<typeof schema>;
 
-const FormStoreUpdate = ({ storeId, enabled, }: {
-    storeId: string; enabled: boolean
+const FormStoreUpdate = ({ storeId, enabled, onClose }: {
+    storeId: string; enabled: boolean; onClose?: () => void;
 }) => {
-    const { dismiss } = useSheet('updateStoreMine');
     const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
     const [updateStore, { isLoading: updateLoading, isSuccess }] = useUpdateBarberStoreMutation();
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
@@ -214,12 +233,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
 
     const { showSnack, SnackbarComponent } = useSnackbar();
 
-    const errorText = resolveApiErrorMessage(error);
-    useEffect(() => {
-        if (isError) {
-            showSnack(errorText, true);
-        }
-    }, [isError, errorText, showSnack])
+    // Error handling moved to try-catch in onSubmit to avoid duplicate snackbars
 
     const pickMultipleImages = async () => {
         setIsImagePickerLoading(true);
@@ -843,7 +857,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
                 } else {
                     showSnack(result.message, false);
                 }
-                dismiss();
+                onClose?.();
             }
             else {
                 showSnack(result.message, true);
@@ -859,7 +873,7 @@ const FormStoreUpdate = ({ storeId, enabled, }: {
         <View className='h-full'>
             <View className='flex-row justify-between items-center px-4'>
                 <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">İşletme Güncelle</Text>
-                <IconButton onPress={dismiss} icon="close" iconColor="white" />
+                <IconButton onPress={() => onClose?.()} icon="close" iconColor="white" />
             </View>
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
             {!data ? (

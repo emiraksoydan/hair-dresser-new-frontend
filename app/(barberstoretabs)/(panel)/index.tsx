@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
@@ -6,13 +6,13 @@ import SearchBar from "../../components/common/searchbar";
 import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
+import { useBottomSheet } from "../../hook/useBottomSheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/common/expand-toggle";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import { LottieViewComponent } from "../../components/common/lottieview";
-import { BarberStoreMineDto, FreeBarGetDto, FavoriteTargetType } from "../../types";
-import { useGetAllCategoriesQuery, useGetMineStoresQuery, useGetMyFavoritesQuery } from "../../store/api";
+import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
+import { useGetAllCategoriesQuery, useGetMineStoresQuery, useGetSettingQuery } from "../../store/api";
 import { FilterDrawer } from "../../components/common/filterdrawer";
 import FormStoreUpdate from "../../components/store/formstoreupdate";
 import { StoreMineCardComp } from "../../components/store/storeminecard";
@@ -21,7 +21,6 @@ import { FreeBarberCardInner } from "../../components/freebarber/freebarbercard"
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
 import { useNearbyStoresControl } from "../../hook/useNearByFreeBarberForStore";
 import { safeCoord } from "../../utils/location/geo";
-import { ensureLocationGateWithUI } from "../../components/location/location-gate"; // Retry için eklendi
 import { BarberMarker } from "../../components/freebarber/barbermarker";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 import { filterFreeBarbers, filterStores } from "../../utils/filter/panel-filters";
@@ -29,13 +28,12 @@ import { usePanelFilters } from "../../hook/usePanelFilters";
 import { StoreMarker } from "../../components/common/storemarker";
 import { DeferredRender } from "../../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
+import { resolveApiErrorMessage } from "../../utils/common/error";
 
 const Index = () => {
-    // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
-    // refetchOnMountOrArgChange: true ile her mount'ta ve invalidate edildiğinde refetch et
-    const { data: stores = [], isLoading: storeLoading, refetch: refetchStores } = useGetMineStoresQuery(undefined, {
-        pollingInterval: 30_000, // 30 saniye
-        refetchOnMountOrArgChange: true, // Hard refresh: Her mount'ta ve invalidate edildiğinde refetch et
+    const { data: stores = [], isLoading: storeLoading, refetch: refetchStores, error: storesError, isError: isStoresError } = useGetMineStoresQuery(undefined, {
+        pollingInterval: 30_000,
+        refetchOnMountOrArgChange: true,
     });
     const {
         freeBarbers,
@@ -43,6 +41,7 @@ const Index = () => {
         hasLocation,
         locationStatus,
         location,
+        error: freeBarbersError,
         manualFetch
     } = useNearbyStoresControl({
         enabled: true,
@@ -59,28 +58,28 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
-    const { data: favorites = [], refetch: refetchFavorites } = useGetMyFavoritesQuery();
-    const favoriteStoreIds = useMemo(() => {
-        return new Set(
-            (favorites ?? [])
-                .filter((f: any) => f.targetType === FavoriteTargetType.Store)
-                .map((f: any) => String(f.favoritedToId))
-        );
-    }, [favorites]);
-    const favoriteFreeBarberIds = useMemo(() => {
-        return new Set(
-            (favorites ?? [])
-                .filter((f: any) => f.targetType === FavoriteTargetType.FreeBarber)
-                .map((f: any) => String(f.favoritedToId))
-        );
-    }, [favorites]);
+
+    // Ayarlar
+    const { data: settingData } = useGetSettingQuery();
 
     const [isMapMode, setIsMapMode] = useState(false);
     const [selectedMapItem, setSelectedMapItem] = useState<FreeBarGetDto | null>(null);
 
-    const { present: presentMapDetail } = useSheet("mapDetail");
-    const { present: updateStore } = useSheet("updateStoreMine");
-    const { present: presentRatings } = useSheet("ratings");
+    // Bottom sheet hooks
+    const mapDetailSheet = useBottomSheet({
+        snapPoints: ["65%"],
+        enablePanDownToClose: true,
+    });
+    const updateStoreSnapPoints = useMemo(() => isMapMode ? ["75%", "100%"] : ["100%"], [isMapMode]);
+    const updateStoreSheet = useBottomSheet({
+        snapPoints: updateStoreSnapPoints,
+        enablePanDownToClose: isMapMode,
+        enableOverDrag: isMapMode,
+    });
+    const ratingsSheet = useBottomSheet({
+        snapPoints: ["50%", "85%"],
+        enablePanDownToClose: true,
+    });
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isList, setIsList] = useState(true);
@@ -122,26 +121,21 @@ const Index = () => {
             setRefreshing(true);
             await Promise.all([
                 refetchStores(),
-                refetchFavorites(),
                 manualFetch(),
             ]);
         } finally {
             setRefreshing(false);
             isRefreshingRef.current = false;
         }
-    }, [manualFetch, refetchFavorites, refetchStores]);
+    }, [manualFetch, refetchStores]);
 
 
 
     const [expandedStores, setExpandedStores] = useState(true);
     const [expandedFreeBarbers, setExpandedFreeBarbers] = useState(true);
 
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
     const [storeId, setStoreId] = useState<string>("");
-    const [ratingsSheetOpen, setRatingsSheetOpen] = useState(false);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
-    const [isMapDetailOpen, setIsMapDetailOpen] = useState(false);
 
     const screenWidth = Dimensions.get("window").width;
 
@@ -154,58 +148,13 @@ const Index = () => {
         [expandedFreeBarbers, screenWidth]
     );
 
-    // Önceki data'yı tutarak flicker'ı önle ve iç içe binmeyi engelle
-    const [previousStores, setPreviousStores] = useState<BarberStoreMineDto[]>([]);
-    const [previousFreeBarbers, setPreviousFreeBarbers] = useState<FreeBarGetDto[]>([]);
+    // RTK Query cache'i zaten data yönetimini yapıyor, previous state'lere gerek yok
+    const displayStores = stores ?? [];
+    const displayFreeBarbers = freeBarbers ?? [];
 
-    // Data değiştiğinde önceki data'yı güncelle
-    // DÜZELTME: dependency array'den previous state'ler kaldırıldı (stale closure önlendi)
-    useEffect(() => {
-        if (!storeLoading && stores && Array.isArray(stores)) {
-            // Loading bittiğinde ve yeni data geçerliyse kaydet
-            if (stores.length > 0) {
-                // Yeni data varsa ve öncekinden farklıysa güncelle
-                setPreviousStores(prev => {
-                    // Deep equality check yerine length ve ilk id kontrolü (performance için)
-                    if (prev.length !== stores.length ||
-                        (prev[0]?.id !== stores[0]?.id)) {
-                        return stores;
-                    }
-                    return prev;
-                });
-            }
-        }
-    }, [stores, storeLoading]); // previousStores dependency'den kaldırıldı
-
-    useEffect(() => {
-        if (!isFreeLoading && freeBarbers && Array.isArray(freeBarbers)) {
-            // Loading bittiğinde ve yeni data geçerliyse kaydet
-            if (freeBarbers.length > 0) {
-                // Yeni data varsa ve öncekinden farklıysa güncelle
-                setPreviousFreeBarbers(prev => {
-                    // Deep equality check yerine length ve ilk id kontrolü (performance için)
-                    if (prev.length !== freeBarbers.length ||
-                        (prev[0]?.id !== freeBarbers[0]?.id)) {
-                        return freeBarbers;
-                    }
-                    return prev;
-                });
-            }
-        }
-    }, [freeBarbers, isFreeLoading]); // previousFreeBarbers dependency'den kaldırıldı
-
-    // Display için: loading ise önceki data'yı göster (refresh sırasında flicker önlenir)
-    // Loading değilse yeni data'yı göster
-    const displayStores = storeLoading && previousStores.length > 0
-        ? previousStores
-        : (stores ?? []);
-    const displayFreeBarbers = isFreeLoading && previousFreeBarbers.length > 0
-        ? previousFreeBarbers
-        : (freeBarbers ?? []);
-
-    // Loading state'i: sadece ilk yükleme veya data yoksa true
-    const isStoresLoading = storeLoading && previousStores.length === 0;
-    const isFreeBarbersLoading = isFreeLoading && previousFreeBarbers.length === 0;
+    // Loading state'leri direkt RTK Query'den geliyor
+    const isStoresLoading = storeLoading;
+    const isFreeBarbersLoading = isFreeLoading;
 
     const hasStores = displayStores.length > 0;
     const hasFreeBarbers = displayFreeBarbers.length > 0;
@@ -213,23 +162,31 @@ const Index = () => {
     const handlePressUpdateStore = useCallback(
         (store: BarberStoreMineDto) => {
             setStoreId(store.id);
-            updateStore();
+            // Sheet'i açmak için küçük bir gecikme ekle
+            setTimeout(() => {
+                updateStoreSheet.present();
+            }, 100);
         },
-        [updateStore]
+        [updateStoreSheet]
     );
 
     const handleMarkerPress = useCallback(
         (item: FreeBarGetDto) => {
             setSelectedMapItem(item);
-            presentMapDetail();
+            mapDetailSheet.present();
         },
-        [presentMapDetail]
+        [mapDetailSheet]
     );
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
-        presentRatings();
-    }, [presentRatings]);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            ratingsSheet.present();
+        }, 100);
+    }, [ratingsSheet]);
+
+    console.log(settingData?.data?.showImageAnimation);
 
     // Filter fonksiyonları
     const handleApplyFilters = useCallback(() => {
@@ -251,9 +208,8 @@ const Index = () => {
             searchQuery,
             filters: appliedFilters,
             categoryNameById,
-            favoriteIds: favoriteStoreIds,
         });
-    }, [displayStores, searchQuery, appliedFilters, categoryNameById, favoriteStoreIds]);
+    }, [displayStores, searchQuery, appliedFilters, categoryNameById]);
 
     // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
     const filteredFreeBarbers = useMemo(() => {
@@ -264,9 +220,8 @@ const Index = () => {
             searchQuery,
             filters: appliedFilters,
             categoryNameById,
-            favoriteIds: favoriteFreeBarberIds,
         });
-    }, [displayFreeBarbers, searchQuery, appliedFilters, categoryNameById, favoriteFreeBarberIds]);
+    }, [displayFreeBarbers, searchQuery, appliedFilters, categoryNameById]);
 
     const renderStoreItem = useCallback(
         ({ item }: { item: BarberStoreMineDto }) => (
@@ -277,10 +232,16 @@ const Index = () => {
                 cardWidthStore={cardWidthStore}
                 onPressUpdate={handlePressUpdateStore}
                 onPressRatings={handlePressRatings}
+                showImageAnimation={settingData?.data?.showImageAnimation ?? true}
             />
         ),
-        [isList, expandedStores, cardWidthStore, handlePressUpdateStore, handlePressRatings]
+        [isList, expandedStores, cardWidthStore, handlePressUpdateStore, handlePressRatings, settingData]
     );
+
+    // Performance: manualFetch'i useCallback ile sarmalayarak gereksiz re-render'ları önle
+    const handleManualFetch = useCallback(() => {
+        manualFetch();
+    }, [manualFetch]);
 
     const renderFreeBarberItem = useCallback(
         ({ item }: { item: FreeBarGetDto }) => (
@@ -291,17 +252,18 @@ const Index = () => {
                 cardWidthFreeBarber={cardWidthFreeBarber}
                 mode="barbershop"
                 onPressRatings={handlePressRatings}
-                onCallFreeBarber={() => manualFetch()}
+                onCallFreeBarber={handleManualFetch}
                 storeId={stores?.[0]?.id}
+                showImageAnimation={settingData?.data?.showImageAnimation ?? true}
             />
         ),
-        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings, manualFetch, stores]
+        [isList, expandedFreeBarbers, cardWidthFreeBarber, handlePressRatings, handleManualFetch, stores, settingData]
     );
 
     // FlatList için tüm item'ları birleştir
     // Refresh sırasında verilerin iç içe binmemesi için loading state'ini kontrol ediyoruz
     const listData = useMemo(() => {
-        const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal'; data?: any }> = [];
+        const items: Array<{ id: string; type: 'stores-header' | 'store' | 'stores-empty' | 'stores-loading' | 'stores-content-horizontal' | 'stores-error' | 'freebarbers-header' | 'freebarber' | 'freebarbers-empty' | 'freebarbers-loading' | 'freebarbers-content-horizontal' | 'freebarbers-error'; data?: any }> = [];
 
         // Stores section - kullanıcı türü filtresi "Dükkan" veya "Hepsi" ise göster
         const shouldShowStores = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Dükkan";
@@ -309,6 +271,8 @@ const Index = () => {
             items.push({ id: 'stores-header', type: 'stores-header' });
             if (isStoresLoading) {
                 items.push({ id: 'stores-loading', type: 'stores-loading' });
+            } else if (isStoresError && storesError) {
+                items.push({ id: 'stores-error', type: 'stores-error' });
             } else {
                 // Filtrelenmiş dükkanları kullan
                 const storesToDisplay = filteredStores;
@@ -334,6 +298,8 @@ const Index = () => {
             items.push({ id: 'freebarbers-header', type: 'freebarbers-header' });
             if (isFreeBarbersLoading) {
                 items.push({ id: 'freebarbers-loading', type: 'freebarbers-loading' });
+            } else if (freeBarbersError) {
+                items.push({ id: 'freebarbers-error', type: 'freebarbers-error' });
             } else {
                 // Filtrelenmiş free barbers kullan
                 const freeBarbersToDisplay = filteredFreeBarbers;
@@ -460,6 +426,13 @@ const Index = () => {
                                 <View className="pt-4">{Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}</View>
                             );
                         }
+                        if (item.type === 'stores-error') {
+                            return (
+                                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                    <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(storesError)} />
+                                </View>
+                            );
+                        }
                         if (item.type === 'stores-empty') {
                             // Filtre veya search aktif mi kontrol et
                             const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
@@ -481,6 +454,13 @@ const Index = () => {
                                             animationSource={require('../../../assets/animations/empty.json')}
                                             message="Filtreleme kriterlerine uygun işletme bulunamadı"
                                         />
+                                    ) : locationStatus === "denied" ? (
+                                        <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                            <LottieViewComponent
+                                                animationSource={require('../../../assets/animations/Location.json')}
+                                                message="Konum izni verilmedi. Lütfen ayarlardan konum iznini açın."
+                                            />
+                                        </View>
                                     ) : (
                                         <EmptyState
                                             loading={isStoresLoading}
@@ -503,6 +483,7 @@ const Index = () => {
                                     cardWidthStore={cardWidthStore}
                                     onPressUpdate={handlePressUpdateStore}
                                     onPressRatings={handlePressRatings}
+                                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                                 />
                             );
                         }
@@ -535,6 +516,13 @@ const Index = () => {
                                 <View className="pt-4">{Array.from({ length: 2 }).map((_, i) => <SkeletonComponent key={i} />)}</View>
                             );
                         }
+                        if (item.type === 'freebarbers-error') {
+                            return (
+                                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                    <LottieViewComponent animationSource={require('../../../assets/animations/error.json')} message={resolveApiErrorMessage(freeBarbersError)} />
+                                </View>
+                            );
+                        }
                         if (item.type === 'freebarbers-empty') {
                             // Filtre veya search aktif mi kontrol et
                             const hasActiveFilters = appliedFilters.mainCategory !== "Hepsi" ||
@@ -556,6 +544,13 @@ const Index = () => {
                                             animationSource={require('../../../assets/animations/empty.json')}
                                             message="Filtreleme kriterlerine uygun sonuç bulunamadı"
                                         />
+                                    ) : locationStatus === "denied" ? (
+                                        <View style={{ minHeight: 200, maxHeight: 400 }}>
+                                            <LottieViewComponent
+                                                animationSource={require('../../../assets/animations/Location.json')}
+                                                message="Konum izni verilmedi. Lütfen ayarlardan konum iznini açın."
+                                            />
+                                        </View>
                                     ) : (
                                         <EmptyState
                                             loading={isFreeBarbersLoading}
@@ -580,6 +575,7 @@ const Index = () => {
                                     onPressRatings={handlePressRatings}
                                     onCallFreeBarber={() => manualFetch()}
                                     storeId={stores?.[0]?.id}
+                                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                                 />
                             );
                         }
@@ -604,10 +600,11 @@ const Index = () => {
 
             <TouchableOpacity
                 onPress={() => setIsMapMode(!isMapMode)}
-                className="absolute right-4 bottom-6 w-14 h-14 bg-[#38393b] rounded-full items-center justify-center z-20 shadow-lg border border-[#47494e]"
+                className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
                 style={{ elevation: 8 }}
             >
-                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={28} style={{ margin: 0 }} />
+                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={24} style={{ margin: 0 }} />
+                <Text className="text-white font-semibold text-sm">{isMapMode ? "Liste" : "Haritada Ara"}</Text>
             </TouchableOpacity>
 
             <FilterDrawer
@@ -640,18 +637,18 @@ const Index = () => {
             />
 
             <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                ref={updateStoreSheet.ref}
+                backdropComponent={updateStoreSheet.makeBackdrop()}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                ref={(inst) => setRef("updateStoreMine", inst)}
-                onChange={(index) => setIsUpdateSheetOpen(index >= 0)}
-                snapPoints={isMapMode ? ["75%", "100%"] : ["100%"]}
-                enableOverDrag={isMapMode}
-                enablePanDownToClose={isMapMode}
+                onChange={updateStoreSheet.handleChange}
+                snapPoints={updateStoreSheet.snapPoints}
+                enableOverDrag={updateStoreSheet.enableOverDrag}
+                enablePanDownToClose={updateStoreSheet.enablePanDownToClose}
             >
                 <BottomSheetView className="h-full pt-2">
                     <DeferredRender
-                        active={isUpdateSheetOpen}
+                        active={updateStoreSheet.isOpen}
                         placeholder={
                             <View className="flex-1 pt-4">
                                 <CrudSkeletonComponent />
@@ -660,24 +657,27 @@ const Index = () => {
                     >
                         <FormStoreUpdate
                             storeId={storeId}
-                            enabled={isUpdateSheetOpen}
+                            enabled={updateStoreSheet.isOpen}
+                            onClose={() => {
+                                updateStoreSheet.dismiss();
+                            }}
                         />
                     </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
 
             <BottomSheetModal
-                ref={(inst) => setRef("mapDetail", inst)}
-                onChange={(index) => setIsMapDetailOpen(index >= 0)}
-                snapPoints={["65%"]}
-                enablePanDownToClose={true}
+                ref={mapDetailSheet.ref}
+                onChange={mapDetailSheet.handleChange}
+                snapPoints={mapDetailSheet.snapPoints}
+                enablePanDownToClose={mapDetailSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={mapDetailSheet.makeBackdrop()}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                     <DeferredRender
-                        active={isMapDetailOpen && !!selectedMapItem}
+                        active={mapDetailSheet.isOpen && !!selectedMapItem}
                         placeholder={
                             <View className="flex-1 pt-4">
                                 <SkeletonComponent />
@@ -691,40 +691,33 @@ const Index = () => {
 
             {/* Yorumlar Bottom Sheet */}
             <BottomSheetModal
-                ref={(inst) => setRef("ratings", inst)}
-                snapPoints={["50%", "85%"]}
-                enablePanDownToClose={true}
+                ref={ratingsSheet.ref}
+                snapPoints={ratingsSheet.snapPoints}
+                enablePanDownToClose={ratingsSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={ratingsSheet.makeBackdrop()}
                 onChange={(index) => {
+                    ratingsSheet.handleChange(index);
                     if (index < 0) {
-                        setRatingsSheetOpen(false);
                         setSelectedRatingsTarget(null);
-                    } else {
-                        setRatingsSheetOpen(true);
                     }
                 }}
             >
-                <DeferredRender
-                    active={ratingsSheetOpen && !!selectedRatingsTarget}
-                    placeholder={
-                        <View className="flex-1 pt-4">
-                            <SkeletonComponent />
-                        </View>
-                    }
-                >
-                    {selectedRatingsTarget && (
-                        <RatingsBottomSheet
-                            targetId={selectedRatingsTarget.targetId}
-                            targetName={selectedRatingsTarget.targetName}
-                            onClose={() => {
-                                setRatingsSheetOpen(false);
-                                setSelectedRatingsTarget(null);
-                            }}
-                        />
-                    )}
-                </DeferredRender>
+                {selectedRatingsTarget ? (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                            ratingsSheet.dismiss();
+                        }}
+                    />
+                ) : (
+                    <View className="flex-1 pt-4">
+                        <SkeletonComponent />
+                    </View>
+                )}
             </BottomSheetModal>
         </View>
     );

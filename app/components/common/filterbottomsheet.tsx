@@ -6,11 +6,10 @@ import {
 } from '@gorhom/bottom-sheet';
 import { Chip, Divider, Icon } from 'react-native-paper';
 import { LegendList } from '@legendapp/list';
-import { useBottomSheetRegistry } from '../../context/bottomsheet';
+import { useBottomSheet } from '../../hook/useBottomSheet';
 import { catData, ratings } from '../../constants';
 
 type FilterBottomSheetProps = {
-    sheetKey: string;
     selectedType: string;
     onChangeType: (type: string) => void;
     selectedRating: string | number | null;
@@ -21,7 +20,6 @@ type FilterBottomSheetProps = {
 };
 
 export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
-    sheetKey,
     selectedType,
     onChangeType,
     selectedRating,
@@ -30,20 +28,20 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
     hasService,
     toggleService,
 }) => {
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
+    const filterSheet = useBottomSheet({
+        snapPoints: ['60%', '100%'],
+        enablePanDownToClose: true,
+    });
 
     return (
         <BottomSheetModal
-            ref={(inst) => setRef(sheetKey, inst)}
-            snapPoints={['60%', '100%']}
-            backdropComponent={makeBackdrop({
-                appearsOnIndex: 0,
-                disappearsOnIndex: -1,
-                pressBehavior: 'close',
-            })}
-            enablePanDownToClose
+            ref={filterSheet.ref}
+            snapPoints={filterSheet.snapPoints}
+            backdropComponent={filterSheet.makeBackdrop()}
+            enablePanDownToClose={filterSheet.enablePanDownToClose}
             handleIndicatorStyle={{ backgroundColor: '#47494e' }}
             backgroundStyle={{ backgroundColor: '#202123' }}
+            onChange={filterSheet.handleChange}
         >
             <BottomSheetView className="h-full p-5 pt-2">
                 <Text className="text-center text-xl text-white mb-4">Filtreler</Text>

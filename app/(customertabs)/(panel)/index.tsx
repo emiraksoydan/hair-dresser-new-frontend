@@ -3,9 +3,9 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
 import SearchBar from "../../components/common/searchbar";
-import { useBottomSheetRegistry, useSheet } from "../../context/bottomsheet";
-import { BarberStoreGetDto, FreeBarGetDto, FavoriteTargetType } from "../../types";
-import { useGetAllCategoriesQuery, useGetMyFavoritesQuery } from "../../store/api";
+import { useBottomSheet } from "../../hook/useBottomSheet";
+import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
+import { useGetAllCategoriesQuery } from "../../store/api";
 import { StoreCardInner } from "../../components/store/storecard";
 import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
@@ -28,11 +28,9 @@ import { usePanelFilters } from "../../hook/usePanelFilters";
 import { StoreMarker } from "../../components/common/storemarker";
 import { BarberMarker } from "../../components/freebarber/barbermarker";
 
-// ✅ Main Component
 const Index = () => {
     const router = useRouter();
 
-    // ✅ RTK Query ile data çekme - keepUnusedDataFor ile cache süresi ayarlanır
     const {
         stores = [],
         loading: storesLoading,
@@ -63,21 +61,6 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
-    const { data: favorites = [] } = useGetMyFavoritesQuery();
-    const favoriteStoreIds = useMemo(() => {
-        return new Set(
-            (favorites ?? [])
-                .filter((f: any) => f.targetType === FavoriteTargetType.Store)
-                .map((f: any) => String(f.favoritedToId))
-        );
-    }, [favorites]);
-    const favoriteFreeBarberIds = useMemo(() => {
-        return new Set(
-            (favorites ?? [])
-                .filter((f: any) => f.targetType === FavoriteTargetType.FreeBarber)
-                .map((f: any) => String(f.favoritedToId))
-        );
-    }, [favorites]);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isList, setIsList] = useState(true);
@@ -85,9 +68,15 @@ const Index = () => {
     const [selectedMapItem, setSelectedMapItem] = useState<{ type: 'store' | 'freeBarber', data: any } | null>(null);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
 
-    const { present: presentMapDetail } = useSheet("mapDetail");
-    const { present: presentRatings } = useSheet("ratings");
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
+    // Bottom sheet hooks
+    const mapDetailSheet = useBottomSheet({
+        snapPoints: ["65%"],
+        enablePanDownToClose: true,
+    });
+    const ratingsSheet = useBottomSheet({
+        snapPoints: ["50%", "85%"],
+        enablePanDownToClose: true,
+    });
 
     // Filter drawer state
     const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
@@ -119,7 +108,7 @@ const Index = () => {
     } = usePanelFilters();
 
 
-    // ✅ Refresh handler - her iki list'i de yenile (concurrency guarded)
+    // Refresh handler - her iki list'i de yenile (concurrency guarded)
     // Hard refresh: Cache'i bypass ederek fresh data çek
     const [refreshing, setRefreshing] = useState(false);
     const isRefreshingRef = useRef(false);
@@ -155,13 +144,16 @@ const Index = () => {
 
     const handleMapItemPress = useCallback((item: any, type: 'store' | 'freeBarber') => {
         setSelectedMapItem({ type, data: item });
-        presentMapDetail();
-    }, [presentMapDetail]);
+        mapDetailSheet.present();
+    }, [mapDetailSheet]);
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
-        presentRatings();
-    }, [presentRatings]);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            ratingsSheet.present();
+        }, 100);
+    }, [ratingsSheet]);
 
     // Filter fonksiyonları
     const handleApplyFilters = useCallback(() => {
@@ -183,9 +175,8 @@ const Index = () => {
             searchQuery,
             filters: appliedFilters,
             categoryNameById,
-            favoriteIds: favoriteStoreIds,
         });
-    }, [stores, searchQuery, appliedFilters, categoryNameById, favoriteStoreIds]);
+    }, [stores, searchQuery, appliedFilters, categoryNameById]);
 
     const filteredFreeBarbers = useMemo(() => {
         const shouldShowFreeBarbers = appliedFilters.userType === "Hepsi" || appliedFilters.userType === "Serbest Berber";
@@ -195,11 +186,10 @@ const Index = () => {
             searchQuery,
             filters: appliedFilters,
             categoryNameById,
-            favoriteIds: favoriteFreeBarberIds,
         });
-    }, [freeBarbers, searchQuery, appliedFilters, categoryNameById, favoriteFreeBarberIds]);
+    }, [freeBarbers, searchQuery, appliedFilters, categoryNameById]);
 
-    // ✅ Map markers (filtrelenmiş data kullan)
+    // Map markers (filtrelenmiş data kullan)
     const storeMarkers = useMemo(() => {
         return filteredStores.map((store) => {
             const c = safeCoord(store.latitude, store.longitude);
@@ -298,10 +288,11 @@ const Index = () => {
             {/* Map Toggle Button */}
             <TouchableOpacity
                 onPress={() => setIsMapMode(!isMapMode)}
-                className="absolute right-4 bottom-6 w-14 h-14 bg-[#38393b] rounded-full items-center justify-center z-20 shadow-lg border border-[#47494e]"
+                className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
                 style={{ elevation: 8 }}
             >
-                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={28} style={{ margin: 0 }} />
+                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={24} style={{ margin: 0 }} />
+                <Text className="text-white font-semibold text-sm">{isMapMode ? "Liste" : "Haritada Ara"}</Text>
             </TouchableOpacity>
 
             {/* Filter Drawer */}
@@ -337,13 +328,14 @@ const Index = () => {
             {/* Bottom Sheets */}
 
             <BottomSheetModal
-                ref={(inst) => setRef("mapDetail", inst)}
-                snapPoints={isMapMode ? ["75%", "100%"] : ["100%"]}
+                ref={mapDetailSheet.ref}
+                snapPoints={mapDetailSheet.snapPoints}
                 enableOverDrag={isMapMode}
-                enablePanDownToClose={isMapMode}
+                enablePanDownToClose={mapDetailSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={mapDetailSheet.makeBackdrop()}
+                onChange={mapDetailSheet.handleChange}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                     {selectedMapItem?.type === 'store' && (
@@ -356,24 +348,32 @@ const Index = () => {
             </BottomSheetModal>
 
             <BottomSheetModal
-                ref={(inst) => setRef("ratings", inst)}
-                snapPoints={["50%", "85%"]}
-                enablePanDownToClose={true}
+                ref={ratingsSheet.ref}
+                snapPoints={ratingsSheet.snapPoints}
+                enablePanDownToClose={ratingsSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={ratingsSheet.makeBackdrop()}
                 onChange={(index) => {
+                    ratingsSheet.handleChange(index);
                     if (index < 0) {
                         setSelectedRatingsTarget(null);
                     }
                 }}
             >
-                {selectedRatingsTarget && (
+                {selectedRatingsTarget ? (
                     <RatingsBottomSheet
                         targetId={selectedRatingsTarget.targetId}
                         targetName={selectedRatingsTarget.targetName}
-                        onClose={() => setSelectedRatingsTarget(null)}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                            ratingsSheet.dismiss();
+                        }}
                     />
+                ) : (
+                    <View className="flex-1 pt-4">
+                        <SkeletonComponent />
+                    </View>
                 )}
             </BottomSheetModal>
         </View>

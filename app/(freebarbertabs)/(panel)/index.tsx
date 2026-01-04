@@ -1,6 +1,6 @@
 ﻿import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from 'react-native'
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import { useBottomSheetRegistry, useSheet } from '../../context/bottomsheet';
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { useBottomSheet } from '../../hook/useBottomSheet';
 import SearchBar from '../../components/common/searchbar';
 import FormatListButton from '../../components/common/formatlistbutton';
 import FilterButton from '../../components/common/filterbutton';
@@ -14,7 +14,7 @@ import { FormFreeBarberOperation } from '../../components/freebarber/formfreebar
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { StoreCardInner } from '../../components/store/storecard';
 import { useNearbyStores } from '../../hook/useNearByStore';
-import { BarberStoreGetDto, FavoriteTargetType, AppointmentStatus, StoreSelectionType } from '../../types';
+import { BarberStoreGetDto, AppointmentStatus, StoreSelectionType } from '../../types';
 import { FreeBarberPanelSection } from '../../components/freebarber/freebarberpanelsection';
 import { EmptyState } from '../../components/common/emptystateresult';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -22,7 +22,7 @@ import { Icon, IconButton } from 'react-native-paper';
 import MapView, { Marker } from 'react-native-maps';
 import { safeCoord } from '../../utils/location/geo';
 import StoreBookingContent from '../../components/store/storebooking';
-import { useGetAllCategoriesQuery, useGetFreeBarberMinePanelQuery, useGetMyFavoritesQuery, useGetAllNotificationsQuery } from '../../store/api';
+import { useGetAllCategoriesQuery, useGetFreeBarberMinePanelQuery, useGetAllNotificationsQuery, useGetSettingQuery } from '../../store/api';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 import { filterStores } from "../../utils/filter/panel-filters";
@@ -84,8 +84,6 @@ const Index = () => {
     // URL'den gelen mode veya otomatik algılanan randevu varsa add-store modu
     const effectiveAppointmentId = activeStoreSelectionAppointment?.id;
 
-    console.log(effectiveAppointmentId);
-
 
     const { stores, loading, error: storeError, locationStatus, locationMessage, hasLocation, fetchedOnce, location, manualFetch } = useNearbyStores(true);
     const { data: allCategories = [] } = useGetAllCategoriesQuery();
@@ -96,20 +94,15 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
-    const { data: favorites = [], refetch: refetchFavorites } = useGetMyFavoritesQuery();
-    const favoriteStoreIds = useMemo(() => {
-        return new Set(
-            (favorites ?? [])
-                .filter((f: any) => f.targetType === FavoriteTargetType.Store)
-                .map((f: any) => String(f.favoritedToId))
-        );
-    }, [favorites]);
 
     // useTrackFreeBarberLocation zaten hard refresh yapıyor (30 saniyede bir) ve updateFreeBarberLocation mutation'ı MineFreeBarberPanel tag'ini invalidate ediyor
     // Bu yüzden ayrı polling interval'a gerek yok
     const { data: freeBarber, isLoading, isError, error, refetch: refetchFreeBarber } = useGetFreeBarberMinePanelQuery(undefined, {
         skip: !hasLocation,
     });
+
+    // Ayarlar
+    const { data: settingData } = useGetSettingQuery();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [isList, setIsList] = useState(true);
@@ -152,30 +145,37 @@ const Index = () => {
             await Promise.all([
                 manualFetch(),
                 refetchFreeBarber(),
-                refetchFavorites(),
                 refetchNotifications(),
             ]);
         } finally {
             setRefreshing(false);
             isRefreshingRef.current = false;
         }
-    }, [manualFetch, refetchFavorites, refetchFreeBarber, refetchNotifications]);
+    }, [manualFetch, refetchFreeBarber, refetchNotifications]);
 
 
 
     const [isMapMode, setIsMapMode] = useState(false);
     const [selectedMapItem, setSelectedMapItem] = useState<BarberStoreGetDto | null>(null);
-    const { present: presentMapDetail } = useSheet("mapDetail");
+
+    // Bottom sheet hooks
+    const mapDetailSheet = useBottomSheet({
+        snapPoints: ["65%"],
+        enablePanDownToClose: true,
+    });
+    const freeBarberPanelSnapPoints = useMemo(() => isMapMode ? ["75%", "100%"] : ["100%"], [isMapMode]);
+    const freeBarberPanelSheet = useBottomSheet({
+        snapPoints: freeBarberPanelSnapPoints,
+        enablePanDownToClose: isMapMode,
+        enableOverDrag: isMapMode,
+    });
+    const ratingsSheet = useBottomSheet({
+        snapPoints: ["50%", "85%"],
+        enablePanDownToClose: true,
+    });
 
     const [expandedStoreBarber, setExpandedStoreBarber] = useState(true);
-    const { setRef, makeBackdrop } = useBottomSheetRegistry();
-    const { present: freeBarberPanel } = useSheet('freeBarberMinePanel');
-    const { present: presentRatings } = useSheet('ratings');
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
-    const [isMapDetailOpen, setIsMapDetailOpen] = useState(false);
-    const [isRatingsSheetOpen, setIsRatingsSheetOpen] = useState(false);
-
     const [freeBarberId, setFreeBarberId] = useState<string | null>(null);
 
     const screenWidth = Dimensions.get('window').width;
@@ -185,48 +185,29 @@ const Index = () => {
         [expandedStoreBarber, screenWidth]
     );
 
-    // Önceki data'yı tutarak flicker'ı önle ve iç içe binmeyi engelle
-    const [previousStores, setPreviousStores] = useState<BarberStoreGetDto[]>([]);
+    // RTK Query cache'i zaten data yönetimini yapıyor, previous state'e gerek yok
+    const displayStores = stores ?? [];
 
-    // Data değiştiğinde önceki data'yı güncelle
-    // DÜZELTME: dependency array'den previousStores kaldırıldı (stale closure önlendi)
-    useEffect(() => {
-        if (!loading && stores && Array.isArray(stores)) {
-            // Loading bittiğinde ve yeni data geçerliyse kaydet
-            if (stores.length > 0) {
-                // Yeni data varsa ve öncekinden farklıysa güncelle
-                setPreviousStores(prev => {
-                    // Deep equality check yerine length ve ilk id kontrolü (performance için)
-                    if (prev.length !== stores.length ||
-                        (prev[0]?.id !== stores[0]?.id)) {
-                        return stores;
-                    }
-                    return prev;
-                });
-            }
-        }
-    }, [stores, loading]); // previousStores dependency'den kaldırıldı
-
-    // Display için: loading ise önceki data'yı göster (refresh sırasında flicker önlenir)
-    // Loading değilse yeni data'yı göster
-    const displayStores = loading && previousStores.length > 0
-        ? previousStores
-        : (stores ?? []);
-
-    // Loading state'i: sadece ilk yükleme veya data yoksa true
-    const isStoresLoading = loading && previousStores.length === 0;
+    // Loading state'i direkt RTK Query'den geliyor
+    const isStoresLoading = loading;
 
     const hasStoreBarbers = displayStores.length > 0;
 
     const handleOpenPanel = useCallback((id: string | null) => {
         setFreeBarberId(id);
-        freeBarberPanel();
-    }, [freeBarberPanel]);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            freeBarberPanelSheet.present();
+        }, 100);
+    }, [freeBarberPanelSheet]);
 
     const handlePressRatings = useCallback((targetId: string, targetName: string) => {
         setSelectedRatingsTarget({ targetId, targetName });
-        presentRatings();
-    }, [presentRatings]);
+        // Sheet'i açmak için küçük bir gecikme ekle
+        setTimeout(() => {
+            ratingsSheet.present();
+        }, 100);
+    }, [ratingsSheet]);
 
     // Filter fonksiyonları
     const handleApplyFilters = useCallback(() => {
@@ -248,20 +229,19 @@ const Index = () => {
             searchQuery,
             filters: appliedFilters,
             categoryNameById,
-            favoriteIds: favoriteStoreIds,
         });
-    }, [displayStores, searchQuery, appliedFilters, categoryNameById, favoriteStoreIds]);
+    }, [displayStores, searchQuery, appliedFilters, categoryNameById]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
-        const params: any = { 
-            storeId: store.id, 
+        const params: any = {
+            storeId: store.id,
             mode: effectiveAppointmentId ? "add-store" : "free-barber"
         };
-        
+
         if (effectiveAppointmentId) {
             params.appointmentId = effectiveAppointmentId;
         }
-        
+
         router.push({
             pathname: "/store/[storeId]",
             params,
@@ -278,9 +258,10 @@ const Index = () => {
                 isViewerFromFreeBr={true}
                 onPressUpdate={goStoreDetail}
                 onPressRatings={handlePressRatings}
+                showImageAnimation={settingData?.data?.showImageAnimation ?? true}
             />
         ),
-        [isList, expandedStoreBarber, cardWidthStores, goStoreDetail, handlePressRatings]
+        [isList, expandedStoreBarber, cardWidthStores, goStoreDetail, handlePressRatings, settingData]
     );
 
     // FlatList için tüm item'ları birleştir
@@ -322,14 +303,14 @@ const Index = () => {
         }
 
         return items;
-    }, [isStoresLoading, storeError, filteredStores, expandedStoreBarber, appliedFilters.userType]);
+    }, [isStoresLoading, storeError, filteredStores, expandedStoreBarber, appliedFilters.userType, settingData]);
 
     const handleMarkerPress = useCallback(
         (item: BarberStoreGetDto) => {
             setSelectedMapItem(item);
-            presentMapDetail();
+            mapDetailSheet.present();
         },
-        [presentMapDetail]
+        [mapDetailSheet]
     );
 
     const storeMarkers = useMemo(() => {
@@ -431,6 +412,7 @@ const Index = () => {
                                     searchQuery={searchQuery}
                                     appliedFilters={appliedFilters}
                                     categoryNameById={categoryNameById}
+                                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                                 />
                             );
                         }
@@ -509,6 +491,7 @@ const Index = () => {
                                     isViewerFromFreeBr={true}
                                     onPressUpdate={goStoreDetail}
                                     onPressRatings={handlePressRatings}
+                                    showImageAnimation={settingData?.data?.showImageAnimation ?? true}
                                 />
                             );
                         }
@@ -535,10 +518,11 @@ const Index = () => {
 
             <TouchableOpacity
                 onPress={() => setIsMapMode(!isMapMode)}
-                className="absolute right-4 bottom-6 w-14 h-14 bg-[#38393b] rounded-full items-center justify-center z-20 shadow-lg border border-[#47494e]"
+                className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
                 style={{ elevation: 8 }}
             >
-                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={28} style={{ margin: 0 }} />
+                <IconButton icon={isMapMode ? "format-list-bulleted" : "map"} iconColor="#f05e23" size={24} style={{ margin: 0 }} />
+                <Text className="text-white font-semibold text-sm">{isMapMode ? "Liste" : "Haritada Ara"}</Text>
             </TouchableOpacity>
 
             <FilterDrawer
@@ -571,41 +555,47 @@ const Index = () => {
             />
 
             <BottomSheetModal
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: 'close' })}
+                ref={freeBarberPanelSheet.ref}
+                backdropComponent={freeBarberPanelSheet.makeBackdrop()}
                 handleIndicatorStyle={{ backgroundColor: '#47494e' }}
                 backgroundStyle={{ backgroundColor: '#151618' }}
-                ref={(inst) => setRef('freeBarberMinePanel', inst)}
-                onChange={(index) => { setIsSheetOpen(index >= 0); }}
-                snapPoints={isMapMode ? ["75%", "100%"] : ["100%"]}
-                enableOverDrag={isMapMode}
-                enablePanDownToClose={isMapMode}
+                onChange={freeBarberPanelSheet.handleChange}
+                snapPoints={freeBarberPanelSheet.snapPoints}
+                enableOverDrag={freeBarberPanelSheet.enableOverDrag}
+                enablePanDownToClose={freeBarberPanelSheet.enablePanDownToClose}
             >
                 <BottomSheetView className='h-full pt-2'>
                     <DeferredRender
-                        active={isSheetOpen}
+                        active={freeBarberPanelSheet.isOpen}
                         placeholder={
                             <View className="flex-1 pt-4">
                                 <CrudSkeletonComponent />
                             </View>
                         }
                     >
-                        <FormFreeBarberOperation freeBarberId={freeBarberId} enabled={isSheetOpen} />
+                        <FormFreeBarberOperation
+                            freeBarberId={freeBarberId}
+                            enabled={freeBarberPanelSheet.isOpen}
+                            onClose={() => {
+                                freeBarberPanelSheet.dismiss();
+                            }}
+                        />
                     </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
 
             <BottomSheetModal
-                ref={(inst) => setRef("mapDetail", inst)}
-                onChange={(index) => setIsMapDetailOpen(index >= 0)}
-                snapPoints={["65%"]}
-                enablePanDownToClose={true}
+                ref={mapDetailSheet.ref}
+                onChange={mapDetailSheet.handleChange}
+                snapPoints={mapDetailSheet.snapPoints}
+                enablePanDownToClose={mapDetailSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={mapDetailSheet.makeBackdrop()}
             >
                 <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                     <DeferredRender
-                        active={isMapDetailOpen && !!selectedMapItem}
+                        active={mapDetailSheet.isOpen && !!selectedMapItem}
                         placeholder={
                             <View className="flex-1 pt-4">
                                 <SkeletonComponent />
@@ -627,40 +617,33 @@ const Index = () => {
 
             {/* Yorumlar Bottom Sheet */}
             <BottomSheetModal
-                ref={(inst) => setRef("ratings", inst)}
-                snapPoints={["50%", "85%"]}
-                enablePanDownToClose={true}
+                ref={ratingsSheet.ref}
+                snapPoints={ratingsSheet.snapPoints}
+                enablePanDownToClose={ratingsSheet.enablePanDownToClose}
                 handleIndicatorStyle={{ backgroundColor: "#47494e" }}
                 backgroundStyle={{ backgroundColor: "#151618" }}
-                backdropComponent={makeBackdrop({ appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" })}
+                backdropComponent={ratingsSheet.makeBackdrop()}
                 onChange={(index) => {
+                    ratingsSheet.handleChange(index);
                     if (index < 0) {
                         setSelectedRatingsTarget(null);
-                        setIsRatingsSheetOpen(false);
-                    } else {
-                        setIsRatingsSheetOpen(true);
                     }
                 }}
             >
-                <DeferredRender
-                    active={isRatingsSheetOpen && !!selectedRatingsTarget}
-                    placeholder={
-                        <View className="flex-1 pt-4">
-                            <SkeletonComponent />
-                        </View>
-                    }
-                >
-                    {selectedRatingsTarget && (
-                        <RatingsBottomSheet
-                            targetId={selectedRatingsTarget.targetId}
-                            targetName={selectedRatingsTarget.targetName}
-                            onClose={() => {
-                                setSelectedRatingsTarget(null);
-                                setIsRatingsSheetOpen(false);
-                            }}
-                        />
-                    )}
-                </DeferredRender>
+                {selectedRatingsTarget ? (
+                    <RatingsBottomSheet
+                        targetId={selectedRatingsTarget.targetId}
+                        targetName={selectedRatingsTarget.targetName}
+                        onClose={() => {
+                            setSelectedRatingsTarget(null);
+                            ratingsSheet.dismiss();
+                        }}
+                    />
+                ) : (
+                    <View className="flex-1 pt-4">
+                        <SkeletonComponent />
+                    </View>
+                )}
             </BottomSheetModal>
         </View>
     )

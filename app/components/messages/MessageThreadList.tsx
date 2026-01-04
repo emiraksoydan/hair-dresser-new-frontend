@@ -11,6 +11,7 @@ import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
 import { ChatThreadListItemDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType, ImageOwnerType } from '../../types';
 import { LottieViewComponent } from '../common/lottieview';
+import { resolveApiErrorMessage } from '../../utils/common/error';
 import { SkeletonComponent } from '../common/skeleton';
 import { OwnerAvatar } from '../common/owneravatar';
 import { useFormatTime } from '../../utils/time/time-formatter';
@@ -26,7 +27,7 @@ interface MessageThreadListProps {
 
 export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefix, iconSource }) => {
     const router = useRouter();
-    const { data: threads, isLoading, refetch, isFetching } = useGetChatThreadsQuery();
+    const { data: threads, isLoading, refetch, isFetching, error, isError } = useGetChatThreadsQuery();
     const formatTime = useFormatTime();
     const { userType: currentUserType } = useAuth();
 
@@ -241,6 +242,41 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
             <View className="flex-1 bg-[#151618] pt-4">
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
             </View>
+        );
+    }
+
+    // Network/Server error durumu - öncelikli göster
+    if (isError && error) {
+        const isRtkQueryError = (e: unknown): e is { status?: unknown; data?: any } =>
+            typeof e === 'object' && e !== null && 'status' in e;
+
+        const status = isRtkQueryError(error) ? error.status : undefined;
+        const isNetworkError = status === 'FETCH_ERROR' || status === 'TIMEOUT_ERROR';
+
+        const backendMessage = isRtkQueryError(error) ? (error.data as any)?.message : undefined;
+        const errorMessage =
+            backendMessage ||
+            (isNetworkError
+                ? 'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.'
+                : resolveApiErrorMessage(error));
+
+        return (
+            <ScrollView
+                className="flex-1 bg-[#151618]"
+                contentContainerStyle={{ flexGrow: 1 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isFetching && !isLoading}
+                        onRefresh={refetch}
+                        tintColor="#f05e23"
+                    />
+                }
+            >
+                <LottieViewComponent
+                    animationSource={require('../../../assets/animations/error.json')}
+                    message={errorMessage}
+                />
+            </ScrollView>
         );
     }
 

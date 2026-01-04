@@ -1,11 +1,12 @@
 ﻿import { PricingType } from "../../types/store";
 import { useAuth } from "../../hook/useAuth";
-import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, useCustomerDecisionMutation, api } from "../../store/api";
+import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useDeleteNotificationMutation, useDeleteAllNotificationsMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, useCustomerDecisionMutation, api } from "../../store/api";
 import { useAppDispatch } from "../../store/hook";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { AppointmentStatus, DecisionStatus, NotificationDto, StoreSelectionType, UserType } from "../../types";
-import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
+import { Icon } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NotificationItem } from "./notificationdetail";
 import { useRouter } from "expo-router";
@@ -17,16 +18,24 @@ export function NotificationsSheet({
     onClose,
     onOpenAppointmentDecision,
     autoOpenFirstUnread = false,
+    onDeleteSuccess,
+    onDeleteInfo,
+    onDeleteError,
 }: {
     onClose?: () => void;
     onOpenAppointmentDecision?: (appointmentId: string, notificationId: string) => void;
     autoOpenFirstUnread?: boolean;
+    onDeleteSuccess?: (message: string) => void;
+    onDeleteInfo?: (message: string) => void;
+    onDeleteError?: (message: string) => void;
 }) {
     const dispatch = useAppDispatch();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { data, isFetching, refetch } = useGetAllNotificationsQuery();
     const [markRead] = useMarkNotificationReadMutation();
+    const [deleteNotification, { isLoading: isDeletingNotification }] = useDeleteNotificationMutation();
+    const [deleteAllNotifications, { isLoading: isDeletingAllNotifications }] = useDeleteAllNotificationsMutation();
     const { userType } = useAuth();
     const [storeDecision, { isLoading: isStoreDeciding }] = useStoreDecisionMutation();
     const [freeBarberDecision, { isLoading: isFreeBarberDeciding }] = useFreeBarberDecisionMutation();
@@ -34,14 +43,10 @@ export function NotificationsSheet({
 
     // FreeBarber için "Dükkan Ekle" butonu handler
     const handleAddStore = useCallback((appointmentId: string) => {
-        console.log("Dükkan Ekle tıklandı, appointmentId:", appointmentId);
-
-        // Önce modal'ı kapat
         if (onClose) {
             onClose();
         }
 
-        // Kısa bir gecikmeyle yönlendir (modal kapanması için)
         setTimeout(() => {
             try {
                 router.push({
@@ -51,9 +56,7 @@ export function NotificationsSheet({
                         appointmentId: appointmentId
                     },
                 });
-                console.log("Router push çağrıldı");
             } catch (error) {
-                console.error("Router push hatası:", error);
                 Alert.alert("Hata", "Yönlendirme başarısız oldu.");
             }
         }, 300);
@@ -178,6 +181,64 @@ export function NotificationsSheet({
         }
     }, [userType, storeDecision, freeBarberDecision, customerDecision, dispatch]);
 
+    const handleDelete = useCallback(async (notification: NotificationDto) => {
+        Alert.alert(
+            "Bildirimi Sil",
+            "Bu bildirimi silmek istediğinize emin misiniz?",
+            [
+                { text: "İptal", style: "cancel" },
+                {
+                    text: "Sil",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteNotification(notification.id).unwrap();
+                            if (onDeleteSuccess) {
+                                onDeleteSuccess("Bildirim başarıyla silindi.");
+                            }
+                        } catch (error: any) {
+                            const errorMessage = error?.data?.message || error?.message || "Bildirim silinemedi.";
+                            if (onDeleteError) {
+                                onDeleteError(errorMessage);
+                            } else {
+                                Alert.alert("Hata", errorMessage);
+                            }
+                        }
+                    },
+                },
+            ]
+        );
+    }, [deleteNotification, onDeleteSuccess, onDeleteError]);
+
+    const handleDeleteAll = useCallback(async () => {
+        Alert.alert(
+            "Tüm Bildirimleri Sil",
+            "Silinebilir tüm bildirimleri silmek istediğinize emin misiniz?",
+            [
+                { text: "İptal", style: "cancel" },
+                {
+                    text: "Sil",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteAllNotifications().unwrap();
+                            if (onDeleteSuccess) {
+                                onDeleteSuccess("Bildirimler başarıyla silindi.");
+                            }
+                        } catch (error: any) {
+                            const errorMessage = error?.data?.message || error?.message || "Bildirimler silinemedi.";
+                            if (onDeleteError) {
+                                onDeleteError(errorMessage);
+                            } else {
+                                Alert.alert("Hata", errorMessage);
+                            }
+                        }
+                    },
+                },
+            ]
+        );
+    }, [deleteAllNotifications, onDeleteSuccess, onDeleteError]);
+
     // Helper functions
     const formatTime = useCallback((timeStr?: string) => {
         if (!timeStr) return "";
@@ -205,7 +266,9 @@ export function NotificationsSheet({
                 userType={userType}
                 onMarkRead={handleMarkRead}
                 onDecision={handleDecision}
+                onDelete={handleDelete}
                 isProcessing={isStoreDeciding || isFreeBarberDeciding || isCustomerDeciding}
+                isDeleting={isDeletingNotification}
                 formatDate={formatDate}
                 formatTime={formatTime}
                 formatPricingPolicy={formatPricingPolicy}
@@ -213,16 +276,32 @@ export function NotificationsSheet({
                 onAddStore={handleAddStore}
             />
         );
-    }, [userType, handleMarkRead, handleDecision, isStoreDeciding, isFreeBarberDeciding, isCustomerDeciding, formatDate, formatTime, formatPricingPolicy, formatRating, handleAddStore]);
+    }, [userType, handleMarkRead, handleDecision, handleDelete, isStoreDeciding, isFreeBarberDeciding, isCustomerDeciding, isDeletingNotification, formatDate, formatTime, formatPricingPolicy, formatRating, handleAddStore]);
 
 
     return (
         <View className="flex-1 px-3">
             <View className="flex-row justify-between items-center my-3">
                 <Text className="text-white text-lg font-bold">Bildirimler</Text>
-                <TouchableOpacity onPress={onClose}>
-                    <Text className="text-[#f05e23] font-semibold">Kapat</Text>
-                </TouchableOpacity>
+                <View className="flex-row items-center gap-3">
+                    {data && data.length > 0 && (
+                        <TouchableOpacity 
+                            onPress={handleDeleteAll}
+                            disabled={isDeletingAllNotifications}
+                            className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 ${isDeletingAllNotifications ? 'opacity-60' : ''}`}
+                        >
+                            {isDeletingAllNotifications ? (
+                                <ActivityIndicator size="small" color="white" />
+                            ) : (
+                                <Icon source="delete-sweep" size={18} color="white" />
+                            )}
+                            <Text className="text-white font-semibold text-sm">Tümünü Sil</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={onClose}>
+                        <Text className="text-[#f05e23] font-semibold">Kapat</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <BottomSheetFlatList
