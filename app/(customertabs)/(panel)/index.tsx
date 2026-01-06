@@ -5,7 +5,7 @@ import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
 import SearchBar from "../../components/common/searchbar";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
-import { useGetAllCategoriesQuery } from "../../store/api";
+import { useGetAllCategoriesQuery, useGetSettingQuery } from "../../store/api";
 import { StoreCardInner } from "../../components/store/storecard";
 import FormatListButton from "../../components/common/formatlistbutton";
 import FilterButton from "../../components/common/filterbutton";
@@ -61,6 +61,9 @@ const Index = () => {
         });
         return map;
     }, [allCategories]);
+
+    // Ayarlar
+    const { data: settingData } = useGetSettingQuery();
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isList, setIsList] = useState(true);
@@ -267,6 +270,8 @@ const Index = () => {
                         onPressRatings={handlePressRatings}
                         searchQuery={searchQuery}
                         appliedFilters={appliedFilters}
+                        showImageAnimation={settingData?.data?.showImageAnimation ?? true}
+                        isMapMode={isMapMode}
                     />
 
                     <FreeBarbersSection
@@ -281,6 +286,8 @@ const Index = () => {
                         onPressRatings={handlePressRatings}
                         searchQuery={searchQuery}
                         appliedFilters={appliedFilters}
+                        showImageAnimation={settingData?.data?.showImageAnimation ?? true}
+                        isMapMode={isMapMode}
                     />
                 </ScrollView>
             )}

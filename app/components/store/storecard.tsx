@@ -19,9 +19,10 @@ type Props = {
     onPressUpdate?: (store: BarberStoreGetDto) => void;
     onPressRatings?: (storeId: string, storeName: string) => void;
     showImageAnimation?: boolean;
+    isMapMode?: boolean;
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true }) => {
+const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true, isMapMode = false }) => {
     const coverImage = store.imageList?.[0]?.imageUrl;
     const carouselWidth = Math.max(0, cardWidthStore);
     const { isAuthenticated } = useAuth();
@@ -78,7 +79,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                 <View className={isList ? '' : 'flex flex-row'}>
                     <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
                         <ImageCarousel
-                            key={`store-${store.id}`}
+                            key={`store-${store.id}-${isMapMode}`}
                             images={store.imageList ?? []}
                             width={isList ? carouselWidth : 112}
                             height={isList ? 250 : 112}
@@ -87,6 +88,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                             autoPlayInterval={2000}
                             borderRadiusClass="rounded-lg"
                             showPagination={true}
+                            isMapMode={isMapMode}
                         />
                         {/* Image üzerinde bilgiler - hem list hem card modunda */}
                         <View className={isList ? 'absolute top-3 right-3 flex-row gap-2 z-10' : ''}>
@@ -279,7 +281,8 @@ export const StoreCardInner = React.memo(
             prev.typeLabelColor === next.typeLabelColor &&
             prev.onPressUpdate === next.onPressUpdate &&
             prev.onPressRatings === next.onPressRatings &&
-            prev.showImageAnimation === next.showImageAnimation;
+            prev.showImageAnimation === next.showImageAnimation &&
+            (prev.isMapMode ?? false) === (next.isMapMode ?? false);
 
         return sameStore && sameProps;
     }

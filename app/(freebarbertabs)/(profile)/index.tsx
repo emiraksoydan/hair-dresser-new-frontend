@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { handlePickImage } from '../../utils/form/pick-document';
 import { ImageOwnerType } from '../../types';
 import { useSnackbar } from '../../hook/useSnackbar';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { LottieViewComponent } from '../../components/common/lottieview';
@@ -41,6 +41,7 @@ const Index = () => {
     const [updateSetting, { isLoading: isUpdatingSetting }] = useUpdateSettingMutation();
     const { showSnack, SnackbarComponent } = useSnackbar();
     const [refreshing, setRefreshing] = useState(false);
+    const isUpdatingSettingRef = useRef(false);
 
     const {
         control,
@@ -124,9 +125,10 @@ const Index = () => {
 
             const uploadResult = await uploadImage(formData).unwrap();
             if (uploadResult.success) {
-                showSnack('Profil fotoğrafı güncellendi', false);
-                // Refetch user data to get updated image
+                // Refetch user data to get updated image (snackbar refetch sonrası gösterilecek)
                 await refetch();
+                // Snackbar'ı sadece bir kere göster
+                showSnack('Profil fotoğrafı güncellendi', false);
             } else {
                 showSnack('Fotoğraf yüklenemedi', true);
             }
@@ -349,14 +351,18 @@ const Index = () => {
                         <Switch
                             value={settingData?.data?.showImageAnimation ?? true}
                             onValueChange={async (value) => {
+                                if (isUpdatingSettingRef.current) return;
+                                isUpdatingSettingRef.current = true;
                                 try {
                                     await updateSetting({
                                         showImageAnimation: value,
                                     }).unwrap();
-                                    await refetchSetting();
+                                    // refetchSetting çağrısını kaldırdık - RTK Query otomatik güncelliyor
                                     showSnack('Ayar güncellendi', false);
                                 } catch (error: any) {
                                     showSnack(error?.data?.message || 'Ayar güncellenemedi', true);
+                                } finally {
+                                    isUpdatingSettingRef.current = false;
                                 }
                             }}
                             disabled={isUpdatingSetting || isLoadingSetting}

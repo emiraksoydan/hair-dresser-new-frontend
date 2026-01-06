@@ -157,40 +157,40 @@ export const useSignalR = () => {
                                     const newPayload = JSON.parse(dto.payloadJson);
                                     if (newPayload && typeof newPayload === 'object') {
                                         const newStatus = newPayload?.status;
-                            const newStoreDecision = newPayload?.storeDecision;
-                            const newFreeBarberDecision = newPayload?.freeBarberDecision;
-                            const newCustomerDecision = newPayload?.customerDecision;
+                                        const newStoreDecision = newPayload?.storeDecision;
+                                        const newFreeBarberDecision = newPayload?.freeBarberDecision;
+                                        const newCustomerDecision = newPayload?.customerDecision;
 
-                            // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
-                            // Sadece AppointmentCreated notification'larını güncelle (diğerleri sabit kalmalı)
-                            draft.forEach((notification) => {
-                                if (notification.type !== NotificationType.AppointmentCreated) return;
-                                if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
-                                    try {
-                                        if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
-                                            const currentPayload = JSON.parse(notification.payloadJson);
-                                            if (currentPayload && typeof currentPayload === 'object') {
-                                                // Status ve decision bilgilerini güncelle
-                                                if (newStatus !== undefined) {
-                                                    currentPayload.status = newStatus;
+                                        // Aynı appointmentId'ye sahip tüm notification'ları bul ve güncelle
+                                        // Sadece AppointmentCreated notification'larını güncelle (diğerleri sabit kalmalı)
+                                        draft.forEach((notification) => {
+                                            if (notification.type !== NotificationType.AppointmentCreated) return;
+                                            if (notification.appointmentId === dto.appointmentId && notification.id !== dto.id) {
+                                                try {
+                                                    if (notification.payloadJson && notification.payloadJson.trim() !== '' && notification.payloadJson !== '{}') {
+                                                        const currentPayload = JSON.parse(notification.payloadJson);
+                                                        if (currentPayload && typeof currentPayload === 'object') {
+                                                            // Status ve decision bilgilerini güncelle
+                                                            if (newStatus !== undefined) {
+                                                                currentPayload.status = newStatus;
+                                                            }
+                                                            if (newStoreDecision !== undefined) {
+                                                                currentPayload.storeDecision = newStoreDecision;
+                                                            }
+                                                            if (newFreeBarberDecision !== undefined) {
+                                                                currentPayload.freeBarberDecision = newFreeBarberDecision;
+                                                            }
+                                                            if (newCustomerDecision !== undefined) {
+                                                                currentPayload.customerDecision = newCustomerDecision;
+                                                            }
+                                                            notification.payloadJson = JSON.stringify(currentPayload);
+                                                        }
+                                                    }
+                                                } catch {
+                                                    // Payload parse edilemezse atla
                                                 }
-                                                if (newStoreDecision !== undefined) {
-                                                    currentPayload.storeDecision = newStoreDecision;
-                                                }
-                                                if (newFreeBarberDecision !== undefined) {
-                                                    currentPayload.freeBarberDecision = newFreeBarberDecision;
-                                                }
-                                                if (newCustomerDecision !== undefined) {
-                                                    currentPayload.customerDecision = newCustomerDecision;
-                                                }
-                                                notification.payloadJson = JSON.stringify(currentPayload);
                                             }
-                                        }
-                                    } catch {
-                                        // Payload parse edilemezse atla
-                                    }
-                                }
-                            });
+                                        });
                                     }
                                 } catch {
                                     // Yeni payload parse edilemezse atla
@@ -286,8 +286,7 @@ export const useSignalR = () => {
                         })
                     );
 
-                    // Badge count backend'den badge.updated event'i ile gelecek, burada sadece invalidate et
-                    dispatch(api.util.invalidateTags(["Badge"]));
+                    // Badge count backend'den badge.updated event'i ile gelecek (updateQueryData ile güncelleniyor)
                 });
 
                 conn.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
@@ -325,7 +324,7 @@ export const useSignalR = () => {
                             }
                         })
                     );
-                    dispatch(api.util.invalidateTags(["Badge"]));
+                    // Badge count backend'den badge.updated event'i ile güncelleniyor
                 });
 
                 conn.on("chat.threadUpdated", (dto: ChatThreadListItemDto) => {
@@ -365,7 +364,7 @@ export const useSignalR = () => {
                             }
                         })
                     );
-                    dispatch(api.util.invalidateTags(["Badge"]));
+                    // Badge count backend'den badge.updated event'i ile güncelleniyor
                 });
 
                 conn.on("chat.threadRemoved", (threadId: string | null | undefined) => {
@@ -384,7 +383,7 @@ export const useSignalR = () => {
                         })
                     );
                     // Thread kaldırıldığında badge count'u invalidate et (backend'de unread count'lar sıfırlandı)
-                    dispatch(api.util.invalidateTags(["Badge"]));
+                    // Badge count backend'den badge.updated event'i ile güncelleniyor
                 });
 
                 // Typing indicator event handler
@@ -394,7 +393,7 @@ export const useSignalR = () => {
                     // Şimdilik sadece event'i dinliyoruz, ChatDetailScreen'de typing state'i yönetilecek
                 });
 
-                    // Appointment updated event handler
+                // Appointment updated event handler
                 // Randevu durumu değiştiğinde (onay/red/tamamlandı/iptal) appointment listesini güncelle
                 conn.on("appointment.updated", (appointment: AppointmentGetDto) => {
                     // Tüm filter'lardaki appointment listelerini kontrol et ve güncelle
@@ -449,11 +448,8 @@ export const useSignalR = () => {
                         );
                     });
 
-                    // Ayrıca invalidate et (güvenlik için - eğer updateQueryData başarısız olursa)
-                    dispatch(api.util.invalidateTags([
-                        { type: 'Appointment', id: appointment.id },
-                        { type: 'Appointment', id: 'LIST' }
-                    ]));
+                    // updateQueryData zaten yapıldı, ekstra invalidate gereksiz
+                    // Sadece kritik durumlarda invalidate et (ör: appointment silindi)
 
                     // ÖNEMLİ: Randevu durumu değiştiğinde thread listesini de güncelle
                     // Thread görünürlüğü randevu durumuna bağlı (Pending/Approved = görünür, diğerleri = görünmez)
@@ -485,10 +481,16 @@ export const useSignalR = () => {
                         })
                     );
 
-                    // Thread listesini de invalidate et (backend'den güncel thread listesi çekilsin)
-                    // Bu, appointment durumu değiştiğinde thread'in anlık olarak görünmesi/kaybolması için gerekli
-                    // Ayrıca backend'den chat.threadUpdated event'i de gelecek ve tam bilgileri güncelleyecek
-                    dispatch(api.util.invalidateTags(["Chat"]));
+                    // Thread listesi zaten updateQueryData ile güncelleniyor
+
+                    // ÖNEMLİ: Randevu durumu değiştiğinde availability'yi invalidate et
+                    // Pending olduğunda koltuğu dolu göster, sonuçlandığında veya cevap verilmediğinde boşa düşür
+                    if (appointment.barberStoreId && appointment.appointmentDate) {
+                        dispatch(api.util.invalidateTags([
+                            { type: 'Appointment', id: `availability-${appointment.barberStoreId}-${appointment.appointmentDate}` },
+                            { type: 'Appointment', id: 'availability' },
+                        ]));
+                    }
                 });
             };
 

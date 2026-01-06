@@ -35,6 +35,7 @@ import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 import { mapBarberType, mapPricingType, mapTypeToDisplayName } from '../../utils/form/form-mappers';
+import { useAuth } from '../../hook/useAuth';
 
 
 
@@ -216,6 +217,7 @@ export type FormUpdateValues = z.input<typeof schema>;
 const FormStoreUpdate = ({ storeId, enabled, onClose }: {
     storeId: string; enabled: boolean; onClose?: () => void;
 }) => {
+    const { userId } = useAuth();
     const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
     const [updateStore, { isLoading: updateLoading, isSuccess }] = useUpdateBarberStoreMutation();
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
@@ -224,6 +226,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
     const [isImagePickerLoading, setIsImagePickerLoading] = React.useState(false);
     const [isTaxDocumentLoading, setIsTaxDocumentLoading] = React.useState(false);
     const [loadedStoreImages, setLoadedStoreImages] = React.useState<Set<number>>(new Set());
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     useEffect(() => {
         if (enabled && storeId) {
@@ -738,6 +741,8 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
 
 
     const OnSubmit = async (form: FormUpdateValues) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         const existingImages = data?.imageList ?? [];
         const formImages = form.storeImages ?? [];
         const existingImageUrls = new Set(existingImages.map((img) => img.imageUrl));
@@ -748,6 +753,10 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         // Tax document image upload (tekli resim)
         let taxDocumentImageId: string | undefined;
         if (form.taxDocumentImage) {
+            if (!userId) {
+                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                return;
+            }
             try {
                 const formData = new FormData();
                 formData.append("file", {
@@ -755,6 +764,8 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                     name: form.taxDocumentImage.name ?? "tax-document.jpg",
                     type: form.taxDocumentImage.type ?? "image/jpeg",
                 } as any);
+                formData.append("ownerType", String(ImageOwnerType.User));
+                formData.append("ownerId", userId);
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
@@ -857,6 +868,8 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                 } else {
                     showSnack(result.message, false);
                 }
+                // Refresh store data to show updated images
+                await triggerGetStore(storeId);
                 onClose?.();
             }
             else {
@@ -865,6 +878,8 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         } catch (error: any) {
             const msg = resolveApiErrorMessage(error);
             showSnack(msg, true);
+        } finally {
+            setIsSubmitting(false);
         }
     };
     const c = safeCoord(location?.latitude, location?.longitude);
@@ -1557,7 +1572,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                         </View>
                     </ScrollView>
                     <View className="px-4 my-3">
-                        <Button style={{ borderRadius: 10 }} disabled={updateLoading} loading={updateLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
+                        <Button style={{ borderRadius: 10 }} disabled={updateLoading || isSubmitting} loading={updateLoading || isSubmitting} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
                     </View>
                     <BarberEditModal
                         visible={barberModalVisible}

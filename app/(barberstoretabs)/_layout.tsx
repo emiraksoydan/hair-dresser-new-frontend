@@ -12,6 +12,8 @@ import { useAuth } from '../hook/useAuth';
 import { DeferredRender } from '../components/common/deferredrender';
 import { CrudSkeletonComponent } from '../components/common/crudskeleton';
 import { InfoModal } from '../components/common/infomodal';
+import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
+import { useNotificationSound } from '../hook/useNotificationSound';
 
 const BarberStoreLayout = () => {
     const { userName } = useAuth();
@@ -45,6 +47,9 @@ const BarberStoreLayout = () => {
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
     const unreadMsg = badge?.unreadMessages ?? 0;
+
+    // Play notification sound when badge count changes
+    useNotificationSound(unreadNoti);
 
     return (
         <>
@@ -88,26 +93,7 @@ const BarberStoreLayout = () => {
                         ),
                         headerTitleAlign: 'left',
                         headerRight: () => (
-                            <View className='flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => addStoreSheet.present()}
-                                    className='items-center justify-center mr-[-5px]'
-                                >
-                                    <Icon source={"plus"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
+                            <View className='flex-row items-center justify-center mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -116,6 +102,26 @@ const BarberStoreLayout = () => {
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
                                 />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'plus',
+                                            label: 'Dükkan Ekle',
+                                            onPress: () => addStoreSheet.present(),
+                                        },
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
+                                />
+
                             </View>
                         ),
 
@@ -150,26 +156,7 @@ const BarberStoreLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => addStoreSheet.present()}
-                                    className='items-center justify-center mr-[-5px]'
-                                >
-                                    <Icon source={"plus"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
+                            <View className='flex-row justify-center items-center mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -177,6 +164,25 @@ const BarberStoreLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'plus',
+                                            label: 'Dükkan Ekle',
+                                            onPress: () => addStoreSheet.present(),
+                                        },
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -213,26 +219,7 @@ const BarberStoreLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => addStoreSheet.present()}
-                                    className='items-center justify-center mr-[-5px]'
-                                >
-                                    <Icon source={"plus"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
+                            <View className='flex-row items-center justify-center mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -240,6 +227,25 @@ const BarberStoreLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'plus',
+                                            label: 'Dükkan Ekle',
+                                            onPress: () => addStoreSheet.present(),
+                                        },
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -275,26 +281,7 @@ const BarberStoreLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => addStoreSheet.present()}
-                                    className='items-center justify-center mr-[-5px]'
-                                >
-                                    <Icon source={"plus"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
+                            <View className='flex-row items-center justify-center mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -302,6 +289,25 @@ const BarberStoreLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'plus',
+                                            label: 'Dükkan Ekle',
+                                            onPress: () => addStoreSheet.present(),
+                                        },
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -337,26 +343,7 @@ const BarberStoreLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => addStoreSheet.present()}
-                                    className='items-center justify-center mr-[-5px]'
-                                >
-                                    <Icon source={"plus"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
+                            <View className='flex-row items-center justify-center mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -364,6 +351,25 @@ const BarberStoreLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'plus',
+                                            label: 'Dükkan Ekle',
+                                            onPress: () => addStoreSheet.present(),
+                                        },
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),

@@ -18,6 +18,7 @@ import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
 import { useSignalR } from './hook/useSignalR';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { useFcmToken } from './hook/useFcmToken';
 
 
 SplashScreen.preventAutoHideAsync();
@@ -48,6 +49,7 @@ const RootLayout = () => {
           <PaperProvider>
             <BottomSheetModalProvider>
               <SignalRBootstrap />
+              <FcmTokenBootstrap />
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -71,6 +73,11 @@ const RootLayout = () => {
 
 function SignalRBootstrap() {
   useSignalR();
+  return null;
+}
+
+function FcmTokenBootstrap() {
+  useFcmToken();
   return null;
 }
 

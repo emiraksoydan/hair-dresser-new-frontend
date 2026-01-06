@@ -48,7 +48,7 @@ const raw = fetchBaseQuery({
 });
 const rawNoAuth = fetchBaseQuery({
   baseUrl: API,
-  timeout: API_CONFIG.REQUEST_TIMEOUT_MS
+  timeout: API_CONFIG.REQUEST_TIMEOUT_MS,
 });
 
 let refreshing: Promise<any> | null = null;
@@ -58,10 +58,33 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
     try {
       let res = await raw(args, api, extra);
 
-      // Backend'den gelen error response'u normalize et
+      // AbortError kontrolü - RTK Query'nin kendi AbortController'ı tarafından iptal edilen query'ler
+      // Bu normal bir durum (component unmount, yeni query başlatıldığında vb.)
       if (res.error) {
-        // Network hatası mı kontrol et
-        if (res.error.status === 'FETCH_ERROR') {
+        // AbortError'ı kontrol et - RTK Query bunu FETCH_ERROR olarak döndürebilir
+        const errorData = res.error.data as any;
+        const errorMessage = typeof errorData === 'string' ? errorData : errorData?.message || '';
+        
+        // AbortError belirtileri: "aborted", "cancel", "AbortError" içeren mesajlar
+        if (
+          res.error.status === 'FETCH_ERROR' && 
+          (
+            errorMessage?.toLowerCase().includes('aborted') ||
+            errorMessage?.toLowerCase().includes('cancel') ||
+            errorMessage?.toLowerCase().includes('abort')
+          )
+        ) {
+          // Abort hatası normal bir durum - sessizce ignore et, hata gösterme
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: '' } // Boş mesaj - hata gösterilmez
+            }
+          } as any;
+        }
+
+        // Network hatası mı kontrol et (gerçek network hataları)
+        if (res.error.status === 'FETCH_ERROR' && !errorMessage?.toLowerCase().includes('abort')) {
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -81,8 +104,7 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
         }
 
         // Backend'den gelen error data'sını kontrol et (IDataResult formatında olabilir)
-        const errorData = res.error.data as any;
-        if (errorData) {
+        if (errorData && typeof errorData === 'object' && !Array.isArray(errorData)) {
           // FluentValidation hatalarını kontrol et (errors array)
           // Backend'den gelen format: { success: false, message: "...", errors: [{ field: "...", message: "..." }] }
           if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
@@ -136,6 +158,23 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
       }
       return res;
     } catch (error: any) {
+      // AbortError (query iptal edildi) - bu normal bir durum, sessizce ignore et
+      // RTK Query otomatik olarak query'leri iptal eder (component unmount, yeni query başlatıldığında vb.)
+      if (
+        error?.name === 'AbortError' || 
+        error?.message?.includes('aborted') || 
+        error?.message?.includes('cancel') ||
+        error?.message?.includes('Abort')
+      ) {
+        // Abort hatası normal bir durum - sessizce ignore et, hata gösterme
+        return {
+          error: {
+            status: 'CUSTOM_ERROR',
+            data: { message: '' } // Boş mesaj - hata gösterilmez
+          }
+        } as any;
+      }
+      
       // Network error veya diğer beklenmeyen hatalar
       const errorMessage = error?.message || 'Beklenmeyen bir hata oluştu';
       return {

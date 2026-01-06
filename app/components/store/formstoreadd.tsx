@@ -29,6 +29,7 @@ import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
+import { useAuth } from '../../hook/useAuth';
 
 
 const ChairPricingSchema = z.object({
@@ -237,6 +238,7 @@ export const fullSchema = schema.extend({
 });
 export type FormValues = z.input<typeof fullSchema>;
 const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
+    const { userId } = useAuth();
     const {
         control,
         handleSubmit,
@@ -275,6 +277,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
     const [isImagePickerLoading, setIsImagePickerLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeDay, setActiveDay] = useState<number>(1);
     const [activeStart, setActiveStart] = useState(fromHHmm("09:00"));
     const [activeEnd, setActiveEnd] = useState(fromHHmm("18:00"));
@@ -304,6 +307,8 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const address = watch("location.addressDescription");
     const { showSnack, SnackbarComponent } = useSnackbar();
     const OnSubmit = async (data: FormValues) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         const hasUploads = (data.storeImages?.length ?? 0) > 0 || (data.barbers ?? []).some((b) => b.avatar?.uri);
         let existingStoreIds = new Set<string>();
         let hasExistingSnapshot = false;
@@ -321,6 +326,10 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
         // Tax document image upload (tekli resim)
         let taxDocumentImageId: string | undefined;
         if (data.taxDocumentImage) {
+            if (!userId) {
+                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                return;
+            }
             try {
                 const formData = new FormData();
                 formData.append("file", {
@@ -328,8 +337,8 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                     name: data.taxDocumentImage.name ?? "tax-document.jpg",
                     type: data.taxDocumentImage.type ?? "image/jpeg",
                 } as any);
-                formData.append("ownerType", String(ImageOwnerType.Store));
-                formData.append("ownerId", "00000000-0000-0000-0000-000000000000");
+                formData.append("ownerType", String(ImageOwnerType.User));
+                formData.append("ownerId", userId);
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
@@ -451,6 +460,8 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                 } else {
                     showSnack(result.message, false);
                 }
+                // Refresh stores list to show new store with images
+                await triggerGetMineStores();
                 onClose?.();
             }
             else {
@@ -459,6 +470,8 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
         } catch (error: any) {
             const msg = resolveApiErrorMessage(error);
             showSnack(msg, true);
+        } finally {
+            setIsSubmitting(false);
         }
     };
     const {
@@ -1256,7 +1269,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                 </View>
             </ScrollView>
             <View className="px-4 my-3">
-                <Button style={{ borderRadius: 10 }} disabled={isLoading} loading={isLoading} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Ekle</Button>
+                <Button style={{ borderRadius: 10 }} disabled={isLoading || isSubmitting} loading={isLoading || isSubmitting} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Ekle</Button>
             </View>
             <SnackbarComponent />
 

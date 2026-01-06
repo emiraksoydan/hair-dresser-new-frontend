@@ -16,13 +16,27 @@ import {
     UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
+import { transformArrayResponse, transformObjectResponse, transformBooleanResponse, transformApiResponse } from '../utils/api/transform-response';
+
+// Cache duration constants (in seconds)
+const CACHE_DURATIONS = {
+    STATIC: 300,      // 5 minutes - Categories, Settings
+    USER_DATA: 60,    // 1 minute - User profile
+    DYNAMIC: 30,      // 30 seconds - Store/FreeBarber details, Ratings
+    LIST: 10,         // 10 seconds - Lists (Appointments, Chat threads)
+    REAL_TIME: 5,     // 5 seconds - Badge counts, Nearby lists
+} as const;
 
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
     tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting"],
-    refetchOnReconnect: true,
-    refetchOnFocus: true,
+    // Only refetch on reconnect for critical data (Badge, Notification)
+    // refetchOnFocus is disabled to prevent unnecessary requests
+    refetchOnReconnect: false,
+    refetchOnFocus: false,
+    // AbortError'ları global olarak handle et - tüm query'lerde AbortError sessizce ignore edilir
+    keepUnusedDataFor: 60, // 60 saniye - unused query'lerin cache'lenmesi için
     endpoints: (builder) => ({
 
         // --- AUTH API ---
@@ -45,11 +59,16 @@ export const api = createApi({
         // --- BARBER STORE API ---
         addBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreCreateDto>({
             query: (dto) => ({ url: 'BarberStore/create-store', method: 'POST', body: dto }),
-            invalidatesTags: ['MineStores'],
+            invalidatesTags: ['MineStores', { type: 'MineStores', id: 'LIST' }],
         }),
         updateBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreUpdateDto>({
             query: (dto) => ({ url: 'BarberStore/update-store', method: 'PUT', body: dto }),
-            invalidatesTags: ['MineStores'],
+            invalidatesTags: (result, error, arg) => [
+                'MineStores',
+                { type: 'MineStores', id: 'LIST' },
+                { type: 'MineStores', id: arg.id },
+                { type: 'GetStoreById', id: arg.id },
+            ],
         }),
         getNearbyStores: builder.query<BarberStoreGetDto[], NearbyRequest>({
             query: ({ lat, lon, radiusKm = 1 }) => ({
@@ -57,7 +76,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 5,
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: (result) =>
                 result
                     ? [
@@ -72,7 +91,7 @@ export const api = createApi({
         }),
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
-            keepUnusedDataFor: 5,
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: (result) =>
                 result
                     ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
@@ -80,12 +99,12 @@ export const api = createApi({
         }),
         getStoreById: builder.query<BarberStoreDetail, string>({
             query: (id) => `BarberStore/${id}`,
-            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, id) => [{ type: 'GetStoreById' as const, id }],
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
             query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, storeId) => [{ type: 'StoreForUsers' as const, id: storeId }],
         }),
 
@@ -112,7 +131,7 @@ export const api = createApi({
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
             }),
-            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: (result) =>
                 result
                     ? [
@@ -127,17 +146,17 @@ export const api = createApi({
         }),
         getFreeBarberMinePanel: builder.query<FreeBarberPanelDto, void>({
             query: () => 'FreeBarber/mypanel',
-            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: ['MineFreeBarberPanel'],
         }),
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
             query: (id) => `FreeBarber/${id}`,
-            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, id) => [{ type: 'MineFreeBarberPanel' as const, id }],
         }),
         getFreeBarberForUsers: builder.query<FreeBarberPanelDto, string>({
             query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache (detay sayfası için)
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, freeBarberId) => [{ type: 'FreeBarberForUsers' as const, id: freeBarberId }],
         }),
 
@@ -174,16 +193,12 @@ export const api = createApi({
         // 1. Availability (Mevcut)
         getAvailability: builder.query<ChairSlotDto[], { storeId: string; dateOnly: string }>({
             query: ({ storeId, dateOnly }) => `Appointment/availability?storeId=${storeId}&dateOnly=${dateOnly}`,
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<ChairSlotDto>,
             providesTags: (result, error, { storeId, dateOnly }) => [
                 { type: 'Appointment' as const, id: `availability-${storeId}-${dateOnly}` },
                 { type: 'Appointment' as const, id: 'availability' },
             ],
-            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
         }),
 
         // 2. YENİ EKLENEN: Filtreli Randevu Listesi (Active/Completed/Cancelled)
@@ -193,12 +208,8 @@ export const api = createApi({
                 method: 'GET',
                 params: { filter },
             }),
-            keepUnusedDataFor: 30, // 30 saniye cache (appointment listesi için)
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
+            transformResponse: transformArrayResponse<AppointmentGetDto>,
             // Listeyi 'LIST' etiketiyle ve her öğeyi kendi ID'siyle etiketle
             providesTags: (result) =>
                 result
@@ -212,19 +223,19 @@ export const api = createApi({
         createCustomerToFreeBarberAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/customer-to-freebarber', method: 'POST', body }),
             invalidatesTags: (result, error, arg) => [
-                'Appointment', 'Badge', 'Notification',
                 { type: 'Appointment', id: 'LIST' },
-                'Chat',
+                'Badge',
+                'Notification',
             ],
         }),
         createCustomerAppointment: builder.mutation<ApiResponse<{ id: string }>, CreateAppointmentRequestDto>({
             query: (body) => ({ url: 'Appointment/customer', method: 'POST', body }),
             invalidatesTags: (result, error, arg) => [
-                'Appointment', 'Badge', 'Notification',
-                { type: 'Appointment', id: 'LIST' }, // Listeyi yenile
+                { type: 'Appointment', id: 'LIST' },
+                'Badge',
+                'Notification',
                 ...(arg.storeId && arg.appointmentDate ? [
                     { type: 'Appointment' as const, id: `availability-${arg.storeId}-${arg.appointmentDate}` },
-                    { type: 'Appointment' as const, id: 'availability' },
                 ] : []),
             ],
         }),
@@ -268,13 +279,9 @@ export const api = createApi({
         callFreeBarber: builder.mutation<ApiResponse<{ id: string }>, CreateStoreToFreeBarberRequestDto>({
             query: (body) => ({ url: 'Appointment/store/call-freebarber', method: 'POST', body }),
             invalidatesTags: [
-                'Appointment',
+                { type: 'Appointment', id: 'LIST' },
                 'Badge',
                 'Notification',
-                { type: 'Appointment', id: 'LIST' },
-                'Chat',
-                { type: 'MineFreeBarberPanel', id: 'NEARBY' },
-                { type: 'MineFreeBarberPanel', id: 'LIST' },
             ],
         }),
 
@@ -285,12 +292,10 @@ export const api = createApi({
                 params: { approve },
             }),
             invalidatesTags: (result, error, arg) => [
-                { type: 'Appointment', id: arg.appointmentId }, // O randevuyu güncelle
-                { type: 'Appointment', id: 'LIST' }, // Listeyi yenile (statü değişti)
+                { type: 'Appointment', id: arg.appointmentId },
+                { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Notification', // Bildirim listesini invalidate et
-                { type: 'Notification' as const, id: 'LIST' }, // Tüm bildirimleri invalidate et
-                { type: 'Appointment', id: 'availability' }
+                { type: 'Notification', id: 'LIST' },
             ],
         }),
         freeBarberDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
@@ -318,10 +323,7 @@ export const api = createApi({
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Notification',
-                { type: 'Notification' as const, id: 'LIST' },
-                'Chat',
-                { type: 'Appointment', id: 'availability' }
+                { type: 'Notification', id: 'LIST' },
             ],
         }),
         cancelAppointment: builder.mutation<ApiResponse<boolean>, string>({
@@ -329,13 +331,11 @@ export const api = createApi({
                 url: `Appointment/${appointmentId}/cancel`,
                 method: 'POST',
             }),
-            // İşlem bitince ilgili etiketleri geçersiz kıl
             invalidatesTags: (result, error, appointmentId) => [
-                { type: 'Appointment', id: appointmentId }, // Tekil kartı yenile
-                { type: 'Appointment', id: 'LIST' },        // Listeyi yenile
+                { type: 'Appointment', id: appointmentId },
+                { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Notification',
-                { type: 'Appointment', id: 'availability' }
+                { type: 'Notification', id: 'LIST' },
             ],
         }),
 
@@ -350,61 +350,53 @@ export const api = createApi({
                 { type: 'Appointment', id: appointmentId },
                 { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Notification',
-                { type: 'Appointment', id: 'availability' }
+                { type: 'Notification', id: 'LIST' },
             ],
         }),
 
         deleteAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (id) => ({ url: `Appointment/${id}`, method: 'DELETE' }),
             invalidatesTags: (result, error, id) => [
-                { type: 'Appointment' as const, id },
-                { type: 'Appointment' as const, id: 'LIST' },
+                { type: 'Appointment', id },
+                { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Chat',
             ],
         }),
         deleteAllAppointments: builder.mutation<ApiResponse<boolean>, void>({
             query: () => ({ url: 'Appointment/all', method: 'DELETE' }),
             invalidatesTags: [
-                { type: 'Appointment' as const, id: 'LIST' },
-                'Appointment',
+                { type: 'Appointment', id: 'LIST' },
                 'Badge',
-                'Chat',
             ],
         }),
 
         // --- WORKING HOURS API ---
         getWorkingHoursByTarget: builder.query<WorkingHourGetDto[], string>({
             query: (targetId) => `Working/${targetId}`,
-            transformResponse: (res: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(res)) return res;
-                if (Array.isArray(res?.data)) return res.data;
-                return [];
-            },
-            keepUnusedDataFor: 120, // 2 dakika cache (working hours nadiren değişir)
+            transformResponse: transformArrayResponse<WorkingHourGetDto>,
+            keepUnusedDataFor: CACHE_DURATIONS.STATIC,
         }),
 
         // --- NOTIFICATION API ---
         getBadgeCounts: builder.query<BadgeCount, void>({
             query: () => 'Badge',
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece data wrapper kontrolü yap
-                if (response?.unreadNotifications !== undefined && response?.unreadMessages !== undefined) return response;
-                if (response?.data?.unreadNotifications !== undefined && response?.data?.unreadMessages !== undefined) return response.data;
+            transformResponse: (response: unknown): BadgeCount => {
+                if (response && typeof response === 'object') {
+                    const resp = response as { unreadNotifications?: number; unreadMessages?: number; data?: BadgeCount };
+                    if (resp.unreadNotifications !== undefined && resp.unreadMessages !== undefined) {
+                        return { unreadNotifications: resp.unreadNotifications, unreadMessages: resp.unreadMessages };
+                    }
+                    if (resp.data?.unreadNotifications !== undefined && resp.data?.unreadMessages !== undefined) {
+                        return resp.data;
+                    }
+                }
                 return { unreadNotifications: 0, unreadMessages: 0 };
             },
             providesTags: ['Badge'],
         }),
         getAllNotifications: builder.query<NotificationDto[], void>({
             query: () => 'Notification',
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<NotificationDto>,
             providesTags: (result) => {
                 if (!result || !Array.isArray(result)) return [{ type: 'Notification' as const, id: 'LIST' }];
                 return [
@@ -437,14 +429,9 @@ export const api = createApi({
         // --- CHAT API ---
         getChatThreads: builder.query<ChatThreadListItemDto[], void>({
             query: () => 'Chat/threads',
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<ChatThreadListItemDto>,
             providesTags: ['Chat'],
-            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
+            keepUnusedDataFor: CACHE_DURATIONS.LIST,
         }),
         getChatMessages: builder.query<ChatMessageItemDto[], { appointmentId: string; before?: string }>({
             query: ({ appointmentId, before }) => ({
@@ -452,7 +439,7 @@ export const api = createApi({
                 method: 'GET',
                 params: before ? { before } : undefined,
             }),
-            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
+            keepUnusedDataFor: CACHE_DURATIONS.LIST,
         }),
         getChatMessagesByThread: builder.query<ChatMessageItemDto[], { threadId: string; before?: string }>({
             query: ({ threadId, before }) => ({
@@ -460,13 +447,8 @@ export const api = createApi({
                 method: 'GET',
                 params: before ? { before } : undefined,
             }),
-            keepUnusedDataFor: 10, // SignalR ile güncellenir ama minimum cache gerekli
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            keepUnusedDataFor: CACHE_DURATIONS.LIST,
+            transformResponse: transformArrayResponse<ChatMessageItemDto>,
         }),
         sendChatMessage: builder.mutation<ApiResponse<ChatMessageDto>, { appointmentId: string; text: string }>({
             query: ({ appointmentId, text }) => ({
@@ -474,7 +456,7 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
-            invalidatesTags: ['Chat', 'Badge'],
+            invalidatesTags: ['Badge'],
         }),
         sendChatMessageByThread: builder.mutation<ApiResponse<ChatMessageDto>, { threadId: string; text: string }>({
             query: ({ threadId, text }) => ({
@@ -482,28 +464,28 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
-            invalidatesTags: ['Chat', 'Badge'],
+            invalidatesTags: ['Badge'],
         }),
         markChatThreadRead: builder.mutation<ApiResponse<boolean>, string>({
             query: (threadId) => ({
                 url: `Chat/thread/${threadId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Chat', 'Badge'],
+            invalidatesTags: ['Badge'],
         }),
         markChatThreadReadByAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (appointmentId) => ({
                 url: `Chat/${appointmentId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Chat', 'Badge'],
+            invalidatesTags: ['Badge'],
         }),
         markChatThreadReadByThread: builder.mutation<ApiResponse<boolean>, string>({
             query: (threadId) => ({
                 url: `Chat/thread/${threadId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Chat', 'Badge'],
+            invalidatesTags: ['Badge'],
         }),
         notifyTyping: builder.mutation<ApiResponse<boolean>, { threadId: string; isTyping: boolean }>({
             query: ({ threadId, isTyping }) => ({
@@ -517,36 +499,26 @@ export const api = createApi({
         createRating: builder.mutation<ApiResponse<RatingGetDto>, CreateRatingDto>({
             query: (body) => ({ url: 'Rating/create', method: 'POST', body }),
             invalidatesTags: (result, error, arg) => [
-                'Appointment',
-                // Store veya FreeBarber'a rating yapıldığında nearby listelerini de güncelle
-                { type: 'StoreForUsers' as const, id: arg.targetId },
-                { type: 'FreeBarberForUsers' as const, id: arg.targetId },
-                // Nearby listeler için genel tag'leri invalidate et
-                { type: 'MineStores' as const, id: 'NEARBY' },
-                { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
+                { type: 'StoreForUsers', id: arg.targetId },
+                { type: 'FreeBarberForUsers', id: arg.targetId },
             ],
         }),
         deleteRating: builder.mutation<ApiResponse<boolean>, string>({
             query: (ratingId) => ({ url: `Rating/${ratingId}`, method: 'DELETE' }),
-            invalidatesTags: ['Appointment'],
+            invalidatesTags: [],
         }),
         getRatingById: builder.query<RatingGetDto, string>({
             query: (ratingId) => `Rating/${ratingId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
         }),
         getRatingsByTarget: builder.query<RatingGetDto[], string>({
             query: (targetId) => `Rating/target/${targetId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
+            transformResponse: transformArrayResponse<RatingGetDto>,
         }),
         getMyRatingForAppointment: builder.query<RatingGetDto, { appointmentId: string; targetId: string }>({
             query: ({ appointmentId, targetId }) => `Rating/appointment/${appointmentId}/target/${targetId}`,
-            keepUnusedDataFor: 30, // 30 saniye cache
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
         }),
 
         // --- FAVORITE API ---
@@ -717,86 +689,58 @@ export const api = createApi({
                 }
             },
             invalidatesTags: (result, error, arg) => [
-                'Appointment',
                 'Favorite',
-                'Chat', // Thread listesini güncelle
-                'Notification', // Notification'lardaki favori durumlarını güncelle
-                // Store ve FreeBarber için spesifik item ve list tag'leri
-                { type: 'MineStores' as const, id: arg.targetId },
-                { type: 'MineStores' as const, id: 'LIST' },
-                { type: 'MineStores' as const, id: 'NEARBY' },
-                { type: 'GetStoreById' as const, id: arg.targetId }, // Store detay sayfası için
-                { type: 'StoreForUsers' as const, id: arg.targetId }, // Store detay sayfası (müşteri görünümü) için
-                { type: 'MineFreeBarberPanel' as const, id: arg.targetId },
-                { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
-                { type: 'MineFreeBarberPanel' as const, id: 'NEARBY' },
-                { type: 'FreeBarberForUsers' as const, id: arg.targetId }, // FreeBarber detay sayfası (müşteri görünümü) için
-                // IsFavorite query'si için
-                { type: 'IsFavorite' as const, id: arg.targetId },
-                { type: 'IsFavorite' as const, id: 'LIST' },
+                { type: 'IsFavorite', id: arg.targetId },
+                { type: 'StoreForUsers', id: arg.targetId },
+                { type: 'FreeBarberForUsers', id: arg.targetId },
+                { type: 'GetStoreById', id: arg.targetId },
+                { type: 'MineStores', id: arg.targetId },
+                { type: 'MineFreeBarberPanel', id: arg.targetId },
             ],
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor: { success: boolean, data: { isFavorite: boolean, favoriteCount: number }, message?: string }
-                if (response?.success !== undefined && response?.data !== undefined) {
-                    return response;
+            transformResponse: (response: unknown): ApiResponse<ToggleFavoriteResponseDto> => {
+                const transformed = transformApiResponse<ToggleFavoriteResponseDto>(response);
+                if (transformed) {
+                    return {
+                        success: transformed.success,
+                        message: transformed.message,
+                        data: transformed.data,
+                    };
                 }
-                return response;
+                return response as ApiResponse<ToggleFavoriteResponseDto>;
             },
         }),
         isFavorite: builder.query<boolean, string>({
             query: (targetId) => `Favorite/check/${targetId}`,
-            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: (result, error, targetId) => [{ type: 'IsFavorite' as const, id: targetId }],
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor: { success: boolean, data: boolean, message?: string }
-                if (typeof response === 'boolean') return response;
-                if (response?.data !== undefined) return response.data;
-                return false;
-            },
+            transformResponse: transformBooleanResponse,
         }),
         getMyFavorites: builder.query<FavoriteGetDto[], void>({
             query: () => 'Favorite/my-favorites',
-            keepUnusedDataFor: 5, // Minimum cache süresi - AbortController hatalarını önlemek için
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: ['Favorite'],
-            transformResponse: (response: any) => {
-                // Backend zaten camelCase döndürüyor, sadece array/data kontrolü yap
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<FavoriteGetDto>,
         }),
         removeFavorite: builder.mutation<ApiResponse<boolean>, string>({
             query: (targetId) => ({ url: `Favorite/${targetId}`, method: 'DELETE' }),
-            invalidatesTags: ['Appointment', 'MineStores', 'MineFreeBarberPanel'],
+            invalidatesTags: ['Favorite'],
         }),
 
         // --- CATEGORY API ---
         getAllCategories: builder.query<any[], void>({
             query: () => 'Categories',
-            keepUnusedDataFor: 300, // 5 dakika cache (kategoriler sık değişmez)
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            keepUnusedDataFor: CACHE_DURATIONS.STATIC,
+            transformResponse: transformArrayResponse<ChairSlotDto>,
         }),
         getParentCategories: builder.query<any[], void>({
             query: () => 'Categories/parents',
             keepUnusedDataFor: 300, // 5 dakika cache
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<ChairSlotDto>,
         }),
         getChildCategories: builder.query<any[], string>({
             query: (parentId) => `Categories/children/${parentId}`,
             keepUnusedDataFor: 300, // 5 dakika cache
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            transformResponse: transformArrayResponse<ChairSlotDto>,
         }),
 
         // --- FILTERED API ---
@@ -806,7 +750,7 @@ export const api = createApi({
                 method: 'POST',
                 body: filter,
             }),
-            invalidatesTags: ['MineStores'],
+            invalidatesTags: [],
         }),
 
         getFilteredFreeBarbers: builder.mutation<FreeBarGetDto[], FilterRequestDto>({
@@ -824,12 +768,8 @@ export const api = createApi({
                 url: `Image/owner/${ownerId}`,
                 params: { ownerType },
             }),
-            keepUnusedDataFor: 30, // Image'lar sık değişmez
-            transformResponse: (response: any) => {
-                if (Array.isArray(response)) return response;
-                if (Array.isArray(response?.data)) return response.data;
-                return [];
-            },
+            keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
+            transformResponse: transformArrayResponse<ImageGetDto>,
         }),
         uploadImage: builder.mutation<ApiResponse<string>, FormData>({
             query: (formData) => ({
@@ -837,7 +777,13 @@ export const api = createApi({
                 method: 'POST',
                 body: formData,
             }),
-            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+            invalidatesTags: [
+                { type: 'StoreForUsers', id: 'LIST' },
+                { type: 'FreeBarberForUsers', id: 'LIST' },
+                'MineStores',
+                { type: 'MineStores', id: 'LIST' },
+                'MineFreeBarberPanel',
+            ],
         }),
 
         uploadMultipleImages: builder.mutation<ApiResponse<string[]>, FormData>({
@@ -846,7 +792,13 @@ export const api = createApi({
                 method: 'POST',
                 body: formData,
             }),
-            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+            invalidatesTags: [
+                { type: 'StoreForUsers', id: 'LIST' },
+                { type: 'FreeBarberForUsers', id: 'LIST' },
+                'MineStores',
+                { type: 'MineStores', id: 'LIST' },
+                'MineFreeBarberPanel',
+            ],
         }),
 
         deleteImage: builder.mutation<ApiResponse<void>, string>({
@@ -854,14 +806,21 @@ export const api = createApi({
                 url: `Image/${id}`,
                 method: 'DELETE',
             }),
-            invalidatesTags: ['MineStores', 'MineFreeBarberPanel', 'StoreForUsers', 'FreeBarberForUsers'],
+            invalidatesTags: [
+                { type: 'StoreForUsers', id: 'LIST' },
+                { type: 'FreeBarberForUsers', id: 'LIST' },
+                'MineStores',
+                { type: 'MineStores', id: 'LIST' },
+                'MineFreeBarberPanel',
+                'GetStoreById',
+            ],
         }),
 
         // --- USER API ---
         getMe: builder.query<ApiResponse<UserProfileDto>, void>({
             query: () => 'User/me',
             providesTags: ['UserProfile'],
-            keepUnusedDataFor: 60, // 1 dakika cache (profil değişikliği olduğunda invalidate edilir)
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
         }),
 
         updateProfile: builder.mutation<ApiResponse<AccessTokenDto>, UpdateUserDto>({
@@ -877,12 +836,17 @@ export const api = createApi({
         getSetting: builder.query<ApiResponse<SettingGetDto>, void>({
             query: () => 'Setting',
             providesTags: ['Setting'],
-            keepUnusedDataFor: 60, // 1 dakika cache
-            transformResponse: (response: any) => {
-                if (response?.success !== undefined && response?.data !== undefined) {
-                    return response;
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+            transformResponse: (response: unknown): ApiResponse<SettingGetDto> => {
+                const transformed = transformApiResponse<SettingGetDto>(response);
+                if (transformed) {
+                    return {
+                        success: transformed.success,
+                        message: transformed.message,
+                        data: transformed.data,
+                    };
                 }
-                return response;
+                return response as ApiResponse<SettingGetDto>;
             },
         }),
         updateSetting: builder.mutation<ApiResponse<boolean>, SettingUpdateDto>({
@@ -892,6 +856,22 @@ export const api = createApi({
                 body: dto,
             }),
             invalidatesTags: ['Setting'],
+        }),
+
+        // --- FCM TOKEN API ---
+        registerFcmToken: builder.mutation<ApiResponse<boolean>, { fcmToken: string; deviceId?: string; platform?: string }>({
+            query: (body) => ({
+                url: 'User/register-fcm-token',
+                method: 'POST',
+                body,
+            }),
+        }),
+        unregisterFcmToken: builder.mutation<ApiResponse<boolean>, { fcmToken: string }>({
+            query: (body) => ({
+                url: 'User/unregister-fcm-token',
+                method: 'POST',
+                body,
+            }),
         }),
 
     }),
@@ -977,4 +957,6 @@ export const {
     useUpdateProfileMutation,
     useGetSettingQuery,
     useUpdateSettingMutation,
+    useRegisterFcmTokenMutation,
+    useUnregisterFcmTokenMutation,
 } = api;

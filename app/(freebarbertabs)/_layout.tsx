@@ -9,6 +9,8 @@ import { useBottomSheet } from '../hook/useBottomSheet';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
 import React, { useState } from 'react';
 import { InfoModal } from '../components/common/infomodal';
+import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
+import { useNotificationSound } from '../hook/useNotificationSound';
 
 const FreeBarberLayout = () => {
     const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -26,6 +28,9 @@ const FreeBarberLayout = () => {
     const unreadNoti = badge?.unreadNotifications ?? 0;
     const unreadMsg = badge?.unreadMessages ?? 0;
     const { userName } = useAuth();
+
+    // Play notification sound when badge count changes
+    useNotificationSound(unreadNoti);
 
     // Info modal items - kullanıcı buraya uygulamanın kullanım bilgilerini ekleyecek
     const infoItems = [
@@ -77,20 +82,7 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'left',
                         headerRight: () => (
-                            <View className='items-center justify-center flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
+                            <View className='items-center justify-center flex-row mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -98,6 +90,20 @@ const FreeBarberLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -133,20 +139,7 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='items-center justify-center flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
+                            <View className='items-center justify-center flex-row mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -154,6 +147,20 @@ const FreeBarberLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -190,20 +197,7 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='items-center justify-center flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
+                            <View className='items-center justify-center flex-row mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -211,6 +205,20 @@ const FreeBarberLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -246,20 +254,7 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='items-center justify-center flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
+                            <View className='items-center justify-center flex-row mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -267,6 +262,20 @@ const FreeBarberLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),
@@ -302,20 +311,7 @@ const FreeBarberLayout = () => {
                         ),
                         headerTitleAlign: 'center',
                         headerRight: () => (
-                            <View className='items-center justify-center flex-row'>
-                                <TouchableOpacity
-                                    onPress={() => setInfoModalVisible(true)}
-                                    className=' items-center justify-center mr-[7px]'
-                                >
-                                    <Icon source={"information-outline"} size={25} color='white'></Icon>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className=' items-center justify-center'
-                                >
-                                    <Icon source={"shopping-outline"} size={25} color='white'></Icon>
-
-                                </TouchableOpacity>
+                            <View className='items-center justify-center flex-row mr-2'>
                                 <BadgeIconButton
                                     icon="bell-outline"
                                     iconColor="white"
@@ -323,6 +319,20 @@ const FreeBarberLayout = () => {
                                     badgeCount={unreadNoti}
                                     onPress={() => notificationsSheet.present()}
                                     animateWhenActive={true}
+                                />
+                                <HeaderDropdownMenu
+                                    items={[
+                                        {
+                                            icon: 'information-outline',
+                                            label: 'Bilgi',
+                                            onPress: () => setInfoModalVisible(true),
+                                        },
+                                        {
+                                            icon: 'shopping-outline',
+                                            label: 'Alışveriş',
+                                            onPress: () => { },
+                                        },
+                                    ]}
                                 />
                             </View>
                         ),

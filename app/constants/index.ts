@@ -12,4 +12,5 @@ export * from './appointment';
 export * from './colors';
 export * from './messages';
 export * from './time';
+export * from './notification';
 

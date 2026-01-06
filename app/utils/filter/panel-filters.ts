@@ -2,6 +2,7 @@
 import { BarberStoreGetDto, BarberStoreMineDto } from "../../types/store";
 import { FreeBarGetDto } from "../../types/freebarber";
 import { mapBarberType } from "../../utils/form/form-mappers";
+import { normalizeSearchQuery, parsePrice } from "./filter-helpers";
 
 export type AppliedFilters = {
   userType: string;
@@ -22,7 +23,7 @@ type FilterContext = {
   categoryNameById: Map<string, string>;
 };
 
-const normalizeSearch = (value: string) => value.trim().toLowerCase();
+const normalizeSearch = normalizeSearchQuery;
 
 const matchesServices = (
   offerings: ServiceOfferingGetDto[] | undefined,
@@ -75,8 +76,8 @@ const matchesPricingType = (pricingTypeFilter: string, pricingType: string | und
     pricingTypeFilter === "Kiralama"
       ? "rent"
       : pricingTypeFilter === "Yüzdelik"
-      ? "percent"
-      : "";
+        ? "percent"
+        : "";
   if (!target) return true;
   return String(pricingType).toLowerCase() === target;
 };

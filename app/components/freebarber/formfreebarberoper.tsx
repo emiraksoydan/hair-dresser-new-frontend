@@ -24,6 +24,7 @@ import {
     useGetParentCategoriesQuery,
     useLazyGetChildCategoriesQuery,
 } from "../../store/api";
+import { useAuth } from "../../hook/useAuth";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 
 // --- Schema Definitions ---
@@ -89,6 +90,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
     const isEdit = freeBarberId != null;
 
     const { showSnack, SnackbarComponent } = useSnackbar();
+    const { userId } = useAuth();
 
     const [triggerGetFreeBarberPanel, { data }] = useLazyGetFreeBarberMinePanelDetailQuery();
     const [triggerGetFreeBarberMinePanel] = useLazyGetFreeBarberMinePanelQuery();
@@ -409,6 +411,10 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
         let certImageId: string | undefined;
 
         if (form.certificateImage) {
+            if (!userId) {
+                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                return;
+            }
             try {
                 const formData = new FormData();
                 formData.append("file", {
@@ -416,8 +422,8 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                     name: form.certificateImage.name ?? "certificate.jpg",
                     type: form.certificateImage.type ?? "image/jpeg",
                 } as any);
-                formData.append("ownerType", String(ImageOwnerType.FreeBarber));
-                formData.append("ownerId", "00000000-0000-0000-0000-000000000000");
+                formData.append("ownerType", String(ImageOwnerType.User));
+                formData.append("ownerId", userId);
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
@@ -432,7 +438,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
         }
 
         const payload: any = {
-            ...(isEdit ? { id: data?.id } : {}),
+            ...(isEdit ? { id: data?.id ?? freeBarberId ?? "" } : {}),
             firstName: form.name.trim(),
             lastName: form.surname.trim(),
             type: mapBarberType(form.type),
@@ -496,6 +502,12 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                     showSnack(`${baseMessage} ${uploadError}`, true);
                 } else {
                     showSnack(result.message, false);
+                }
+                // Refresh panel data to show updated images
+                if (isEdit) {
+                    await triggerGetFreeBarberPanel(freeBarberId!);
+                } else {
+                    await triggerGetFreeBarberMinePanel();
                 }
                 onClose?.();
             } else {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "963826173939",
+    "project_id": "hairdresser-6ebde",
+    "storage_bucket": "hairdresser-6ebde.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:963826173939:android:94208352500aed325a7486",
+        "android_client_info": {
+          "package_name": "com.hairdresser.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSgtE62TKekJOnVsyn1zNbAuL-iZZEoBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

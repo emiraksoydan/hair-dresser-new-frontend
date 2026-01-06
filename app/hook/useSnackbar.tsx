@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Portal, Snackbar } from 'react-native-paper';
 
 export interface UseSnackbarReturn {
@@ -18,14 +18,35 @@ export const useSnackbar = (): UseSnackbarReturn => {
   const [snackVisible, setSnackVisible] = useState(false);
   const [snackText, setSnackText] = useState('');
   const [snackIsError, setSnackIsError] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showSnack = React.useCallback((message: string, isError: boolean = false) => {
-    setSnackText(message);
-    setSnackIsError(isError);
-    setSnackVisible(true);
-  }, []);
+    // Önceki timeout'u temizle
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Eğer snackbar zaten görünürse, önce kapat
+    if (snackVisible) {
+      setSnackVisible(false);
+      // Kısa bir gecikme sonrası yeni mesajı göster
+      timeoutRef.current = setTimeout(() => {
+        setSnackText(message);
+        setSnackIsError(isError);
+        setSnackVisible(true);
+      }, 100);
+    } else {
+      setSnackText(message);
+      setSnackIsError(isError);
+      setSnackVisible(true);
+    }
+  }, [snackVisible]);
 
   const hideSnack = React.useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     setSnackVisible(false);
   }, []);
 

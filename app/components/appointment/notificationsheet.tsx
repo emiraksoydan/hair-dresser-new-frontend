@@ -165,8 +165,8 @@ export function NotificationsSheet({
                     }
                 }
 
-                // Badge ve notification'ları yenile
-                dispatch(api.util.invalidateTags(['Badge', 'Notification']));
+                // Badge count backend'den badge.updated event'i ile otomatik güncelleniyor
+                // Notification listesi zaten updateQueryData ile güncellendi
 
                 Alert.alert("Başarılı", successMessage);
             } else {

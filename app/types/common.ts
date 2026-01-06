@@ -4,7 +4,7 @@
 
 export type ApiResponse<T> = {
   success: boolean;
-  message: string;
+  message?: string; // Optional - backend'den bazen gelmeyebilir
   data: T;
 };
 

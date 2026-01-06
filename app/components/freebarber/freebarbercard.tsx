@@ -20,9 +20,10 @@ type Props = {
     onCallFreeBarber?: (freeBarberId: string) => void;
     storeId?: string;
     showImageAnimation?: boolean;
+    isMapMode?: boolean;
 };
 
-const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId, showImageAnimation = true }) => {
+const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId, showImageAnimation = true, isMapMode = false }) => {
     const carouselWidth = Math.max(0, cardWidthFreeBarber);
     const { isAuthenticated } = useAuth();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
@@ -130,7 +131,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
 
                     <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
                         <ImageCarousel
-                            key={`freebarber-${freeBarber.id}`}
+                            key={`freebarber-${freeBarber.id}-${isMapMode}`}
                             images={freeBarber.imageList ?? []}
                             width={isList ? carouselWidth : 112}
                             mode={'default'}
@@ -138,6 +139,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             autoPlay={showImageAnimation}
                             borderRadiusClass="rounded-lg"
                             showPagination={true}
+                            isMapMode={isMapMode}
                         />
                         {isList && (
                             <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
@@ -340,7 +342,8 @@ export const FreeBarberCardInner = React.memo(
             prev.onPressUpdate === next.onPressUpdate &&
             prev.onPressRatings === next.onPressRatings &&
             prev.onCallFreeBarber === next.onCallFreeBarber &&
-            prev.showImageAnimation === next.showImageAnimation;
+            prev.showImageAnimation === next.showImageAnimation &&
+            (prev.isMapMode ?? false) === (next.isMapMode ?? false);
 
         return sameFreeBarber && sameProps;
     }

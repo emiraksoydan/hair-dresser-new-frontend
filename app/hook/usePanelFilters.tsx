@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 
 export type AppliedFilters = {
   userType: string;
@@ -13,83 +13,107 @@ export type AppliedFilters = {
   favoritesOnly: boolean;
 };
 
+const DEFAULT_FILTERS: AppliedFilters = {
+  userType: "Hepsi",
+  mainCategory: "Hepsi",
+  services: [],
+  priceSort: "none",
+  minPrice: "",
+  maxPrice: "",
+  pricingType: "Hepsi",
+  availability: "all",
+  rating: 0,
+  favoritesOnly: false,
+} as const;
+
+/**
+ * Optimized filter hook - uses single source of truth (appliedFilters)
+ * Individual state setters are derived from appliedFilters for backward compatibility
+ */
 export const usePanelFilters = () => {
-  const [selectedUserType, setSelectedUserType] = useState<string>("Hepsi");
-  const [selectedMainCategory, setSelectedMainCategory] = useState<string>("Hepsi");
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [priceSort, setPriceSort] = useState<"none" | "asc" | "desc">("none");
-  const [minPrice, setMinPrice] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<string>("");
-  const [selectedPricingType, setSelectedPricingType] = useState<string>("Hepsi");
-  const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "unavailable">("all");
-  const [selectedRating, setSelectedRating] = useState<number>(0);
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(DEFAULT_FILTERS);
 
-  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
-    userType: "Hepsi",
-    mainCategory: "Hepsi",
-    services: [],
-    priceSort: "none",
-    minPrice: "",
-    maxPrice: "",
-    pricingType: "Hepsi",
-    availability: "all",
-    rating: 0,
-    favoritesOnly: false,
-  });
+  // Derived getters for backward compatibility (components can still use individual state)
+  const selectedUserType = appliedFilters.userType;
+  const selectedMainCategory = appliedFilters.mainCategory;
+  const selectedServices = appliedFilters.services;
+  const priceSort = appliedFilters.priceSort;
+  const minPrice = appliedFilters.minPrice;
+  const maxPrice = appliedFilters.maxPrice;
+  const selectedPricingType = appliedFilters.pricingType;
+  const availabilityFilter = appliedFilters.availability;
+  const selectedRating = appliedFilters.rating;
+  const showFavoritesOnly = appliedFilters.favoritesOnly;
 
-  const applyFilters = useCallback(() => {
-    setAppliedFilters({
-      userType: selectedUserType,
-      mainCategory: selectedMainCategory,
-      services: selectedServices,
-      priceSort,
-      minPrice,
-      maxPrice,
-      pricingType: selectedPricingType,
-      availability: availabilityFilter,
-      rating: selectedRating,
-      favoritesOnly: showFavoritesOnly,
-    });
-  }, [
-    selectedUserType,
-    selectedMainCategory,
-    selectedServices,
-    priceSort,
-    minPrice,
-    maxPrice,
-    selectedPricingType,
-    availabilityFilter,
-    selectedRating,
-    showFavoritesOnly,
-  ]);
-
-  const clearFilters = useCallback(() => {
-    setSelectedUserType("Hepsi");
-    setSelectedMainCategory("Hepsi");
-    setSelectedServices([]);
-    setPriceSort("none");
-    setMinPrice("");
-    setMaxPrice("");
-    setSelectedPricingType("Hepsi");
-    setAvailabilityFilter("all");
-    setSelectedRating(0);
-    setShowFavoritesOnly(false);
-    setAppliedFilters({
-      userType: "Hepsi",
-      mainCategory: "Hepsi",
-      services: [],
-      priceSort: "none",
-      minPrice: "",
-      maxPrice: "",
-      pricingType: "Hepsi",
-      availability: "all",
-      rating: 0,
-      favoritesOnly: false,
-    });
+  // Optimized setters that update appliedFilters directly
+  const setSelectedUserType = useCallback((value: string) => {
+    setAppliedFilters(prev => ({ ...prev, userType: value }));
   }, []);
 
+  const setSelectedMainCategory = useCallback((value: string) => {
+    setAppliedFilters(prev => ({ ...prev, mainCategory: value }));
+  }, []);
+
+  const setSelectedServices = useCallback((value: string[]) => {
+    setAppliedFilters(prev => ({ ...prev, services: value }));
+  }, []);
+
+  const setPriceSort = useCallback((value: "none" | "asc" | "desc") => {
+    setAppliedFilters(prev => ({ ...prev, priceSort: value }));
+  }, []);
+
+  const setMinPrice = useCallback((value: string) => {
+    setAppliedFilters(prev => ({ ...prev, minPrice: value }));
+  }, []);
+
+  const setMaxPrice = useCallback((value: string) => {
+    setAppliedFilters(prev => ({ ...prev, maxPrice: value }));
+  }, []);
+
+  const setSelectedPricingType = useCallback((value: string) => {
+    setAppliedFilters(prev => ({ ...prev, pricingType: value }));
+  }, []);
+
+  const setAvailabilityFilter = useCallback((value: "all" | "available" | "unavailable") => {
+    setAppliedFilters(prev => ({ ...prev, availability: value }));
+  }, []);
+
+  const setSelectedRating = useCallback((value: number) => {
+    setAppliedFilters(prev => ({ ...prev, rating: value }));
+  }, []);
+
+  const setShowFavoritesOnly = useCallback((value: boolean) => {
+    setAppliedFilters(prev => ({ ...prev, favoritesOnly: value }));
+  }, []);
+
+  // applyFilters is now a no-op since filters are applied immediately
+  const applyFilters = useCallback(() => {
+    // Filters are already applied (single source of truth)
+    // This function is kept for backward compatibility
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setAppliedFilters(DEFAULT_FILTERS);
+  }, []);
+
+  // Check if any filter is active (not default)
+  const hasActiveFilters = useMemo(() => {
+    return (
+      appliedFilters.userType !== DEFAULT_FILTERS.userType ||
+      appliedFilters.mainCategory !== DEFAULT_FILTERS.mainCategory ||
+      appliedFilters.services.length > 0 ||
+      appliedFilters.priceSort !== DEFAULT_FILTERS.priceSort ||
+      appliedFilters.minPrice !== DEFAULT_FILTERS.minPrice ||
+      appliedFilters.maxPrice !== DEFAULT_FILTERS.maxPrice ||
+      appliedFilters.pricingType !== DEFAULT_FILTERS.pricingType ||
+      appliedFilters.availability !== DEFAULT_FILTERS.availability ||
+      appliedFilters.rating !== DEFAULT_FILTERS.rating ||
+      appliedFilters.favoritesOnly !== DEFAULT_FILTERS.favoritesOnly
+    );
+  }, [appliedFilters]);
+
   return {
+    // Individual state getters (derived from appliedFilters)
     selectedUserType,
     setSelectedUserType,
     selectedMainCategory,
@@ -110,8 +134,11 @@ export const usePanelFilters = () => {
     setSelectedRating,
     showFavoritesOnly,
     setShowFavoritesOnly,
+    // Main filter state
     appliedFilters,
-    applyFilters,
+    setAppliedFilters, // Direct setter for batch updates
+    applyFilters, // No-op for backward compatibility
     clearFilters,
+    hasActiveFilters, // Helper to check if filters are active
   };
 };

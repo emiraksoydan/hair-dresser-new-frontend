@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { Icon } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
+import SearchBar from './searchbar';
 
 interface InfoModalProps {
     visible: boolean;
@@ -14,6 +15,17 @@ interface InfoModalProps {
 }
 
 export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title = "Kullanım Bilgileri", items }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredItems = useMemo(() => {
+        if (!searchQuery.trim()) return items;
+        const query = searchQuery.toLowerCase();
+        return items.filter(item => 
+            item.title.toLowerCase().includes(query) || 
+            (item.description && item.description.toLowerCase().includes(query))
+        );
+    }, [items, searchQuery]);
+
     return (
         <Modal
             visible={visible}
@@ -31,19 +43,30 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title = 
                         </TouchableOpacity>
                     </View>
 
+                    {/* Search Bar */}
+                    <View className="px-4 pt-4 pb-2">
+                        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+                    </View>
+
                     {/* Content */}
                     <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
-                        {items.map((item, index) => (
-                            <View key={index} className="mb-5">
-                                <View className="flex-row items-center mb-2">
-                                    <View className="w-2 h-2 rounded-full bg-[#f05e23] mr-3" />
-                                    <Text className="text-base font-medium text-white flex-1">{item.title}</Text>
-                                </View>
-                                {item.description && (
-                                    <Text className="text-sm text-gray-400 ml-5 leading-5">{item.description}</Text>
-                                )}
+                        {filteredItems.length === 0 ? (
+                            <View className="py-8 items-center">
+                                <Text className="text-gray-400 text-sm">Arama sonucu bulunamadı</Text>
                             </View>
-                        ))}
+                        ) : (
+                            filteredItems.map((item, index) => (
+                                <View key={index} className="mb-5">
+                                    <View className="flex-row items-center mb-2">
+                                        <View className="w-2 h-2 rounded-full bg-[#f05e23] mr-3" />
+                                        <Text className="text-base font-medium text-white flex-1">{item.title}</Text>
+                                    </View>
+                                    {item.description && (
+                                        <Text className="text-sm text-gray-400 ml-5 leading-5">{item.description}</Text>
+                                    )}
+                                </View>
+                            ))
+                        )}
                     </ScrollView>
                 </View>
             </BlurView>

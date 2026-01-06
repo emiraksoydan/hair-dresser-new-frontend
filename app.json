@@ -14,10 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Uygulama, dükkan konumunu belirlemek için konumunuza ihtiyaç duyar."
-      }
+      },
+      "bundleIdentifier": "com.hairdresser.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,13 +30,22 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDZ--Buc1cYh2HEC4tJ-KqacMz5DQalXbA"
+        }
+      },
+      "googleServicesFile": "./google-services.json",
+      "package": "com.hairdresser.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ]
   }
 }
