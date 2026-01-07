@@ -6,6 +6,7 @@ import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreGetDto, PricingType } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { CachedImage } from '../common/CachedImage';
 
 type Props = {
     store: BarberStoreGetDto;
@@ -97,15 +98,11 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    <Image
+                    <CachedImage
+                        uri={coverImage}
                         defaultSource={require('../../../assets/images/empty.png')}
                         className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
-                        source={
-                            coverImage
-                                ? { uri: coverImage }
-                                : require('../../../assets/images/empty.png')
-                        }
-                        resizeMode={'cover'}
+                        resizeMode="cover"
                     />
                     {/* Image üzerinde bilgiler - hem list hem card modunda */}
                     <View className={`absolute ${isList ? 'top-3 right-3' : 'top-1 right-1'} flex-row gap-2 z-10`}>

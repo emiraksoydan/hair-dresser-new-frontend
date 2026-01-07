@@ -5,6 +5,7 @@ import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, FreeBarGetDto } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery, useCallFreeBarberMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { CachedImage } from '../common/CachedImage';
 
 type Props = {
     freeBarber: FreeBarGetDto;
@@ -154,15 +155,11 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             )}
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    <Image
+                    <CachedImage
+                        uri={coverImage}
                         defaultSource={require('../../../assets/images/empty.png')}
                         className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
-                        source={
-                            coverImage
-                                ? { uri: coverImage }
-                                : require('../../../assets/images/empty.png')
-                        }
-                        resizeMode={'cover'}
+                        resizeMode="cover"
                     />
                     {isList && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
