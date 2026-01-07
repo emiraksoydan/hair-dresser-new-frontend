@@ -19,6 +19,8 @@ export const useNotificationSound = (badgeCount: number) => {
     const hasPlayedOnMountRef = useRef<boolean>(false);
     const appStateRef = useRef<AppStateStatus>('active');
     const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSoundPlayTimeRef = useRef<number>(0);
+    const SOUND_COOLDOWN_MS = 3000; // 3 saniye cooldown - çoklu bildirimlerde her biri için ses çalmasın
 
     // Set audio mode for notifications
     useEffect(() => {
@@ -50,8 +52,12 @@ export const useNotificationSound = (badgeCount: number) => {
         // 1. Badge count increased (new notification)
         // 2. App just opened with notifications (first time only)
         if (badgeCount > previousCount) {
-            // New notification received
-            playNotificationSound();
+            // New notification received - sadece cooldown süresi geçtiyse ses çal
+            const now = Date.now();
+            const timeSinceLastSound = now - lastSoundPlayTimeRef.current;
+            if (timeSinceLastSound >= SOUND_COOLDOWN_MS) {
+                playNotificationSound();
+            }
         } else if (!hasPlayedOnMountRef.current && badgeCount > 0 && appStateRef.current === 'active') {
             // App opened with existing notifications (play once)
             hasPlayedOnMountRef.current = true;
@@ -96,18 +102,20 @@ export const useNotificationSound = (badgeCount: number) => {
             const soundUri = `${apiBaseUrl}/sounds/${NOTIFICATION_SOUND_FILENAME}`;
 
             // Backend'deki varsayılan ses dosyasını çal
+            // Ses dosyasını döngüye alarak 3 saniye boyunca çal
             const { sound } = await Audio.Sound.createAsync(
                 { uri: soundUri },
                 {
                     shouldPlay: true,
                     volume: 0.6, // Clear volume for notification
-                    isLooping: false, // Don't loop - play once
+                    isLooping: true, // Loop to play for full duration
                     shouldCorrectPitch: true,
                     rate: 1.0 // Normal playback speed
                 }
             );
 
             soundRef.current = sound;
+            lastSoundPlayTimeRef.current = Date.now(); // Ses çalma zamanını kaydet
 
             // Stop sound after NOTIFICATION_SOUND_DURATION_MS (ayarlanabilir süre)
             // constants/notification.ts dosyasından süreyi değiştirebilirsiniz
@@ -126,18 +134,6 @@ export const useNotificationSound = (badgeCount: number) => {
                     stopTimeoutRef.current = null;
                 }
             }, NOTIFICATION_SOUND_DURATION_MS); // Ayarlanabilir süre - constants/notification.ts
-
-            // Also stop when sound finishes naturally (if it's shorter than 1 second)
-            sound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded && status.didJustFinish) {
-                    if (stopTimeoutRef.current) {
-                        clearTimeout(stopTimeoutRef.current);
-                        stopTimeoutRef.current = null;
-                    }
-                    sound.unloadAsync();
-                    soundRef.current = null;
-                }
-            });
         } catch (error) {
             // Silently fail - don't interrupt user experience
             // If sound fails to load, user can still use the app normally

@@ -64,10 +64,10 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
         // AbortError'ı kontrol et - RTK Query bunu FETCH_ERROR olarak döndürebilir
         const errorData = res.error.data as any;
         const errorMessage = typeof errorData === 'string' ? errorData : errorData?.message || '';
-        
+
         // AbortError belirtileri: "aborted", "cancel", "AbortError" içeren mesajlar
         if (
-          res.error.status === 'FETCH_ERROR' && 
+          res.error.status === 'FETCH_ERROR' &&
           (
             errorMessage?.toLowerCase().includes('aborted') ||
             errorMessage?.toLowerCase().includes('cancel') ||
@@ -113,12 +113,12 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
             const errorMessages = errorData.errors
               .map((e: any) => e?.message || e?.Message)
               .filter(Boolean);
-            
-            const errorMessage = errorMessages.length > 0 
-              ? errorMessages.join(', ') 
+
+            const errorMessage = errorMessages.length > 0
+              ? errorMessages.join(', ')
               : (errorData.message || errorData.Message || 'Doğrulama hatası');
-            
-            res.error.data = { 
+
+            res.error.data = {
               message: errorMessage,
               errors: errorData.errors // Tüm hataları da gönder (field bazlı hata gösterimi için)
             };
@@ -161,12 +161,14 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
       // AbortError (query iptal edildi) - bu normal bir durum, sessizce ignore et
       // RTK Query otomatik olarak query'leri iptal eder (component unmount, yeni query başlatıldığında vb.)
       if (
-        error?.name === 'AbortError' || 
-        error?.message?.includes('aborted') || 
+        error?.name === 'AbortError' ||
+        error?.name === 'DOMException' ||
+        error?.code === 20 ||
+        error?.message?.includes('aborted') ||
         error?.message?.includes('cancel') ||
         error?.message?.includes('Abort')
       ) {
-        // Abort hatası normal bir durum - sessizce ignore et, hata gösterme
+        // Abort hatası normal bir durum - sessizce ignore et, console'a da yazma
         return {
           error: {
             status: 'CUSTOM_ERROR',
@@ -174,7 +176,7 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
           }
         } as any;
       }
-      
+
       // Network error veya diğer beklenmeyen hatalar
       const errorMessage = error?.message || 'Beklenmeyen bir hata oluştu';
       return {

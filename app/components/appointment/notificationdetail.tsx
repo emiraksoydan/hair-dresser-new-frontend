@@ -241,14 +241,15 @@ export const NotificationItem = React.memo(({
             : null;
 
     const displayStatusKind: 'approved' | 'rejected' | 'cancelled' | 'completed' | 'unanswered' | 'unknown' | null =
-        isApproved ? 'approved' :
-            isRejected ? 'rejected' :
-                isCancelled ? 'cancelled' :
-                    isCompleted ? 'completed' :
+        isApproved || (isStatusNotificationType && item.type === NotificationType.AppointmentApproved) ? 'approved' :
+            isRejected || (isStatusNotificationType && item.type === NotificationType.AppointmentRejected) ? 'rejected' :
+                isCancelled || (isStatusNotificationType && item.type === NotificationType.AppointmentCancelled) ? 'cancelled' :
+                    isCompleted || (isStatusNotificationType && item.type === NotificationType.AppointmentCompleted) ? 'completed' :
                         isUnanswered ? 'unanswered' :
                             decisionOutcomeKind;
 
-    const showDecisionStatus = !!displayStatusKind;
+    // Status notification type'larında veya status Rejected/Approved/Cancelled/Completed ise durum göster
+    const showDecisionStatus = !!displayStatusKind || isStatusNotificationType;
 
     const displayApproved = displayStatusKind === 'approved';
     const displayRejected = displayStatusKind === 'rejected';
@@ -260,11 +261,18 @@ export const NotificationItem = React.memo(({
     // AppointmentCreated notification'ında ve status Pending ise karar bekleniyor demektir
     const isCreatedType = item.type === NotificationType.AppointmentCreated && isPending;
 
+    // Status notification type'ları: bu tür bildirimlerde butonlar gösterilmemeli
+    const isStatusNotificationType = item.type === NotificationType.AppointmentRejected || 
+                                     item.type === NotificationType.AppointmentCancelled || 
+                                     item.type === NotificationType.AppointmentCompleted ||
+                                     item.type === NotificationType.AppointmentApproved;
+    
     // Butonlar gösterilme koşulları:
     // 1. showDecisionButtons true olmalı (yukarıdaki tüm koşullar sağlanmalı)
-    // 2. Durum gösterilmemeli (Pending durumunda durum gösterilmez)
-    // 3. Status Pending olmalı (zaten showDecisionButtons'da kontrol ediliyor ama ekstra güvenlik)
-    const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending;
+    // 2. Durum gösterilmemeli (Rejected/Approved/Cancelled/Completed durumunda butonlar gösterilmez)
+    // 3. Status Pending olmalı VE decision verilmemiş olmalı
+    // 4. Status notification type'ı değilse (AppointmentRejected, AppointmentCancelled, AppointmentCompleted, AppointmentApproved)
+    const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending && !isStatusNotificationType;
 
     // FreeBarber için "Dükkan Ekle" butonu KALDIRILDI
     // Otomatik algılama: Panel index'te aktif StoreSelection randevusu varsa otomatik mode=add-store

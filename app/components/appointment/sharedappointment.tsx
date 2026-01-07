@@ -877,36 +877,36 @@ export default function SharedAppointmentScreen() {
     return (
         <View className="flex-1 bg-[#0D0D0D]" style={{ paddingTop: insets.top }}>
             <View className="pt-0 pb-2">
-                <View className="px-4 mb-2 flex-row justify-between items-center">
-                    <View className="flex-row gap-2">
-                        <FilterChip
-                            itemKey="active"
-                            selected={activeFilter === AppointmentFilter.Active}
-                            onPress={() => setActiveFilter(AppointmentFilter.Active)}
-                        >
-                            Aktif
-                        </FilterChip>
-                        <FilterChip
-                            itemKey="completed"
-                            selected={activeFilter === AppointmentFilter.Completed}
-                            onPress={() => setActiveFilter(AppointmentFilter.Completed)}
-                        >
-                            Tamamlanan
-                        </FilterChip>
-                        <FilterChip
-                            itemKey="cancelled"
-                            selected={activeFilter === AppointmentFilter.Cancelled}
-                            onPress={() => setActiveFilter(AppointmentFilter.Cancelled)}
-                        >
-                            İptal / Geçmiş
-                        </FilterChip>
-                    </View>
-                    {(activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled) &&
-                        filteredAppointments && filteredAppointments.length > 0 && (
+                <View className="px-4 mb-2 flex-row gap-2">
+                    <FilterChip
+                        itemKey="active"
+                        selected={activeFilter === AppointmentFilter.Active}
+                        onPress={() => setActiveFilter(AppointmentFilter.Active)}
+                    >
+                        Aktif
+                    </FilterChip>
+                    <FilterChip
+                        itemKey="completed"
+                        selected={activeFilter === AppointmentFilter.Completed}
+                        onPress={() => setActiveFilter(AppointmentFilter.Completed)}
+                    >
+                        Tamamlanan
+                    </FilterChip>
+                    <FilterChip
+                        itemKey="cancelled"
+                        selected={activeFilter === AppointmentFilter.Cancelled}
+                        onPress={() => setActiveFilter(AppointmentFilter.Cancelled)}
+                    >
+                        İptal / Geçmiş
+                    </FilterChip>
+                </View>
+                {(activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled) &&
+                    filteredAppointments && filteredAppointments.length > 0 && (
+                        <View className="px-4 mb-2">
                             <TouchableOpacity
                                 onPress={handleDeleteAll}
                                 disabled={isDeletingAllAppointments}
-                                className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 ${isDeletingAllAppointments ? 'opacity-60' : ''}`}
+                                className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 self-start ${isDeletingAllAppointments ? 'opacity-60' : ''}`}
                             >
                                 {isDeletingAllAppointments ? (
                                     <ActivityIndicator size="small" color="white" />
@@ -915,8 +915,8 @@ export default function SharedAppointmentScreen() {
                                 )}
                                 <Text className="text-white font-semibold text-sm">Tümünü Sil</Text>
                             </TouchableOpacity>
-                        )}
-                </View>
+                        </View>
+                    )}
             </View>
 
             {isLoading ? (

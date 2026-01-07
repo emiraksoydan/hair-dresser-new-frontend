@@ -37,11 +37,9 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   // Memoize image data to prevent re-renders
   const imageData = useMemo(() => images || [], [images]);
 
-  // Map mode değiştiğinde loading state'ini sıfırla
+  // Map mode değiştiğinde loading state'ini sıfırla ve component'i yeniden mount et
   useEffect(() => {
-    if (isMapMode) {
-      setLoadedImages(new Set());
-    }
+    setLoadedImages(new Set());
   }, [isMapMode]);
 
   const handleImageLoad = (index: number) => {
@@ -102,6 +100,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
             }}
           >
             <Image
+              key={`img-${index}-${item.imageUrl}`}
               source={
                 item.imageUrl
                   ? { uri: item.imageUrl }
@@ -114,7 +113,6 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
               }}
               resizeMode="cover"
               onLoad={() => handleImageLoad(index)}
-
             />
             {!loadedImages.has(index) && (
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937', borderRadius: borderRadiusValue }}>

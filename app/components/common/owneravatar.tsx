@@ -29,15 +29,20 @@ export const OwnerAvatar: React.FC<Props> = ({
     iconColor = "#6b7280",
     iconContainerClassName = "bg-[#2a2c30]",
 }) => {
+    // fallbackUrl boş string veya null/undefined ise fetch yap
+    const hasValidFallback = fallbackUrl && fallbackUrl.trim().length > 0;
     const shouldFetch =
-        !!ownerId && ownerType != null && (preferServer || !fallbackUrl);
+        !!ownerId && ownerType != null && (preferServer || !hasValidFallback);
 
     const { data: images } = useGetImagesByOwnerQuery(
         { ownerId: ownerId ?? "", ownerType: ownerType as ImageOwnerType },
         { skip: !shouldFetch }
     );
 
-    const resolvedUrl = (images?.[0]?.imageUrl ?? fallbackUrl) || null;
+    // Önce API'den gelen image'ı kullan, yoksa fallbackUrl'i kullan (eğer geçerliyse)
+    const apiImageUrl = images?.[0]?.imageUrl;
+    const validFallbackUrl = fallbackUrl && fallbackUrl.trim().length > 0 ? fallbackUrl : null;
+    const resolvedUrl = apiImageUrl || validFallbackUrl || null;
 
     if (resolvedUrl) {
         return (

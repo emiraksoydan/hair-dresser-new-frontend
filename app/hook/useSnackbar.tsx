@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Portal, Snackbar } from 'react-native-paper';
 
 export interface UseSnackbarReturn {
@@ -19,28 +19,70 @@ export const useSnackbar = (): UseSnackbarReturn => {
   const [snackText, setSnackText] = useState('');
   const [snackIsError, setSnackIsError] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const queueRef = useRef<Array<{ message: string; isError: boolean }>>([]);
+  const isProcessingRef = useRef(false);
+  const snackVisibleRef = useRef(false);
+
+  // snackVisible state'ini ref ile senkronize et
+  React.useEffect(() => {
+    snackVisibleRef.current = snackVisible;
+  }, [snackVisible]);
+
+  const processQueue = React.useCallback(() => {
+    if (isProcessingRef.current || queueRef.current.length === 0) return;
+    
+    isProcessingRef.current = true;
+    const next = queueRef.current.shift();
+    if (!next) {
+      isProcessingRef.current = false;
+      return;
+    }
+
+    // Eğer snackbar görünürse, önce kapat ve kuyruğa ekle
+    if (snackVisibleRef.current) {
+      setSnackVisible(false);
+      // Kısa bir gecikme sonrası yeni mesajı göster
+      timeoutRef.current = setTimeout(() => {
+        setSnackText(next.message);
+        setSnackIsError(next.isError);
+        setSnackVisible(true);
+        isProcessingRef.current = false;
+        // Kuyrukta daha fazla mesaj varsa, bu mesaj kapandığında işle
+        const nextTimeout = setTimeout(() => {
+          if (queueRef.current.length > 0) {
+            processQueue();
+          }
+        }, 3000); // Snackbar duration
+        timeoutRef.current = nextTimeout;
+      }, 300); // Kapanma animasyonu için bekle
+    } else {
+      setSnackText(next.message);
+      setSnackIsError(next.isError);
+      setSnackVisible(true);
+      isProcessingRef.current = false;
+      // Kuyrukta daha fazla mesaj varsa, bu mesaj kapandığında işle
+      const nextTimeout = setTimeout(() => {
+        if (queueRef.current.length > 0) {
+          processQueue();
+        }
+      }, 3000); // Snackbar duration
+      timeoutRef.current = nextTimeout;
+    }
+  }, []);
 
   const showSnack = React.useCallback((message: string, isError: boolean = false) => {
     // Önceki timeout'u temizle
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     
-    // Eğer snackbar zaten görünürse, önce kapat
-    if (snackVisible) {
-      setSnackVisible(false);
-      // Kısa bir gecikme sonrası yeni mesajı göster
-      timeoutRef.current = setTimeout(() => {
-        setSnackText(message);
-        setSnackIsError(isError);
-        setSnackVisible(true);
-      }, 100);
-    } else {
-      setSnackText(message);
-      setSnackIsError(isError);
-      setSnackVisible(true);
-    }
-  }, [snackVisible]);
+    // Kuyruğa ekle
+    queueRef.current.push({ message, isError });
+    
+    // Kuyruğu işle
+    processQueue();
+  }, [processQueue]);
 
   const hideSnack = React.useCallback(() => {
     if (timeoutRef.current) {
@@ -48,7 +90,14 @@ export const useSnackbar = (): UseSnackbarReturn => {
       timeoutRef.current = null;
     }
     setSnackVisible(false);
-  }, []);
+    isProcessingRef.current = false;
+    // Kuyrukta daha fazla mesaj varsa, işle
+    setTimeout(() => {
+      if (queueRef.current.length > 0) {
+        processQueue();
+      }
+    }, 100);
+  }, [processQueue]);
 
   const SnackbarComponent: React.FC = () => (
     <Portal>
