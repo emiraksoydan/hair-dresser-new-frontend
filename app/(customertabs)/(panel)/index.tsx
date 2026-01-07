@@ -212,7 +212,6 @@ const Index = () => {
                     coordinate={{ latitude: c.lat, longitude: c.lon }}
                     title={store.storeName}
                     description={store.addressDescription}
-                    tracksViewChanges={false}
                     onPress={() => handleMapItemPress(store, 'store')}
                 >
                     <View
@@ -225,7 +224,7 @@ const Index = () => {
                         }}
                     >
                         {avatarUrl ? (
-                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
+                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" skipLoading />
                         ) : (
                             <Icon source={iconName} color="white" size={20} />
                         )}
@@ -249,7 +248,6 @@ const Index = () => {
                     key={`fb-${(barber as any).id}`}
                     coordinate={{ latitude: c.lat, longitude: c.lon }}
                     title={(barber as any).fullName}
-                    tracksViewChanges={false}
                     onPress={() => handleMapItemPress(barber, 'freeBarber')}
                 >
                     <View
@@ -262,7 +260,7 @@ const Index = () => {
                         }}
                     >
                         {avatarUrl ? (
-                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
+                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" skipLoading />
                         ) : (
                             <Icon source={iconName} color="white" size={18} />
                         )}

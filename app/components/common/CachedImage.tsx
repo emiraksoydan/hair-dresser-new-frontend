@@ -14,6 +14,7 @@ interface CachedImageProps extends Omit<ImageProps, 'source'> {
     defaultSource?: ImageSourcePropType;
     className?: string;
     resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
+    skipLoading?: boolean; // For map markers - don't show loading indicator
 }
 
 export const CachedImage = memo<CachedImageProps>(({
@@ -21,6 +22,7 @@ export const CachedImage = memo<CachedImageProps>(({
     defaultSource = require('../../../assets/images/empty.png'),
     className,
     resizeMode = 'cover',
+    skipLoading = false,
     ...props
 }) => {
     const [source, setSource] = useState<string | null>(null);
@@ -91,6 +93,18 @@ export const CachedImage = memo<CachedImageProps>(({
     }, [uri]);
 
     if (loading) {
+        // For map markers: show default image instead of loading indicator
+        if (skipLoading) {
+            return (
+                <Image
+                    {...props}
+                    source={defaultSource}
+                    className={className}
+                    resizeMode={resizeMode}
+                />
+            );
+        }
+
         return (
             <View className={className} style={{ justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="small" color="#6b7280" />

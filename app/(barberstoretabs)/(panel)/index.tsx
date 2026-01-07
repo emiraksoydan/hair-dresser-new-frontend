@@ -397,7 +397,6 @@ const Index = () => {
                 coordinate={{ latitude: c.lat, longitude: c.lon }}
                 title={store.storeName}
                 description={store.addressDescription}
-                tracksViewChanges={false}
                 onPress={() => handlePressUpdateStore(store)}
             >
                 <View
@@ -410,7 +409,7 @@ const Index = () => {
                     }}
                 >
                     {avatarUrl ? (
-                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
+                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" skipLoading />
                     ) : (
                         <Icon source={iconName} color="white" size={20} />
                     )}

@@ -341,7 +341,6 @@ const Index = () => {
                 coordinate={{ latitude: c.lat, longitude: c.lon }}
                 title={store.storeName}
                 description={store.addressDescription}
-                tracksViewChanges={false}
                 onPress={() => handleMarkerPress(store)}
             >
                 <View
@@ -354,7 +353,7 @@ const Index = () => {
                     }}
                 >
                     {avatarUrl ? (
-                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
+                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" skipLoading />
                     ) : (
                         <Icon source={iconName} color="white" size={20} />
                     )}
@@ -374,7 +373,6 @@ const Index = () => {
             key={freeBarber?.id}
             coordinate={{ latitude: c.lat, longitude: c.lon }}
             title={freeBarber?.fullName}
-            tracksViewChanges={false}
             onPress={() => handleOpenPanel(freeBarber?.id!)}
         >
             <View
@@ -387,7 +385,7 @@ const Index = () => {
                 }}
             >
                 {avatarUrl ? (
-                    <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
+                    <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" skipLoading />
                 ) : (
                     <Icon source={iconName} color="white" size={20} />
                 )}
