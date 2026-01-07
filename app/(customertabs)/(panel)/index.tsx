@@ -18,6 +18,7 @@ import { safeCoord } from "../../utils/location/geo";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import StoreBookingContent from "../../components/store/storebooking";
 import FreeBarberBookingContent from "../../components/freebarber/freebarberbooking";
+import { CachedImage } from "../../components/common/CachedImage";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { SkeletonComponent } from "../../components/common/skeleton";
@@ -224,7 +225,7 @@ const Index = () => {
                         }}
                     >
                         {avatarUrl ? (
-                            <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
+                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
                         ) : (
                             <Icon source={iconName} color="white" size={20} />
                         )}
@@ -261,7 +262,7 @@ const Index = () => {
                         }}
                     >
                         {avatarUrl ? (
-                            <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
+                            <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
                         ) : (
                             <Icon source={iconName} color="white" size={18} />
                         )}

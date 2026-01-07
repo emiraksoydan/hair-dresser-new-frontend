@@ -26,6 +26,7 @@ import { BarberMarker } from "../../components/freebarber/barbermarker";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 import { filterFreeBarbers, filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
+import { CachedImage } from "../../components/common/CachedImage";
 
 const Index = () => {
     // 30 saniyede bir otomatik yenileme - beğeniler ve yorumlar için
@@ -409,7 +410,7 @@ const Index = () => {
                     }}
                 >
                     {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
+                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
                     ) : (
                         <Icon source={iconName} color="white" size={20} />
                     )}

@@ -27,6 +27,7 @@ import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocatio
 import { RatingsBottomSheet } from '../../components/rating/ratingsbottomsheet';
 import { filterStores } from "../../utils/filter/panel-filters";
 import { usePanelFilters } from "../../hook/usePanelFilters";
+import { CachedImage } from "../../components/common/CachedImage";
 
 const Index = () => {
     const router = useRouter();
@@ -353,7 +354,7 @@ const Index = () => {
                     }}
                 >
                     {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
+                        <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
                     ) : (
                         <Icon source={iconName} color="white" size={20} />
                     )}
@@ -386,7 +387,7 @@ const Index = () => {
                 }}
             >
                 {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} className="w-full h-full rounded-full" resizeMode="cover" />
+                    <CachedImage uri={avatarUrl} className="w-full h-full rounded-full" resizeMode="cover" />
                 ) : (
                     <Icon source={iconName} color="white" size={20} />
                 )}
