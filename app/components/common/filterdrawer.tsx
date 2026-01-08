@@ -12,7 +12,7 @@ import Animated, {
     runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Chip, Divider, Icon, Button, TextInput } from 'react-native-paper';
+import { Chip, Divider, Icon, TextInput } from 'react-native-paper';
 import { MultiSelect } from 'react-native-element-dropdown';
 import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
 

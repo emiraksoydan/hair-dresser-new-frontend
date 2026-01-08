@@ -322,7 +322,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     updateStoreSheet.handleChange(index);
                     if (index < 0) {
                         setSelectedStoreForUpdate(null);
-                        refetch();
+                        // RTK Query otomatik olarak cache'i güncelleyecek
                     }
                 }}
             >
@@ -351,7 +351,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                 onChange={(index) => {
                     updateFreeBarberSheet.handleChange(index);
                     if (index < 0) {
-                        refetch();
+                        // RTK Query otomatik olarak cache'i güncelleyecek
                     }
                 }}
             >

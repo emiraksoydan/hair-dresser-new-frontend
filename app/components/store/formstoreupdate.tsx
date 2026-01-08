@@ -6,7 +6,8 @@ import { parseTR } from '../../utils/form/money-helper';
 import { fmtHHmm, fromHHmm, HOLIDAY_OPTIONS, normalizeTime, timeHHmmRegex, toMinutes } from '../../utils/time/time-helper';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Avatar, Divider, HelperText, Icon, IconButton, TextInput, Button } from 'react-native-paper';
+import { Avatar, Divider, HelperText, Icon, IconButton, TextInput } from 'react-native-paper';
+import { Button } from '../common/Button';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 import {
     useDeleteImageMutation,
@@ -18,6 +19,7 @@ import {
     useUpdateBarberStoreMutation,
     useUploadMultipleImagesMutation,
     useUploadImageMutation,
+    useUpdateImageBlobMutation,
 } from '../../store/api';
 import { CrudSkeletonComponent } from '../common/crudskeleton';
 import { pickImageAndSet, handlePickMultipleImages, handlePickImage, truncateFileName } from '../../utils/form/pick-document';
@@ -28,9 +30,11 @@ import { getCurrentLocationSafe } from '../../utils/location/location-helper';
 import { BarberEditModal } from './barbereditmodal';
 import { BarberFormValues, BarberStoreUpdateDto, ChairFormInitial, ImageOwnerType, ServiceOfferingUpdateDto } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
+import { MESSAGES } from '../../constants/messages';
 import { ChairEditModal } from './chaireditmodal';
 import { safeCoord } from '../../utils/location/geo';
-import { useSnackbar } from '../../hook/useSnackbar';
+import { useAppDispatch } from '../../store/hook';
+import { showSnack } from '../../store/snackbarSlice';
 import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
@@ -169,6 +173,7 @@ const schema = z.object({
     storeImages: z
         .array(
             z.object({
+                id: z.string().uuid().optional(), // Mevcut resimler için ID, yeni resimler için yok
                 uri: z.string().min(1),
                 name: z.string().min(1),
                 type: z.string().min(1),
@@ -223,6 +228,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
+    const [updateImageBlob] = useUpdateImageBlobMutation();
     const [isImagePickerLoading, setIsImagePickerLoading] = React.useState(false);
     const [isTaxDocumentLoading, setIsTaxDocumentLoading] = React.useState(false);
     const [loadedStoreImages, setLoadedStoreImages] = React.useState<Set<number>>(new Set());
@@ -234,7 +240,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         }
     }, [enabled, storeId, triggerGetStore]);
 
-    const { showSnack, SnackbarComponent } = useSnackbar();
+    const dispatch = useAppDispatch();
 
     // Error handling moved to try-catch in onSubmit to avoid duplicate snackbars
 
@@ -319,6 +325,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         if (!data) return;
         const imageListData = data.imageList ?? [];
         const initialImages = imageListData.map((img: any) => ({
+            id: img.id, // Mevcut resimlerin ID'sini tut
             uri: img.imageUrl,
             name: img.imageUrl.split("/").pop() ?? `image-${img.id}.jpg`,
             type: img.imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
@@ -570,7 +577,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         try {
             const res = await getCurrentLocationSafe();
             if (!res.ok) {
-                showSnack(res.message, true);
+                dispatch(showSnack({ message: res.message, isError: true }));
                 return;
             }
 
@@ -652,14 +659,14 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                         try {
                             if (current.id) {
                                 var res = await deleteBarber(current.id).unwrap();
-                                showSnack(res.message, !res.success);
+                                dispatch(showSnack({ message: res.message, isError: !res.success }));
                                 if (res.success) {
                                     // Store data'sını yeniden yükle
                                     await triggerGetStore(storeId);
                                 }
                             }
                         } catch (e) {
-                            showSnack(resolveApiErrorMessage(e), true);
+                            dispatch(showSnack({ message: resolveApiErrorMessage(e), isError: true }));
                         }
                     },
                 },
@@ -685,14 +692,14 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                         try {
                             if (current.id) {
                                 var res = await deleteChair(current.id).unwrap();
-                                showSnack(res.message, !res.success);
+                                dispatch(showSnack({ message: res.message, isError: !res.success }));
                                 if (res.success) {
                                     // Store data'sını yeniden yükle
                                     await triggerGetStore(storeId);
                                 }
                             }
                         } catch (e) {
-                            showSnack(resolveApiErrorMessage(e), true);
+                            dispatch(showSnack({ message: resolveApiErrorMessage(e), isError: true }));
                         }
                     },
                 },
@@ -745,16 +752,29 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
         setIsSubmitting(true);
         const existingImages = data?.imageList ?? [];
         const formImages = form.storeImages ?? [];
-        const existingImageUrls = new Set(existingImages.map((img) => img.imageUrl));
-        const formImageUrls = new Set(formImages.map((img) => img.uri));
-        const removedImages = existingImages.filter((img) => !formImageUrls.has(img.imageUrl));
-        const newImages = formImages.filter((img) => !existingImageUrls.has(img.uri));
+
+        // Mevcut resimlerin ID'lerine göre eşleştirme
+        const existingImageMap = new Map(existingImages.map((img) => [img.id, img]));
+        const formImageMap = new Map(formImages.filter((img) => img.id).map((img) => [img.id!, img]));
+
+        // 1. Silinecek resimler: Mevcut resimlerde var ama form'da yok
+        const removedImages = existingImages.filter((img) => !formImageMap.has(img.id));
+
+        // 2. Güncellenecek resimler: ID var ve URI değişmiş (resim değiştirilmiş)
+        const updatedImages = formImages.filter((img) => {
+            if (!img.id) return false; // ID yoksa yeni resim
+            const existingImg = existingImageMap.get(img.id);
+            return existingImg && existingImg.imageUrl !== img.uri; // URI değişmişse güncelle
+        });
+
+        // 3. Yeni resimler: ID yok
+        const newImages = formImages.filter((img) => !img.id);
 
         // Tax document image upload (tekli resim)
         let taxDocumentImageId: string | undefined;
         if (form.taxDocumentImage) {
             if (!userId) {
-                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                dispatch(showSnack({ message: MESSAGES.PROFILE.USER_NOT_FOUND, isError: true }));
                 return;
             }
             try {
@@ -769,12 +789,12 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
-                    showSnack("Vergi levhası resmi yüklenemedi", true);
+                    dispatch(showSnack({ message: uploadResult.message || MESSAGES.FORM.TAX_DOCUMENT_UPLOAD_ERROR, isError: true }));
                     return;
                 }
                 taxDocumentImageId = uploadResult.data;
             } catch (err: any) {
-                showSnack(resolveApiErrorMessage(err) || "Vergi levhası yüklenirken hata oluştu", true);
+                dispatch(showSnack({ message: err?.data?.message || resolveApiErrorMessage(err) || MESSAGES.FORM.TAX_DOCUMENT_UPLOAD_FAILED, isError: true }));
                 return;
             }
         }
@@ -832,16 +852,33 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
             // Result handled by RTK Query mutation
             if (result.success) {
                 let uploadError: string | null = null;
-                const hasImageChanges = removedImages.length > 0 || newImages.length > 0;
+                const hasImageChanges = removedImages.length > 0 || updatedImages.length > 0 || newImages.length > 0;
                 if (hasImageChanges) {
                     try {
+                        // 1. Silinecek resimleri sil
                         for (const img of removedImages) {
                             const deleteResult = await deleteImage(img.id).unwrap();
                             if (!deleteResult.success) {
-                                throw new Error(deleteResult.message || "Resim silinemedi.");
+                                throw new Error(deleteResult.message || MESSAGES.FORM.IMAGE_DELETE_ERROR);
                             }
                         }
 
+                        // 2. Güncellenecek resimleri update-blob ile güncelle (aynı blob'u koru)
+                        for (const img of updatedImages) {
+                            if (!img.id) continue;
+                            const formData = new FormData();
+                            formData.append("file", {
+                                uri: img.uri,
+                                name: img.name ?? "photo.jpg",
+                                type: img.type ?? "image/jpeg",
+                            } as any);
+                            const updateResult = await updateImageBlob({ imageId: img.id, file: formData }).unwrap();
+                            if (!updateResult.success) {
+                                throw new Error(updateResult.message || MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR);
+                            }
+                        }
+
+                        // 3. Yeni resimleri ekle
                         if (newImages.length > 0) {
                             const formData = new FormData();
                             newImages.forEach((img) => {
@@ -855,7 +892,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                             formData.append("ownerId", storeId);
                             const uploadResult = await uploadMultipleImages(formData).unwrap();
                             if (!uploadResult.success) {
-                                throw new Error(uploadResult.message || "İşletme resimleri yüklenemedi.");
+                                throw new Error(uploadResult.message || MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR);
                             }
                         }
                     } catch (uploadErr: any) {
@@ -864,20 +901,20 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                 }
 
                 if (uploadError) {
-                    showSnack(`İşletme güncellendi, resimler yüklenemedi. ${uploadError}`, true);
+                    dispatch(showSnack({ message: `${MESSAGES.FORM.STORE_IMAGES_UPDATE_ERROR} ${uploadError}`, isError: true }));
                 } else {
-                    showSnack(result.message, false);
+                    dispatch(showSnack({ message: result.message || MESSAGES.FORM.STORE_UPDATE_SUCCESS, isError: false }));
                 }
                 // Refresh store data to show updated images
                 await triggerGetStore(storeId);
                 onClose?.();
             }
             else {
-                showSnack(result.message, true);
+                dispatch(showSnack({ message: result.message || MESSAGES.FORM.STORE_UPDATE_ERROR, isError: true }));
             }
         } catch (error: any) {
-            const msg = resolveApiErrorMessage(error);
-            showSnack(msg, true);
+            const errorMessage = error?.data?.message || resolveApiErrorMessage(error);
+            dispatch(showSnack({ message: errorMessage || MESSAGES.FORM.STORE_UPDATE_ERROR, isError: true }));
         } finally {
             setIsSubmitting(false);
         }
@@ -1531,8 +1568,18 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                             <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
                             <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
                                 <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
-                                <Button loading={locBusy}
-                                    disabled={locBusy} mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
+                                <Button
+                                    loading={locBusy}
+                                    disabled={locBusy}
+                                    mode='contained-tonal'
+                                    icon={'store'}
+                                    className="my-2.5"
+                                    onPress={pickMyCurrentLocation}
+                                    buttonColor='#10B981'
+                                    textColor='white'
+                                >
+                                    İşletmenin konumunu al
+                                </Button>
                                 <MapPicker
                                     lat={c ? c.lat : undefined}
                                     lng={c ? c.lon : undefined}
@@ -1572,7 +1619,17 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                         </View>
                     </ScrollView>
                     <View className="px-4 my-3">
-                        <Button style={{ borderRadius: 10 }} disabled={updateLoading || isSubmitting} loading={updateLoading || isSubmitting} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Güncelle</Button>
+                        <Button
+                            className="mt-2 mb-4"
+                            disabled={updateLoading || isSubmitting}
+                            loading={updateLoading || isSubmitting}
+                            mode="contained"
+                            onPress={handleSubmit(OnSubmit)}
+                            buttonColor="#1F2937"
+                            textColor="white"
+                        >
+                            Güncelle
+                        </Button>
                     </View>
                     <BarberEditModal
                         visible={barberModalVisible}
@@ -1589,8 +1646,6 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
                         onClose={closeChairModal}
                         storeId={storeId}
                     />
-                    <SnackbarComponent />
-
                 </>
             )}
         </View>

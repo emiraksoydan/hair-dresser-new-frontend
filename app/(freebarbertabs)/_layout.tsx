@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { Icon, IconButton, Snackbar, Portal } from 'react-native-paper'
+import { Icon, IconButton } from 'react-native-paper'
+import { useAppDispatch } from '../store/hook';
+import { showSnack } from '../store/snackbarSlice';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useGetBadgeCountsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
@@ -14,9 +16,7 @@ import { useNotificationSound } from '../hook/useNotificationSound';
 
 const FreeBarberLayout = () => {
     const [infoModalVisible, setInfoModalVisible] = useState(false);
-    const [snackbarVisible, setSnackbarVisible] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState("");
-    const [snackbarIsError, setSnackbarIsError] = useState(false);
+    const dispatch = useAppDispatch();
 
     // Bottom sheet hook
     const notificationsSheet = useBottomSheet({
@@ -355,32 +355,16 @@ const FreeBarberLayout = () => {
                     onClose={() => notificationsSheet.dismiss()}
                     autoOpenFirstUnread={true}
                     onDeleteSuccess={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(false);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: false }));
                     }}
                     onDeleteInfo={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(true);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: true }));
                     }}
                     onDeleteError={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(true);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: true }));
                     }}
                 />
             </BottomSheetModal>
-            <Portal>
-                <Snackbar
-                    visible={snackbarVisible}
-                    onDismiss={() => setSnackbarVisible(false)}
-                    duration={3000}
-                    style={{ backgroundColor: snackbarIsError ? '#f59e0b' : '#10b981' }}
-                >
-                    {snackbarMessage}
-                </Snackbar>
-            </Portal>
             <InfoModal
                 visible={infoModalVisible}
                 onClose={() => setInfoModalVisible(false)}

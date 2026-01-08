@@ -54,9 +54,9 @@ export const mapCategoryToBarberType = (category: string): BarberType | null => 
     if (category === "Hepsi") return null;
     
     const categoryMap: Record<string, BarberType> = {
-        "Erkek": BarberType.Male,
-        "Kadın": BarberType.Female,
-        "Unisex": BarberType.Unisex,
+        "Erkek": BarberType.MaleHairdresser,
+        "Kadın": BarberType.FemaleHairdresser,
+        "Unisex": BarberType.BeautySalon,
     };
     
     return categoryMap[category] || null;

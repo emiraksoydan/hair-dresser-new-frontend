@@ -6,7 +6,6 @@ import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreMineDto } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
-import { useDispatch } from 'react-redux';
 import { ImageCarousel } from '../common/imagecarousel';
 
 type Props = {
@@ -25,7 +24,6 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
     const imageWidth = isList ? carouselWidth : 112;
     const imageHeight = isList ? 320 : 112;
     const { isAuthenticated } = useAuth();
-    const dispatch = useDispatch();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
@@ -82,7 +80,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
             // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
             Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
         }
-    }, [isAuthenticated, store.id, toggleFavorite, dispatch, isFavorite, favoriteCount]);
+    }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount]);
 
     return (
         <View

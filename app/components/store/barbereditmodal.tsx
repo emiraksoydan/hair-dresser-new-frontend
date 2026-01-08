@@ -2,13 +2,17 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
-import { Button, Dialog, HelperText, Icon, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Dialog, HelperText, Icon, Portal, Text, TextInput } from 'react-native-paper';
+import { useAppDispatch } from '../../store/hook';
+import { showSnack } from '../../store/snackbarSlice';
+import { Button } from '../common/Button';
 import { useForm, Controller } from 'react-hook-form';
 import { v4 as uuid } from 'uuid';
 import { BarberFormValues, ImageOwnerType } from '../../types';
 import { useAddManuelBarberMutation, useDeleteImageMutation, useLazyGetImagesByOwnerQuery, useUpdateManuelBarberMutation, useUploadImageMutation } from '../../store/api';
 import { handlePickImage } from '../../utils/form/pick-document';
 import { resolveApiErrorMessage } from '../../utils/common/error';
+import { MESSAGES } from '../../constants/messages';
 
 
 type Props = {
@@ -44,10 +48,7 @@ export const BarberEditModal: React.FC<Props> = ({
     const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
     const [triggerGetImagesByOwner] = useLazyGetImagesByOwnerQuery();
-
-    const [snackVisible, setSnackVisible] = useState(false);
-    const [snackMessage, setSnackMessage] = useState('');
-    const [snackIsError, setSnackIsError] = useState(false);
+    const dispatch = useAppDispatch();
     const profileImage = watch('profileImage');
 
     const handlePickAvatar = async () => {
@@ -88,7 +89,7 @@ export const BarberEditModal: React.FC<Props> = ({
         for (const img of images ?? []) {
             const deleteResult = await deleteImage(img.id).unwrap();
             if (!deleteResult.success) {
-                throw new Error(deleteResult.message || "Resim silinemedi.");
+                throw new Error(deleteResult.message || MESSAGES.FORM.IMAGE_DELETE_ERROR);
             }
         }
     };
@@ -105,7 +106,7 @@ export const BarberEditModal: React.FC<Props> = ({
         formData.append("ownerId", ownerId);
         const uploadResult = await uploadImage(formData).unwrap();
         if (!uploadResult.success) {
-            throw new Error(uploadResult.message || "Resim yüklenemedi.");
+            throw new Error(uploadResult.message || MESSAGES.FORM.IMAGE_UPLOAD_ERROR);
         }
     };
 
@@ -133,9 +134,7 @@ export const BarberEditModal: React.FC<Props> = ({
             }
 
             if (!result?.success) {
-                setSnackMessage(result?.message ?? 'İşlem başarısız');
-                setSnackIsError(true);
-                setSnackVisible(true);
+                dispatch(showSnack({ message: result?.message ?? MESSAGES.FORM.OPERATION_FAILED, isError: true }));
                 return;
             }
 
@@ -161,20 +160,18 @@ export const BarberEditModal: React.FC<Props> = ({
 
             if (uploadError) {
                 const baseMessage = isCreate
-                    ? "Berber eklendi, resim yüklenemedi."
-                    : "Berber güncellendi, resim yüklenemedi.";
-                setSnackMessage(`${baseMessage} ${uploadError}`);
-                setSnackIsError(true);
+                    ? MESSAGES.FORM.BARBER_ADD_IMAGE_ERROR
+                    : MESSAGES.FORM.BARBER_UPDATE_IMAGE_ERROR;
+                dispatch(showSnack({ message: `${baseMessage} ${uploadError}`, isError: true }));
             } else {
-                setSnackMessage(result?.message ?? 'İşlem başarılı');
-                setSnackIsError(false);
+                const successMessage = isCreate
+                    ? MESSAGES.FORM.BARBER_ADD_SUCCESS
+                    : MESSAGES.FORM.BARBER_UPDATE_SUCCESS;
+                dispatch(showSnack({ message: result?.message ?? successMessage, isError: false }));
             }
-            setSnackVisible(true);
             onClose();
         } catch (e: any) {
-            setSnackMessage(resolveApiErrorMessage(e));
-            setSnackIsError(true);
-            setSnackVisible(true);
+            dispatch(showSnack({ message: resolveApiErrorMessage(e), isError: true }));
         }
     };
     return (
@@ -254,21 +251,6 @@ export const BarberEditModal: React.FC<Props> = ({
                     </Button>
                 </Dialog.Actions>
             </Dialog>
-            <Snackbar
-                visible={snackVisible}
-                onDismiss={() => setSnackVisible(false)}
-                duration={3000}
-                style={{
-                    backgroundColor: snackIsError ? '#b91c1c' : '#16a34a', // kırmızı / yeşil
-                }}
-                action={{
-                    label: 'Kapat',
-                    textColor: 'white',
-                    onPress: () => setSnackVisible(false),
-                }}
-            >
-                {snackMessage}
-            </Snackbar>
         </Portal>
     );
 };

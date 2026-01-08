@@ -24,26 +24,13 @@ export const useBottomSheet = (options: UseBottomSheetOptions = {}) => {
     } = options;
 
     const present = useCallback(() => {
-        // Ref hazır olana kadar bekle (max 5 deneme)
-        let attempts = 0;
-        const maxAttempts = 5;
-        const tryPresent = () => {
-            if (ref.current) {
-                try {
-                    ref.current.present();
-                } catch (error) {
-                    // Eğer hata olursa ve deneme hakkı varsa tekrar dene
-                    if (attempts < maxAttempts) {
-                        attempts++;
-                        setTimeout(tryPresent, 50);
-                    }
-                }
-            } else if (attempts < maxAttempts) {
-                attempts++;
-                setTimeout(tryPresent, 50);
+        if (ref.current) {
+            try {
+                ref.current.present();
+            } catch (error) {
+                // Silently fail - ref might not be ready yet
             }
-        };
-        tryPresent();
+        }
     }, []);
 
     const dismiss = useCallback(() => {

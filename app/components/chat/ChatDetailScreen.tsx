@@ -15,8 +15,7 @@ import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, Appointme
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
-import type { AppDispatch } from '../../store/redux-store';
+import { useAppDispatch } from '../../store/hook';
 import { setActiveThreadId } from '../../lib/activeChatThread';
 import { OwnerAvatar } from '../common/owneravatar';
 
@@ -35,7 +34,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const flatListRef = useRef<FlatList>(null);
     const { userId: currentUserId, userType: currentUserType } = useAuth();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
 
     // SignalR bağlantı kontrolü
     const { isConnected, connectionRef } = useSignalR();
@@ -253,12 +252,12 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             } else {
                 await sendMessageByThread({ threadId, text }).unwrap();
             }
-            refetch();
+            // RTK Query otomatik olarak cache'i güncelleyecek
         } catch (e: any) {
             setMessageText(text); // Restore text on error
             Alert.alert('Hata', e?.data?.message || e?.message || 'Mesaj gönderilemedi');
         }
-    }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, refetch, notifyTyping]);
+    }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, notifyTyping]);
 
     const formatMessageTime = (dateStr: string) => {
         try {
@@ -568,7 +567,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                             )}
                                         </View>
                                     )}
-                                    <Text 
+                                    <Text
                                         className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}
                                         style={{ flexWrap: 'wrap', flexShrink: 1 }}
                                     >

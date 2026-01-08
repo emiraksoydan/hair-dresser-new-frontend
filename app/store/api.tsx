@@ -815,6 +815,21 @@ export const api = createApi({
                 'GetStoreById',
             ],
         }),
+        updateImageBlob: builder.mutation<ApiResponse<void>, { imageId: string; file: FormData }>({
+            query: ({ imageId, file }) => ({
+                url: `Image/update-blob/${imageId}`,
+                method: 'PUT',
+                body: file,
+            }),
+            invalidatesTags: [
+                { type: 'StoreForUsers', id: 'LIST' },
+                { type: 'FreeBarberForUsers', id: 'LIST' },
+                'MineStores',
+                { type: 'MineStores', id: 'LIST' },
+                'MineFreeBarberPanel',
+                'GetStoreById',
+            ],
+        }),
 
         // --- USER API ---
         getMe: builder.query<ApiResponse<UserProfileDto>, void>({
@@ -953,6 +968,7 @@ export const {
     useUploadImageMutation,
     useUploadMultipleImagesMutation,
     useDeleteImageMutation,
+    useUpdateImageBlobMutation,
     useGetMeQuery,
     useUpdateProfileMutation,
     useGetSettingQuery,

@@ -137,7 +137,7 @@ export const useNotificationSound = (badgeCount: number) => {
         } catch (error) {
             // Silently fail - don't interrupt user experience
             // If sound fails to load, user can still use the app normally
-            console.log('Notification sound not available:', error);
+            // Notification sound not available - silently fail
         }
     };
 

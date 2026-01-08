@@ -1,6 +1,8 @@
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button, TextInput, HelperText, Snackbar, ActivityIndicator, Portal, Modal } from "react-native-paper";
+import { TextInput, HelperText, ActivityIndicator, Portal, Modal } from "react-native-paper";
+import { showSnack } from '../store/snackbarSlice';
+import { Button } from '../components/common/Button';
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,8 +64,6 @@ const Index = () => {
         }
     });
     const route = useRouter();
-    const [snackVisible, setSnackVisible] = useState(false);
-    const [snackText, setSnackText] = useState("");
     const [modalVisible, setModalVisible] = useState(false);
     const [phone, setPhone] = useState("");
     const [left, setLeft] = useState(0);
@@ -96,8 +96,7 @@ const Index = () => {
             doVerify("123456", normalizedPhone);
         } catch (err: any) {
             // Error is already handled by RTK Query, no need to log here
-            setSnackText(err.data.message);
-            setSnackVisible(true);
+            dispatch(showSnack({ message: err.data.message, isError: true }));
         }
     };
     const mmss = useMemo(() => {
@@ -111,14 +110,13 @@ const Index = () => {
             const f = getValues();
             // Login ve Register modunda userType zorunlu
             const userTypeToSend = mapUserTypeToNumber(f.userType) ?? UserType.Customer;
-            
+
             // phoneNumber parametresi varsa onu kullan, yoksa phone state'ini kullan
             const phoneToSend = phoneNumber || phone;
-            
+
             // phoneToSend boşsa hata ver
             if (!phoneToSend || phoneToSend.trim() === '') {
-                setSnackText('Telefon numarası gerekli');
-                setSnackVisible(true);
+                dispatch(showSnack({ message: 'Telefon numarası gerekli', isError: true }));
                 return;
             }
 
@@ -150,14 +148,11 @@ const Index = () => {
                 const targetPath = pathByUserType(userTypeFromToken);
                 route.replace(targetPath);
             } else {
-                setSnackText(result.message ?? 'Hata oluştu');
-                setSnackVisible(true);
+                dispatch(showSnack({ message: result.message ?? 'Hata oluştu', isError: true }));
             }
         } catch (err: any) {
-
             // Error is already handled by RTK Query, no need to log here
-            setSnackText(err?.data?.message ?? 'Hata oluştu');
-            setSnackVisible(true);
+            dispatch(showSnack({ message: err?.data?.message ?? 'Hata oluştu', isError: true }));
         }
     };
     const mapUserTypeToNumber = (ut: FormData["userType"]) => {
@@ -334,8 +329,8 @@ const Index = () => {
                         />
                     </View>
                 </View>
-                <Button style={{ width: '95%', borderRadius: 5 }} buttonColor='black' mode="contained" onPress={handleSubmit(onSubmit)} disabled={isLoading}>
-                    {isLoading ? <ActivityIndicator /> : "İleri"}
+                <Button style={{ width: '95%', borderRadius: 5 }} buttonColor='black' mode="contained" onPress={handleSubmit(onSubmit)} disabled={isLoading} loading={isLoading}>
+                    İleri
                 </Button>
                 <View className='flex-row my-3 items-center gap-2'>
                     <Text className='text-sm text-white'>{isRegister ? 'Hesabınız varmı' : 'Hesabınız yokmu'}</Text>
@@ -385,14 +380,6 @@ const Index = () => {
                     </View>
                 </Modal>
             </Portal>
-            <Snackbar
-                style={{ backgroundColor: '#E53935' }}
-                visible={snackVisible}
-                onDismiss={() => setSnackVisible(false)}
-                duration={3000}
-                action={{ label: "Kapat", onPress: () => setSnackVisible(false) }}>
-                {snackText}
-            </Snackbar>
         </View>
     )
 }

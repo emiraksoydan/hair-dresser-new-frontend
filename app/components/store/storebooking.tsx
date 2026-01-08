@@ -77,14 +77,11 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
     const chairs: ChairSlotDto[] = useMemo(() => {
         if (!data) {
-            console.log('[StoreBooking] No data received for availability');
             return [];
         }
         if (Array.isArray(data)) {
-            console.log('[StoreBooking] Availability data received:', data.length, 'chairs');
             return data;
         }
-        console.log('[StoreBooking] Data is not an array:', typeof data, data);
         return [];
     }, [data]);
 

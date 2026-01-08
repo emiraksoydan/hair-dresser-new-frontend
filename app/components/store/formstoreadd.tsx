@@ -1,6 +1,7 @@
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Divider, Icon, IconButton, TextInput, HelperText, Button, Avatar, Chip } from 'react-native-paper';
+import { Divider, Icon, IconButton, TextInput, HelperText, Avatar, Chip } from 'react-native-paper';
+import { Button } from '../common/Button';
 import { useForm, Controller, useWatch, useFieldArray, } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,12 +25,14 @@ import * as Location from "expo-location";
 import { MapPicker } from '../common/mappicker';
 import { BarberStoreCreateDto, ImageOwnerType } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
-import { useSnackbar } from '../../hook/useSnackbar';
+import { useAppDispatch } from '../../store/hook';
+import { showSnack } from '../../store/snackbarSlice';
 import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 import { useAuth } from '../../hook/useAuth';
+import { MESSAGES } from '../../constants/messages';
 
 
 const ChairPricingSchema = z.object({
@@ -285,7 +288,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const selectedType = watch("type");
     const selectedCategories = watch('selectedCategories');
     const currentPrices = watch('prices');
-    
+
     // Category API hooks
     const { data: parentCategories = [] } = useGetParentCategoriesQuery();
     const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
@@ -305,7 +308,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const latitude = watch("location.latitude");
     const longitude = watch("location.longitude");
     const address = watch("location.addressDescription");
-    const { showSnack, SnackbarComponent } = useSnackbar();
+    const dispatch = useAppDispatch();
     const OnSubmit = async (data: FormValues) => {
         if (isSubmitting) return;
         setIsSubmitting(true);
@@ -327,7 +330,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
         let taxDocumentImageId: string | undefined;
         if (data.taxDocumentImage) {
             if (!userId) {
-                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                dispatch(showSnack({ message: MESSAGES.PROFILE.USER_NOT_FOUND, isError: true }));
                 return;
             }
             try {
@@ -342,12 +345,12 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
-                    showSnack("Vergi levhası resmi yüklenemedi", true);
+                    dispatch(showSnack({ message: uploadResult.message || MESSAGES.FORM.TAX_DOCUMENT_UPLOAD_ERROR, isError: true }));
                     return;
                 }
                 taxDocumentImageId = uploadResult.data;
             } catch (err: any) {
-                showSnack(resolveApiErrorMessage(err) || "Vergi levhası yüklenirken hata oluştu", true);
+                dispatch(showSnack({ message: err?.data?.message || resolveApiErrorMessage(err) || MESSAGES.FORM.TAX_DOCUMENT_UPLOAD_FAILED, isError: true }));
                 return;
             }
         }
@@ -373,10 +376,10 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                 const priceStr = data.prices?.[categoryId] ?? "";
                 const priceNum = parseTR(priceStr);
                 if (priceNum == null) return null;
-                
+
                 // Category name'i bul
                 const categoryName = childCategories.find((cat: any) => cat.id === categoryId)?.name ?? categoryId;
-                
+
                 return {
                     serviceName: categoryName,
                     price: priceNum,
@@ -409,13 +412,13 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
 
                         const createdStore = hasExistingSnapshot
                             ? latestStores.find((s) => !existingStoreIds.has(s.id)) ??
-                                signatureMatches[0] ??
-                                latestStores[latestStores.length - 1]
+                            signatureMatches[0] ??
+                            latestStores[latestStores.length - 1]
                             : signatureMatches[0] ??
-                                latestStores[latestStores.length - 1];
+                            latestStores[latestStores.length - 1];
 
                         if (!createdStore?.id) {
-                            throw new Error("İşletme oluşturuldu ancak işletme id'si bulunamadı.");
+                            throw new Error(MESSAGES.FORM.STORE_ID_NOT_FOUND);
                         }
 
                         if ((data.storeImages ?? []).length > 0) {
@@ -431,7 +434,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                             formData.append("ownerId", createdStore.id);
                             const uploadResult = await uploadMultipleImages(formData).unwrap();
                             if (!uploadResult.success) {
-                                throw new Error(uploadResult.message || "İşletme resimleri yüklenemedi.");
+                                throw new Error(uploadResult.message || MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR);
                             }
                         }
 
@@ -447,7 +450,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                             formData.append("ownerId", barber.id);
                             const uploadResult = await uploadImage(formData).unwrap();
                             if (!uploadResult.success) {
-                                throw new Error(uploadResult.message || "Berber resmi yüklenemedi.");
+                                throw new Error(uploadResult.message || MESSAGES.FORM.BARBER_IMAGE_UPLOAD_ERROR);
                             }
                         }
                     } catch (uploadErr: any) {
@@ -456,20 +459,20 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                 }
 
                 if (uploadError) {
-                    showSnack(`İşletme oluşturuldu, resimler yüklenemedi. ${uploadError}`, true);
+                    dispatch(showSnack({ message: `${MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR} ${uploadError}`, isError: true }));
                 } else {
-                    showSnack(result.message, false);
+                    dispatch(showSnack({ message: result.message || MESSAGES.FORM.STORE_CREATE_SUCCESS, isError: false }));
                 }
                 // Refresh stores list to show new store with images
                 await triggerGetMineStores();
                 onClose?.();
             }
             else {
-                showSnack(result.message, true);
+                dispatch(showSnack({ message: result.message || MESSAGES.FORM.STORE_CREATE_ERROR, isError: true }));
             }
         } catch (error: any) {
-            const msg = resolveApiErrorMessage(error);
-            showSnack(msg, true);
+            const errorMessage = error?.data?.message || resolveApiErrorMessage(error);
+            dispatch(showSnack({ message: errorMessage || MESSAGES.FORM.STORE_CREATE_ERROR, isError: true }));
         } finally {
             setIsSubmitting(false);
         }
@@ -1229,7 +1232,7 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                     <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
                     <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
                         <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
-                        <Button mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} rippleColor='#059669' buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
+                        <Button mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
                         <MapPicker
                             lat={latitude ?? undefined}
                             lng={longitude ?? undefined}
@@ -1269,10 +1272,18 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
                 </View>
             </ScrollView>
             <View className="px-4 my-3">
-                <Button style={{ borderRadius: 10 }} disabled={isLoading || isSubmitting} loading={isLoading || isSubmitting} mode="contained" onPress={handleSubmit(OnSubmit)} buttonColor="#1F2937">Ekle</Button>
+                <Button
+                    className="mt-2 mb-4"
+                    disabled={isLoading || isSubmitting}
+                    loading={isLoading || isSubmitting}
+                    mode="contained"
+                    onPress={handleSubmit(OnSubmit)}
+                    buttonColor="#1F2937"
+                    textColor="white"
+                >
+                    Ekle
+                </Button>
             </View>
-            <SnackbarComponent />
-
         </View>
     )
 }

@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { api } from './api';
+import snackbarReducer from './snackbarSlice';
 
 export const store = configureStore({
-     reducer: {
+    reducer: {
         [api.reducerPath]: api.reducer,
+        snackbar: snackbarReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware().concat(api.middleware),

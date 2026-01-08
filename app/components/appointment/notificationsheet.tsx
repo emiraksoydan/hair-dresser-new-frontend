@@ -1,4 +1,4 @@
-﻿import { PricingType } from "../../types/store";
+import { PricingType } from "../../types/store";
 import { useAuth } from "../../hook/useAuth";
 import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useDeleteNotificationMutation, useDeleteAllNotificationsMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, useCustomerDecisionMutation, api } from "../../store/api";
 import { useAppDispatch } from "../../store/hook";
@@ -68,9 +68,11 @@ export function NotificationsSheet({
                 const found = draft?.find((x) => x.id === n.id);
                 if (found) found.isRead = true;
             }));
-            try { await markRead(n.id).unwrap(); } catch { refetch(); }
+            try { await markRead(n.id).unwrap(); } catch {
+                // RTK Query optimistic update zaten yapıldı, hata durumunda cache'i geri alacak
+            }
         }
-    }, [dispatch, markRead, refetch]);
+    }, [dispatch, markRead]);
 
     // --- Anlık UI Güncellemesi İçin Geliştirilmiş HandleDecision ---
     const handleDecision = useCallback(async (notification: NotificationDto, approve: boolean) => {
@@ -138,6 +140,8 @@ export function NotificationsSheet({
             } else if (userType === UserType.Customer) {
                 result = await customerDecision({ appointmentId: notification.appointmentId, approve }).unwrap();
             } else {
+                // userType yoksa optimistic update'i geri al
+                patchResult.undo();
                 return;
             }
 
@@ -285,7 +289,7 @@ export function NotificationsSheet({
                 <Text className="text-white text-lg font-bold">Bildirimler</Text>
                 <View className="flex-row items-center gap-3">
                     {data && data.length > 0 && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={handleDeleteAll}
                             disabled={isDeletingAllNotifications}
                             className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 ${isDeletingAllNotifications ? 'opacity-60' : ''}`}

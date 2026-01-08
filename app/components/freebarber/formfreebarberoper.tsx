@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { Divider, Icon, IconButton, TextInput, HelperText, Button, Switch } from "react-native-paper";
+import { Divider, Icon, IconButton, TextInput, HelperText, Switch } from "react-native-paper";
+import { Button } from "../common/Button";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +12,8 @@ import { ImageOwnerType, ServiceOfferingCreateDto, ServiceOfferingUpdateDto } fr
 import { resolveApiErrorMessage } from "../../utils/common/error";
 import { trMoneyRegex } from "../../constants";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
-import { useSnackbar } from "../../hook/useSnackbar";
+import { useAppDispatch } from "../../store/hook";
+import { showSnack } from "../../store/snackbarSlice";
 import { mapBarberType, mapTypeToDisplayName } from "../../utils/form/form-mappers";
 import {
     useAddFreeBarberPanelMutation,
@@ -21,11 +23,13 @@ import {
     useUpdateFreeBarberPanelMutation,
     useUploadMultipleImagesMutation,
     useUploadImageMutation,
+    useUpdateImageBlobMutation,
     useGetParentCategoriesQuery,
     useLazyGetChildCategoriesQuery,
 } from "../../store/api";
 import { useAuth } from "../../hook/useAuth";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
+import { MESSAGES } from "../../constants/messages";
 
 // --- Schema Definitions ---
 const LocationSchema = z
@@ -61,6 +65,7 @@ const schema = z.object({
     images: z
         .array(
             z.object({
+                id: z.string().uuid().optional(), // Mevcut resimler için ID, yeni resimler için yok
                 uri: z.string().min(1),
                 name: z.string().min(1),
                 type: z.string().min(1),
@@ -89,7 +94,7 @@ type Props = { freeBarberId: string | null; enabled: boolean; onClose?: () => vo
 export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onClose }: Props) => {
     const isEdit = freeBarberId != null;
 
-    const { showSnack, SnackbarComponent } = useSnackbar();
+    const dispatch = useAppDispatch();
     const { userId } = useAuth();
 
     const [triggerGetFreeBarberPanel, { data }] = useLazyGetFreeBarberMinePanelDetailQuery();
@@ -99,6 +104,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
     const [deleteImage] = useDeleteImageMutation();
+    const [updateImageBlob] = useUpdateImageBlobMutation();
     const [isImagePickerLoading, setIsImagePickerLoading] = React.useState(false);
     const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
     const [loadedImages, setLoadedImages] = React.useState<Set<number>>(new Set());
@@ -201,7 +207,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
         try {
             const res = await getCurrentLocationSafe();
             if (!res.ok) {
-                showSnack(res.message ?? "Konum alınamadı", true);
+                dispatch(showSnack({ message: res.message || MESSAGES.FORM.LOCATION_NOT_AVAILABLE, isError: true }));
                 return false;
             }
             setValue(
@@ -231,6 +237,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
         const imageListData = data?.imageList ?? [];
         const initialImages = imageListData.map((img: any) => ({
+            id: img.id, // Mevcut resimlerin ID'sini tut
             uri: img.imageUrl,
             name: img.imageUrl.split("/").pop() ?? `image-${img.id}.jpg`,
             type: img.imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
@@ -375,10 +382,23 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
         const existingImages = isEdit ? (data?.imageList ?? []) : [];
         const existingOfferings = isEdit ? (data?.offerings ?? []) : [];
         const formImages = form.images ?? [];
-        const existingImageUrls = new Set(existingImages.map((img) => img.imageUrl));
-        const formImageUrls = new Set(formImages.map((img) => img.uri));
-        const removedImages = existingImages.filter((img) => !formImageUrls.has(img.imageUrl));
-        const newImages = formImages.filter((img) => !existingImageUrls.has(img.uri));
+
+        // Mevcut resimlerin ID'lerine göre eşleştirme
+        const existingImageMap = new Map(existingImages.map((img) => [img.id, img]));
+        const formImageMap = new Map(formImages.filter((img) => img.id).map((img) => [img.id!, img]));
+
+        // 1. Silinecek resimler: Mevcut resimlerde var ama form'da yok
+        const removedImages = existingImages.filter((img) => !formImageMap.has(img.id));
+
+        // 2. Güncellenecek resimler: ID var ve URI değişmiş (resim değiştirilmiş)
+        const updatedImages = formImages.filter((img) => {
+            if (!img.id) return false; // ID yoksa yeni resim
+            const existingImg = existingImageMap.get(img.id);
+            return existingImg && existingImg.imageUrl !== img.uri; // URI değişmişse güncelle
+        });
+
+        // 3. Yeni resimler: ID yok
+        const newImages = formImages.filter((img) => !img.id);
 
         const offeringsMapped = (form.selectedCategories ?? [])
             .map((categoryName) => {
@@ -412,7 +432,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
         if (form.certificateImage) {
             if (!userId) {
-                showSnack("Kullanıcı bilgisi bulunamadı", true);
+                dispatch(showSnack({ message: MESSAGES.PROFILE.USER_NOT_FOUND, isError: true }));
                 return;
             }
             try {
@@ -427,12 +447,12 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
                 const uploadResult = await uploadImage(formData).unwrap();
                 if (!uploadResult.success || !uploadResult.data) {
-                    showSnack("Sertifika resmi yüklenemedi", true);
+                    dispatch(showSnack({ message: uploadResult.message || MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR, isError: true }));
                     return;
                 }
                 certImageId = uploadResult.data;
             } catch (err: any) {
-                showSnack(resolveApiErrorMessage(err) || "Sertifika resmi yüklenirken hata oluştu", true);
+                dispatch(showSnack({ message: err?.data?.message || resolveApiErrorMessage(err) || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED, isError: true }));
                 return;
             }
         }
@@ -454,7 +474,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
             const result = !isEdit ? await addFreeBarber(payload).unwrap() : await updateFreeBarber(payload).unwrap();
             if (result.success) {
                 let uploadError: string | null = null;
-                const hasImageChanges = isEdit ? (removedImages.length > 0 || newImages.length > 0) : newImages.length > 0;
+                const hasImageChanges = isEdit ? (removedImages.length > 0 || updatedImages.length > 0 || newImages.length > 0) : newImages.length > 0;
 
                 if (hasImageChanges) {
                     try {
@@ -464,18 +484,35 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                             ownerId = panel?.id ?? "";
                         }
                         if (!ownerId) {
-                            throw new Error("Panel id'si bulunamadı.");
+                            throw new Error(MESSAGES.FORM.PANEL_ID_NOT_FOUND);
                         }
 
                         if (isEdit) {
+                            // 1. Silinecek resimleri sil
                             for (const img of removedImages) {
                                 const deleteResult = await deleteImage(img.id).unwrap();
                                 if (!deleteResult.success) {
-                                    throw new Error(deleteResult.message || "Resim silinemedi.");
+                                    throw new Error(deleteResult.message || MESSAGES.FORM.IMAGE_DELETE_ERROR);
+                                }
+                            }
+
+                            // 2. Güncellenecek resimleri update-blob ile güncelle (aynı blob'u koru)
+                            for (const img of updatedImages) {
+                                if (!img.id) continue;
+                                const formData = new FormData();
+                                formData.append("file", {
+                                    uri: img.uri,
+                                    name: img.name ?? "photo.jpg",
+                                    type: img.type ?? "image/jpeg",
+                                } as any);
+                                const updateResult = await updateImageBlob({ imageId: img.id, file: formData }).unwrap();
+                                if (!updateResult.success) {
+                                    throw new Error(updateResult.message || MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR);
                                 }
                             }
                         }
 
+                        // 3. Yeni resimleri ekle
                         if (newImages.length > 0) {
                             const formData = new FormData();
                             newImages.forEach((img) => {
@@ -489,7 +526,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                             formData.append("ownerId", ownerId);
                             const uploadResult = await uploadMultipleImages(formData).unwrap();
                             if (!uploadResult.success) {
-                                throw new Error(uploadResult.message || "Panel resimleri yüklenemedi.");
+                                throw new Error(uploadResult.message || MESSAGES.FORM.FREEBARBER_IMAGES_UPLOAD_ERROR);
                             }
                         }
                     } catch (uploadErr: any) {
@@ -498,10 +535,11 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                 }
 
                 if (uploadError) {
-                    const baseMessage = isEdit ? "Panel güncellendi, resimler yüklenemedi." : "Panel oluşturuldu, resimler yüklenemedi.";
-                    showSnack(`${baseMessage} ${uploadError}`, true);
+                    const baseMessage = isEdit ? MESSAGES.FORM.FREEBARBER_IMAGES_UPDATE_ERROR : MESSAGES.FORM.FREEBARBER_IMAGES_UPLOAD_ERROR;
+                    dispatch(showSnack({ message: `${baseMessage} ${uploadError}`, isError: true }));
                 } else {
-                    showSnack(result.message, false);
+                    const successMessage = isEdit ? MESSAGES.FORM.FREEBARBER_UPDATE_SUCCESS : MESSAGES.FORM.FREEBARBER_CREATE_SUCCESS;
+                    dispatch(showSnack({ message: result.message || successMessage, isError: false }));
                 }
                 // Refresh panel data to show updated images
                 if (isEdit) {
@@ -511,12 +549,15 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                 }
                 onClose?.();
             } else {
-                showSnack(result.message, true);
+                const errorMessage = isEdit ? MESSAGES.FORM.FREEBARBER_UPDATE_ERROR : MESSAGES.FORM.FREEBARBER_CREATE_ERROR;
+                dispatch(showSnack({ message: result.message || errorMessage, isError: true }));
             }
         } catch (error: any) {
-            showSnack(resolveApiErrorMessage(error), true);
+            const errorMessage = error?.data?.message || resolveApiErrorMessage(error);
+            const fallbackMessage = isEdit ? MESSAGES.FORM.FREEBARBER_UPDATE_ERROR : MESSAGES.FORM.FREEBARBER_CREATE_ERROR;
+            dispatch(showSnack({ message: errorMessage || fallbackMessage, isError: true }));
         }
-    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, showSnack, onClose, getValues, setLocationNow, triggerGetFreeBarberMinePanel, deleteImage, uploadMultipleImages]);
+    }, [isEdit, data, freeBarberId, childCategories, addFreeBarber, updateFreeBarber, dispatch, onClose, getValues, setLocationNow, triggerGetFreeBarberMinePanel, deleteImage, uploadMultipleImages, updateImageBlob]);
 
     const onErrors = React.useCallback((errors: any) => {
         // Validation errors are displayed to user via form state
@@ -888,12 +929,13 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
                     <View className="px-4 my-4">
                         <Button
-                            style={{ borderRadius: 10, paddingVertical: 4 }}
+                            className="mt-2 mb-4"
                             disabled={addFreeBarberLoad || updateFreeBarberLoad}
                             loading={addFreeBarberLoad || updateFreeBarberLoad}
                             mode="contained"
                             onPress={handleSubmit(OnSubmit, onErrors)}
                             buttonColor="#1F2937"
+                            textColor="white"
                             labelStyle={{ fontSize: 16 }}
                         >
                             {!isEdit ? "Ekle" : "Güncelle"}
@@ -901,8 +943,6 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                     </View>
                 </>
             )}
-
-            <SnackbarComponent />
         </View>
     );
 });

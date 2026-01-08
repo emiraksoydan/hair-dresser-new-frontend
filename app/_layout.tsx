@@ -19,6 +19,7 @@ import { tokenStore } from './lib/tokenStore';
 import { useSignalR } from './hook/useSignalR';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useFcmToken } from './hook/useFcmToken';
+import { GlobalSnackbar } from './hook/useSnackbar';
 
 
 SplashScreen.preventAutoHideAsync();
@@ -63,6 +64,7 @@ const RootLayout = () => {
                 <Stack.Screen name="(screens)" />
               </Stack>
               <StatusBar />
+              <GlobalSnackbar />
             </BottomSheetModalProvider>
           </PaperProvider>
         </GestureHandlerRootView>

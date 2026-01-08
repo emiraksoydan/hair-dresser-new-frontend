@@ -186,7 +186,6 @@ const Index = () => {
         }, 100);
     }, [ratingsSheet]);
 
-    console.log(settingData?.data?.showImageAnimation);
 
     // Filter fonksiyonları
     const handleApplyFilters = useCallback(() => {

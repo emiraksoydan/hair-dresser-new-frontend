@@ -66,7 +66,7 @@ export const useFcmToken = () => {
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (!enabled) {
-          console.warn('Firebase messaging permission not granted');
+          // Firebase messaging permission not granted
           return null;
         }
 
@@ -75,7 +75,7 @@ export const useFcmToken = () => {
         return token || null;
       } catch (firebaseError) {
         // Firebase messaging error - log but don't throw
-        console.log('Firebase messaging error:', firebaseError);
+        // Firebase messaging error - silently fail
         return null;
       }
     } catch (error) {
@@ -104,7 +104,7 @@ export const useFcmToken = () => {
       }
       return false;
     } catch (error) {
-      console.error('Error registering FCM token:', error);
+      // Error registering FCM token - silently fail
       return false;
     }
   }, [token, registerFcmToken]);
@@ -127,7 +127,7 @@ export const useFcmToken = () => {
       }
       return false;
     } catch (error) {
-      console.error('Error unregistering FCM token:', error);
+      // Error unregistering FCM token - silently fail
       return false;
     }
   }, [token, unregisterFcmToken]);

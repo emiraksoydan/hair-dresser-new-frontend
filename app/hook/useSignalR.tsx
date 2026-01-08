@@ -1,10 +1,9 @@
-﻿import "react-native-url-polyfill/auto";
+import "react-native-url-polyfill/auto";
 import { useEffect, useRef, useState } from "react";
 import * as SignalR from "@microsoft/signalr";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../store/hook";
 import { api } from "../store/api";
 import { tokenStore } from "../lib/tokenStore";
-import type { AppDispatch } from "../store/redux-store";
 import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto, AppointmentGetDto } from "../types";
 import { AppointmentStatus, AppointmentFilter } from "../types/appointment";
 import { NotificationType } from "../types";
@@ -14,23 +13,23 @@ import { useAuth } from "./useAuth";
 const HUB_URL = API_CONFIG.SIGNALR_HUB_URL;
 
 export const useSignalR = () => {
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
     const connectionRef = useRef<SignalR.HubConnection | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectAttemptsRef = useRef(0);
+    const previousTokenRef = useRef<string | null>(null);
     const maxReconnectAttempts = 10;
     const { token } = useAuth();
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         let stopped = false;
-        let previousToken: string | null = null;
 
         const start = async () => {
             const currentToken = tokenStore.access;
 
             // Token değiştiyse (refresh edildiyse) mevcut bağlantıyı kapat ve yeniden başlat
-            if (previousToken && previousToken !== currentToken && connectionRef.current) {
+            if (previousTokenRef.current && previousTokenRef.current !== currentToken && connectionRef.current) {
                 try {
                     await connectionRef.current.stop();
                     connectionRef.current = null;
@@ -40,7 +39,7 @@ export const useSignalR = () => {
                 }
             }
 
-            previousToken = currentToken;
+            previousTokenRef.current = currentToken;
 
             if (!currentToken) {
                 // Token yoksa mevcut bağlantıyı kapat
@@ -91,9 +90,11 @@ export const useSignalR = () => {
                     // Sadece updateQueryData yap, invalidateTags gereksiz (zaten güncelleniyor)
                     dispatch(
                         api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                            // Draft undefined ise yeni obje oluştur (query henüz çalışmamışsa)
                             if (!draft) {
                                 return { unreadNotifications, unreadMessages };
                             }
+                            // Draft varsa mutate et
                             draft.unreadMessages = unreadMessages;
                             draft.unreadNotifications = unreadNotifications;
                         })
@@ -614,7 +615,7 @@ export const useSignalR = () => {
             connectionRef.current = null;
             reconnectAttemptsRef.current = 0;
             setIsConnected(false);
-            previousToken = null;
+            previousTokenRef.current = null;
         };
     }, [dispatch, token]); // Token değiştiğinde bağlantıyı yeniden kur
 

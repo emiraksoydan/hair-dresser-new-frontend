@@ -1,6 +1,8 @@
 import { Text, TouchableOpacity, View } from 'react-native'
 import { Tabs } from 'expo-router';
-import { Icon, IconButton, Snackbar, Portal } from 'react-native-paper';
+import { Icon, IconButton } from 'react-native-paper';
+import { useAppDispatch } from '../store/hook';
+import { showSnack } from '../store/snackbarSlice';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { useState } from 'react';
 import FormStoreAdd from '../components/store/formstoreadd';
@@ -18,6 +20,7 @@ import { useNotificationSound } from '../hook/useNotificationSound';
 const BarberStoreLayout = () => {
     const { userName } = useAuth();
     const [infoModalVisible, setInfoModalVisible] = useState(false);
+    const dispatch = useAppDispatch();
 
     // Bottom sheet hooks
     const addStoreSheet = useBottomSheet({
@@ -25,9 +28,6 @@ const BarberStoreLayout = () => {
         enablePanDownToClose: false,
         enableOverDrag: false,
     });
-    const [snackbarVisible, setSnackbarVisible] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState("");
-    const [snackbarIsError, setSnackbarIsError] = useState(false);
 
     const notificationsSheet = useBottomSheet({
         snapPoints: ["100%"],
@@ -391,19 +391,13 @@ const BarberStoreLayout = () => {
                     onClose={() => notificationsSheet.dismiss()}
                     autoOpenFirstUnread={true}
                     onDeleteSuccess={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(false);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: false }));
                     }}
                     onDeleteInfo={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(true);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: true }));
                     }}
                     onDeleteError={(message) => {
-                        setSnackbarMessage(message);
-                        setSnackbarIsError(true);
-                        setSnackbarVisible(true);
+                        dispatch(showSnack({ message, isError: true }));
                     }}
                 />
             </BottomSheetModal>
@@ -430,16 +424,6 @@ const BarberStoreLayout = () => {
                     </DeferredRender>
                 </BottomSheetView>
             </BottomSheetModal>
-            <Portal>
-                <Snackbar
-                    visible={snackbarVisible}
-                    onDismiss={() => setSnackbarVisible(false)}
-                    duration={3000}
-                    style={{ backgroundColor: snackbarIsError ? '#f59e0b' : '#10b981' }}
-                >
-                    {snackbarMessage}
-                </Snackbar>
-            </Portal>
             <InfoModal
                 visible={infoModalVisible}
                 onClose={() => setInfoModalVisible(false)}

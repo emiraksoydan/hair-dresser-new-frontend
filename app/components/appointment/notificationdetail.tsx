@@ -228,6 +228,12 @@ export const NotificationItem = React.memo(({
                 resolvedRecipientRole === 'customer' ? customerDecision :
                     undefined;
 
+    // Status notification type'ları: bu tür bildirimlerde butonlar gösterilmemeli
+    const isStatusNotificationType = item.type === NotificationType.AppointmentRejected ||
+        item.type === NotificationType.AppointmentCancelled ||
+        item.type === NotificationType.AppointmentCompleted ||
+        item.type === NotificationType.AppointmentApproved;
+
     const decisionOutcomeKind: 'approved' | 'rejected' | 'unanswered' | 'unknown' | null =
         item.type === NotificationType.AppointmentCreated &&
             isPending &&
@@ -261,12 +267,6 @@ export const NotificationItem = React.memo(({
     // AppointmentCreated notification'ında ve status Pending ise karar bekleniyor demektir
     const isCreatedType = item.type === NotificationType.AppointmentCreated && isPending;
 
-    // Status notification type'ları: bu tür bildirimlerde butonlar gösterilmemeli
-    const isStatusNotificationType = item.type === NotificationType.AppointmentRejected || 
-                                     item.type === NotificationType.AppointmentCancelled || 
-                                     item.type === NotificationType.AppointmentCompleted ||
-                                     item.type === NotificationType.AppointmentApproved;
-    
     // Butonlar gösterilme koşulları:
     // 1. showDecisionButtons true olmalı (yukarıdaki tüm koşullar sağlanmalı)
     // 2. Durum gösterilmemeli (Rejected/Approved/Cancelled/Completed durumunda butonlar gösterilmez)

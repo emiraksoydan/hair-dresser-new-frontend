@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import {
-    Button,
     Dialog,
     HelperText,
     Portal,
-    Snackbar,
     TextInput,
 } from 'react-native-paper';
+import { useAppDispatch } from '../../store/hook';
+import { showSnack } from '../../store/snackbarSlice';
+import { Button } from '../common/Button';
 import { useForm, Controller } from 'react-hook-form';
 import { ChairFormInitial } from '../../types';
 import {
@@ -60,9 +61,7 @@ export const ChairEditModal: React.FC<Props> = ({
     const [updateChair, { isLoading: isUpdating }] = useUpdateStoreChairMutation();
 
     const barberOptions = barbers.map(b => ({ label: b.name, value: b.id }));
-    const [snackVisible, setSnackVisible] = useState(false);
-    const [snackMessage, setSnackMessage] = useState('');
-    const [snackIsError, setSnackIsError] = useState(false);
+    const dispatch = useAppDispatch();
 
     // Modal açıldığında initial değerleri tekrar yükle
     useEffect(() => {
@@ -117,14 +116,10 @@ export const ChairEditModal: React.FC<Props> = ({
                 }).unwrap();
             }
 
-            setSnackMessage(result?.message ?? 'İşlem başarılı');
-            setSnackIsError(!result?.success);
-            setSnackVisible(true);
+            dispatch(showSnack({ message: result?.message ?? 'İşlem başarılı', isError: !result?.success }));
             onClose();
         } catch (e: any) {
-            setSnackMessage(resolveApiErrorMessage(e));
-            setSnackIsError(true);
-            setSnackVisible(true);
+            dispatch(showSnack({ message: resolveApiErrorMessage(e), isError: true }));
         }
     };
 
@@ -261,21 +256,6 @@ export const ChairEditModal: React.FC<Props> = ({
                     </Button>
                 </Dialog.Actions>
             </Dialog>
-            <Snackbar
-                visible={snackVisible}
-                onDismiss={() => setSnackVisible(false)}
-                duration={3000}
-                style={{
-                    backgroundColor: snackIsError ? '#b91c1c' : '#16a34a',
-                }}
-                action={{
-                    label: 'Kapat',
-                    textColor: 'white',
-                    onPress: () => setSnackVisible(false),
-                }}
-            >
-                {snackMessage}
-            </Snackbar>
         </Portal>
     );
 };
