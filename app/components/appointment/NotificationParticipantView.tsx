@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { Text } from '../common/Text';
 import { Icon } from 'react-native-paper';
 import type { NotificationPayload } from '../../types';
 import { UserType, BarberType, ImageOwnerType } from '../../types';

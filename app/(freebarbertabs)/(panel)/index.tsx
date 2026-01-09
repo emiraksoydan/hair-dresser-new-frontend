@@ -1,4 +1,5 @@
-﻿import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from 'react-native'
+import { Dimensions, FlatList, Image, RefreshControl, TouchableOpacity, View, ScrollView } from 'react-native'
+import { Text } from '../../components/common/Text'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useBottomSheet } from '../../hook/useBottomSheet';
 import SearchBar from '../../components/common/searchbar';
@@ -139,6 +140,10 @@ const Index = () => {
     const isRefreshingRef = useRef(false);
     const onRefresh = useCallback(async () => {
         if (isRefreshingRef.current) return;
+        // Error veya location denied durumunda hard refresh yapma
+        if (storeError || locationStatus === 'denied') {
+            return;
+        }
         try {
             isRefreshingRef.current = true;
             setRefreshing(true);
@@ -151,7 +156,7 @@ const Index = () => {
             setRefreshing(false);
             isRefreshingRef.current = false;
         }
-    }, [manualFetch, refetchFreeBarber, refetchNotifications]);
+    }, [manualFetch, refetchFreeBarber, refetchNotifications, storeError, locationStatus]);
 
 
 
@@ -579,6 +584,8 @@ const Index = () => {
                             onClose={() => {
                                 freeBarberPanelSheet.dismiss();
                             }}
+                            error={error}
+                            locationStatus={locationStatus}
                         />
                     </DeferredRender>
                 </BottomSheetView>

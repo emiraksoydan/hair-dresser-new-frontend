@@ -1,5 +1,6 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Dimensions, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, FlatList, Dimensions, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { Text } from '../common/Text';
 import { LegendList } from '@legendapp/list';
 import { useGetMyFavoritesQuery, useGetMeQuery, useGetMineStoresQuery, useGetFreeBarberMinePanelQuery, useGetSettingQuery } from '../../store/api';
 import { FavoriteGetDto, FavoriteTargetType } from '../../types';

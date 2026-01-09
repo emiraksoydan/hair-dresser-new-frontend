@@ -16,7 +16,13 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Uygulama, dükkan konumunu belirlemek için konumunuza ihtiyaç duyar."
+        "NSLocationWhenInUseUsageDescription": "Uygulama, yakınınızdaki dükkan ve berberleri göstermek için konumunuza ihtiyaç duyar.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
+        "NSLocationAlwaysUsageDescription": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       },
       "bundleIdentifier": "com.hairdresser.app",
       "googleServicesFile": "./GoogleService-Info.plist"
@@ -29,7 +35,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
       ],
       "config": {
         "googleMaps": {
@@ -44,8 +51,20 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
+          "locationAlwaysPermission": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
+          "locationWhenInUsePermission": "Uygulama, yakınınızdaki dükkan ve berberleri göstermek için konumunuza ihtiyaç duyar."
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging"
+    ],
+    "fonts": [
+      "./assets/fonts/centurygothic.ttf",
+      "./assets/fonts/centurygothic_bold.ttf"
     ]
   }
 }

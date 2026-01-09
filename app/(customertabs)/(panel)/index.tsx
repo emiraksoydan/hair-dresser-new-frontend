@@ -1,4 +1,5 @@
-import { Text, View, Dimensions, TouchableOpacity, Image, RefreshControl, FlatList, ScrollView, ActivityIndicator } from "react-native";
+import { View, Dimensions, TouchableOpacity, Image, RefreshControl, FlatList, ScrollView, ActivityIndicator } from "react-native";
+import { Text } from "../../components/common/Text";
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
@@ -117,6 +118,10 @@ const Index = () => {
     const isRefreshingRef = useRef(false);
     const onRefresh = useCallback(async () => {
         if (isRefreshingRef.current) return;
+        // Error veya location denied durumunda hard refresh yapma
+        if (storesError || freeBarbersError || storesLocationStatus === 'denied' || freeBarbersLocationStatus === 'denied') {
+            return;
+        }
         try {
             isRefreshingRef.current = true;
             setRefreshing(true);
@@ -129,7 +134,7 @@ const Index = () => {
             setRefreshing(false);
             isRefreshingRef.current = false;
         }
-    }, [manualFetchStores, manualFetchFreeBarbers]);
+    }, [manualFetchStores, manualFetchFreeBarbers, storesError, freeBarbersError, storesLocationStatus, freeBarbersLocationStatus]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         router.push({

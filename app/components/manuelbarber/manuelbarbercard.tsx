@@ -1,6 +1,7 @@
 // app/components/manuelbarber/manuelbarbercard.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { Text } from '../common/Text';
 import { Icon } from 'react-native-paper';
 import { useGetImagesByOwnerQuery } from '../../store/api';
 import { ImageOwnerType, ManuelBarberFavoriteDto } from '../../types';

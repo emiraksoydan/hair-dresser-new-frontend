@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput } from 'react-native';
+import { View, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput } from 'react-native';
+import { Text } from '../common/Text';
 import { useRouter } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import { useGetFreeBarberForUsersQuery, useCreateCustomerToFreeBarberAppointmentMutation, useCallFreeBarberMutation, useGetSettingQuery } from '../../store/api';
@@ -24,6 +25,7 @@ import MotiViewExpand from '../common/motiviewexpand';
 import { getCurrentLocationSafe } from '../../utils/location/location-helper';
 import { RatingsBottomSheet } from '../rating/ratingsbottomsheet';
 import { ImageCarousel } from '../common/imagecarousel';
+import { useCanPerformAction } from '../../hook/useCanPerformAction';
 
 interface Props {
     barberId: string;
@@ -50,10 +52,18 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     const freeBarberUserId = freeBarberData?.freeBarberUserId ?? null;
 
     // Dükkan seçimi için
-    const { stores, loading: storesLoading, locationStatus, hasLocation, fetchedOnce } = useNearbyStores(isAddStoreMode);
+    const { stores, loading: storesLoading, locationStatus, hasLocation, fetchedOnce, error: storesError } = useNearbyStores(isAddStoreMode);
     const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
     const [selectedRatingsTarget, setSelectedRatingsTarget] = useState<{ targetId: string; targetName: string } | null>(null);
     const [isMapMode, setIsMapMode] = useState(false);
+
+    // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
+    const { error: freeBarberDataError } = useGetFreeBarberForUsersQuery(barberId, { skip: !barberId || isAddStoreMode });
+    const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
+        (isAddStoreMode ? storesError : freeBarberDataError) || undefined,
+        locationStatus,
+        'Bu işlemi gerçekleştirmek için konum izni gereklidir. Lütfen ayarlardan konum iznini açın.'
+    );
     
     // Bottom sheet hooks - snapPoints dinamik olacak
     const storeSelectionSnapPoints = useMemo(() => isMapMode ? ["75%", "100%"] : ["100%"], [isMapMode]);
@@ -396,6 +406,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             style={{ opacity: isCreating ? 0.7 : 1 }}
                             onPress={async () => {
                                 try {
+                                    // Error veya location denied kontrolü
+                                    if (!checkCanPerformAction()) {
+                                        return;
+                                    }
+
                                     if (selectedServices.length === 0) {
                                         Alert.alert("Uyarı", "Lütfen en az bir hizmet seçin.");
                                         return;
@@ -493,6 +508,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             style={{ opacity: isCreating ? 0.7 : 1 }}
                             onPress={async () => {
                                 try {
+                                    // Error veya location denied kontrolü
+                                    if (!checkCanPerformAction()) {
+                                        return;
+                                    }
+
                                     const trimmedNote = note.trim();
                                     if (!trimmedNote) {
                                         Alert.alert("Uyarı", "Randevu notu zorunludur.");

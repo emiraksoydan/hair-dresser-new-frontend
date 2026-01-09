@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Dimensions, FlatList } from 'react-native';
+import { View, Dimensions, FlatList } from 'react-native';
+import { Text } from '../common/Text';
 import MotiViewExpand from '../../components/common/motiviewexpand';
 import { SkeletonComponent } from '../../components/common/skeleton';
 import { EmptyState } from '../../components/common/emptystateresult';

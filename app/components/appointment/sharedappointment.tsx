@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
+import { View, TouchableOpacity, FlatList, Alert, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
+import { Text } from "../common/Text";
 import { LegendList } from '@legendapp/list';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
@@ -261,7 +262,7 @@ export default function SharedAppointmentScreen() {
                 {averageRating !== undefined && averageRating !== null && (
                     <View className="flex-row items-center mb-2">
                         <Icon source="star" size={14} color="#fbbf24" />
-                        <Text className="text-[#fbbf24] text-xs font-semibold ml-1">{formatRating(averageRating)}</Text>
+                        <Text className="text-[#fbbf24] text-xs  font-semibold ml-1">{formatRating(averageRating)}</Text>
                         <Text className="text-[#6b7280] text-xs ml-1">(Ortalama)</Text>
                     </View>
                 )}

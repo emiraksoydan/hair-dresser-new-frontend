@@ -1,4 +1,5 @@
-import { Alert, FlatList, Text, ScrollView, TouchableOpacity, View, StatusBar, Image } from 'react-native'
+import { Alert, FlatList, ScrollView, TouchableOpacity, View, StatusBar, Image } from 'react-native'
+import { Text } from '../../components/common/Text'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGetFreeBarberForUsersQuery } from '../../store/api';

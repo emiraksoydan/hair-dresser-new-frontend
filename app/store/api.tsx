@@ -13,7 +13,7 @@ import {
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
     ImageGetDto, ImageOwnerType,
     AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto,
-    UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto
+    UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto, HelpGuideGetDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 import { transformArrayResponse, transformObjectResponse, transformBooleanResponse, transformApiResponse } from '../utils/api/transform-response';
@@ -30,7 +30,7 @@ const CACHE_DURATIONS = {
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Badge", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting", "HelpGuide"],
     // Only refetch on reconnect for critical data (Badge, Notification)
     // refetchOnFocus is disabled to prevent unnecessary requests
     refetchOnReconnect: false,
@@ -873,6 +873,24 @@ export const api = createApi({
             invalidatesTags: ['Setting'],
         }),
 
+        // --- HELP GUIDE API ---
+        getHelpGuideByUserType: builder.query<ApiResponse<HelpGuideGetDto[]>, number>({
+            query: (userType) => `HelpGuide/${userType}`,
+            providesTags: ['HelpGuide'],
+            keepUnusedDataFor: CACHE_DURATIONS.STATIC, // Static data - 5 dakika cache
+            transformResponse: (response: unknown): ApiResponse<HelpGuideGetDto[]> => {
+                const transformed = transformApiResponse<HelpGuideGetDto[]>(response);
+                if (transformed) {
+                    return {
+                        success: transformed.success,
+                        message: transformed.message,
+                        data: transformed.data,
+                    };
+                }
+                return response as ApiResponse<HelpGuideGetDto[]>;
+            },
+        }),
+
         // --- FCM TOKEN API ---
         registerFcmToken: builder.mutation<ApiResponse<boolean>, { fcmToken: string; deviceId?: string; platform?: string }>({
             query: (body) => ({
@@ -973,6 +991,7 @@ export const {
     useUpdateProfileMutation,
     useGetSettingQuery,
     useUpdateSettingMutation,
+    useGetHelpGuideByUserTypeQuery,
     useRegisterFcmTokenMutation,
     useUnregisterFcmTokenMutation,
 } = api;

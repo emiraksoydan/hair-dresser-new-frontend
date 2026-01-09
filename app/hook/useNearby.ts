@@ -64,6 +64,7 @@ export function useNearby<T>(
         staleMs,
         hardRefreshMs,
         onFetch,
+        error: result.error, // Error durumunda hard refresh'i durdurmak için
     });
 
     return {

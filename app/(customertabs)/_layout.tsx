@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
+import { Text } from '../components/common/Text'
 import { Tabs } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import { useAppDispatch } from '../store/hook';
@@ -9,10 +10,12 @@ import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { useAuth } from '../hook/useAuth';
 import { useBottomSheet } from '../hook/useBottomSheet';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { InfoModal } from '../components/common/infomodal';
 import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
 import { useNotificationSound } from '../hook/useNotificationSound';
+import { useGetHelpGuideByUserTypeQuery } from '../store/api';
+import { UserType } from '../types';
 
 const CustomerLayout = () => {
     const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -27,19 +30,27 @@ const CustomerLayout = () => {
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;
     const unreadMsg = badge?.unreadMessages ?? 0;
-    const { userName } = useAuth();
+    const { userName, userType } = useAuth();
 
     // Play notification sound when badge count changes
     useNotificationSound(unreadNoti);
 
-    // Info modal items - kullanıcı buraya uygulamanın kullanım bilgilerini ekleyecek
-    const infoItems = [
-        {
-            title: "Uygulama Kullanım Bilgileri",
-            description: "Buraya uygulamanın kullanım bilgileri eklenecek",
-        },
-        // Daha fazla item eklenebilir
-    ];
+    // Help guide items - API'den dinamik olarak çek
+    const { data: helpGuideResponse, isLoading: isLoadingHelpGuide } = useGetHelpGuideByUserTypeQuery(
+        UserType.Customer,
+        { skip: userType !== UserType.Customer }
+    );
+
+    // API'den gelen veriyi InfoModal formatına dönüştür (fallback olarak hardcoded veriler)
+    const infoItems = useMemo(() => {
+        if (helpGuideResponse?.success && helpGuideResponse?.data && helpGuideResponse.data.length > 0) {
+            return helpGuideResponse.data.map((guide) => ({
+                title: guide.title,
+                description: guide.description,
+            }));
+        }
+        return [];
+    }, [helpGuideResponse]);
     return (
         <>
             <Tabs

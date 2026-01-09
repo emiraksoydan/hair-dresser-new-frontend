@@ -10,6 +10,11 @@ import { NOTIFICATION_SOUND_DURATION_MS, NOTIFICATION_SOUND_FILENAME } from '../
  * 1. Badge count increases (new notification received)
  * 2. App is opened and there are unread notifications (first time only)
  * 
+ * ÖNEMLİ: 
+ * - Ses sadece bildirimi alan kullanıcıda çalar (badge count artışı kontrolü ile)
+ * - Aynı anda birden fazla bildirim gelirse, zaten çalan bir ses varsa diğerleri çalmaz
+ * - Cooldown süresi (3 saniye) içinde yeni bildirimler için ses çalmaz
+ * 
  * Sound duration: NOTIFICATION_SOUND_DURATION_MS (ayarlanabilir - constants/notification.ts)
  * Sound source: Backend'deki varsayılan bildirim sesi dosyası (wwwroot/sounds/notification.mp3)
  */
@@ -21,6 +26,7 @@ export const useNotificationSound = (badgeCount: number) => {
     const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSoundPlayTimeRef = useRef<number>(0);
     const SOUND_COOLDOWN_MS = 3000; // 3 saniye cooldown - çoklu bildirimlerde her biri için ses çalmasın
+    const isPlayingRef = useRef<boolean>(false); // Şu anda bir ses çalıyor mu kontrolü
 
     // Set audio mode for notifications
     useEffect(() => {
@@ -52,16 +58,22 @@ export const useNotificationSound = (badgeCount: number) => {
         // 1. Badge count increased (new notification)
         // 2. App just opened with notifications (first time only)
         if (badgeCount > previousCount) {
-            // New notification received - sadece cooldown süresi geçtiyse ses çal
+            // New notification received - sadece cooldown süresi geçtiyse VE şu anda çalan bir ses yoksa ses çal
             const now = Date.now();
             const timeSinceLastSound = now - lastSoundPlayTimeRef.current;
-            if (timeSinceLastSound >= SOUND_COOLDOWN_MS) {
+            const isSoundCurrentlyPlaying = soundRef.current !== null || isPlayingRef.current;
+
+            // Eğer bir ses zaten çalıyorsa veya cooldown süresi geçmediyse, yeni ses çalma
+            if (!isSoundCurrentlyPlaying && timeSinceLastSound >= SOUND_COOLDOWN_MS) {
                 playNotificationSound();
             }
         } else if (!hasPlayedOnMountRef.current && badgeCount > 0 && appStateRef.current === 'active') {
             // App opened with existing notifications (play once)
-            hasPlayedOnMountRef.current = true;
-            playNotificationSound();
+            // Sadece şu anda çalan bir ses yoksa çal
+            if (soundRef.current === null && !isPlayingRef.current) {
+                hasPlayedOnMountRef.current = true;
+                playNotificationSound();
+            }
         }
 
         previousBadgeCountRef.current = badgeCount;
@@ -78,16 +90,13 @@ export const useNotificationSound = (badgeCount: number) => {
             return;
         }
 
-        // Stop any currently playing sound
-        if (soundRef.current) {
-            try {
-                await soundRef.current.stopAsync();
-                await soundRef.current.unloadAsync();
-            } catch (e) {
-                // Ignore errors
-            }
-            soundRef.current = null;
+        // ÖNEMLİ: Eğer bir ses zaten çalıyorsa, yeni ses çalma (aynı anda birden fazla bildirim gelirse)
+        if (soundRef.current !== null || isPlayingRef.current) {
+            return;
         }
+
+        // Ses çalmaya başladığını işaretle
+        isPlayingRef.current = true;
 
         // Clear any existing timeout
         if (stopTimeoutRef.current) {
@@ -129,12 +138,16 @@ export const useNotificationSound = (badgeCount: number) => {
                 } catch (e) {
                     // Ignore errors
                 }
+                // Ses çalma durumunu sıfırla
+                isPlayingRef.current = false;
                 if (stopTimeoutRef.current) {
                     clearTimeout(stopTimeoutRef.current);
                     stopTimeoutRef.current = null;
                 }
             }, NOTIFICATION_SOUND_DURATION_MS); // Ayarlanabilir süre - constants/notification.ts
         } catch (error) {
+            // Hata durumunda ses çalma durumunu sıfırla
+            isPlayingRef.current = false;
             // Silently fail - don't interrupt user experience
             // If sound fails to load, user can still use the app normally
             // Notification sound not available - silently fail
@@ -150,6 +163,7 @@ export const useNotificationSound = (badgeCount: number) => {
             if (soundRef.current) {
                 soundRef.current.unloadAsync().catch(() => { });
             }
+            isPlayingRef.current = false;
         };
     }, []);
 };

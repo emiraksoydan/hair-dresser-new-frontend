@@ -1,4 +1,5 @@
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Image, ScrollView, TouchableOpacity, View } from 'react-native'
+import { Text } from '../common/Text'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Divider, Icon, IconButton, TextInput, HelperText, Avatar, Chip } from 'react-native-paper';
 import { Button } from '../common/Button';
@@ -27,12 +28,15 @@ import { BarberStoreCreateDto, ImageOwnerType } from '../../types';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { useAppDispatch } from '../../store/hook';
 import { showSnack } from '../../store/snackbarSlice';
+import { useCanPerformAction } from '../../hook/useCanPerformAction';
 import { mapBarberType, mapPricingType } from '../../utils/form/form-mappers';
 import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 import { useAuth } from '../../hook/useAuth';
 import { MESSAGES } from '../../constants/messages';
+import { ensureLocationGateWithUI } from '../location/location-gate';
+import { LocationStatus } from '../../types';
 
 
 const ChairPricingSchema = z.object({
@@ -240,8 +244,36 @@ export const fullSchema = schema.extend({
     }
 });
 export type FormValues = z.input<typeof fullSchema>;
-const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
+type Props = {
+    onClose?: () => void;
+    error?: any; // API error durumu (optional, component içinde de kontrol edilir)
+    locationStatus?: LocationStatus; // Location status (optional, component içinde de kontrol edilir)
+};
+const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationStatus }: Props) => {
     const { userId } = useAuth();
+    const [locationStatus, setLocationStatus] = useState<LocationStatus>(propLocationStatus || 'unknown');
+    
+    // Location status kontrolü (component içinde)
+    useEffect(() => {
+        if (propLocationStatus) {
+            setLocationStatus(propLocationStatus);
+        } else {
+            ensureLocationGateWithUI().then((gate) => {
+                setLocationStatus(gate.ok ? "granted" : (gate.reason === "permission" ? "denied" : "unknown"));
+            });
+        }
+    }, [propLocationStatus]);
+    
+    // Error kontrolü: mutation error'ları da kontrol et
+    const [addStore, { isLoading, isSuccess, error: mutationError }] = useAddBarberStoreMutation();
+    const error = propError || mutationError;
+    
+    // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
+    const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
+        error,
+        locationStatus,
+        'Bu işlemi gerçekleştirmek için konum izni gereklidir. Lütfen ayarlardan konum iznini açın.'
+    );
     const {
         control,
         handleSubmit,
@@ -275,7 +307,6 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
 
         },
     });
-    const [addStore, { isLoading, isSuccess }] = useAddBarberStoreMutation();
     const [triggerGetMineStores] = useLazyGetMineStoresQuery();
     const [uploadMultipleImages] = useUploadMultipleImagesMutation();
     const [uploadImage] = useUploadImageMutation();
@@ -310,6 +341,10 @@ const FormStoreAdd = ({ onClose }: { onClose?: () => void }) => {
     const address = watch("location.addressDescription");
     const dispatch = useAppDispatch();
     const OnSubmit = async (data: FormValues) => {
+        // Error veya location denied kontrolü
+        if (!checkCanPerformAction()) {
+            return;
+        }
         if (isSubmitting) return;
         setIsSubmitting(true);
         const hasUploads = (data.storeImages?.length ?? 0) > 0 || (data.barbers ?? []).some((b) => b.avatar?.uri);

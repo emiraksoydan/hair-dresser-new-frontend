@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text } from '../common/Text';
 import { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Icon } from 'react-native-paper';
 import StarRating from 'react-native-star-rating-widget';

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View, Text } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from './Text';
 import { Icon } from 'react-native-paper';
 import { MotiView } from 'moti';
 

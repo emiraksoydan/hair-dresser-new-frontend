@@ -1,6 +1,7 @@
 // app/components/customer/customercard.tsx
 import React, { useCallback, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, TouchableOpacity, Image, Alert } from 'react-native';
+import { Text } from '../common/Text';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { UserFavoriteDto, FavoriteTargetType } from '../../types';

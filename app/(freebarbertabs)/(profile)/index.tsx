@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { InteractionManager, Text, View, ScrollView, RefreshControl } from 'react-native'
+import { InteractionManager, View, ScrollView, RefreshControl } from 'react-native'
+import { Text } from '../../components/common/Text'
 import { Avatar, Divider, IconButton, TextInput, HelperText, Switch } from 'react-native-paper';
 import { Button } from '../../components/common/Button';
 import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation, useUpdateImageBlobMutation, useGetSettingQuery, useUpdateSettingMutation } from '../../store/api';

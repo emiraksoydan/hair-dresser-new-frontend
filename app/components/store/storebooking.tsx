@@ -1,6 +1,7 @@
-﻿import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Alert, FlatList, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Image, ScrollView, StatusBar, TouchableOpacity, View } from "react-native";
+import { Text } from "../common/Text";
 import { ActivityIndicator, Icon } from "react-native-paper";
 import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation, useAddStoreToAppointmentMutation } from "../../store/api";
 import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
@@ -14,6 +15,7 @@ import { useAppointmentBooking } from "../../hook/useAppointmentBooking";
 import { useAppointmentPricing } from "../../hook/useAppointmentPricing";
 import { getUserFriendlyErrorMessage, isDuplicateSlotError } from "../../utils/common/error";
 import { ImageCarousel } from "../common/imagecarousel";
+import { useCanPerformAction } from "../../hook/useCanPerformAction";
 
 const toLocalIso = (dateStr: string, hhmm: string) => `${dateStr}T${normalizeTime(hhmm)}:00`;
 interface Props {
@@ -68,12 +70,19 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
         return closedByDow.get(jsDow) === true;
     };
 
-    const { data, isFetching, isLoading, refetch } = useGetAvailabilityQuery({
+    const { data, isFetching, isLoading, refetch, error: availabilityError } = useGetAvailabilityQuery({
         storeId,
         dateOnly: selectedDateOnly,
     }, {
         skip: !storeId || !selectedDateOnly,
     });
+
+    // Action kontrolü: Error durumunda işlem yapılamaz
+    const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
+        availabilityError,
+        undefined, // Store booking'te location kontrolü zaten getCurrentLocationSafe ile yapılıyor
+        undefined
+    );
 
     const chairs: ChairSlotDto[] = useMemo(() => {
         if (!data) {
@@ -394,6 +403,11 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                         className={`py-3 flex-row justify-center gap-2 rounded-xl mt-0 items-center ${(!canSubmit) ? "bg-[#4b5563] opacity-60" : "bg-[#22c55e] opacity-100"}`}
                         onPress={async () => {
                             try {
+                                // Error kontrolü: Sunucu çalışmıyorsa işlem yapılamaz
+                                if (!checkCanPerformAction()) {
+                                    return;
+                                }
+
                                 if (!selectedChair || selectedSlotKeys.length === 0) return;
 
                                 // Duplicate request önleme: buton disabled yap

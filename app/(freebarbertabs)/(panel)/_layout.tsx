@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from '../../components/common/Text'
 import React from 'react'
 import { Stack } from 'expo-router'
 

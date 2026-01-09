@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
+import { Text } from '../components/common/Text'
 import { Tabs } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
 import { useAppDispatch } from '../store/hook';
@@ -16,9 +17,12 @@ import { CrudSkeletonComponent } from '../components/common/crudskeleton';
 import { InfoModal } from '../components/common/infomodal';
 import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
 import { useNotificationSound } from '../hook/useNotificationSound';
+import { useGetHelpGuideByUserTypeQuery } from '../store/api';
+import { UserType } from '../types';
+import { useMemo } from 'react';
 
 const BarberStoreLayout = () => {
-    const { userName } = useAuth();
+    const { userName, userType } = useAuth();
     const [infoModalVisible, setInfoModalVisible] = useState(false);
     const dispatch = useAppDispatch();
 
@@ -35,14 +39,22 @@ const BarberStoreLayout = () => {
         enableOverDrag: false,
     });
 
-    // Info modal items - kullanıcı buraya uygulamanın kullanım bilgilerini ekleyecek
-    const infoItems = [
-        {
-            title: "Uygulama Kullanım Bilgileri",
-            description: "Buraya uygulamanın kullanım bilgileri eklenecek",
-        },
-        // Daha fazla item eklenebilir
-    ];
+    // Help guide items - API'den dinamik olarak çek
+    const { data: helpGuideResponse, isLoading: isLoadingHelpGuide } = useGetHelpGuideByUserTypeQuery(
+        UserType.BarberStore,
+        { skip: userType !== UserType.BarberStore }
+    );
+
+    // API'den gelen veriyi InfoModal formatına dönüştür (fallback olarak hardcoded veriler)
+    const infoItems = useMemo(() => {
+        if (helpGuideResponse?.success && helpGuideResponse?.data && helpGuideResponse.data.length > 0) {
+            return helpGuideResponse.data.map((guide) => ({
+                title: guide.title,
+                description: guide.description,
+            }));
+        }
+        return [];
+    }, [helpGuideResponse]);
 
     const { data: badge } = useGetBadgeCountsQuery();
     const unreadNoti = badge?.unreadNotifications ?? 0;

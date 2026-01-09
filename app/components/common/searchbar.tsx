@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from './Text'
 import React, { useState } from 'react'
 import { Searchbar } from 'react-native-paper'
 import { SearchBarProps } from '../../types';

@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
+import { Text } from './Text'
 import { IconButton } from 'react-native-paper'
 import { FormatListButtonProps } from '../../types'
 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, memo } from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import { View, Dimensions } from 'react-native';
+import { Text } from '../common/Text';
 import { Button } from '../common/Button';
 import { SkeletonComponent } from '../common/skeleton';
 import { LottieViewComponent } from '../common/lottieview';

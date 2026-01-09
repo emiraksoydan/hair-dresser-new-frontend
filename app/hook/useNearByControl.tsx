@@ -1,8 +1,14 @@
 import * as Location from "expo-location";
+import * as TaskManager from "expo-task-manager";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AppState, AppStateStatus } from "react-native";
+import Constants from "expo-constants";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
 import type { Pos, LocationStatus, UseNearbyControlParams } from "../types";
+import { BACKGROUND_LOCATION_TASK } from "../tasks/backgroundLocation";
+
+// Expo Go background location'ı desteklemez
+const IS_EXPO_GO = Constants.executionEnvironment === "storeClient";
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371;
@@ -23,7 +29,8 @@ export function useNearbyControl({
     staleMs = 15_000,
     hardRefreshMs = 15_000, // Default değeri useNearby.ts ile tutarlı hale getir
     onFetch,
-}: UseNearbyControlParams) {
+    error, // API error durumu - hard refresh'i durdurmak için
+}: UseNearbyControlParams & { error?: any }) {
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
     const [locationMessage, setLocationMessage] = useState<string>("");
     const [fetchedOnce, setFetchedOnce] = useState(false);
@@ -34,6 +41,7 @@ export function useNearbyControl({
 
     const watchRef = useRef<Location.LocationSubscription | null>(null);
     const inflightFetch = useRef(false);
+    const backgroundTaskStarted = useRef(false);
 
     // Başlangıç değeri undefined olarak ayarlandı
     const savedFetchHandler = useRef<((lat: number, lon: number) => Promise<void>) | undefined>(undefined);
@@ -90,6 +98,9 @@ export function useNearbyControl({
                 lastKnownPos.current = p;
 
                 if (!shouldFetchByMoveOrAge(p.lat, p.lon)) return;
+                
+                // Error varsa fetch yapma (sunucu çalışmıyor olabilir)
+                if (error) return;
 
                 // Hareket algılandı, güncel fonksiyonu çağır
                 if (savedFetchHandler.current) {
@@ -99,6 +110,54 @@ export function useNearbyControl({
         );
 
         watchRef.current = sub;
+    }
+
+    async function startBackgroundLocation() {
+        // Expo Go background location'ı desteklemez
+        if (IS_EXPO_GO) {
+            console.log('Background location is not supported in Expo Go');
+            return;
+        }
+
+        if (backgroundTaskStarted.current) return;
+
+        try {
+            // Background location permission kontrolü
+            const { status } = await Location.requestBackgroundPermissionsAsync();
+            
+            if (status === 'granted') {
+                // Background location task'ı başlat
+                await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+                    accuracy: Location.Accuracy.Balanced,
+                    distanceInterval: 100, // 100 metre yer değiştirirse güncelle
+                    timeInterval: 30000, // 30 saniyede bir güncelle
+                    foregroundService: {
+                        notificationTitle: 'Konum Güncelleniyor',
+                        notificationBody: 'Uygulama arka planda konumunuzu güncelliyor',
+                    },
+                });
+                backgroundTaskStarted.current = true;
+            }
+        } catch (error) {
+            console.error('Background location start error:', error);
+        }
+    }
+
+    async function stopBackgroundLocation() {
+        // Expo Go background location'ı desteklemez
+        if (IS_EXPO_GO) return;
+
+        if (!backgroundTaskStarted.current) return;
+
+        try {
+            const isTaskDefined = TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK);
+            if (isTaskDefined) {
+                await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+            }
+            backgroundTaskStarted.current = false;
+        } catch (error) {
+            console.error('Background location stop error:', error);
+        }
     }
 
     async function gateAndStart(): Promise<boolean> {
@@ -113,15 +172,25 @@ export function useNearbyControl({
         setLocationMessage("");
         setLocationStatus("granted");
         await startWatching();
+        
+        // Background location'ı da başlat
+        await startBackgroundLocation();
+        
         return true;
     }
 
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled) {
+            // Enabled false ise background location'ı durdur
+            stopBackgroundLocation();
+            return;
+        }
+        
         gateAndStart();
         return () => {
             watchRef.current?.remove();
             watchRef.current = null;
+            stopBackgroundLocation();
         };
     }, [enabled]);
 
@@ -129,11 +198,15 @@ export function useNearbyControl({
     useEffect(() => {
         if (!enabled) return;
         if (locationStatus !== "granted") return;
+        // Error varsa hard refresh'i durdur (sunucu çalışmıyor olabilir)
+        if (error) return;
 
         // Bu fonksiyon her tetiklendiğinde ref içindeki EN GÜNCEL handleFetch'i bulur.
         const tick = () => {
             const pos = lastKnownPos.current;
             if (!pos) return;
+            // Error varsa fetch yapma (sunucu çalışmıyor olabilir)
+            if (error) return;
 
             // Ref üzerinden çağırdığımız için stale closure (eski veri) olmaz.
             savedFetchHandler.current?.(pos.lat, pos.lon);
@@ -142,7 +215,7 @@ export function useNearbyControl({
         const id = setInterval(tick, hardRefreshMs);
 
         return () => clearInterval(id);
-    }, [enabled, locationStatus, hardRefreshMs]);
+    }, [enabled, locationStatus, hardRefreshMs, error]);
 
     // AppState listener: Uygulama foreground'a geldiğinde lokasyon iznini kontrol et ve hard refresh yap
     useEffect(() => {
@@ -162,6 +235,11 @@ export function useNearbyControl({
                         await startWatching();
                     }
 
+                    // Background location'ı da başlat (eğer başlatılmamışsa)
+                    if (enabled && !backgroundTaskStarted.current) {
+                        await startBackgroundLocation();
+                    }
+
                     // Eğer son bilinen pozisyon varsa hemen fetch yap (hard refresh)
                     // Ayarlardan döndüğünde veri güncellemesi için
                     if (lastKnownPos.current && savedFetchHandler.current) {
@@ -176,6 +254,12 @@ export function useNearbyControl({
                     setLocationMessage("Konum izni verilmedi.");
                     watchRef.current?.remove();
                     watchRef.current = null;
+                    stopBackgroundLocation();
+                }
+            } else if (nextAppState === "background" || nextAppState === "inactive") {
+                // Uygulama background'a gittiğinde background location'ı başlat
+                if (enabled && locationStatus === "granted" && !backgroundTaskStarted.current) {
+                    await startBackgroundLocation();
                 }
             }
         };
@@ -204,6 +288,8 @@ export function useNearbyControl({
         initialLoading,
         manualFetch: async () => {
             if (!lastKnownPos.current || locationStatus !== "granted") return;
+            // Error varsa manual fetch yapma (sunucu çalışmıyor olabilir)
+            if (error) return;
             await savedFetchHandler.current?.(lastKnownPos.current.lat, lastKnownPos.current.lon);
         },
         retryPermission,

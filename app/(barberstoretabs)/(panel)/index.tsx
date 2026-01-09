@@ -1,5 +1,6 @@
-﻿import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Image, RefreshControl, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { Dimensions, FlatList, Image, RefreshControl, TouchableOpacity, View, ScrollView } from "react-native";
+import { Text } from "../../components/common/Text";
 import MapView, { Marker } from "react-native-maps";
 import { Icon, IconButton } from "react-native-paper";
 import SearchBar from "../../components/common/searchbar";
@@ -116,6 +117,10 @@ const Index = () => {
     const isRefreshingRef = useRef(false);
     const onRefresh = useCallback(async () => {
         if (isRefreshingRef.current) return;
+        // Error veya location denied durumunda hard refresh yapma
+        if (storesError || freeBarbersError || locationStatus === 'denied') {
+            return;
+        }
         try {
             isRefreshingRef.current = true;
             setRefreshing(true);
@@ -127,7 +132,7 @@ const Index = () => {
             setRefreshing(false);
             isRefreshingRef.current = false;
         }
-    }, [manualFetch, refetchStores]);
+    }, [manualFetch, refetchStores, storesError, freeBarbersError, locationStatus]);
 
 
 
@@ -660,6 +665,8 @@ const Index = () => {
                             onClose={() => {
                                 updateStoreSheet.dismiss();
                             }}
+                            error={storesError || freeBarbersError}
+                            locationStatus={locationStatus}
                         />
                     </DeferredRender>
                 </BottomSheetView>

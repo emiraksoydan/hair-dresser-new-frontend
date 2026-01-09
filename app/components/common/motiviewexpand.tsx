@@ -1,4 +1,5 @@
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
+import { Text } from './Text'
 import React, { useState } from 'react'
 import { IconButton, Searchbar } from 'react-native-paper'
 import { MotiView } from 'moti';

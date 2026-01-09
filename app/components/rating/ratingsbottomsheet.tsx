@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Image, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Image, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { Text } from '../common/Text';
 import { BottomSheetView, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { Icon } from 'react-native-paper';
 import { useGetRatingsByTargetQuery } from '../../store/api';

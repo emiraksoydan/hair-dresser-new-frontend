@@ -43,6 +43,8 @@ export function useNearbyStoresControl({
 
     const fetchNearby = useCallback(async (showLoading: boolean = false) => {
         if (!enabled || !stores.length) return;
+        // Error varsa ve manuel fetch değilse fetch yapma (hard refresh'te)
+        if (error && !showLoading) return;
 
         // Sadece ilk yüklemede veya manuel fetch'te loading göster
         if (showLoading || isInitialLoad) {
@@ -75,14 +77,14 @@ export function useNearbyStoresControl({
             setFreeBarbers(Array.from(allBarbers.values()));
             setError(null);
             setIsInitialLoad(false); // İlk yükleme tamamlandı
-        } catch (error) {
-            setError(error);
+        } catch (err) {
+            setError(err);
         } finally {
             if (showLoading || isInitialLoad) {
                 setIsLoading(false);
             }
         }
-    }, [enabled, stores, radiusKm, trigger, location, isInitialLoad]);
+    }, [enabled, stores, radiusKm, trigger, location, isInitialLoad, error]);
 
     // 1. Durum: Store listesi veya koordinatı değişirse ANINDA çek (Optimistic update burayı tetikler)
     // İlk yüklemede loading göster, sonraki güncellemelerde gösterme
@@ -92,11 +94,16 @@ export function useNearbyStoresControl({
 
     // 2. Durum: Periyodik olarak arka planda yenile (Timer)
     // Background refresh'lerde loading gösterme
+    // ÖNEMLİ: Error veya location denied durumunda hard refresh'i durdur
     useEffect(() => {
         if (!enabled) return;
+        if (locationStatus !== "granted") return;
+        // Error varsa hard refresh'i durdur (sunucu çalışmıyor olabilir)
+        if (error) return;
+        
         const interval = setInterval(() => fetchNearby(false), hardRefreshMs);
         return () => clearInterval(interval);
-    }, [enabled, hardRefreshMs, fetchNearby]);
+    }, [enabled, hardRefreshMs, fetchNearby, locationStatus, error]);
 
     return {
         freeBarbers,
@@ -105,6 +112,10 @@ export function useNearbyStoresControl({
         hasLocation: locationStatus === "granted",
         location,
         error,
-        manualFetch: () => fetchNearby(true), // Manuel fetch'te loading göster
+        manualFetch: () => {
+            // Error veya location denied durumunda manual fetch yapma
+            if (error || locationStatus !== "granted") return;
+            fetchNearby(true);
+        }, // Manuel fetch'te loading göster
     };
 }

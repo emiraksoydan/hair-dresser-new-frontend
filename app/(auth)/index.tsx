@@ -1,4 +1,5 @@
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, ScrollView, TouchableOpacity, View } from 'react-native'
+import { Text } from '../components/common/Text'
 import React, { useEffect, useMemo, useState } from 'react'
 import { TextInput, HelperText, ActivityIndicator, Portal, Modal } from "react-native-paper";
 import { showSnack } from '../store/snackbarSlice';

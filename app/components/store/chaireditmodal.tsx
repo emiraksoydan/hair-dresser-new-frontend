@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { Text } from '../common/Text';
 import {
     Dialog,
     HelperText,

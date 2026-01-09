@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from "react-native";
+import { View, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from "react-native";
+import { Text } from "../common/Text";
 import { Icon } from "react-native-paper";
 import type { NotificationDto, NotificationPayload } from "../../types";
 import { NotificationType, AppointmentStatus, DecisionStatus, StoreSelectionType } from "../../types";
@@ -272,7 +273,15 @@ export const NotificationItem = React.memo(({
     // 2. Durum gösterilmemeli (Rejected/Approved/Cancelled/Completed durumunda butonlar gösterilmez)
     // 3. Status Pending olmalı VE decision verilmemiş olmalı
     // 4. Status notification type'ı değilse (AppointmentRejected, AppointmentCancelled, AppointmentCompleted, AppointmentApproved)
-    const shouldShowButtons = showDecisionButtons && !showDecisionStatus && isPending && !isStatusNotificationType;
+    // 5. Decision verilmişse (Approved, Rejected, NoAnswer) butonlar gösterilmemeli - ekstra güvenlik kontrolü
+    const hasDecisionGiven = decisionForRecipient !== undefined && 
+                             decisionForRecipient !== null && 
+                             decisionForRecipient !== DecisionStatus.Pending;
+    const shouldShowButtons = showDecisionButtons && 
+                             !showDecisionStatus && 
+                             isPending && 
+                             !isStatusNotificationType &&
+                             !hasDecisionGiven; // Decision verilmişse butonlar gösterilmez
 
     // FreeBarber için "Dükkan Ekle" butonu KALDIRILDI
     // Otomatik algılama: Panel index'te aktif StoreSelection randevusu varsa otomatik mode=add-store

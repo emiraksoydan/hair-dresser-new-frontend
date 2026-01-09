@@ -1,10 +1,11 @@
-﻿/**
+/**
  * Shared message thread list component
  * Used across different user type message pages
  */
 
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
+import { View, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
+import { Text } from '../common/Text';
 import { LegendList } from '@legendapp/list';
 import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';

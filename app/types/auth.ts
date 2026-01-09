@@ -81,3 +81,12 @@ export interface SettingUpdateDto {
   // notificationSoundUrl kaldırıldı - kullanıcı ayarlardan seçemez, backend'deki varsayılan ses kullanılır
 }
 
+export interface HelpGuideGetDto {
+  id: string;
+  userType: number; // UserType enum değeri (0: Customer, 1: FreeBarber, 2: BarberStore)
+  title: string;
+  description: string;
+  order: number;
+  isActive: boolean;
+}
+

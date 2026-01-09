@@ -4,7 +4,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, Modal, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Dimensions, Modal, StyleSheet } from 'react-native';
+import { Text } from './Text';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,

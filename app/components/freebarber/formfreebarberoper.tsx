@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, TouchableOpacity, View } from "react-native";
+import { Text } from "../common/Text";
 import { Divider, Icon, IconButton, TextInput, HelperText, Switch } from "react-native-paper";
 import { Button } from "../common/Button";
 import { useForm, Controller } from "react-hook-form";
@@ -30,6 +31,7 @@ import {
 import { useAuth } from "../../hook/useAuth";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 import { MESSAGES } from "../../constants/messages";
+import { useCanPerformAction } from "../../hook/useCanPerformAction";
 
 // --- Schema Definitions ---
 const LocationSchema = z
@@ -89,9 +91,15 @@ const schema = z.object({
 
 export type FormFreeBarberValues = z.input<typeof schema>;
 
-type Props = { freeBarberId: string | null; enabled: boolean; onClose?: () => void };
+type Props = {
+    freeBarberId: string | null;
+    enabled: boolean;
+    onClose?: () => void;
+    error?: any; // API error durumu
+    locationStatus?: 'unknown' | 'granted' | 'denied'; // Location status
+};
 
-export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onClose }: Props) => {
+export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onClose, error, locationStatus }: Props) => {
     const isEdit = freeBarberId != null;
 
     const dispatch = useAppDispatch();
@@ -366,7 +374,19 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
         if (changed) setValue("prices", next, { shouldDirty: true, shouldValidate: false });
     }, [selectedCategories, currentPrices, setValue]);
 
+    // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
+    const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
+        error,
+        locationStatus,
+        'Bu işlemi gerçekleştirmek için konum izni gereklidir. Lütfen ayarlardan konum iznini açın.'
+    );
+
     const OnSubmit = React.useCallback(async (form: FormFreeBarberValues) => {
+        // Error veya location denied kontrolü
+        if (!checkCanPerformAction()) {
+            return;
+        }
+
         if (isEdit) {
             const ok = await setLocationNow();
             if (!ok) return;

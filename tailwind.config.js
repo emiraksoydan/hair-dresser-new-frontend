@@ -5,7 +5,14 @@ module.exports = {
   ],
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        'century-gothic': ['CenturyGothic', 'sans-serif'],
+        'century-gothic-bold': ['CenturyGothic-Bold', 'CenturyGothic', 'sans-serif'],
+        // Default font olarak Century Gothic kullan
+        sans: ['CenturyGothic', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }

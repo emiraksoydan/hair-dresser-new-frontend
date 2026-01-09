@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { Text } from '../common/Text';
 import { TextInput, IconButton, Avatar } from 'react-native-paper';
 import { Controller, Control, FieldErrors } from 'react-hook-form';
 

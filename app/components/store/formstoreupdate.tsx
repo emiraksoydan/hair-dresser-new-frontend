@@ -1,4 +1,5 @@
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { Text } from '../common/Text'
 import React, { useEffect, useMemo, useState } from 'react'
 import { z } from "zod";
 import { BUSINESS_TYPES, DAYS_TR, PRICING_OPTIONS, SERVICE_BY_TYPE, trMoneyRegex } from '../../constants';
@@ -9,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Avatar, Divider, HelperText, Icon, IconButton, TextInput } from 'react-native-paper';
 import { Button } from '../common/Button';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
+import { useCanPerformAction } from '../../hook/useCanPerformAction';
 import {
     useDeleteImageMutation,
     useDeleteManuelBarberMutation,
@@ -219,8 +221,12 @@ const schema = z.object({
 });
 export type FormUpdateValues = z.input<typeof schema>;
 
-const FormStoreUpdate = ({ storeId, enabled, onClose }: {
-    storeId: string; enabled: boolean; onClose?: () => void;
+const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, locationStatus }: {
+    storeId: string; 
+    enabled: boolean; 
+    onClose?: () => void;
+    error?: any; // API error durumu
+    locationStatus?: 'unknown' | 'granted' | 'denied'; // Location status
 }) => {
     const { userId } = useAuth();
     const [triggerGetStore, { data, isLoading, isError, error }] = useLazyGetStoreByIdQuery();
@@ -747,7 +753,18 @@ const FormStoreUpdate = ({ storeId, enabled, onClose }: {
     }, [selectedCategories, currentPrices, setValue]);
 
 
+    // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
+    const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
+        externalError,
+        locationStatus,
+        'Bu işlemi gerçekleştirmek için konum izni gereklidir. Lütfen ayarlardan konum iznini açın.'
+    );
+
     const OnSubmit = async (form: FormUpdateValues) => {
+        // Error veya location denied kontrolü
+        if (!checkCanPerformAction()) {
+            return;
+        }
         if (isSubmitting) return;
         setIsSubmitting(true);
         const existingImages = data?.imageList ?? [];

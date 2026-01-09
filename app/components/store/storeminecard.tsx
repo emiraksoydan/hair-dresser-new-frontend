@@ -1,6 +1,7 @@
 // app/components/StoreCard.tsx
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import { Text } from '../common/Text';
 import { Icon, IconButton } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { BarberType, BarberStoreMineDto } from '../../types';
