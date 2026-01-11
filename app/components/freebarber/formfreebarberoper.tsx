@@ -29,18 +29,19 @@ import {
     useLazyGetChildCategoriesQuery,
 } from "../../store/api";
 import { useAuth } from "../../hook/useAuth";
+import { useLanguage } from "../../hook/useLanguage";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 import { MESSAGES } from "../../constants/messages";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
 
 // --- Schema Definitions ---
-const LocationSchema = z
+const createLocationSchema = (t: (key: string) => string) => z
     .object({
-        latitude: z.number({ required_error: "Konum gerekli" }),
-        longitude: z.number({ required_error: "Konum gerekli" }),
+        latitude: z.number({ required_error: t('form.locationRequired') }),
+        longitude: z.number({ required_error: t('form.locationRequired') }),
     })
     .refine((data) => data.latitude !== 0 && data.longitude !== 0, {
-        message: "Konum seçmelisiniz",
+        message: t('form.locationRequired'),
         path: ["latitude"],
     });
 
@@ -51,45 +52,45 @@ const ImageAssetSchema = z
         type: z.string().optional(),
     });
 
-const CertificateImageField = z
+const createCertificateImageField = (t: (key: string) => string) => z
     .custom<{ uri: string; name: string; type?: string }>(
         (v) =>
             !!v &&
             typeof v === "object" &&
             "uri" in (v as any) && (v as any).uri,
-        { message: "Lütfen sertifika resmi seçiniz." }
+        { message: t('form.certificateImageRequired') }
     )
     .pipe(ImageAssetSchema);
 
-const schema = z.object({
-    name: z.string({ required_error: 'İsim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
-    surname: z.string({ required_error: 'Soyisim gerekli' }).trim().min(1, "En az 1 karakter gerekli"),
+const createSchema = (t: (key: string) => string) => z.object({
+    name: z.string({ required_error: t('form.nameRequired') }).trim().min(1, t('form.minOneChar')),
+    surname: z.string({ required_error: t('form.surnameRequired') }).trim().min(1, t('form.minOneChar')),
     images: z
         .array(
             z.object({
-                id: z.string().uuid().optional(), // Mevcut resimler için ID, yeni resimler için yok
+                id: z.string().uuid().optional(),
                 uri: z.string().min(1),
                 name: z.string().min(1),
                 type: z.string().min(1),
             })
         )
-        .max(3, "En fazla 3 resim ekleyebilirsiniz")
+        .max(3, t('form.maxImages'))
         .optional(),
-    type: z.string({ required_error: "İşletme türü zorunlu" }),
-    selectedCategories: z.array(z.string()).min(1, "En az bir kategori seçiniz"),
+    type: z.string({ required_error: t('form.storeTypeRequired') }),
+    selectedCategories: z.array(z.string()).min(1, t('form.atLeastOneCategory')),
     prices: z.record(
         z.string(),
         z
-            .string({ required_error: "Fiyat zorunlu" })
-            .min(1, "Fiyat zorunlu")
-            .regex(trMoneyRegex, "Lütfen fiyatı türkiye standartlarında girin")
+            .string({ required_error: t('form.priceRequired') })
+            .min(1, t('form.priceRequired'))
+            .regex(trMoneyRegex, t('form.priceFormatInvalid'))
     ),
-    location: LocationSchema, // UI yok ama form state'de olacak
-    certificateImage: CertificateImageField,
+    location: createLocationSchema(t),
+    certificateImage: createCertificateImageField(t),
     isAvailable: z.boolean().default(true),
 });
 
-export type FormFreeBarberValues = z.input<typeof schema>;
+export type FormFreeBarberValues = z.input<ReturnType<typeof createSchema>>;
 
 type Props = {
     freeBarberId: string | null;
@@ -104,6 +105,8 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
     const dispatch = useAppDispatch();
     const { userId } = useAuth();
+    const { t } = useLanguage();
+    const schema = useMemo(() => createSchema(t), [t]);
 
     const [triggerGetFreeBarberPanel, { data }] = useLazyGetFreeBarberMinePanelDetailQuery();
     const [triggerGetFreeBarberMinePanel] = useLazyGetFreeBarberMinePanelQuery();
@@ -589,7 +592,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
     return (
         <View className="h-full">
             <View className="flex-row justify-between items-center px-4 py-2">
-                <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">
+                <Text className="text-white flex-1 font-century-gothic text-2xl">
                     {!isEdit ? "Panel Oluştur" : "Panel Düzenleme"}
                 </Text>
                 <IconButton onPress={() => onClose?.()} icon="close" iconColor="white" />

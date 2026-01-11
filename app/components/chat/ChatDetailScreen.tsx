@@ -15,6 +15,7 @@ import {
 import { ChatMessageItemDto, ChatMessageDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType, ImageOwnerType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
 import { useSignalR } from '../../hook/useSignalR';
+import { useLanguage } from '../../hook/useLanguage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppDispatch } from '../../store/hook';
 import { setActiveThreadId } from '../../lib/activeChatThread';
@@ -36,6 +37,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const { userId: currentUserId, userType: currentUserType } = useAuth();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
     const dispatch = useAppDispatch();
+    const { t } = useLanguage();
 
     // SignalR bağlantı kontrolü
     const { isConnected, connectionRef } = useSignalR();
@@ -223,11 +225,11 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         // Kontroller
         if (!canSendMessage) {
             if (!isConnected) {
-                Alert.alert('Bağlantı Hatası', 'Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.');
+                Alert.alert(t('chat.connectionError'), t('chat.connectionErrorMessage'));
             } else {
                 Alert.alert(
-                    'Mesaj Gönderilemez',
-                    'Bu thread için mesaj gönderemezsiniz.'
+                    t('chat.messageCannotBeSent'),
+                    t('chat.cannotSendToThread')
                 );
             }
             return;
@@ -256,9 +258,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             // RTK Query otomatik olarak cache'i güncelleyecek
         } catch (e: any) {
             setMessageText(text); // Restore text on error
-            Alert.alert('Hata', e?.data?.message || e?.message || 'Mesaj gönderilemedi');
+            Alert.alert(t('common.error'), e?.data?.message || e?.message || t('chat.messageSendFailed'));
         }
-    }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, notifyTyping]);
+    }, [messageText, threadId, isSending, canSendMessage, isConnected, currentThread, sendMessageByThread, sendMessageByAppointment, notifyTyping, t]);
 
     const formatMessageTime = (dateStr: string) => {
         try {
@@ -447,11 +449,11 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                             </View>
                                             <View>
                                                 <View className="flex-row items-center gap-1 flex-wrap">
-                                                    <Text className="text-white text-base font-ibm-plex-sans-medium" numberOfLines={1}>
+                                                    <Text className="text-white text-base font-century-gothic" numberOfLines={1}>
                                                         {participant.displayName} -
                                                     </Text>
                                                     {participantLabel && (
-                                                        <Text className="text-gray-400 text-xs font-ibm-plex-sans-medium">
+                                                        <Text className="text-gray-400 text-xs font-century-gothic">
                                                             {participantLabel}
                                                         </Text>
                                                     )}
@@ -552,12 +554,12 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                 >
                                     {!isMe && (
                                         <View className="flex-row items-center gap-1 mb-1 flex-wrap">
-                                            <Text className="text-gray-300 text-xs font-ibm-plex-sans-medium">
+                                            <Text className="text-gray-300 text-xs font-century-gothic">
                                                 {displayInfo.displayName} -
                                             </Text>
                                             {/* Kullanıcı türüne göre sender etiketi - sadece kendi türümüzden farklıysa göster */}
                                             {senderParticipant && senderParticipant.userType !== currentUserType && (
-                                                <Text className="text-gray-400 text-xs font-ibm-plex-sans-regular">
+                                                <Text className="text-gray-400 text-xs font-century-gothic">
                                                     {senderParticipant.userType === UserType.BarberStore ? 'Dükkan' :
                                                         senderParticipant.userType === UserType.FreeBarber ? 'Serbest Berber' :
                                                             'Müşteri'}
@@ -569,7 +571,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                         </View>
                                     )}
                                     <Text
-                                        className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-ibm-plex-sans-regular`}
+                                        className={`text-white text-sm ${isMe ? 'text-right' : 'text-left'} font-century-gothic`}
                                         style={{ flexWrap: 'wrap', flexShrink: 1 }}
                                     >
                                         {item.text}
@@ -645,10 +647,11 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                         onChangeText={handleTextChange}
                         placeholder={canSendMessage ? "Mesaj yazın..." : "Mesaj gönderilemez"}
                         placeholderTextColor="#6b7280"
-                        className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 font-ibm-plex-sans-regular"
+                        className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 font-century-gothic"
                         multiline
                         maxLength={500}
                         editable={canSendMessage}
+                        style={{ fontFamily: Platform.OS === 'ios' ? 'CenturyGothic' : 'CenturyGothic' }}
                     />
                     <TouchableOpacity
                         onPress={handleSend}

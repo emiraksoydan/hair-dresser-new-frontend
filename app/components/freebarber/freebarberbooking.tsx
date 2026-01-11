@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput } from 'react-native';
+import { View, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView, Dimensions, TextInput, Platform } from 'react-native';
 import { Text } from '../common/Text';
 import { useRouter } from 'expo-router';
 import { Icon, IconButton } from 'react-native-paper';
@@ -9,6 +9,7 @@ import { getBarberTypeName } from '../../utils/store/barber-type';
 import { SkeletonComponent } from '../common/skeleton';
 import { LottieViewComponent } from '../common/lottieview';
 import { useAuth } from '../../hook/useAuth';
+import { useLanguage } from '../../hook/useLanguage';
 import { UserType, FreeBarGetDto, BarberStoreGetDto, StoreSelectionType } from '../../types';
 import { MESSAGES } from '../../constants/messages';
 import { APPOINTMENT_CONSTANTS } from '../../constants/appointment';
@@ -44,6 +45,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     const { data: settingData } = useGetSettingQuery();
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const { userType: currentUserType } = useAuth();
+    const { t } = useLanguage();
     const [storeSelectionType, setStoreSelectionType] = useState<StoreSelectionType | null>(null);
     // Not alani sadece StoreSelection senaryosunda kullanilir
     const [note, setNote] = useState<string>('');
@@ -209,19 +211,19 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                     <View className={`absolute bottom-0 left-0 right-0 px-4 pb-3 bg-black/50 ${borderRadiusClass} justify-end h-full`}>
                         <View className="flex-row justify-between items-end">
                             <View className="flex-1 mr-2">
-                                <Text className="font-ibm-plex-sans-bold text-white shadow-md" numberOfLines={1} style={{ fontSize: isBottomSheet ? 22 : 26 }}>
+                                <Text className="font-century-gothic-bold text-white shadow-md" numberOfLines={1} style={{ fontSize: isBottomSheet ? 22 : 26 }}>
                                     {freeBarberData?.fullName ?? "Serbest Berber"}
                                 </Text>
                                 <View className="flex-row items-center gap-2 mt-1">
                                     <Icon size={18} color={freeBarberData?.type === 0 ? "#60a5fa" : "#f472b6"} source={freeBarberData?.type === 0 ? "face-man" : "face-woman"} />
-                                    <Text className="text-white font-ibm-plex-sans-medium" style={{ fontSize: 14 }}>
+                                    <Text className="text-white font-century-gothic" style={{ fontSize: 14 }}>
                                         - {getBarberTypeName(freeBarberData?.type!)}
                                     </Text>
                                 </View>
                             </View>
                             <View className="flex-row items-center gap-1 bg-black/30 px-2 py-1 rounded-lg">
                                 <Icon size={16} color="#FFA500" source="star" />
-                                <Text className="font-ibm-plex-sans-bold text-white" style={{ fontSize: 14 }}>
+                                <Text className="font-century-gothic-bold text-white" style={{ fontSize: 14 }}>
                                     {Number(freeBarberData?.rating ?? 0).toFixed(1)}
                                 </Text>
                             </View>
@@ -232,14 +234,14 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             )}
             {isAddStoreMode && (
                 <View className="px-4 pt-4 pb-2">
-                    <Text className="text-white font-ibm-plex-sans-bold text-lg">Dükkan Seçin</Text>
+                    <Text className="text-white font-century-gothic-bold text-lg">Dükkan Seçin</Text>
                     <Text className="text-gray-400 text-sm mt-1">Randevu için uygun işletmeyi seçin.</Text>
                     <TouchableOpacity
                         onPress={() => storeSelectionSheet.present()}
                         className="mt-4 py-3 flex-row justify-center gap-2 rounded-xl items-center bg-[#3b82f6]"
                     >
                         <Icon source="store" size={18} color="white" />
-                        <Text className="text-white font-ibm-plex-sans-bold text-base">Dükkan Listesi</Text>
+                        <Text className="text-white font-century-gothic-bold text-base">Dükkan Listesi</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -247,7 +249,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
             <ScrollView nestedScrollEnabled className="p-4 gap-3">
                 {currentUserType === UserType.BarberStore && isBarberMode && !isAddStoreMode && (
                     <View className="gap-3 mt-4">
-                        <Text className="text-white font-ibm-plex-sans-bold text-lg">Serbest Berber Çağır</Text>
+                        <Text className="text-white font-century-gothic-bold text-lg">Serbest Berber Çağır</Text>
                         <Text className="text-gray-300 text-sm">Tarih ve saat seçmeden çağrı gönderebilirsiniz.</Text>
                         <TouchableOpacity
                             disabled={isCallingFreeBarber || !freeBarberData?.isAvailable}
@@ -261,7 +263,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     }
 
                                     if (!freeBarberData?.isAvailable) {
-                                        Alert.alert("Uyarı", "Bu berber şu anda müsait değil.");
+                                        Alert.alert(t('booking.warning'), t('booking.freebarberNotAvailable'));
                                         return;
                                     }
 
@@ -278,14 +280,14 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     const result = await callFreeBarber(payload).unwrap();
 
                                     if (result.success) {
-                                        Alert.alert("Başarılı", "Çağrı gönderildi.", [
-                                            { text: "Tamam", onPress: () => router.back() }
+                                        Alert.alert(t('common.success'), t('booking.callSent'), [
+                                            { text: t('common.ok'), onPress: () => router.back() }
                                         ]);
                                     } else {
-                                        Alert.alert("Hata", result.message ?? "Çağrı gönderilemedi.");
+                                        Alert.alert(t('common.error'), result.message ?? t('booking.callFailed'));
                                     }
                                 } catch (error: any) {
-                                    Alert.alert("Hata", error?.data?.message || "Çağrı gönderilemedi.");
+                                    Alert.alert(t('common.error'), error?.data?.message || t('booking.callFailed'));
                                 }
                             }}
                         >
@@ -294,7 +296,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             ) : (
                                 <>
                                     <Icon source="account-arrow-right" size={20} color="white" />
-                                    <Text className="text-white font-ibm-plex-sans-bold text-base">Çağrı Gönder</Text>
+                                    <Text className="text-white font-century-gothic-bold text-base">Çağrı Gönder</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -303,7 +305,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                 {/* İsteğime Göre seçilmediyse normal hizmet seçimi göster */}
                 {currentUserType === UserType.Customer && !isBarberMode && !isAddStoreMode && !storeSelectionType && (
                     <View className="gap-3 mt-4">
-                        <Text className="text-white font-ibm-plex-sans-bold text-lg">Randevu Tipi Seçin</Text>
+                        <Text className="text-white font-century-gothic-bold text-lg">Randevu Tipi Seçin</Text>
                         <TouchableOpacity
                             disabled={!freeBarberData?.isAvailable}
                             className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${!freeBarberData?.isAvailable ? "bg-[#4b5563]" : "bg-[#3b82f6]"}`}
@@ -317,7 +319,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             }}
                         >
                             <Icon source="lightbulb-on" size={20} color="white" />
-                            <Text className="text-white font-ibm-plex-sans-bold text-base">İsteğime Göre</Text>
+                            <Text className="text-white font-century-gothic-bold text-base">İsteğime Göre</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             disabled={!freeBarberData?.isAvailable}
@@ -332,7 +334,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             }}
                         >
                             <Icon source="store" size={20} color="white" />
-                            <Text className="text-white font-ibm-plex-sans-bold text-base">Dükkan Seç</Text>
+                            <Text className="text-white font-century-gothic-bold text-base">Dükkan Seç</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -341,7 +343,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                 {currentUserType === UserType.Customer && !isBarberMode && !isAddStoreMode && storeSelectionType === StoreSelectionType.CustomRequest && (
                     <View className="gap-4 mt-4">
                         <View className="flex-row justify-between items-center">
-                            <Text className="text-white font-ibm-plex-sans-bold text-lg">Randevu Detayları</Text>
+                            <Text className="text-white font-century-gothic-bold text-lg">Randevu Detayları</Text>
                             <TouchableOpacity onPress={() => setStoreSelectionType(null)}>
                                 <Icon source="close" size={20} color="white" />
                             </TouchableOpacity>
@@ -350,8 +352,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                         {/* Hizmetler (Seçilebilir) */}
                         <View>
                             <View className="flex-row items-center gap-2 mb-2">
-                                <Text className="text-white font-ibm-plex-sans-medium text-base">Berberin Hizmetleri</Text>
-                                <Text className="text-[#a3e635] font-ibm-plex-sans-bold text-base">
+                                <Text className="text-white font-century-gothic text-base">Berberin Hizmetleri</Text>
+                                <Text className="text-[#a3e635] font-century-gothic-bold text-base">
                                     {totalPrice} ₺
                                 </Text>
                             </View>
@@ -384,7 +386,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             <View className="flex-row items-start gap-2">
                                 <Icon source="information" size={20} color="#60a5fa" />
                                 <View className="flex-1">
-                                    <Text className="text-blue-300 font-ibm-plex-sans-medium text-sm">
+                                    <Text className="text-blue-300 font-century-gothic text-sm">
                                         İstek gönderip free barber ile mesajlaşmaya başlayabilirsiniz.
                                     </Text>
                                 </View>
@@ -392,7 +394,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             <View className="flex-row items-start gap-2 mt-1">
                                 <Icon source="clock-alert-outline" size={20} color="#fbbf24" />
                                 <View className="flex-1">
-                                    <Text className="text-yellow-300 font-ibm-plex-sans-medium text-sm">
+                                    <Text className="text-yellow-300 font-century-gothic text-sm">
                                         5 dakika içinde cevap gelmezse randevu cevapsıza düşecek ve yeni randevu arayabilirsiniz.
                                     </Text>
                                 </View>
@@ -412,13 +414,13 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     }
 
                                     if (selectedServices.length === 0) {
-                                        Alert.alert("Uyarı", "Lütfen en az bir hizmet seçin.");
+                                        Alert.alert(t('booking.warning'), t('booking.atLeastOneServiceRequired'));
                                         return;
                                     }
 
                                     const locationResult = await getCurrentLocationSafe();
                                     if (!locationResult.ok) {
-                                        Alert.alert("Hata", "Konum bilgisi alınamadı..");
+                                        Alert.alert(t('common.error'), t('booking.locationNotAvailable'));
                                         return;
                                     }
 
@@ -437,11 +439,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
                                     await createCustomerToFreeBarberAppointment(payload).unwrap();
 
-                                    Alert.alert("Başarılı", "Randevu talebiniz gönderildi. Free barber ile mesajlaşmaya başlayabilirsiniz.", [
-                                        { text: "Tamam", onPress: () => router.back() }
+                                    Alert.alert(t('common.success'), t('booking.appointmentRequestSent'), [
+                                        { text: t('common.ok'), onPress: () => router.back() }
                                     ]);
                                 } catch (error: any) {
-                                    Alert.alert("Hata", error?.data?.message || "Randevu oluşturulamadı..");
+                                    Alert.alert(t('common.error'), error?.data?.message || t('booking.appointmentCreationFailed'));
                                 }
                             }}
                         >
@@ -450,7 +452,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             ) : (
                                 <>
                                     <Icon source="send" size={20} color="white" />
-                                    <Text className="text-white font-ibm-plex-sans-bold text-base">Randevu Talebi Gönder</Text>
+                                    <Text className="text-white font-century-gothic-bold text-base">Randevu Talebi Gönder</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -459,14 +461,14 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                 {currentUserType === UserType.Customer && !isBarberMode && !isAddStoreMode && storeSelectionType === StoreSelectionType.StoreSelection && (
                     <View className="gap-4 mt-4">
                         <View className="flex-row justify-between items-center">
-                            <Text className="text-white font-ibm-plex-sans-bold text-lg">Randevu Detayları</Text>
+                            <Text className="text-white font-century-gothic-bold text-lg">Randevu Detayları</Text>
                             <TouchableOpacity onPress={() => setStoreSelectionType(null)}>
                                 <Icon source="close" size={20} color="white" />
                             </TouchableOpacity>
                         </View>
 
                         <View>
-                            <Text className="text-white font-ibm-plex-sans-medium text-base mb-2">Berberin Hizmetleri</Text>
+                            <Text className="text-white font-century-gothic text-base mb-2">Berberin Hizmetleri</Text>
                             <FlatList
                                 data={freeBarberData?.offerings ?? []}
                                 keyExtractor={(item) => item.id}
@@ -489,7 +491,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                         </View>
 
                         <View>
-                            <Text className="text-white font-ibm-plex-sans-medium mb-2">Randevu Notu</Text>
+                            <Text className="text-white font-century-gothic mb-2">Randevu Notu</Text>
                             <TextInput
                                 value={note}
                                 onChangeText={setNote}
@@ -497,8 +499,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                 placeholderTextColor="#9ca3af"
                                 multiline
                                 numberOfLines={3}
-                                className="bg-gray-800 rounded-xl px-4 py-3 text-white"
-                                style={{ textAlignVertical: 'top', minHeight: 80 }}
+                                className="bg-gray-800 rounded-xl px-4 py-3 text-white font-century-gothic"
+                                style={{ textAlignVertical: 'top', minHeight: 80, fontFamily: Platform.OS === 'ios' ? 'CenturyGothic' : 'CenturyGothic' }}
                             />
                         </View>
 
@@ -515,7 +517,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
                                     const trimmedNote = note.trim();
                                     if (!trimmedNote) {
-                                        Alert.alert("Uyarı", "Randevu notu zorunludur.");
+                                        Alert.alert(t('booking.warning'), t('booking.appointmentNoteRequired'));
                                         return;
                                     }
 
@@ -540,11 +542,11 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
                                     await createCustomerToFreeBarberAppointment(payload).unwrap();
 
-                                    Alert.alert("Başarılı", "Randevu talebiniz gönderildi.", [
-                                        { text: "Tamam", onPress: () => router.back() }
+                                    Alert.alert(t('common.success'), t('booking.appointmentRequestSentSimple'), [
+                                        { text: t('common.ok'), onPress: () => router.back() }
                                     ]);
                                 } catch (error: any) {
-                                    Alert.alert("Hata", error?.data?.message || "Randevu oluşturulamadı..");
+                                    Alert.alert(t('common.error'), error?.data?.message || t('booking.appointmentCreationFailed'));
                                 }
                             }}
                         >
@@ -553,7 +555,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             ) : (
                                 <>
                                     <Icon source="send" size={20} color="white" />
-                                    <Text className="text-white font-ibm-plex-sans-bold text-base">Randevu Talebi Gönder</Text>
+                                    <Text className="text-white font-century-gothic-bold text-base">Randevu Talebi Gönder</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -582,7 +584,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                     <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
                         <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
                             <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-700">
-                                <Text className="text-white font-ibm-plex-sans-bold text-xl">Dükkan Seçin</Text>
+                                <Text className="text-white font-century-gothic-bold text-xl">Dükkan Seçin</Text>
                                 <IconButton
                                     icon="close"
                                     iconColor="white"
@@ -598,7 +600,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                 </Text>
                                 {/* Randevu Notu */}
                                 <View style={isAddStoreMode ? { display: 'none' } : undefined}>
-                                    <Text className="text-white font-ibm-plex-sans-medium mb-2">Randevu Notu</Text>
+                                    <Text className="text-white font-century-gothic mb-2">Randevu Notu</Text>
                                     <TextInput
                                         value={note}
                                         onChangeText={setNote}
@@ -606,8 +608,8 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                         placeholderTextColor="#9ca3af"
                                         multiline
                                         numberOfLines={3}
-                                        className="bg-gray-800 rounded-xl px-4 py-3 text-white"
-                                        style={{ textAlignVertical: 'top', minHeight: 80 }}
+                                        className="bg-gray-800 rounded-xl px-4 py-3 text-white font-century-gothic"
+                                        style={{ textAlignVertical: 'top', minHeight: 80, fontFamily: Platform.OS === 'ios' ? 'CenturyGothic' : 'CenturyGothic' }}
                                     />
                                 </View>
                             </View>
@@ -628,7 +630,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             ) : (
                                 <>
                                     <View className="flex flex-row justify-between items-center mt-4 px-4">
-                                        <Text className="font-ibm-plex-sans-regular text-xl text-white">İşletmeler</Text>
+                                        <Text className="font-century-gothic text-xl text-white">İşletmeler</Text>
                                         {hasStores && (
                                             <MotiViewExpand
                                                 expanded={expanded}

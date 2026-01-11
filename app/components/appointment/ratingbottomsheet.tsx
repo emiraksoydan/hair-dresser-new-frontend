@@ -7,6 +7,7 @@ import StarRating from 'react-native-star-rating-widget';
 import { useCreateRatingMutation } from '../../store/api';
 import { CreateRatingDto, ImageOwnerType } from '../../types';
 import { OwnerAvatar } from '../common/owneravatar';
+import { useLanguage } from '../../hook/useLanguage';
 
 type RatingBottomSheetProps = {
     appointmentId: string;
@@ -30,6 +31,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [createRating, { isLoading }] = useCreateRatingMutation();
+    const { t } = useLanguage();
 
     const normalizedTargetImage =
         targetImage && Platform.OS === 'ios' && targetImage.startsWith('file://')
@@ -47,7 +49,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
 
     const handleSubmit = useCallback(async () => {
         if (rating === 0) {
-            Alert.alert('Uyarı', 'Lütfen bir puan seçin.');
+            Alert.alert(t('booking.warning'), t('rating.selectRating'));
             return;
         }
 
@@ -64,7 +66,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
             onSuccess?.();
             onClose();
         } catch (error: any) {
-            Alert.alert('Hata', error?.data?.message || 'Değerlendirme kaydedilemedi.');
+            Alert.alert(t('common.error'), error?.data?.message || t('rating.ratingSaveFailed'));
         }
     }, [rating, comment, appointmentId, targetId, createRating, onClose, onSuccess]);
 
@@ -149,7 +151,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
 
                     <Text className="text-white text-sm mb-2">Yorum (Opsiyonel)</Text>
                     <TextInput
-                        className="bg-[#2a2c30] text-white rounded-lg p-3 mb-4 min-h-[100px]"
+                        className="bg-[#2a2c30] text-white rounded-lg p-3 mb-4 min-h-[100px] font-century-gothic"
                         placeholder="Yorumunuzu yazın..."
                         placeholderTextColor="#6b7280"
                         value={comment}
@@ -158,6 +160,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
                         numberOfLines={4}
                         textAlignVertical="top"
                         maxLength={500}
+                        style={{ fontFamily: Platform.OS === 'ios' ? 'CenturyGothic' : 'CenturyGothic' }}
                     />
 
                     <TouchableOpacity

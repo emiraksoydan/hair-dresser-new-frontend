@@ -17,6 +17,7 @@ import {
     useUpdateStoreChairMutation,
 } from '../../store/api';
 import { resolveApiErrorMessage } from '../../utils/common/error';
+import { MESSAGES } from '../../constants/messages';
 import { Dropdown } from 'react-native-element-dropdown';
 
 type ChairModalBarber = {
@@ -117,7 +118,7 @@ export const ChairEditModal: React.FC<Props> = ({
                 }).unwrap();
             }
 
-            dispatch(showSnack({ message: result?.message ?? 'İşlem başarılı', isError: !result?.success }));
+            dispatch(showSnack({ message: result?.message ?? MESSAGES.FORM.OPERATION_SUCCESS, isError: !result?.success }));
             onClose();
         } catch (e: any) {
             dispatch(showSnack({ message: resolveApiErrorMessage(e), isError: true }));

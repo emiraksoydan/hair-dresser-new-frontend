@@ -16,6 +16,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Chip, Divider, Icon, TextInput } from 'react-native-paper';
 import { MultiSelect } from 'react-native-element-dropdown';
 import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
+import { useLanguage } from '../../hook/useLanguage';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 
@@ -94,6 +95,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     onApplyFilters,
     onClearFilters,
 }) => {
+    const { t } = useLanguage();
     const translateX = useSharedValue(-DRAWER_WIDTH);
 
     // Category API hooks
@@ -112,19 +114,19 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
 
     // Ana kategori değişince alt kategorileri yükle
     useEffect(() => {
-        if (selectedMainCategory && selectedMainCategory !== 'Hepsi') {
+        if (selectedMainCategory && selectedMainCategory !== t('filters.all')) {
             const parentCat = parentCategories.find((cat: any) => cat.name === selectedMainCategory);
             if (parentCat) {
                 triggerGetChildCategories(parentCat.id);
             }
         }
-    }, [selectedMainCategory, parentCategories, triggerGetChildCategories]);
+    }, [selectedMainCategory, parentCategories, triggerGetChildCategories, t]);
 
     // Hizmet seçenekleri
     const serviceOptions = React.useMemo(() => {
-        if (!selectedMainCategory || selectedMainCategory === 'Hepsi') return [];
+        if (!selectedMainCategory || selectedMainCategory === t('filters.all')) return [];
         return childCategories.map((cat: any) => ({ label: cat.name, value: cat.id }));
-    }, [childCategories, selectedMainCategory]);
+    }, [childCategories, selectedMainCategory, t]);
 
     // Drawer açma/kapama animasyonu
     useEffect(() => {
@@ -158,27 +160,28 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             }
         });
 
-    const userTypes = ['Hepsi', 'Serbest Berber', 'Dükkan'];
+    const userTypes = [t('filters.all'), t('filters.freeBarber'), t('filters.store')];
     const mainCategories = React.useMemo(() => {
         // Kullanıcı türü "Serbest Berber" ise Güzellik Salonu'nu gizle
         let categories = parentCategories.map((cat: any) => cat.name);
         
-        if (selectedUserType === "Serbest Berber") {
+        if (selectedUserType === t('filters.freeBarber')) {
+            // Güzellik Salonu kategorisini filtrele (kategori adı dinamik olabilir)
             categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
         }
         
         // "Hepsi" ve filtrelenmiş kategorileri birleştir, duplicate'leri kaldır
-        const allCategories = ['Hepsi', ...categories];
+        const allCategories = [t('filters.all'), ...categories];
         return Array.from(new Set(allCategories)); // Duplicate'leri kaldır
-    }, [parentCategories, selectedUserType]);
-    const pricingTypes = ['Hepsi', 'Kiralama', 'Yüzdelik'];
+    }, [parentCategories, selectedUserType, t]);
+    const pricingTypes = [t('filters.all'), t('filters.rental'), t('filters.percentage')];
     const availabilityOptions = [
-        { label: 'Hepsi', value: 'all' },
-        { label: 'Müsait', value: 'available' },
-        { label: 'Müsait Değil', value: 'unavailable' },
+        { label: t('filters.all'), value: 'all' },
+        { label: t('filters.available'), value: 'available' },
+        { label: t('filters.unavailable'), value: 'unavailable' },
     ];
     const ratingOptions = [
-        { label: 'Hepsi', value: 0 },
+        { label: t('filters.all'), value: 0 },
         { label: '⭐ 1+', value: 1 },
         { label: '⭐ 2+', value: 2 },
         { label: '⭐ 3+', value: 3 },
@@ -186,8 +189,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
         { label: '⭐ 5', value: 5 },
     ];
     const favoriteOptions = [
-        { label: 'Hepsi', value: false },
-        { label: 'Sadece Favorilerim', value: true },
+        { label: t('filters.all'), value: false },
+        { label: t('filters.onlyFavorites'), value: true },
     ];
 
     return (
@@ -213,7 +216,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <Animated.View style={[styles.drawer, drawerStyle]}>
                         {/* Header */}
                         <View className="flex-row items-center justify-between p-4 border-b border-gray-700">
-                            <Text className="text-white text-xl font-ibm-plex-sans-bold">Filtreler</Text>
+                            <Text className="text-white text-xl font-century-gothic-bold">Filtreler</Text>
                             <TouchableOpacity onPress={onClose}>
                                 <Icon source="close" size={24} color="#fff" />
                             </TouchableOpacity>
@@ -228,8 +231,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             {/* Kullanıcı Türü - Horizontal ScrollView */}
                             {showUserTypeFilter && (
                                 <>
-                                    <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                        Kullanıcı Türü
+                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                        {t('filters.userType')}
                                     </Text>
                                     <ScrollView
                                         horizontal
@@ -261,8 +264,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             )}
 
                             {/* Ana Kategori - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Ana Kategori
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.mainCategory')}
                             </Text>
                             <ScrollView
                                 horizontal
@@ -273,7 +276,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                     {mainCategories.map((category, index) => {
                                     const isSelected = selectedMainCategory === category;
                                     // "Hepsi" için özel key, diğerleri için index kullan (unique garantisi için)
-                                    const uniqueKey = category === 'Hepsi' ? 'category-all' : `category-${index}-${category}`;
+                                    const uniqueKey = category === t('filters.all') ? 'category-all' : `category-${index}-${category}`;
                                     
                                     return (
                                         <TouchableOpacity
@@ -297,8 +300,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             {/* Hizmetler - MultiSelect Dropdown */}
                             {serviceOptions.length > 0 && (
                                 <>
-                                    <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                        Hizmetler
+                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                        {t('filters.services')}
                                     </Text>
                                     <MultiSelect
                                         data={serviceOptions}
@@ -306,9 +309,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         valueField="value"
                                         value={selectedServices}
                                         onChange={onChangeServices}
-                                        placeholder="Hizmet seçin"
+                                        placeholder={t('filters.selectService')}
                                         search
-                                        searchPlaceholder="Ara..."
+                                        searchPlaceholder={t('common.search')}
                                         dropdownPosition="auto"
                                         inside
                                         alwaysRenderSelectedItem
@@ -351,8 +354,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             {/* Fiyatlandırma Türü (FreeBarber/Dükkan için) */}
                             {showPricingType && (
                                 <>
-                                    <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                        Fiyatlandırma Türü
+                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                        {t('filters.pricingType')}
                                     </Text>
                                     <ScrollView
                                         horizontal
@@ -383,8 +386,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             )}
 
                             {/* Fiyat Sıralaması */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Fiyat Sıralaması
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.priceSort')}
                             </Text>
                             <View className="flex-row gap-2 mb-4">
                                 <TouchableOpacity
@@ -396,7 +399,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 >
                                     <Icon source="arrow-up" size={16} color={priceSort === 'asc' ? 'white' : '#d1d5db'} />
                                     <Text className={`text-sm ml-1 ${priceSort === 'asc' ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                        En Düşük
+                                        {t('filters.lowest')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -408,7 +411,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 >
                                     <Icon source="arrow-down" size={16} color={priceSort === 'desc' ? 'white' : '#d1d5db'} />
                                     <Text className={`text-sm ml-1 ${priceSort === 'desc' ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                        En Yüksek
+                                        {t('filters.highest')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -416,13 +419,13 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
 
                             {/* Fiyat Aralığı */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Fiyat Aralığı
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.priceRange')}
                             </Text>
                             <View className="flex-row items-center gap-3 mb-4">
                                 <View className="flex-1">
                                     <TextInput
-                                        label="Min Fiyat (₺)"
+                                        label={t('filters.minPrice')}
                                         mode="outlined"
                                         dense
                                         keyboardType="numeric"
@@ -444,7 +447,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 <Text className="text-gray-500 mt-2">-</Text>
                                 <View className="flex-1">
                                     <TextInput
-                                        label="Max Fiyat (₺)"
+                                        label={t('filters.maxPrice')}
                                         mode="outlined"
                                         dense
                                         keyboardType="numeric"
@@ -468,8 +471,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
 
                             {/* Müsaitlik Durumu - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Müsaitlik Durumu
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.availability')}
                             </Text>
                             <ScrollView
                                 horizontal
@@ -499,8 +502,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
 
                             {/* Puanlama Filtresi - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Minimum Puan
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.minimumRating')}
                             </Text>
                             <ScrollView
                                 horizontal
@@ -530,8 +533,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
 
                             {/* Favori Filtresi - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-ibm-plex-sans-semibold mb-2">
-                                Favori Filtresi
+                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                {t('filters.favoriteFilter')}
                             </Text>
                             <ScrollView
                                 horizontal
@@ -566,14 +569,14 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 className="flex-1 bg-[#f05e23] rounded-lg py-2.5 items-center justify-center"
                                 activeOpacity={0.8}
                             >
-                                <Text className="text-white text-sm font-semibold">Filtrele</Text>
+                                <Text className="text-white text-sm font-semibold">{t('filters.apply')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={onClearFilters}
                                 className="flex-1 border border-[#f05e23] rounded-lg py-2.5 items-center justify-center"
                                 activeOpacity={0.8}
                             >
-                                <Text className="text-[#f05e23] text-sm font-semibold">Temizle</Text>
+                                <Text className="text-[#f05e23] text-sm font-semibold">{t('filters.clear')}</Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>

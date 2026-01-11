@@ -7,6 +7,7 @@ import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { UserFavoriteDto, FavoriteTargetType } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
+import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
     customer: UserFavoriteDto;
@@ -31,6 +32,7 @@ const CustomerCard: React.FC<Props> = ({
 }) => {
     const coverImage = customer.imageUrl;
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData } = useIsFavoriteQuery(customer.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
@@ -56,7 +58,7 @@ const CustomerCard: React.FC<Props> = ({
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
-            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
+            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
             return;
         }
 
@@ -67,7 +69,7 @@ const CustomerCard: React.FC<Props> = ({
             }).unwrap();
             // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
     }, [isAuthenticated, customer.id, toggleFavorite]);
 
@@ -92,7 +94,7 @@ const CustomerCard: React.FC<Props> = ({
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
                             {typeLabel && (
                                 <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                    <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                    <Text className="text-white text-base font-century-gothic-sans-medium">
                                         {typeLabel}
                                     </Text>
                                 </View>
@@ -109,7 +111,7 @@ const CustomerCard: React.FC<Props> = ({
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
                                 style={{ fontSize: 20 }}
-                                className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                             >
                                 {customer.firstName} {customer.lastName}
                             </Text>
@@ -142,7 +144,7 @@ const CustomerCard: React.FC<Props> = ({
                                     disabled={isTogglingFavorite}
                                 />
                                 <Text
-                                    className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'}`}
+                                    className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'}`}
                                 >
                                     ({favoriteCount})
                                 </Text>
@@ -163,7 +165,7 @@ const CustomerCard: React.FC<Props> = ({
                                     color={isFavorite ? "red" : "gray"}
                                     source={isFavorite ? "heart" : "heart-outline"}
                                 />
-                                <Text className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}>
+                                <Text className={`text-white font-century-gothic-sans-regular text-xs pb-1`}>
                                     ({favoriteCount})
                                 </Text>
                             </TouchableOpacity>
@@ -182,7 +184,7 @@ const CustomerCard: React.FC<Props> = ({
                             />
                             <Text className="text-white flex-1">{customer.rating?.toFixed(1) || '0.0'}</Text>
                             {
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => onPressRatings?.(customer.id, `${customer.firstName} ${customer.lastName}`)}
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

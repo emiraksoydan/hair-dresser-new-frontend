@@ -16,8 +16,10 @@ import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
 import { useNotificationSound } from '../hook/useNotificationSound';
 import { useGetHelpGuideByUserTypeQuery } from '../store/api';
 import { UserType } from '../types';
+import { useLanguage } from '../hook/useLanguage';
 
 const CustomerLayout = () => {
+    const { t } = useLanguage();
     const [infoModalVisible, setInfoModalVisible] = useState(false);
     const dispatch = useAppDispatch();
 
@@ -72,7 +74,7 @@ const CustomerLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                {userName ? `Hoşgeldiniz ${userName}` : 'Hoşgeldiniz'}
+                                {userName ? t('navigation.welcomeWithName', { name: userName }) : t('navigation.welcome')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -87,7 +89,7 @@ const CustomerLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#c2a523]' : 'text-[#454648]'}`}
                             >
-                                Dükkanlar
+                                {t('navigation.shops')}
                             </Text>
                         ),
                         headerTitleAlign: 'left',
@@ -105,12 +107,12 @@ const CustomerLayout = () => {
                                     items={[
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -129,7 +131,7 @@ const CustomerLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Randevularım
+                                {t('navigation.myAppointments')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -144,7 +146,7 @@ const CustomerLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#c2a523]' : 'text-[#454648]'}`}
                             >
-                                Randevular
+                                {t('navigation.appointments')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -162,12 +164,12 @@ const CustomerLayout = () => {
                                     items={[
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -186,7 +188,7 @@ const CustomerLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Mesajlarım
+                                {t('navigation.myMessages')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -202,7 +204,7 @@ const CustomerLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#c2a523]' : 'text-[#454648]'}`}
                             >
-                                Mesajlar
+                                {t('navigation.messages')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -220,12 +222,12 @@ const CustomerLayout = () => {
                                     items={[
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -244,7 +246,7 @@ const CustomerLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Favorilerim
+                                {t('navigation.myFavorites')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -259,7 +261,7 @@ const CustomerLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#c2a523]' : 'text-[#454648]'}`}
                             >
-                                Favoriler
+                                {t('navigation.favorites')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -277,12 +279,12 @@ const CustomerLayout = () => {
                                     items={[
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -301,7 +303,7 @@ const CustomerLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Profilim
+                                {t('profile.myProfile')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -316,7 +318,7 @@ const CustomerLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#c2a523]' : 'text-[#454648]'}`}
                             >
-                                Profil
+                                {t('navigation.profile')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -334,12 +336,12 @@ const CustomerLayout = () => {
                                     items={[
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -377,7 +379,7 @@ const CustomerLayout = () => {
             <InfoModal
                 visible={infoModalVisible}
                 onClose={() => setInfoModalVisible(false)}
-                title="Kullanım Bilgileri"
+                title={t('navigation.usageInfo')}
                 items={infoItems}
             />
         </>

@@ -1,13 +1,11 @@
-import { Alert, Image, ScrollView, TouchableOpacity, View } from 'react-native'
+import { TouchableOpacity, View, ActivityIndicator } from 'react-native'
 import { Text } from '../components/common/Text'
 import React, { useEffect, useMemo, useState } from 'react'
-import { TextInput, HelperText, ActivityIndicator, Portal, Modal } from "react-native-paper";
+import { TextInput, HelperText, Portal, Modal, Icon } from "react-native-paper";
 import { showSnack } from '../store/snackbarSlice';
-import { Button } from '../components/common/Button';
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dropdown } from "react-native-element-dropdown";
 import { userTypeItems } from '../constants';
 import { usePasswordMutation, useSendOtpMutation, useVerifyOtpMutation, api } from '../store/api';
 import { OtpInput } from "react-native-otp-entry";
@@ -18,35 +16,61 @@ import { useRouter } from 'expo-router';
 import { pathByUserType } from '../utils/auth/redirect-by-user-type';
 import { useAppDispatch } from '../store/hook';
 import { getUserTypeFromToken } from '../utils/auth/auth';
+import { useTheme } from '../hook/useTheme';
+import { useLanguage } from '../hook/useLanguage';
+import { LanguageSelector } from '../components/common/LanguageSelector';
 
+// Schema'yı dinamik olarak oluşturmak için fonksiyon
+const createSchemas = (t: (key: string) => string) => {
+    const registerSchema = z.object({
+        mode: z.literal("register"),
+        firstName: z.string({
+            required_error: t('auth.firstName') + ' ' + t('common.required'),
+            invalid_type_error: t('auth.firstName') + ' ' + t('common.invalid')
+        })
+            .min(2, { message: t('auth.firstName') + ' ' + t('common.minLength').replace('{{min}}', '2') })
+            .max(20, { message: t('auth.firstName') + ' ' + t('common.maxLength').replace('{{max}}', '20') })
+            .regex(/^\S+$/, { message: t('auth.firstName') + ' ' + t('common.noSpaces') })
+            .transform(value => value.replace(/\s+/g, '')),
+        surname: z.string({
+            required_error: t('auth.lastName') + ' ' + t('common.required'),
+            invalid_type_error: t('auth.lastName') + ' ' + t('common.invalid')
+        })
+            .min(2, { message: t('auth.lastName') + ' ' + t('common.minLength').replace('{{min}}', '2') })
+            .max(20, { message: t('auth.lastName') + ' ' + t('common.maxLength').replace('{{max}}', '20') })
+            .regex(/^\S+$/, { message: t('auth.lastName') + ' ' + t('common.noSpaces') })
+            .transform(value => value.replace(/\s+/g, '')),
+        phone: z.string({
+            required_error: t('auth.phoneNumber') + ' ' + t('common.required'),
+            invalid_type_error: t('auth.phoneNumber') + ' ' + t('common.invalid')
+        })
+            .length(10, { message: t('auth.phoneNumber') + ' ' + t('common.exactLength').replace('{{length}}', '10') }),
+        userType: z.enum(["customer", "freeBarber", "barberStore"], {
+            errorMap: () => ({ message: t('auth.userType') + ' ' + t('common.required') }),
+        }),
+    });
+    const loginSchema = z.object({
+        mode: z.literal("login"),
+        phone: z.string({
+            required_error: t('auth.phoneNumber') + ' ' + t('common.required'),
+            invalid_type_error: t('auth.phoneNumber') + ' ' + t('common.invalid')
+        })
+            .length(10, { message: t('auth.phoneNumber') + ' ' + t('common.exactLength').replace('{{length}}', '10') }),
+        firstName: z.string().optional(),
+        surname: z.string().optional(),
+        userType: z.enum(["customer", "freeBarber", "barberStore"], {
+            errorMap: () => ({ message: t('auth.userType') + ' ' + t('common.required') }),
+        }),
+    });
+    return z.discriminatedUnion("mode", [loginSchema, registerSchema]);
+};
 
-const registerSchema = z.object({
-    mode: z.literal("register"),
-    firstName: z.string({ required_error: "İsim gerekli" })
-        .min(2, "Karakter sayısı minimum 2 olmalı").max(20, "Karakter sayısı maximum 20 yi geçmemeli").regex(/^\S+$/, "Boşluk kullanmayın")
-        .transform(value => value.replace(/\s+/g, '')),
-    surname: z.string({ required_error: "Soyisim gerekli" })
-        .max(20, "Karakter sayısı maximum 20 yi geçmemeli").min(2, "Karakter sayısı minimum 2 olmalı").regex(/^\S+$/, "Boşluk kullanmayın").transform(value => value.replace(/\s+/g, '')).transform(value => value.replace(/\s+/g, '')),
-    phone: z.string({ required_error: "Telefon gerekli" }).length(10, "Numara 10 haneli olmalı"),
-    userType: z.enum(["customer", "freeBarber", "barberStore"], {
-        errorMap: () => ({ message: "Kullanıcı türü zorunludur" }),
-    }),
-});
-const loginSchema = z.object({
-    mode: z.literal("login"),
-    phone: z.string({ required_error: "Telefon gerekli" }).length(10, "Numara 10 haneli olmalı"),
-    firstName: z.string().optional(),
-    surname: z.string().optional(),
-    userType: z.enum(["customer", "freeBarber", "barberStore"], {
-        errorMap: () => ({ message: "Kullanıcı türü zorunludur" }),
-    }),
-});
-
-const schema = z.discriminatedUnion("mode", [loginSchema, registerSchema]);
-type FormData = z.infer<typeof schema>;
-
+type FormData = z.infer<ReturnType<typeof createSchemas>>;
 
 const Index = () => {
+    const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
+    const schema = useMemo(() => createSchemas(t), [t]);
     const dispatch = useAppDispatch();
     const {
         control,
@@ -69,12 +93,10 @@ const Index = () => {
     const [phone, setPhone] = useState("");
     const [left, setLeft] = useState(0);
     const isRegister = watch("mode") === "register";
-
+    const selectedUserType = watch("userType");
 
     const toggleMode = () => setValue("mode", isRegister === true ? "login" : "register");
     const [sendOtp, { isLoading, isError, data, error }] = useSendOtpMutation();
-
-
     const [sendPassword, { isLoading: isPerr, isError: iE, data: id, error: ie }] = usePasswordMutation();
     const [verifyOtp] = useVerifyOtpMutation();
 
@@ -83,6 +105,7 @@ const Index = () => {
         const t = setInterval(() => setLeft(s => (s > 0 ? s - 1 : 0)), 1000);
         return () => clearInterval(t);
     }, [modalVisible, left]);
+
     const onSubmit = async (data: FormData) => {
         try {
             let normalizedPhone = data.phone;
@@ -96,28 +119,24 @@ const Index = () => {
             setPhone(normalizedPhone);
             doVerify("123456", normalizedPhone);
         } catch (err: any) {
-            // Error is already handled by RTK Query, no need to log here
             dispatch(showSnack({ message: err.data.message, isError: true }));
         }
     };
+
     const mmss = useMemo(() => {
         const m = Math.floor(left / 60).toString().padStart(2, "0");
         const s = (left % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
     }, [left]);
-    const doVerify = async (code: string, phoneNumber?: string) => {
 
+    const doVerify = async (code: string, phoneNumber?: string) => {
         try {
             const f = getValues();
-            // Login ve Register modunda userType zorunlu
             const userTypeToSend = mapUserTypeToNumber(f.userType) ?? UserType.Customer;
-
-            // phoneNumber parametresi varsa onu kullan, yoksa phone state'ini kullan
             const phoneToSend = phoneNumber || phone;
 
-            // phoneToSend boşsa hata ver
             if (!phoneToSend || phoneToSend.trim() === '') {
-                dispatch(showSnack({ message: 'Telefon numarası gerekli', isError: true }));
+                dispatch(showSnack({ message: t('auth.phoneNumber') + ' ' + t('common.error'), isError: true }));
                 return;
             }
 
@@ -140,22 +159,19 @@ const Index = () => {
                     accessToken: result?.data?.token!,
                     refreshToken: result?.data?.refreshToken!,
                 });
-                // Login sonrası badge count'u invalidate et - böylece giriş yaptığında bildirim sayısı görünecek
                 dispatch(api.util.invalidateTags(['Badge', 'Notification']));
-                // Token'ı set ettikten sonra useAuth hook'u ile userType'ı al
-                // Ancak burada hook kullanamayız, token'ı direkt decode etmeliyiz
                 const t = await loadTokens();
                 const userTypeFromToken = getUserTypeFromToken(t.accessToken);
                 const targetPath = pathByUserType(userTypeFromToken);
                 route.replace(targetPath);
             } else {
-                dispatch(showSnack({ message: result.message ?? 'Hata oluştu', isError: true }));
+                dispatch(showSnack({ message: result.message ?? t('common.error'), isError: true }));
             }
         } catch (err: any) {
-            // Error is already handled by RTK Query, no need to log here
-            dispatch(showSnack({ message: err?.data?.message ?? 'Hata oluştu', isError: true }));
+            dispatch(showSnack({ message: err?.data?.message ?? t('common.error'), isError: true }));
         }
     };
+
     const mapUserTypeToNumber = (ut: FormData["userType"]) => {
         switch (ut) {
             case "customer": return UserType.Customer;
@@ -164,220 +180,317 @@ const Index = () => {
             default: return 0;
         }
     };
+
     const canResend = left === 0;
     const onResend = async () => {
         // OTP resend functionality can be implemented here if needed
     };
+
     return (
-        <View className='flex-1'>
-            <ScrollView contentContainerClassName='justify-start items-center' className=" bg-[#151618] flex flex-1">
-                <View className='w-full aspect-[1.7] mr-0'>
-                    <Image
-                        className='w-full h-full '
-                        source={require('../../assets/images/logonewimage.png')}
-                        style={{ resizeMode: 'contain' }}
+        <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+            {/* Header Section */}
+            <View className="items-center justify-center mb-4" style={{ backgroundColor: colors.background }}>
+                <Text className="text-4xl font-bold mb-1" style={{ color: isDark ? '#ffffff' : '#000000', letterSpacing: 0.5 }}>
+                    {t('auth.title').toUpperCase()}
+                </Text>
+                <View className="flex-row items-center mt-0.5 gap-2">
+                    <View className="w-8 h-px" style={{ backgroundColor: isDark ? '#ffffff' : colors.taglineLine }} />
+                    <Text className="text-xs font-medium" style={{ color: isDark ? '#ffffff' : colors.tagline }}>
+                        {t('auth.tagline')}
+                    </Text>
+                    <View className="w-8 h-px" style={{ backgroundColor: isDark ? '#ffffff' : colors.taglineLine }} />
+                </View>
+            </View>
+
+            {/* Form Card */}
+            <View className="w-10/12 max-w-sm mx-4 rounded-2xl p-4" style={{ backgroundColor: colors.card }}>
+                {/* Phone Number Input */}
+                <View style={{ marginBottom: 0 }}>
+                    <Controller
+                        control={control}
+                        name="phone"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                            <>
+                                <TextInput
+                                    mode="outlined"
+                                    dense
+                                    label={t('auth.phoneNumber')}
+                                    value={value}
+                                    onChangeText={onChange}
+                                    onBlur={onBlur}
+                                    keyboardType="number-pad"
+                                    placeholder="555 555 5555"
+                                    placeholderTextColor={colors.textTertiary}
+                                    textColor={colors.text}
+                                    outlineColor={errors.phone ? '#ef4444' : colors.inputBorder}
+                                    left={
+                                        <TextInput.Icon
+                                            icon="phone"
+                                            color={colors.textSecondary}
+                                        />
+                                    }
+                                    style={{ backgroundColor: colors.inputBackground, marginBottom: 0, marginTop: 0, paddingVertical: 0 }}
+                                    contentStyle={{ height: 40, marginVertical: 0, paddingVertical: 0 }}
+                                    theme={{
+                                        colors: {
+                                            background: colors.inputBackground,
+                                            onSurface: colors.text,
+                                            primary: colors.primary,
+                                        },
+                                    }}
+                                />
+                                <HelperText
+                                    type="error"
+                                    visible={!!errors.phone}
+                                    style={{ color: '#ef4444', fontSize: 12, fontWeight: '600', marginTop: 0, marginBottom: 0 }}
+                                >
+                                    {errors.phone?.message}
+                                </HelperText>
+                            </>
+                        )}
                     />
                 </View>
-                <Text style={{ fontSize: 40 }} className='text-[#d6d6c9]'>GÜMÜŞ</Text>
-                <Text style={{ fontSize: 30 }} className='text-[#d6d6c9] mt-1 '>MAKAS</Text>
-                <View className=' w-full p-4 pb-0  mt-0'>
-                    {isRegister && (
-                        <>
-                            <View className="flex flex-row gap-2">
-                                <View className="flex-1">
-                                    <Controller
-                                        control={control}
-                                        name="firstName"
-                                        render={({ field: { onChange, onBlur, value } }) => (
-                                            <>
-                                                <TextInput
-                                                    mode="outlined"
-                                                    textColor="white"
-                                                    outlineColor="white"
-                                                    theme={{
-                                                        colors: {
-                                                            onSurfaceVariant: "white",
-                                                            background: "#2a2b2d",
-                                                            primary: "white",
-                                                        },
-                                                    }}
-                                                    label="İsim"
-                                                    dense
-                                                    onBlur={onBlur}
-                                                    value={value}
-                                                    onChangeText={onChange}
-                                                    returnKeyType="next"
-                                                    onSubmitEditing={() => setFocus("surname")}
+
+                {/* Name and Surname (Register only) */}
+                {isRegister && (
+                    <>
+                        <View style={{ marginBottom: 0 }}>
+                            <Controller
+                                control={control}
+                                name="firstName"
+                                render={({ field: { onChange, onBlur, value } }) => (
+                                    <>
+                                        <TextInput
+                                            mode="outlined"
+                                            dense
+                                            label={t('auth.firstName')}
+                                            value={value}
+                                            onChangeText={onChange}
+                                            onBlur={onBlur}
+                                            returnKeyType="next"
+                                            onSubmitEditing={() => setFocus("surname")}
+                                            placeholder={t('auth.firstName')}
+                                            placeholderTextColor={colors.textTertiary}
+                                            textColor={colors.text}
+                                            outlineColor={errors.firstName ? '#ef4444' : colors.inputBorder}
+                                            style={{ backgroundColor: colors.inputBackground, marginBottom: 0, marginTop: 0 }}
+                                            contentStyle={{ height: 40, marginVertical: 0 }}
+                                            theme={{
+                                                colors: {
+                                                    background: colors.inputBackground,
+                                                    onSurface: colors.text,
+                                                    primary: colors.primary,
+                                                },
+                                            }}
+                                        />
+                                        <HelperText
+                                            type="error"
+                                            visible={!!errors.firstName}
+                                            style={{ color: '#ef4444', fontSize: 12, fontWeight: '600', marginTop: 0, marginBottom: 0 }}
+                                        >
+                                            {errors.firstName?.message}
+                                        </HelperText>
+                                    </>
+                                )}
+                            />
+                        </View>
+                        <View style={{ marginBottom: 0 }}>
+                            <Controller
+                                control={control}
+                                name="surname"
+                                render={({ field: { onChange, onBlur, value } }) => (
+                                    <>
+                                        <TextInput
+                                            mode="outlined"
+                                            dense
+                                            label={t('auth.lastName')}
+                                            value={value}
+                                            onChangeText={onChange}
+                                            onBlur={onBlur}
+                                            returnKeyType="next"
+                                            onSubmitEditing={() => setFocus("phone")}
+                                            placeholder={t('auth.lastName')}
+                                            placeholderTextColor={colors.textTertiary}
+                                            textColor={colors.text}
+                                            outlineColor={errors.surname ? '#ef4444' : colors.inputBorder}
+                                            style={{ backgroundColor: colors.inputBackground, marginBottom: 0, marginTop: 0 }}
+                                            contentStyle={{ height: 40, marginVertical: 0 }}
+                                            theme={{
+                                                colors: {
+                                                    background: colors.inputBackground,
+                                                    onSurface: colors.text,
+                                                    primary: colors.primary,
+                                                },
+                                            }}
+                                        />
+                                        <HelperText
+                                            type="error"
+                                            visible={!!errors.surname}
+                                            style={{ color: '#ef4444', fontSize: 12, fontWeight: '600', marginTop: 0, marginBottom: 0 }}
+                                        >
+                                            {errors.surname?.message}
+                                        </HelperText>
+                                    </>
+                                )}
+                            />
+                        </View>
+                    </>
+                )}
+
+                {/* User Type Selection */}
+                <View style={{ marginBottom: 0 }}>
+                    <Text className="text-sm mb-1" style={{ color: colors.text }}>{t('auth.userType')}</Text>
+                    <Controller
+                        control={control}
+                        name="userType"
+                        render={({ field: { value, onChange } }) => (
+                            <View>
+                                <View className="flex-row gap-2">
+                                    {userTypeItems.map((item) => {
+                                        const isSelected = value === item.value;
+                                        return (
+                                            <TouchableOpacity
+                                                key={item.value}
+                                                className="flex-1 flex-row items-center justify-center py-2.5 px-3 rounded-lg"
+                                                style={{
+                                                    backgroundColor: isSelected
+                                                        ? '#1a1a1a'
+                                                        : '#ffffff',
+                                                    borderWidth: isSelected ? 1.5 : 1,
+                                                    borderColor: isSelected
+                                                        ? '#1a1a1a'
+                                                        : '#e0e0e0',
+                                                }}
+                                                onPress={() => onChange(item.value)}
+                                            >
+                                                <Icon
+                                                    source={item.icon}
+                                                    size={18}
+                                                    color={isSelected ? '#ffffff' : colors.text}
                                                 />
-                                                <HelperText type="error" visible={!!isRegister && !!errors.firstName}>
-                                                    {errors.firstName?.message}
-                                                </HelperText>
-                                            </>
-                                        )}
-                                    />
-                                </View>
-                                <View className="w-1/2">
-                                    <Controller
-                                        control={control}
-                                        name="surname"
-                                        render={({ field: { onChange, onBlur, value } }) => (
-                                            <>
-                                                <TextInput
-                                                    textColor="white"
-                                                    outlineColor="white"
-                                                    theme={{
-                                                        colors: {
-                                                            onSurfaceVariant: "white",
-                                                            background: "#2a2b2d",
-                                                            primary: "white",
-                                                        },
+                                                <Text
+                                                    className="text-xs ml-2 font-medium"
+                                                    style={{
+                                                        color: isSelected
+                                                            ? '#ffffff'
+                                                            : colors.text
                                                     }}
-                                                    label="Soyisim"
-                                                    mode="outlined"
-                                                    dense
-                                                    onBlur={onBlur}
-                                                    value={value}
-                                                    onChangeText={onChange}
-                                                    returnKeyType="next"
-                                                    onSubmitEditing={() => setFocus("phone")}
-                                                />
-                                                <HelperText type="error" visible={!!isRegister && !!errors.surname}>
-                                                    {errors.surname?.message}
-                                                </HelperText>
-                                            </>
-                                        )}
-                                    />
+                                                >
+                                                    {item.value === 'customer' ? t('auth.customer') :
+                                                        item.value === 'freeBarber' ? t('auth.barber') :
+                                                            t('auth.salon')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
+                                <HelperText
+                                    type="error"
+                                    visible={!!errors.userType}
+                                    style={{ color: '#ef4444', fontSize: 12, fontWeight: '600', marginTop: 0, marginBottom: 0 }}
+                                >
+                                    {errors.userType?.message as string}
+                                </HelperText>
                             </View>
-                        </>
-                    )}
-                    <View className="w-full mt-[-4px]">
-                        <Controller
-                            control={control}
-                            name="userType"
-                            render={({ field: { value, onChange } }) => (
-                                <View>
-                                    <Dropdown
-                                        data={userTypeItems}
-                                        labelField="label"
-                                        valueField="value"
-                                        value={value ?? null}
-                                        placeholder="Kullanıcı türü seçin"
-                                        search={false}
-                                        style={{
-                                            backgroundColor: "#2a2b2d",
-                                            borderWidth: 1,
-                                            borderColor: errors.userType ? "#ef4444" : "white",
-                                            borderRadius: 4,
-                                            paddingHorizontal: 12,
-                                            height: 42,
-                                        }}
-                                        placeholderStyle={{ color: "#cfcfcf" }}
-                                        selectedTextStyle={{ color: "white" }}
-                                        itemTextStyle={{ color: "white", fontSize: 10 }}
-                                        containerStyle={{
-                                            backgroundColor: "#2a2b2d",
-                                            borderWidth: 1,
-                                            borderColor: "#3a3a3a",
-                                            elevation: 12,
-                                            borderRadius: 10,
-                                            overflow: "hidden",
-                                        }}
-                                        activeColor="#3a3a3a"
-                                        onChange={item => onChange(item.value)}
-                                        dropdownPosition="top"
-                                    />
-                                    <HelperText type="error" visible={!!errors.userType}>
-                                        {errors.userType?.message as string}
-                                    </HelperText>
-                                </View>
-                            )}
-                        />
-                    </View>
-                    <View className="mt-[-8px]">
-                        <Controller
-                            control={control}
-                            name="phone"
-                            render={({ field: { onChange, onBlur, value } }) => (
-                                <>
-                                    <TextInput
-                                        label="Telefon"
-                                        mode="outlined"
-                                        textColor="white"
-                                        dense
-                                        outlineColor="white"
-                                        keyboardType="number-pad"
-                                        onBlur={onBlur}
-                                        value={value}
-                                        onChangeText={onChange}
-                                        returnKeyType="done"
-                                        placeholderTextColor="gray"
-                                        placeholder="555-555-5555"
-                                        onSubmitEditing={() => setFocus("phone")}
-                                        theme={{
-                                            colors: {
-                                                onSurfaceVariant: "white",
-                                                background: "#2a2b2d",
-                                                primary: "white",
-                                            },
-                                        }}
-                                    />
-                                    <HelperText type="error" visible={!!errors.phone}>
-                                        {errors.phone?.message}
-                                    </HelperText>
-                                </>
-                            )}
-                        />
-                    </View>
+                        )}
+                    />
                 </View>
-                <Button style={{ width: '95%', borderRadius: 5 }} buttonColor='black' mode="contained" onPress={handleSubmit(onSubmit)} disabled={isLoading} loading={isLoading}>
-                    İleri
-                </Button>
-                <View className='flex-row my-3 items-center gap-2'>
-                    <Text className='text-sm text-white'>{isRegister ? 'Hesabınız varmı' : 'Hesabınız yokmu'}</Text>
-                    <TouchableOpacity onPress={() => toggleMode()}>
-                        <Text className='text-base underline font-bold text-blue-500 '>{isRegister ? 'Giriş yap' : 'Kayıt ol'}</Text>
+
+                {/* Submit Button */}
+                <TouchableOpacity
+                    className="w-full rounded-lg py-3  items-center justify-center"
+                    style={{
+                        backgroundColor: '#1a1a1a',
+                        opacity: isPerr ? 0.6 : 1,
+                    }}
+                    onPress={handleSubmit(onSubmit)}
+                    disabled={isPerr}
+                    activeOpacity={0.8}
+                >
+                    {isPerr ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                        <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
+                            {t('auth.start')}
+                        </Text>
+                    )}
+                </TouchableOpacity>
+
+                {/* Login/Register Toggle */}
+                <View className="flex-row items-center justify-center gap-2 mt-4">
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                        {isRegister ? t('auth.alreadyHaveAccount') : t('auth.noAccount')}
+                    </Text>
+                    <TouchableOpacity onPress={toggleMode} className="flex-row items-center ">
+                        <Text className="text-sm underline" style={{ color: colors.text }}>
+                            {isRegister ? t('auth.login') : t('auth.register')}
+                        </Text>
+                        <View className="ml-0.5">
+                            <Icon source="arrow-right" size={16} color={colors.text} />
+                        </View>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+
+                {/* Language Selector */}
+                <View className="mt-4 mb-0.5 items-center">
+                    <LanguageSelector showLabel={true} />
+                </View>
+            </View>
+
+            {/* OTP Modal */}
             <Portal>
                 <Modal
                     visible={modalVisible}
                     onDismiss={() => setModalVisible(false)}
                     contentContainerStyle={{
-                        backgroundColor: "white",
                         padding: 20,
                         margin: 20,
                         borderRadius: 16,
+                        backgroundColor: colors.card,
                     }}
                 >
-                    <Text className='text-xl mt-1' >
-                        Telefonunu doğrula
+                    <Text className="text-xl font-bold mb-2" style={{ color: colors.text }}>
+                        {t('auth.verifyPhone')}
                     </Text>
-                    <Text className='opacity-80 mt-4' >
-                        {phone} numarasına gelen 6 haneli kodu gir.
+                    <Text className="text-sm mb-5" style={{ color: colors.textSecondary }}>
+                        {t('auth.enterCode', { phone })}
                     </Text>
 
                     <OtpInput
                         numberOfDigits={6}
                         onFilled={(code: any) => doVerify(code, phone)}
-                        focusColor="#6200EE"
+                        focusColor={colors.primary}
                         theme={{
                             containerStyle: { marginBottom: 12 },
                             pinCodeContainerStyle: {
-                                width: 48, height: 56, borderRadius: 12, borderWidth: 1, borderColor: "#e0e0e0",
+                                width: 48,
+                                height: 56,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: colors.inputBorder,
+                                backgroundColor: colors.inputBackground,
                             },
-                            pinCodeTextStyle: { fontSize: 22 },
+                            pinCodeTextStyle: {
+                                fontSize: 22,
+                                color: colors.text,
+                            },
                         }}
                         type='numeric'
-
                     />
 
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                        <Text className='text-blue-500 opacity-70'>Süre: {mmss}</Text>
-                        <Button mode="text" onPress={onResend} disabled={!canResend}>
-                            Kodu yeniden gönder
-                        </Button>
+                    <View className="flex-row justify-between items-center">
+                        <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                            {t('auth.timeRemaining', { time: mmss })}
+                        </Text>
+                        <TouchableOpacity
+                            onPress={onResend}
+                            disabled={!canResend}
+                            style={{ opacity: canResend ? 1 : 0.5 }}
+                        >
+                            <Text style={{ color: colors.primary, textDecorationLine: 'underline' }}>
+                                {t('auth.resendCode')}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </Modal>
             </Portal>
@@ -386,4 +499,3 @@ const Index = () => {
 }
 
 export default Index
-

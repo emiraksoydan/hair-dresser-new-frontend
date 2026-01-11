@@ -133,13 +133,13 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                         </View>
                         <View className="ml-2 gap-1 flex-1" style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
                             <View className="flex-row gap-2 items-center flex-wrap" style={{ minWidth: 0, maxWidth: '100%' }}>
-                                <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
+                                <Text className="text-white font-century-gothic-sans-bold text-base" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
                                     {displayName}
                                 </Text>
                                 {item.isFavoriteThread && isFirst && (
                                     <View className="px-2 py-1 rounded bg-yellow-900/20 border border-yellow-800/30 flex-row items-center">
                                         <Icon source="heart" size={12} color="#fbbf24" />
-                                        <Text className="text-yellow-400 text-xs font-ibm-plex-sans-medium ml-1">
+                                        <Text className="text-yellow-400 text-xs font-century-gothic-sans-medium ml-1">
                                             Favori
                                         </Text>
                                     </View>
@@ -147,7 +147,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             </View>
                             <View className="flex-row gap-2 items-center" style={{ minWidth: 0 }}>
                                 {participantLabel && (
-                                    <Text className="text-gray-400 text-xs font-ibm-plex-sans-medium" style={{ flexShrink: 0 }}>
+                                    <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" style={{ flexShrink: 0 }}>
                                         {participantLabel}
                                     </Text>
                                 )}
@@ -175,7 +175,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             style={{ backgroundColor: statusColor + COLORS.OPACITY.LIGHT }}
                         >
                             <Text
-                                className="text-xs font-ibm-plex-sans-medium"
+                                className="text-xs font-century-gothic-sans-medium"
                                 style={{ color: statusColor }}
                             >
                                 {statusText}
@@ -199,7 +199,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             <View className="flex-row items-center gap-2 mt-3" style={{ marginLeft: item.participants.length > 0 ? 42 : 0, minWidth: 0, maxWidth: '100%' }}>
                                 <Icon source="message-text" size={12} color={hasUnread ? "#22c55e" : "#6b7280"} />
                                 <Text
-                                    className={`text-sm mb-0 ${hasUnread ? 'text-white font-ibm-plex-sans-medium' : 'text-gray-400 font-ibm-plex-sans-regular'}`}
+                                    className={`text-sm mb-0 ${hasUnread ? 'text-white font-century-gothic-sans-medium' : 'text-gray-400 font-century-gothic-sans-regular'}`}
                                     numberOfLines={2}
                                     style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                                 >

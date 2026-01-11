@@ -7,6 +7,7 @@ import { BarberType, FreeBarGetDto } from '../../types';
 import { useToggleFavoriteMutation, useCallFreeBarberMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
+import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
     freeBarber: FreeBarGetDto;
@@ -27,6 +28,7 @@ type Props = {
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId, showImageAnimation = true, isMapMode = false }) => {
     const carouselWidth = Math.max(0, cardWidthFreeBarber);
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
     const [isFavorite, setIsFavorite] = useState(freeBarber.isFavorited ?? false);
@@ -59,7 +61,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
-            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
+            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
             return;
         }
 
@@ -70,28 +72,28 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             }).unwrap();
             // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
     }, [isAuthenticated, freeBarber.id, toggleFavorite]);
 
     const handleCallFreeBarber = useCallback(async () => {
         if (!storeId) {
-            Alert.alert('Hata', 'Lütfen önce bir dükkan seçin.');
+            Alert.alert(t('common.error'), t('booking.selectStoreFirst'));
             return;
         }
 
         Alert.alert(
-            'Berberi Çağır',
+            t('booking.callBarber'),
             `${freeBarber.fullName} adlı berberi çağırmak istediğinize emin misiniz?`,
             [
-                { text: 'İptal', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Çağır',
+                    text: t('booking.callBarber'),
                     onPress: async () => {
                         try {
                             const freeBarberUserId = freeBarber.freeBarberUserId;
                             if (!freeBarberUserId) {
-                                Alert.alert('Hata', 'Serbest berber kullanıcısı bulunamadı.');
+                                Alert.alert(t('common.error'), t('booking.freebarberUserNotFound'));
                                 return;
                             }
 
@@ -100,12 +102,12 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                 freeBarberUserId,
                             }).unwrap();
                             setHasCalled(true);
-                            Alert.alert('Başarılı', 'Berber başarıyla çağrıldı!');
+                            Alert.alert(t('common.success'), t('booking.barberCalled'));
                             if (onCallFreeBarber) {
                                 onCallFreeBarber(freeBarber.id);
                             }
                         } catch (error: any) {
-                            Alert.alert('Hata', error?.data?.message || error?.message || 'Berber çağırma işlemi başarısız.');
+                            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('booking.barberCallFailed'));
                         }
                     },
                 },
@@ -122,7 +124,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-2'>
                         <View className={freeBarber.isAvailable ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                            <Text className="text-white text-sm font-ibm-plex-sans-medium">
+                            <Text className="text-white text-sm font-century-gothic-sans-medium">
                                 {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
                             </Text>
                         </View>
@@ -146,7 +148,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
                                 {typeLabel && (
                                     <View className={typeLabelColor + ' px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                                        <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                        <Text className="text-white text-base font-century-gothic-sans-medium">
                                             {typeLabel}
                                         </Text>
                                     </View>
@@ -156,7 +158,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                     className={freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#ff69b4] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
                                     style={{ elevation: 5 }}
                                 >
-                                    <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                    <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
                                         {freeBarber.type == BarberType.MaleHairdresser ? "Erkek" : "Kadın"}
                                     </Text>
                                 </TouchableOpacity>
@@ -165,7 +167,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                     className={isAvailable ? 'bg-[#2e6a45] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#b24949] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
                                     style={{ elevation: 5 }}
                                 >
-                                    <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                    <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
                                         {isAvailable ? "Müsait" : "Meşgul"}
                                     </Text>
                                 </TouchableOpacity>
@@ -176,7 +178,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                         className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
                                         style={{ elevation: 5 }}
                                     >
-                                        <Text className="text-white text-sm font-ibm-plex-sans-semibold ml-1">
+                                        <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
                                             {isCalling ? 'Çağırılıyor...' : 'Berberi Çağır'}
                                         </Text>
                                     </TouchableOpacity>
@@ -198,7 +200,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                     numberOfLines={1}
                                     ellipsizeMode={'tail'}
                                     style={{ fontSize: 20 }}
-                                    className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                    className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                                 >
                                     {freeBarber.fullName}
                                 </Text>
@@ -235,7 +237,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                         disabled={isTogglingFavorite}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
+                                        className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
                                             }`}
                                     >
                                         ({favoriteCount})
@@ -257,7 +259,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                                         source={isFavorite ? "heart" : "heart-outline"}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
+                                        className={`text-white font-century-gothic-sans-regular text-xs pb-1`}
                                     >
                                         ({favoriteCount})
                                     </Text>

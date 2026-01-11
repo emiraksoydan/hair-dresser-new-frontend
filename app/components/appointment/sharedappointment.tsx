@@ -25,8 +25,10 @@ import { OwnerAvatar } from "../common/owneravatar";
 import { LottieViewComponent } from "../common/lottieview";
 import { resolveApiErrorMessage } from "../../utils/common/error";
 import { useBottomSheet } from "../../hook/useBottomSheet";
+import { useLanguage } from "../../hook/useLanguage";
 
 export default function SharedAppointmentScreen() {
+    const { t } = useLanguage();
     const { userId, userType } = useAuth();
     const insets = useSafeAreaInsets();
     const [activeFilter, setActiveFilter] = useState<AppointmentFilter>(AppointmentFilter.Active);
@@ -76,10 +78,10 @@ export default function SharedAppointmentScreen() {
     // --- Helper Functions ---
     const formatPricingPolicy = useCallback((pricingType?: number, pricingValue?: number) => {
         if (pricingType === undefined || pricingValue === undefined) return null;
-        if (pricingType === PricingType.Percent) return `Yapılan işlemlerin toplamının %${pricingValue} alınır`;
-        if (pricingType === PricingType.Rent) return `Koltuk Kiralama (Saatlik ${pricingValue} TL)`;
+        if (pricingType === PricingType.Percent) return t('appointment.pricing.percent', { value: pricingValue });
+        if (pricingType === PricingType.Rent) return t('appointment.pricing.rent', { value: pricingValue });
         return null;
-    }, []);
+    }, [t]);
 
     const formatRating = useCallback((rating?: number) => rating?.toFixed(1) ?? null, []);
 
@@ -155,23 +157,23 @@ export default function SharedAppointmentScreen() {
 
 
         } catch (error: any) {
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
     }, [toggleFavorite]);
 
     // --- İşlemler ---
     const handleCancel = async (id: string) => {
-        Alert.alert("Randevu İptali", "Randevuyu iptal etmek istiyor musunuz?", [
-            { text: "Vazgeç", style: "cancel" },
+        Alert.alert(t('appointment.alerts.cancellationTitle'), t('appointment.alerts.confirmCancellation'), [
+            { text: t('appointment.alerts.cancel'), style: "cancel" },
             {
-                text: "İptal Et",
+                text: t('appointment.actions.cancel'),
                 style: "destructive",
                 onPress: async () => {
                     try {
                         await cancelAppointment(id).unwrap();
-                        Alert.alert("Bilgi", "Randevu iptal edildi.");
+                        Alert.alert(t('common.success'), t('appointment.alerts.cancelled'));
                     } catch (error: any) {
-                        Alert.alert("Hata", error?.data?.message || "İptal edilemedi.");
+                        Alert.alert(t('common.error'), error?.data?.message || t('appointment.alerts.cancelFailed'));
                     }
                 }
             }
@@ -179,17 +181,17 @@ export default function SharedAppointmentScreen() {
     };
 
     const handleComplete = async (id: string) => {
-        Alert.alert("Randevu Tamamla", "Hizmet tamamlandı olarak işaretlensin mi?", [
-            { text: "Vazgeç", style: "cancel" },
+        Alert.alert(t('appointment.alerts.completionTitle'), t('appointment.alerts.confirmCompletion'), [
+            { text: t('appointment.alerts.cancel'), style: "cancel" },
             {
-                text: "Tamamla",
+                text: t('appointment.actions.complete'),
                 style: "default",
                 onPress: async () => {
                     try {
                         await completeAppointment(id).unwrap();
-                        Alert.alert("Başarılı", "Randevu tamamlandı.");
+                        Alert.alert(t('common.success'), t('appointment.alerts.completed'));
                     } catch (error: any) {
-                        Alert.alert("Hata", error?.data?.message || "İşlem başarısız.");
+                        Alert.alert(t('common.error'), error?.data?.message || t('appointment.alerts.completeFailed'));
                     }
                 }
             }
@@ -198,49 +200,49 @@ export default function SharedAppointmentScreen() {
 
     const handleDelete = useCallback(async (appointmentId: string) => {
         Alert.alert(
-            "Randevuyu Sil",
-            "Bu randevuyu silmek istediğinize emin misiniz?",
+            t('appointment.alerts.deleteTitle'),
+            t('appointment.alerts.confirmDelete'),
             [
-                { text: "İptal", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                    text: "Sil",
+                    text: t('appointment.actions.delete'),
                     style: "destructive",
                     onPress: async () => {
                         try {
                             await deleteAppointment(appointmentId).unwrap();
-                            Alert.alert("Başarılı", "Randevu başarıyla silindi.");
+                            Alert.alert(t('common.success'), t('appointment.alerts.deleted'));
                         } catch (error: any) {
-                            const errorMessage = error?.data?.message || error?.message || "Randevu silinemedi.";
-                            Alert.alert("Hata", errorMessage);
+                            const errorMessage = error?.data?.message || error?.message || t('appointment.alerts.deleteFailed');
+                            Alert.alert(t('common.error'), errorMessage);
                         }
                     },
                 },
             ]
         );
-    }, [deleteAppointment]);
+    }, [deleteAppointment, t]);
 
     const handleDeleteAll = useCallback(async () => {
         Alert.alert(
-            "Tüm Randevuları Sil",
-            "Silinebilir tüm randevuları silmek istediğinize emin misiniz?",
+            t('appointment.alerts.deleteAllTitle'),
+            t('appointment.alerts.confirmDeleteAll'),
             [
-                { text: "İptal", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                    text: "Sil",
+                    text: t('appointment.actions.delete'),
                     style: "destructive",
                     onPress: async () => {
                         try {
                             await deleteAllAppointments().unwrap();
-                            Alert.alert("Başarılı", "Randevular başarıyla silindi.");
+                            Alert.alert(t('common.success'), t('appointment.alerts.deletedAll'));
                         } catch (error: any) {
-                            const errorMessage = error?.data?.message || error?.message || "Randevular silinemedi.";
-                            Alert.alert("Hata", errorMessage);
+                            const errorMessage = error?.data?.message || error?.message || t('appointment.alerts.deleteAllFailed');
+                            Alert.alert(t('common.error'), errorMessage);
                         }
                     },
                 },
             ]
         );
-    }, [deleteAllAppointments]);
+    }, [deleteAllAppointments, t]);
 
     // Rating Component - Ortalama rating ve kullanıcının rating'i göster
     const RatingDisplay = ({
@@ -263,7 +265,7 @@ export default function SharedAppointmentScreen() {
                     <View className="flex-row items-center mb-2">
                         <Icon source="star" size={14} color="#fbbf24" />
                         <Text className="text-[#fbbf24] text-xs  font-semibold ml-1">{formatRating(averageRating)}</Text>
-                        <Text className="text-[#6b7280] text-xs ml-1">(Ortalama)</Text>
+                        <Text className="text-[#6b7280] text-xs ml-1">({t('appointment.labels.average')})</Text>
                     </View>
                 )}
 
@@ -277,7 +279,7 @@ export default function SharedAppointmentScreen() {
                                 starStyle={{ marginHorizontal: 1 }}
                             />
                             <Text className="text-[#fbbf24] text-xs font-semibold ml-2">{formatRating(myRating)}</Text>
-                            <Text className="text-[#6b7280] text-xs ml-1">(Sizin yorumunuz)</Text>
+                            <Text className="text-[#6b7280] text-xs ml-1">({t('appointment.labels.yourComment')})</Text>
                         </View>
                         {myComment && (
                             <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-1">
@@ -296,7 +298,7 @@ export default function SharedAppointmentScreen() {
                         className="flex-row items-center justify-center bg-[#1f2023] border border-[#f05e23]/30 rounded-lg px-3 py-2.5 mt-1"
                     >
                         <Icon source="star-outline" size={16} color="#f05e23" />
-                        <Text className="text-[#f05e23] text-xs font-semibold ml-2">Yorum Yap</Text>
+                        <Text className="text-[#f05e23] text-xs font-semibold ml-2">{t('appointment.labels.makeComment')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -407,7 +409,7 @@ export default function SharedAppointmentScreen() {
                                 {isCompleting ? <ActivityIndicator color="white" size="small" /> : (
                                     <>
                                         <Icon source="check-all" size={15} color="white" />
-                                        <Text className="text-white text-sm ml-2">Tamamla</Text>
+                                        <Text className="text-white text-sm ml-2">{t('appointment.actions.complete')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -421,7 +423,7 @@ export default function SharedAppointmentScreen() {
                                 {isCancelling ? <ActivityIndicator color="#ef4444" size="small" /> : (
                                     <>
                                         <Icon source="close-circle-outline" size={15} color="#ef4444" />
-                                        <Text className="text-[#ef4444] text-sm ml-2">İptal Et</Text>
+                                        <Text className="text-[#ef4444] text-sm ml-2">{t('appointment.actions.cancel')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -437,7 +439,7 @@ export default function SharedAppointmentScreen() {
                                 ) : (
                                     <>
                                         <Icon source="delete-outline" size={15} color="#ef4444" />
-                                        <Text className="text-[#ef4444] text-sm ml-2">Sil</Text>
+                                        <Text className="text-[#ef4444] text-sm ml-2">{t('appointment.actions.delete')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -461,12 +463,12 @@ export default function SharedAppointmentScreen() {
                                             iconColor="#6b7280"
                                         />
                                         <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Müşterisi</Text>
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.customer')}</Text>
                                             <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                 {item.customerName}
                                             </Text>
                                             {item.customerNumber && (
-                                                <Text className="text-[#6b7280] text-xs">Müşteri No: {item.customerNumber}</Text>
+                                                <Text className="text-[#6b7280] text-xs">{t('appointment.labels.customerNumber')}: {item.customerNumber}</Text>
                                             )}
                                         </View>
                                     </View>
@@ -479,7 +481,7 @@ export default function SharedAppointmentScreen() {
                                             >
                                                 <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
                                                 <Text className={`text-xs ml-1.5 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                    {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    {item.isCustomerFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
@@ -489,7 +491,7 @@ export default function SharedAppointmentScreen() {
                                         myComment={item.myCommentForCustomer}
                                         averageRating={item.customerAverageRating}
                                         canRateNow={canRateTarget(item, 'customer')}
-                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
+                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || t('labels.customerDefaultName'), 'customer', item.customerImage)}
                                     />
                                 </View>
                             )}
@@ -507,9 +509,9 @@ export default function SharedAppointmentScreen() {
                                                 iconColor="#6b7280"
                                             />
                                             <View className="flex-1">
-                                                <Text className="text-[#9ca3af] text-xs mb-0.5">Kiralayan Berber</Text>
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.rentingBarber')}</Text>
                                                 <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
-                                                    {item.freeBarberName || 'Serbest Berber'}
+                                                    {item.freeBarberName || t('labels.freeBarberDefaultName')}
                                                 </Text>
                                             </View>
                                         </View>
@@ -522,7 +524,7 @@ export default function SharedAppointmentScreen() {
                                                 >
                                                     <Icon source={item.isFreeBarberFavorite ? "heart" : "heart-outline"} size={14} color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"} />
                                                     <Text className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isFreeBarberFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                        {item.isFreeBarberFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                     </Text>
                                                 </TouchableOpacity>
                                             </View>
@@ -532,7 +534,7 @@ export default function SharedAppointmentScreen() {
                                             myComment={item.myCommentForFreeBarber}
                                             averageRating={item.freeBarberAverageRating}
                                             canRateNow={canRateTarget(item, 'freeBarber')}
-                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
+                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || t('labels.freeBarberDefaultName'), 'freeBarber', item.freeBarberImage)}
                                         />
                                     </View>
                                 ) : item.manuelBarberId ? (
@@ -614,7 +616,7 @@ export default function SharedAppointmentScreen() {
                                             >
                                                 <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
                                                 <Text className={`text-xs ml-1.5 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                    {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    {item.isStoreFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
@@ -650,7 +652,7 @@ export default function SharedAppointmentScreen() {
                                         <View className="flex-1">
                                             <Text className="text-[#9ca3af] text-xs mb-0.5">Müşterisi</Text>
                                             <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
-                                                {item.customerName || 'Müşteri'}
+                                                {item.customerName || t('labels.customerDefaultName')}
                                             </Text>
                                             {item.customerNumber && (
                                                 <Text className="text-[#6b7280] text-xs">Müşteri No: {item.customerNumber}</Text>
@@ -666,7 +668,7 @@ export default function SharedAppointmentScreen() {
                                             >
                                                 <Icon source={item.isCustomerFavorite ? "heart" : "heart-outline"} size={14} color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"} />
                                                 <Text className={`text-xs ml-1.5 ${item.isCustomerFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                    {item.isCustomerFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    {item.isCustomerFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
@@ -676,7 +678,7 @@ export default function SharedAppointmentScreen() {
                                         myComment={item.myCommentForCustomer}
                                         averageRating={item.customerAverageRating}
                                         canRateNow={canRateTarget(item, 'customer')}
-                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || 'Müşteri', 'customer', item.customerImage)}
+                                        onRatePress={() => item.customerUserId && openRatingSheet(item.id, item.customerUserId, item.customerName || t('labels.customerDefaultName'), 'customer', item.customerImage)}
                                     />
                                 </View>
                             )}
@@ -718,7 +720,7 @@ export default function SharedAppointmentScreen() {
                                             >
                                                 <Icon source={item.isStoreFavorite ? "heart" : "heart-outline"} size={14} color={item.isStoreFavorite ? "#ef4444" : "#6b7280"} />
                                                 <Text className={`text-xs ml-1.5 ${item.isStoreFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                    {item.isStoreFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                    {item.isStoreFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
@@ -751,7 +753,7 @@ export default function SharedAppointmentScreen() {
                                                 <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                     {item.freeBarberName || 'Serbest Berber'}
                                                 </Text>
-                                                <Text className="text-[#9ca3af] text-xs">Serbest Berber</Text>
+                                                <Text className="text-[#9ca3af] text-xs">{t('labels.freeBarberDefaultName')}</Text>
                                             </View>
                                         </View>
                                         {(activeFilter === AppointmentFilter.Cancelled || activeFilter === AppointmentFilter.Completed) && (
@@ -763,7 +765,7 @@ export default function SharedAppointmentScreen() {
                                                 >
                                                     <Icon source={item.isFreeBarberFavorite ? "heart" : "heart-outline"} size={14} color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"} />
                                                     <Text className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? 'text-[#ef4444]' : 'text-[#6b7280]'}`}>
-                                                        {item.isFreeBarberFavorite ? 'Favorilerinizde' : 'Favorilere Ekle'}
+                                                        {item.isFreeBarberFavorite ? t('appointment.actions.inFavorites') : t('appointment.actions.addToFavorites')}
                                                     </Text>
                                                 </TouchableOpacity>
                                             </View>
@@ -773,7 +775,7 @@ export default function SharedAppointmentScreen() {
                                             myComment={item.myCommentForFreeBarber}
                                             averageRating={item.freeBarberAverageRating}
                                             canRateNow={canRateTarget(item, 'freeBarber')}
-                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || 'Serbest Berber', 'freeBarber', item.freeBarberImage)}
+                                            onRatePress={() => item.freeBarberId && openRatingSheet(item.id, item.freeBarberId, item.freeBarberName || t('labels.freeBarberDefaultName'), 'freeBarber', item.freeBarberImage)}
                                         />
                                     </View>
                                 ) : item.manuelBarberId ? (
@@ -884,21 +886,21 @@ export default function SharedAppointmentScreen() {
                         selected={activeFilter === AppointmentFilter.Active}
                         onPress={() => setActiveFilter(AppointmentFilter.Active)}
                     >
-                        Aktif
+                        {t('appointment.filters.active')}
                     </FilterChip>
                     <FilterChip
                         itemKey="completed"
                         selected={activeFilter === AppointmentFilter.Completed}
                         onPress={() => setActiveFilter(AppointmentFilter.Completed)}
                     >
-                        Tamamlanan
+                        {t('appointment.filters.completed')}
                     </FilterChip>
                     <FilterChip
                         itemKey="cancelled"
                         selected={activeFilter === AppointmentFilter.Cancelled}
                         onPress={() => setActiveFilter(AppointmentFilter.Cancelled)}
                     >
-                        İptal / Geçmiş
+                        {t('appointment.filters.cancelled')}
                     </FilterChip>
                 </View>
                 {(activeFilter === AppointmentFilter.Completed || activeFilter === AppointmentFilter.Cancelled) &&
@@ -914,7 +916,7 @@ export default function SharedAppointmentScreen() {
                                 ) : (
                                     <Icon source="delete-sweep" size={18} color="white" />
                                 )}
-                                <Text className="text-white font-semibold text-sm">Tümünü Sil</Text>
+                                <Text className="text-white font-semibold text-sm">{t('appointment.actions.deleteAll')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -960,7 +962,7 @@ export default function SharedAppointmentScreen() {
                     ListEmptyComponent={
                         <View className="items-center justify-center mt-20 p-5">
                             <Icon source="calendar-blank" size={32} color="#2a2c30" />
-                            <Text className="text-[#6b7280] mt-2">Bu kategoride randevu bulunamadı.</Text>
+                            <Text className="text-[#6b7280] mt-2">{t('appointment.labels.noAppointmentsInCategory')}</Text>
                         </View>
                     }
                 />

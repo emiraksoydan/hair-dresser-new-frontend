@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert, FlatList, Image, ScrollView, StatusBar, TouchableOpacity, View } from "react-native";
 import { Text } from "../common/Text";
 import { ActivityIndicator, Icon } from "react-native-paper";
+import { useLanguage } from "../../hook/useLanguage";
 import { useGetAvailabilityQuery, useGetStoreForUsersQuery, useGetWorkingHoursByTargetQuery, useCreateCustomerAppointmentMutation, useCreateFreeBarberAppointmentMutation, useCreateStoreAppointmentMutation, useAddStoreToAppointmentMutation } from "../../store/api";
 import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
 import { ChairSlotDto, UserType, PricingType, StoreSelectionType } from "../../types";
@@ -36,6 +37,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
     const { data: storeData } = useGetStoreForUsersQuery(storeId, { skip: !storeId });
     const { data: workingHours } = useGetWorkingHoursByTargetQuery(storeId, { skip: !storeId });
     const router = useRouter();
+    const { t } = useLanguage();
     const isAddStoreMode = mode === "add-store";
     const [createCustomerAppointment, { isLoading: isCreatingCustomer }] = useCreateCustomerAppointmentMutation();
     const [createFreeBarberAppointment, { isLoading: isCreatingFreeBarber }] = useCreateFreeBarberAppointmentMutation();
@@ -162,12 +164,12 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                 <View className="absolute bottom-0 left-0 right-0 px-4 pb-3">
                     <View className="flex-row justify-between items-start">
                         <View className="flex-shrink flex-wrap gap-2 flex-row">
-                            <Text className="font-ibm-plex-sans-regular text-white" numberOfLines={1} style={{ fontSize: 24 }}>
+                            <Text className="font-century-gothic text-white" numberOfLines={1} style={{ fontSize: 24 }}>
                                 {storeData?.storeName ?? "İşletme"}
                             </Text>
                             <View className="flex-row items-center gap-2 mt-1">
                                 <Icon size={20} color={storeData?.type === 0 ? "#60a5fa" : "#f472b6"} source={storeData?.type === 0 ? "face-man" : "face-woman"} />
-                                <Text className="text-white font-ibm-plex-sans-regular" style={{ fontSize: 15 }}>
+                                <Text className="text-white font-century-gothic" style={{ fontSize: 15 }}>
                                     - {getBarberTypeName(storeData?.type!)}
                                 </Text>
                             </View>
@@ -175,14 +177,14 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
                         <View className="flex-row items-center mt-2 gap-1">
                             <Icon size={20} color="#FFA500" source="star" />
-                            <Text className="font-ibm-plex-sans-regular text-white" style={{ fontSize: 15 }}>
+                            <Text className="font-century-gothic text-white" style={{ fontSize: 15 }}>
                                 {Number(storeData?.rating ?? 0).toFixed(1)}
                             </Text>
                         </View>
                     </View>
                     <View className="flex-row items-center gap-2 mt-2">
                         <Icon size={20} color="#FFA500" source="map-marker" />
-                        <Text className="font-ibm-plex-sans-regular flex-shrink text-white" numberOfLines={1} style={{ fontSize: 15 }}>
+                        <Text className="font-century-gothic flex-shrink text-white" numberOfLines={1} style={{ fontSize: 15 }}>
                             {storeData?.addressDescription ?? "Adres"}
                         </Text>
                     </View>
@@ -202,7 +204,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
             <ScrollView nestedScrollEnabled>
                 <View className="p-4 z-0 gap-3">
                     <View className="flex-row justify-between items-center">
-                        <Text className="text-white font-ibm-plex-sans-regular mt-3 text-xl">Randevu Al</Text>
+                        <Text className="text-white font-century-gothic mt-3 text-xl">Randevu Al</Text>
                     </View>
 
                     {/* DAYS */}
@@ -259,12 +261,12 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                         icon={<Icon source="seat" size={24} color="white" />}
                                     >
                                         <View className="items-center gap-1">
-                                            <Text className="text-white font-ibm-plex-sans-medium text-sm" numberOfLines={1}>
+                                            <Text className="text-white font-century-gothic text-sm" numberOfLines={1}>
                                                 {chairName}
                                             </Text>
                                             {hasBarber && (
                                                 <>
-                                                    <Text className="text-white font-ibm-plex-sans-regular text-xs" numberOfLines={1}>
+                                                    <Text className="text-white font-century-gothic text-xs" numberOfLines={1}>
                                                         {barberName}
                                                     </Text>
                                                     {rating != null && (
@@ -337,7 +339,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                     <View className="mt-1">
                         {isFreeBarber && (
                             <View className='bg-gray-800 px-3 py-2 rounded-lg mb-2'>
-                                <Text className='text-white text-base font-ibm-plex-sans-regular'>
+                                <Text className='text-white text-base font-century-gothic'>
                                     {storeData?.pricingType!.toLowerCase() === 'percent'
                                         ? `ℹ️ Fiyatlandırma: Toplam işlem tutarının %${storeData?.pricingValue} kadarı alınır.`
                                         : storeData?.pricingType!.toLowerCase() === 'rent'
@@ -348,18 +350,18 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                         )}
                         {isHourlyFree && (
                             <View className="flex-row items-center  px-3 pb-0 pt-2 rounded-lg mb-0">
-                                <Text className="text-white font-ibm-plex-sans-medium">Saatlik Kiralama : </Text>
-                                <Text className="text-[#a3e635] font-ibm-plex-sans-bold text-lg">({totalPrice} ₺)</Text>
+                                <Text className="text-white font-century-gothic">Saatlik Kiralama : </Text>
+                                <Text className="text-[#a3e635] font-century-gothic-bold text-lg">({totalPrice} ₺)</Text>
                             </View>
                         )}
                         {(isAddStoreMode || (!isHourlyFree && (isFreeBarber || isCustomer))) && (
                             <View>
                                 <View className="flex-row  items-center mb-2 mt-2 px-1">
-                                    <Text className="text-white font-ibm-plex-sans-medium text-xl">
+                                    <Text className="text-white font-century-gothic text-xl">
                                         Hizmetler :
                                     </Text>
                                     <View className="flex-row items-center  px-2 py-0">
-                                        <Text className="text-[#a3e635] font-ibm-plex-sans-bold text-xl">
+                                        <Text className="text-[#a3e635] font-century-gothic-bold text-xl">
                                             {totalPrice} ₺
                                         </Text>
                                     </View>
@@ -416,7 +418,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 }
 
                                 if (!areHourlyContiguous(selectedSlotKeys)) {
-                                    Alert.alert("Uyarı", "Lütfen ardışık saatleri seçin (boşluk olamaz).");
+                                    Alert.alert(t('booking.warning'), t('booking.contiguousSlotsRequired'));
                                     return;
                                 }
 
@@ -435,7 +437,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
                                     const hasBookedSlot = selectedSlots.some(slot => slot?.isBooked === true);
                                     if (hasBookedSlot) {
-                                        Alert.alert("Uyarı", "Seçtiğiniz saatlerden biri başka bir kullanıcı tarafından alındı. Lütfen güncel durumu kontrol edin.");
+                                        Alert.alert(t('booking.warning'), t('booking.slotTakenByOther'));
                                         // Availability'yi yenile
                                         refetch();
                                         return;
@@ -448,7 +450,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
 
                                 if (appointmentId) {
                                     if (!appointmentId) {
-                                        Alert.alert("Hata", "Randevu bulunamadi.");
+                                        Alert.alert(t('common.error'), t('booking.appointmentNotFound'));
                                         return;
                                     }
 
@@ -467,11 +469,11 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     }).unwrap();
 
                                     if (result.success) {
-                                        Alert.alert("Basarili", "Dukkan eklendi.", [
-                                            { text: "Tamam", onPress: () => router.back() }
+                                        Alert.alert(t('common.success'), t('booking.storeAdded'), [
+                                            { text: t('common.ok'), onPress: () => router.back() }
                                         ]);
                                     } else {
-                                        Alert.alert("Hata", result.message ?? "Islem basarisiz.");
+                                        Alert.alert(t('common.error'), result.message ?? t('common.operationFailed'));
                                     }
                                     return;
                                 }
@@ -483,7 +485,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 if (isCustomerFlow) {
                                     const locationResult = await getCurrentLocationSafe();
                                     if (!locationResult.ok) {
-                                        Alert.alert("Konum Gerekli", locationResult.message ?? "Randevu almak için konum izni gereklidir.");
+                                        Alert.alert(t('booking.locationRequired'), locationResult.message ?? t('booking.locationPermissionRequired'));
                                         return;
                                     }
                                     customerLat = locationResult.lat;
@@ -512,38 +514,38 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                 } else if (currentUserType === UserType.BarberStore) {
                                     result = await createStoreAppointment(appointmentData).unwrap();
                                 } else {
-                                    Alert.alert("Hata", "Kullanıcı tipi belirlenemedi.");
+                                    Alert.alert(t('common.error'), t('booking.userTypeNotDetermined'));
                                     return;
                                 }
 
                                 if (result.success) {
-                                    Alert.alert("Başarılı", "Randevunuz oluşturuldu!", [
-                                        { text: "Tamam", onPress: () => router.back() }
+                                    Alert.alert(t('common.success'), t('booking.appointmentCreated'), [
+                                        { text: t('common.ok'), onPress: () => router.back() }
                                     ]);
                                 } else {
-                                    Alert.alert("Hata", result.message ?? "Randevu oluşturulamadı.");
+                                    Alert.alert(t('common.error'), result.message ?? t('booking.appointmentCreationFailed'));
                                 }
                             } catch (error: unknown) {
                                 const errorMessage = getUserFriendlyErrorMessage(error);
 
                                 if (isDuplicateSlotError(error)) {
                                     Alert.alert(
-                                        "Uyarı",
+                                        t('booking.warning'),
                                         errorMessage,
                                         [
                                             {
-                                                text: "Yenile",
+                                                text: t('common.refresh'),
                                                 onPress: () => {
                                                     // Availability'yi yenile ve seçimleri temizle
                                                     refetch();
                                                     setSelectedSlotKeys([]);
                                                 }
                                             },
-                                            { text: "Tamam" }
+                                            { text: t('common.ok') }
                                         ]
                                     );
                                 } else {
-                                    Alert.alert("Hata", errorMessage);
+                                    Alert.alert(t('common.error'), errorMessage);
                                 }
                             }
                         }}
@@ -553,7 +555,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                         ) : (
                             <Icon source="location-enter" size={18} color="white" />
                         )}
-                        <Text className="text-white font-ibm-plex-sans-regular text-base">
+                        <Text className="text-white font-century-gothic text-base">
                             {appointmentId ? "Dukkanı Ekle" : "Randevu Al"}
                         </Text>
                     </TouchableOpacity>

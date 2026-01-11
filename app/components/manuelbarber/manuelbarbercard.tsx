@@ -58,7 +58,7 @@ const ManuelBarberCard: React.FC<Props> = ({
                         <View className="absolute top-3 right-3 flex-row gap-2 z-10">
                             {typeLabel && (
                                 <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                    <Text className="text-white text-base font-ibm-plex-sans-medium">
+                                    <Text className="text-white text-base font-century-gothic-sans-medium">
                                         {typeLabel}
                                     </Text>
                                 </View>
@@ -74,7 +74,7 @@ const ManuelBarberCard: React.FC<Props> = ({
                             <Text
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
-                                className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                             >
                                 {manuelBarber.fullName}
                             </Text>

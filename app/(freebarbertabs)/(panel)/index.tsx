@@ -424,7 +424,7 @@ const Index = () => {
                         if (item.type === 'stores-header') {
                             return (
                                 <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">
+                                    <Text className="font-century-gothic text-xl text-white">
                                         Çevremdeki Berber Dükkanları
                                     </Text>
                                     {hasStoreBarbers && (

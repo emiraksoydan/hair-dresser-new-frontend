@@ -3,9 +3,9 @@
  */
 
 export const userTypeItems = [
-    { label: "Müşteri", value: "customer" },
-    { label: "Serbest Berber", value: "freeBarber" },
-    { label: "Berber İşletmesi", value: "barberStore" },
+    { label: "Müşteri", value: "customer", icon: "account" },
+    { label: "Berber", value: "freeBarber", icon: "content-cut" },
+    { label: "Salon", value: "barberStore", icon: "store" },
 ];
 
 export const catData = ['Hepsi', 'Erkek', 'Kadın', 'Güzellik merkezi'];

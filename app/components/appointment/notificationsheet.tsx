@@ -1,6 +1,7 @@
 import { PricingType } from "../../types/store";
 import { useAuth } from "../../hook/useAuth";
 import { useGetAllNotificationsQuery, useMarkNotificationReadMutation, useDeleteNotificationMutation, useDeleteAllNotificationsMutation, useStoreDecisionMutation, useFreeBarberDecisionMutation, useCustomerDecisionMutation, api } from "../../store/api";
+import { useLanguage } from "../../hook/useLanguage";
 import { useAppDispatch } from "../../store/hook";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import React, { useCallback, useRef, useState } from "react";
@@ -38,6 +39,7 @@ export function NotificationsSheet({
     const [deleteNotification, { isLoading: isDeletingNotification }] = useDeleteNotificationMutation();
     const [deleteAllNotifications, { isLoading: isDeletingAllNotifications }] = useDeleteAllNotificationsMutation();
     const { userType } = useAuth();
+    const { t } = useLanguage();
     const [storeDecision, { isLoading: isStoreDeciding }] = useStoreDecisionMutation();
     const [freeBarberDecision, { isLoading: isFreeBarberDeciding }] = useFreeBarberDecisionMutation();
     const [customerDecision, { isLoading: isCustomerDeciding }] = useCustomerDecisionMutation();
@@ -58,7 +60,7 @@ export function NotificationsSheet({
                     },
                 });
             } catch (error) {
-                Alert.alert("Hata", "Yönlendirme başarısız oldu.");
+                Alert.alert(t('common.error'), t('notification.redirectFailed'));
             }
         }, 300);
     }, [router, onClose]);
@@ -101,7 +103,7 @@ export function NotificationsSheet({
             (parsedPayload?.customerDecision === DecisionStatus.Approved ||
                 parsedPayload?.status === AppointmentStatus.Approved)
         ) {
-            Alert.alert("Bilgi", "Müşteri onayı verildiği için bu randevu artık reddedilemez.");
+            Alert.alert(t('notification.info'), t('notification.cannotRejectAfterCustomerApproval'));
             return;
         }
 
@@ -149,12 +151,12 @@ export function NotificationsSheet({
             if (result.success) {
                 const successMessage = (() => {
                     if (isStoreSelection && userType === UserType.BarberStore) {
-                        return approve ? "Dükkan onayı gönderildi." : "Dükkan reddedildi.";
+                        return approve ? t('notification.storeApprovalSent') : t('notification.storeRejected');
                     }
                     if (isStoreSelection && userType === UserType.Customer) {
-                        return approve ? "Randevu onaylandı." : "Dükkan reddedildi.";
+                        return approve ? t('notification.appointmentApproved') : t('notification.storeRejected');
                     }
-                    return approve ? "Randevu onaylandı." : "Randevu reddedildi.";
+                    return approve ? t('notification.appointmentApproved') : t('notification.appointmentRejected');
                 })();
 
                 // Bildirimi okundu olarak işaretle (otomatik)
@@ -173,40 +175,40 @@ export function NotificationsSheet({
                 // Badge count backend'den badge.updated event'i ile otomatik güncelleniyor
                 // Notification listesi zaten updateQueryData ile güncellendi
 
-                Alert.alert("Başarılı", successMessage);
+                Alert.alert(t('common.success'), successMessage);
             } else {
                 // Hata durumunda optimistic update'i geri al
                 patchResult.undo();
-                Alert.alert("Hata", result.message || "İşlem başarısız.");
+                Alert.alert(t('common.error'), result.message || t('common.operationFailed'));
             }
         } catch (error: any) {
             // Hata durumunda optimistic update'i geri al
             patchResult.undo();
-            Alert.alert("Hata", error?.data?.message || error?.message || "İşlem başarısız.");
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('common.operationFailed'));
         }
     }, [userType, storeDecision, freeBarberDecision, customerDecision, dispatch]);
 
     const handleDelete = useCallback(async (notification: NotificationDto) => {
         Alert.alert(
-            "Bildirimi Sil",
-            "Bu bildirimi silmek istediğinize emin misiniz?",
+            t('notification.deleteNotification'),
+            t('notification.deleteNotificationConfirm'),
             [
-                { text: "İptal", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                    text: "Sil",
+                    text: t('common.delete'),
                     style: "destructive",
                     onPress: async () => {
                         try {
                             await deleteNotification(notification.id).unwrap();
                             if (onDeleteSuccess) {
-                                onDeleteSuccess("Bildirim başarıyla silindi.");
+                                onDeleteSuccess(t('notification.notificationDeleted'));
                             }
                         } catch (error: any) {
-                            const errorMessage = error?.data?.message || error?.message || "Bildirim silinemedi.";
+                            const errorMessage = error?.data?.message || error?.message || t('notification.notificationDeleteFailed');
                             if (onDeleteError) {
                                 onDeleteError(errorMessage);
                             } else {
-                                Alert.alert("Hata", errorMessage);
+                                Alert.alert(t('common.error'), errorMessage);
                             }
                         }
                     },
@@ -217,25 +219,25 @@ export function NotificationsSheet({
 
     const handleDeleteAll = useCallback(async () => {
         Alert.alert(
-            "Tüm Bildirimleri Sil",
-            "Silinebilir tüm bildirimleri silmek istediğinize emin misiniz?",
+            t('notification.deleteAllNotifications'),
+            t('notification.deleteAllNotificationsConfirm'),
             [
-                { text: "İptal", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                    text: "Sil",
+                    text: t('common.delete'),
                     style: "destructive",
                     onPress: async () => {
                         try {
                             await deleteAllNotifications().unwrap();
                             if (onDeleteSuccess) {
-                                onDeleteSuccess("Bildirimler başarıyla silindi.");
+                                onDeleteSuccess(t('notification.notificationsDeleted'));
                             }
                         } catch (error: any) {
-                            const errorMessage = error?.data?.message || error?.message || "Bildirimler silinemedi.";
+                            const errorMessage = error?.data?.message || error?.message || t('notification.notificationsDeleteFailed');
                             if (onDeleteError) {
                                 onDeleteError(errorMessage);
                             } else {
-                                Alert.alert("Hata", errorMessage);
+                                Alert.alert(t('common.error'), errorMessage);
                             }
                         }
                     },

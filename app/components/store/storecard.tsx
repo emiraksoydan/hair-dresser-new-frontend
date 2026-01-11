@@ -8,6 +8,7 @@ import { BarberType, BarberStoreGetDto, PricingType } from '../../types';
 import { useToggleFavoriteMutation } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
+import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
     store: BarberStoreGetDto;
@@ -27,6 +28,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
     const coverImage = store.imageList?.[0]?.imageUrl;
     const carouselWidth = Math.max(0, cardWidthStore);
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [isFavorite, setIsFavorite] = useState(store.isFavorited ?? false);
     const [favoriteCount, setFavoriteCount] = useState(store.favoriteCount || 0);
@@ -47,7 +49,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
-            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
+            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
             return;
         }
 
@@ -58,9 +60,9 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
             }).unwrap();
             // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
         } catch (error: any) {
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
-    }, [isAuthenticated, store.id, toggleFavorite]);
+    }, [isAuthenticated, store.id, toggleFavorite, t]);
 
     return (
         <View
@@ -71,7 +73,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
                         <View className={store.isOpenNow ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                            <Text className="text-white text-sm font-ibm-plex-sans-medium">
+                            <Text className="text-white text-sm font-century-gothic-sans-medium">
                                 {store.isOpenNow ? 'Açık' : 'Kapalı'}
                             </Text>
                         </View>
@@ -102,13 +104,13 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                             size={14}
                                         />
 
-                                        <Text className="text-white text-base font-ibm-plex-sans-medium ml-1">
+                                        <Text className="text-white text-base font-century-gothic-sans-medium ml-1">
                                             {store.type === BarberType.MaleHairdresser ? 'Erkek Berber' : store.type === BarberType.FemaleHairdresser ? 'Kadın Kuaför' : 'Güzellik Salonu'}
                                         </Text>
 
                                     </View>
                                     <View className={store.isOpenNow ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                                        <Text className={'text-white font-ibm-plex-sans-medium text-base'}>
+                                        <Text className={'text-white font-century-gothic-sans-medium text-base'}>
                                             {store.isOpenNow ? 'Açık' : 'Kapalı'}
                                         </Text>
                                     </View>
@@ -127,7 +129,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                 <Text
                                     numberOfLines={1}
                                     ellipsizeMode={'tail'}
-                                    className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                    className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                                     style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                                 >
                                     {store.storeName}
@@ -165,7 +167,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                         disabled={isTogglingFavorite}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
+                                        className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
                                             }`}
                                     >
                                         ({favoriteCount})
@@ -188,7 +190,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                                         source={isFavorite ? "heart" : "heart-outline"}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
+                                        className={`text-white font-century-gothic-sans-regular text-xs pb-1`}
                                     >
                                         ({favoriteCount})
                                     </Text>

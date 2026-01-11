@@ -8,6 +8,7 @@ import { BarberType, BarberStoreMineDto, FreeBarberPanelDto } from '../../types'
 import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
+import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
     freeBarber: FreeBarberPanelDto;
@@ -25,6 +26,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
     const imageWidth = isList ? carouselWidth : 112;
     const imageHeight = isList ? 320 : 112;
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData } = useIsFavoriteQuery(freeBarber.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
@@ -49,7 +51,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
-            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
+            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
             return;
         }
 
@@ -80,7 +82,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
             setFavoriteCount(previousCount);
             // Hata durumunda sadece alert göster
             // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
     }, [isAuthenticated, freeBarber.id, toggleFavorite, isFavorite, favoriteCount]);
 
@@ -110,13 +112,13 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                 size={isList ? 14 : 12}
                             />
                             {isList && (
-                                <Text className="text-white text-base font-ibm-plex-sans-medium ml-1">
+                                <Text className="text-white text-base font-century-gothic-sans-medium ml-1">
                                     {freeBarber.type === BarberType.MaleHairdresser ? 'Erkek' : 'Kadın'}
                                 </Text>
                             )}
                         </View>
                         <View className={`${freeBarber.isAvailable ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                            <Text className={`text-white font-ibm-plex-sans-medium ${isList ? 'text-base' : 'text-xs'}`}>
+                            <Text className={`text-white font-century-gothic-sans-medium ${isList ? 'text-base' : 'text-xs'}`}>
                                 {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
                             </Text>
                         </View>
@@ -131,7 +133,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                             <Text
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
-                                className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                             >
                                 {freeBarber.fullName}
                             </Text>
@@ -167,7 +169,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                     disabled={isTogglingFavorite}
                                 />
                                 <Text
-                                    className={`text-white font-ibm-plex-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
+                                    className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
                                         }`}
                                 >
                                     ({favoriteCount})
@@ -189,7 +191,7 @@ const FreeBarberMineCard: React.FC<Props> = ({ freeBarber, isList, expanded, car
                                     source={isFavorite ? "heart" : "heart-outline"}
                                 />
                                 <Text
-                                    className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
+                                    className={`text-white font-century-gothic-sans-regular text-xs pb-1`}
                                 >
                                     ({favoriteCount})
                                 </Text>

@@ -19,12 +19,14 @@ import { resolveApiErrorMessage } from '../../utils/common/error';
 import FormStoreUpdate from '../store/formstoreupdate';
 import { FormFreeBarberOperation } from '../freebarber/formfreebarberoper';
 import { SkeletonComponent } from '../common/skeleton';
+import { useLanguage } from '../../hook/useLanguage';
 
 type FavoritesListProps = {
     mode?: 'store' | 'customer' | 'freebarber';
 };
 
 const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
+    const { t } = useLanguage();
     const { data: favorites, isLoading, refetch, isFetching, error, isError } = useGetMyFavoritesQuery();
     const { data: currentUser } = useGetMeQuery();
     // Favoriler listesinde hem store hem freeBarber olabileceği için her zaman query'leri çalıştır
@@ -131,17 +133,17 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const getTargetTypeLabel = useCallback((targetType: FavoriteTargetType) => {
         switch (targetType) {
             case FavoriteTargetType.Store:
-                return 'Dükkan';
+                return t('favorites.store');
             case FavoriteTargetType.FreeBarber:
-                return 'Serbest Berber';
+                return t('favorites.freeBarber');
             case FavoriteTargetType.Customer:
-                return 'Müşteri';
+                return t('favorites.customer');
             case FavoriteTargetType.ManuelBarber:
-                return 'Manuel Berber';
+                return t('favorites.manuelBarber');
             default:
-                return 'Bilinmeyen';
+                return t('favorites.unknown');
         }
-    }, []);
+    }, [t]);
 
     // Tip rengi için fonksiyon
     const getTargetTypeColor = useCallback((targetType: FavoriteTargetType) => {
@@ -271,10 +273,10 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                     <View className="items-center justify-center mt-20 p-5">
                         <Icon source="heart-outline" size={48} color="#2a2c30" />
                         <Text className="text-[#6b7280] mt-4 text-center">
-                            Henüz favori eklemediniz.
+                            {t('empty.noFavoritesAdded')}
                         </Text>
                         <Text className="text-[#6b7280] mt-2 text-center text-sm">
-                            Beğendiğiniz dükkanları ve berberleri favorilerinize ekleyebilirsiniz.
+                            {t('empty.noFavoritesDescription')}
                         </Text>
                     </View>
                 }

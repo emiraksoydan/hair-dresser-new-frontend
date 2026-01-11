@@ -8,8 +8,9 @@ import React, { useEffect, useState } from 'react'
 import { useFonts } from 'expo-font';
 import '../global.css';
 import { Provider as ReduxProvider } from 'react-redux';
-import { Provider as PaperProvider } from "react-native-paper";
+import { Provider as PaperProvider, DefaultTheme, configureFonts } from "react-native-paper";
 import { store } from './store/redux-store';
+import { Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { rehydrateTokens } from './store/baseQuery';
 import { Stack, Tabs, Link } from 'expo-router';
@@ -24,6 +25,8 @@ import { useFcmToken } from './hook/useFcmToken';
 import { GlobalSnackbar } from './hook/useSnackbar';
 // Background location task'ı kaydet (Expo Go'da çalışmaz)
 import './tasks/backgroundLocation';
+// i18n initialization
+import './i18n/config';
 
 
 SplashScreen.preventAutoHideAsync();
@@ -58,11 +61,30 @@ const RootLayout = () => {
 
   if (!ready || !fontsLoaded) return null;
 
+  // Century Gothic fontunu tüm Paper component'lerinde kullan
+  const centuryGothicFont = Platform.select({
+    ios: 'CenturyGothic',
+    android: 'CenturyGothic',
+    default: 'CenturyGothic',
+  }) || 'CenturyGothic';
+
+  const fontConfig = configureFonts({
+    config: {
+      // Tüm font variant'larına Century Gothic uygula
+      fontFamily: centuryGothicFont,
+    },
+  });
+
+  const paperTheme = {
+    ...DefaultTheme,
+    fonts: fontConfig,
+  };
+
   return (
     <ErrorBoundary>
       <ReduxProvider store={store}>
         <GestureHandlerRootView className="flex flex-1">
-          <PaperProvider>
+          <PaperProvider theme={paperTheme}>
             <BottomSheetModalProvider>
               <SignalRBootstrap />
               <FcmTokenBootstrap />

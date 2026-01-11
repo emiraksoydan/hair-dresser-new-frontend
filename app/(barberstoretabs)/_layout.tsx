@@ -20,8 +20,10 @@ import { useNotificationSound } from '../hook/useNotificationSound';
 import { useGetHelpGuideByUserTypeQuery } from '../store/api';
 import { UserType } from '../types';
 import { useMemo } from 'react';
+import { useLanguage } from '../hook/useLanguage';
 
 const BarberStoreLayout = () => {
+    const { t } = useLanguage();
     const { userName, userType } = useAuth();
     const [infoModalVisible, setInfoModalVisible] = useState(false);
     const dispatch = useAppDispatch();
@@ -85,7 +87,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg  text-white mr-0' >
-                                {userName ? `Hoşgeldiniz ${userName}` : 'Hoşgeldiniz'}
+                                {userName ? t('navigation.welcomeWithName', { name: userName }) : t('navigation.welcome')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -100,7 +102,7 @@ const BarberStoreLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
                             >
-                                Dükkanlar
+                                {t('navigation.shops')}
                             </Text>
                         ),
                         headerTitleAlign: 'left',
@@ -118,17 +120,17 @@ const BarberStoreLayout = () => {
                                     items={[
                                         {
                                             icon: 'plus',
-                                            label: 'Dükkan Ekle',
+                                            label: t('navigation.addStore'),
                                             onPress: () => addStoreSheet.present(),
                                         },
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -148,7 +150,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Randevularım
+                                {t('navigation.myAppointments')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -163,7 +165,7 @@ const BarberStoreLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
                             >
-                                Randevular
+                                {t('navigation.appointments')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -181,17 +183,17 @@ const BarberStoreLayout = () => {
                                     items={[
                                         {
                                             icon: 'plus',
-                                            label: 'Dükkan Ekle',
+                                            label: t('navigation.addStore'),
                                             onPress: () => addStoreSheet.present(),
                                         },
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -210,7 +212,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Mesajlarım
+                                {t('navigation.myMessages')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -226,7 +228,7 @@ const BarberStoreLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
                             >
-                                Mesajlar
+                                {t('navigation.messages')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -244,17 +246,17 @@ const BarberStoreLayout = () => {
                                     items={[
                                         {
                                             icon: 'plus',
-                                            label: 'Dükkan Ekle',
+                                            label: t('navigation.addStore'),
                                             onPress: () => addStoreSheet.present(),
                                         },
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -273,7 +275,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Favorilerim
+                                {t('navigation.myFavorites')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -288,7 +290,7 @@ const BarberStoreLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
                             >
-                                Favoriler
+                                {t('navigation.favorites')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -306,17 +308,17 @@ const BarberStoreLayout = () => {
                                     items={[
                                         {
                                             icon: 'plus',
-                                            label: 'Dükkan Ekle',
+                                            label: t('navigation.addStore'),
                                             onPress: () => addStoreSheet.present(),
                                         },
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -335,7 +337,7 @@ const BarberStoreLayout = () => {
                         headerShown: true,
                         headerTitle: () => (
                             <Text className='text-lg text-white mr-0' >
-                                Profilim
+                                {t('profile.myProfile')}
                             </Text>
                         ),
                         tabBarIcon: ({ focused }) => (
@@ -350,7 +352,7 @@ const BarberStoreLayout = () => {
                             <Text
                                 className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
                             >
-                                Profil
+                                {t('navigation.profile')}
                             </Text>
                         ),
                         headerTitleAlign: 'center',
@@ -368,17 +370,17 @@ const BarberStoreLayout = () => {
                                     items={[
                                         {
                                             icon: 'plus',
-                                            label: 'Dükkan Ekle',
+                                            label: t('navigation.addStore'),
                                             onPress: () => addStoreSheet.present(),
                                         },
                                         {
                                             icon: 'information-outline',
-                                            label: 'Bilgi',
+                                            label: t('navigation.info'),
                                             onPress: () => setInfoModalVisible(true),
                                         },
                                         {
                                             icon: 'shopping-outline',
-                                            label: 'Alışveriş',
+                                            label: t('navigation.shopping'),
                                             onPress: () => { },
                                         },
                                     ]}
@@ -439,7 +441,7 @@ const BarberStoreLayout = () => {
             <InfoModal
                 visible={infoModalVisible}
                 onClose={() => setInfoModalVisible(false)}
-                title="Kullanım Bilgileri"
+                title={t('navigation.usageInfo')}
                 items={infoItems}
             />
         </>

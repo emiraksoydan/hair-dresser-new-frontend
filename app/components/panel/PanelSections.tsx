@@ -11,7 +11,7 @@ import { resolveApiErrorMessage } from '../../utils/common/error';
 
 export const SectionHeader = ({ title, expanded, onToggle }: any) => (
     <View className="flex flex-row justify-between items-center mt-4">
-        <Text className="font-ibm-plex-sans-regular text-xl text-white">{title}</Text>
+        <Text className="font-century-gothic-sans-regular text-xl text-white">{title}</Text>
         <MotiViewExpand expanded={expanded} onPress={onToggle} />
     </View>
 );

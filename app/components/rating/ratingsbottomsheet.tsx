@@ -98,7 +98,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                     {/* Kullanıcı bilgileri ve tarih */}
                     <View className="flex-1 mr-2">
                         <View className="flex-row items-center gap-2 flex-wrap mb-1">
-                            <Text className="text-white font-ibm-plex-sans-bold text-base" numberOfLines={1}>
+                            <Text className="text-white font-century-gothic-bold text-base" numberOfLines={1}>
                                 {displayName}
                             </Text>
                             {/* UserType badge - backend'den gelen veri */}
@@ -127,7 +127,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
 
                         {item.comment && (
                             <View className="mt-2">
-                                <Text className="text-white text-sm font-ibm-plex-sans-regular leading-5">
+                                <Text className="text-white text-sm font-century-gothic leading-5">
                                     {item.comment}
                                 </Text>
                             </View>
@@ -158,7 +158,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
         <BottomSheetView className="flex-1 bg-[#151618]">
             {/* Header */}
             <View className="px-4 pt-4 pb-3">
-                <Text className="text-white font-ibm-plex-sans-bold text-xl mb-4">
+                <Text className="text-white font-century-gothic-bold text-xl mb-4">
                     Yorumlar
                 </Text>
 

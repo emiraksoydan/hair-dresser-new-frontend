@@ -420,7 +420,7 @@ const Index = () => {
                         if (item.type === 'stores-header') {
                             return (
                                 <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">İşletmelerim</Text>
+                                    <Text className="font-century-gothic text-xl text-white">İşletmelerim</Text>
                                     {hasStores && <MotiViewExpand expanded={expandedStores} onPress={() => toggleExpand(expandedStores, setExpandedStores)} />}
                                 </View>
                             );
@@ -508,7 +508,7 @@ const Index = () => {
                         if (item.type === 'freebarbers-header') {
                             return (
                                 <View className="flex flex-row justify-between items-center mt-4">
-                                    <Text className="font-ibm-plex-sans-regular text-xl text-white">Serbest Berberler</Text>
+                                    <Text className="font-century-gothic text-xl text-white">Serbest Berberler</Text>
                                     {hasFreeBarbers && (
                                         <MotiViewExpand expanded={expandedFreeBarbers} onPress={() => toggleExpand(expandedFreeBarbers, setExpandedFreeBarbers)} />
                                     )}

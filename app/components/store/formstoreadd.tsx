@@ -34,85 +34,86 @@ import { ChairItem } from './ChairItem';
 import { ManuelBarberItem } from './ManuelBarberItem';
 import { useOptimizedChairOptions } from '../../hooks/useOptimizedFieldArray';
 import { useAuth } from '../../hook/useAuth';
+import { useLanguage } from '../../hook/useLanguage';
 import { MESSAGES } from '../../constants/messages';
 import { ensureLocationGateWithUI } from '../location/location-gate';
 import { LocationStatus } from '../../types';
 
 
-const ChairPricingSchema = z.object({
+const createChairPricingSchema = (t: (key: string) => string) => z.object({
     mode: z.enum(["rent", "percent"]),
     rent: z.string().optional().nullable(),
     percent: z.coerce.number().optional().nullable()
 }).superRefine((val, ctx) => {
     if (val.mode === "rent") {
-        // Rent modunda sadece rent validasyonu
         if (!val.rent || val.rent.trim() === '') {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı gerekli" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: t('form.rentPriceRequired') });
             return;
         }
         if (!trMoneyRegex.test(val.rent)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Lütfen fiyatı türkiye standartlarında girin" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: t('form.priceFormatInvalid') });
             return;
         }
         const n = parseTR(val.rent);
         if (n == undefined || n <= 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: "Saatlik kira fiyatı pozitif olmalı" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rent"], message: t('form.rentPricePositive') });
         }
     }
     else if (val.mode === "percent") {
-        // Percent modunda sadece percent validasyonu
         if (val.percent == null || val.percent === undefined) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Yüzde oranı gerekli" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: t('form.percentRequired') });
             return;
         }
         if (!Number.isInteger(val.percent)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "Tam sayı olmalı" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: t('form.percentInteger') });
             return;
         }
         if (val.percent < 10) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En az %10" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: t('form.percentMin') });
             return;
         }
         if (val.percent > 90) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "En fazla %90" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: t('form.percentMax') });
             return;
         }
         if (val.percent % 10 !== 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: "10'un katı olmalı" });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percent"], message: t('form.percentMultipleOf10') });
         }
     }
 });
-const LocationSchema = z.object({
+
+const createLocationSchema = (t: (key: string) => string) => z.object({
     latitude: z.number(),
     longitude: z.number(),
-    addressDescription: z.string({ required_error: 'Lütfen adres açıklamasını giriniz' }).min(1, "En az 1 karakter girin "),
+    addressDescription: z.string({ required_error: t('form.addressRequired') }).min(1, t('form.addressMinLength')),
 }).superRefine((v, ctx) => {
     if (v.latitude == null || v.longitude == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["latitude"], message: "Konum seçmelisiniz" });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["latitude"], message: t('form.locationRequired') });
         return;
     }
 });
-const WorkingDaySchema = z.object({
+
+const createWorkingDaySchema = (t: (key: string) => string) => z.object({
     dayOfWeek: z.number().int().min(0).max(6),
     isClosed: z.boolean(),
     startTime: z.string().regex(timeHHmmRegex, "HH:mm"),
     endTime: z.string().regex(timeHHmmRegex, "HH:mm"),
 }).superRefine((v, ctx) => {
     if (v.isClosed) return;
-    if (!v.startTime) { ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Başlangıç saati gerekli' }); return; }
-    if (!v.endTime) { ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Bitiş saati gerekli' }); return; }
+    if (!v.startTime) { ctx.addIssue({ code: 'custom', path: ['startTime'], message: t('form.startTimeRequired') }); return; }
+    if (!v.endTime) { ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.endTimeRequired') }); return; }
     if (v.startTime === "00:00") {
-        ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Başlangıç 00:00 olamaz' });
+        ctx.addIssue({ code: 'custom', path: ['startTime'], message: t('form.startTimeNotZero') });
     }
     const s = toMinutes(v.startTime);
     const e = toMinutes(v.endTime);
     if (s >= e) {
-        ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Bitiş, başlangıçtan büyük olmalı' });
+        ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.endTimeGreater') });
         return;
     }
     const diffMin = e - s;
-    if (diffMin < 360) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Çalışma süresi en az 6 saat olmalı' });
-    if (diffMin > 1080) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Çalışma süresi en fazla 18 saat olmalı' });
+    if (diffMin < 360) ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.workDurationMin') });
+    if (diffMin > 1080) ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.workDurationMax') });
 });
 
 const ImageAssetSchema = z.object({
@@ -121,24 +122,26 @@ const ImageAssetSchema = z.object({
     type: z.string().optional(),
 });
 
-const TaxDocumentImageField = z
+const createTaxDocumentImageField = (t: (key: string) => string) => z
     .custom<{ uri: string; name: string; type?: string }>(
         (v) =>
             !!v &&
             typeof v === "object" &&
             "uri" in (v as any) && (v as any).uri,
-        { message: "Lütfen vergi levhası resmi seçiniz." }
+        { message: t('form.taxDocumentRequired') }
     )
     .pipe(ImageAssetSchema);
-const BarberSchema = z.object({
+
+const createBarberSchema = (t: (key: string) => string) => z.object({
     id: z.string(),
-    name: z.string().trim().min(1, "Berber adı gerekli"),
+    name: z.string().trim().min(1, t('form.barberNameRequired')),
     avatar: z
         .object({ uri: z.string(), name: z.string(), type: z.string().optional() })
         .nullable()
         .optional(),
 });
-const ChairSchema = z
+
+const createChairSchema = (t: (key: string) => string) => z
     .object({
         id: z.string(),
         mode: z.enum(["named", "barber"]),
@@ -148,16 +151,16 @@ const ChairSchema = z
     .superRefine((v, ctx) => {
         if (v.mode === "named") {
             if (!v.name || !v.name.trim()) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Koltuk için isim gerekli" });
+                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: t('form.chairNameRequired') });
             }
         } else {
             if (!v.barberId) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["barberId"], message: "Berber seçiniz" });
+                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["barberId"], message: t('form.barberSelectionRequired') });
             }
         }
     });
 
-const schema = z.object({
+const createSchema = (t: (key: string) => string) => z.object({
     storeImages: z
         .array(
             z.object({
@@ -166,29 +169,28 @@ const schema = z.object({
                 type: z.string().min(1),
             })
         )
-        .max(3, "En fazla 3 resim ekleyebilirsiniz")
+        .max(3, t('form.maxImages'))
         .optional(),
-    storeName: z.string({ required_error: 'İşletme adı zorunlu' }).trim(),
-    type: z.string({ required_error: 'İşletme türü zorunlu' }),
-    selectedCategories: z.array(z.string()).min(1, 'En az bir hizmet seçiniz'),
+    storeName: z.string({ required_error: t('form.storeNameRequired') }).trim(),
+    type: z.string({ required_error: t('form.storeTypeRequired') }),
+    selectedCategories: z.array(z.string()).min(1, t('form.atLeastOneService')),
     prices: z.record(
         z.string(),
-        z.string({ required_error: 'Fiyat zorunlu' }).min(1, 'Fiyat zorunlu').regex(trMoneyRegex, 'Lütfen fiyatı türkiye standartlarında girin')
+        z.string({ required_error: t('form.priceRequired') }).min(1, t('form.priceRequired')).regex(trMoneyRegex, t('form.priceFormatInvalid'))
     ),
-    pricingType: ChairPricingSchema,
-    workingHours: z.array(WorkingDaySchema).length(7, "7 gün olmalı"),
+    pricingType: createChairPricingSchema(t),
+    workingHours: z.array(createWorkingDaySchema(t)).length(7, t('form.sevenDaysRequired')),
     holidayDays: z.array(z.number().int().min(0).max(6)).default([]),
-    location: LocationSchema,
-    taxDocumentImage: TaxDocumentImageField,
+    location: createLocationSchema(t),
+    taxDocumentImage: createTaxDocumentImageField(t),
+});
 
-})
-
-export const fullSchema = schema.extend({
-    barbers: z.array(BarberSchema).default([]),
-    chairs: z.array(ChairSchema).default([]),
+const createFullSchema = (t: (key: string) => string) => createSchema(t).extend({
+    barbers: z.array(createBarberSchema(t)).default([]),
+    chairs: z.array(createChairSchema(t)).default([]),
 }).superRefine((data, ctx) => {
-    const barbers = (data.barbers ?? []) as Array<z.infer<typeof BarberSchema>>;
-    const chairs = (data.chairs ?? []) as Array<z.infer<typeof ChairSchema>>;
+    const barbers = (data.barbers ?? []) as Array<z.infer<ReturnType<typeof createBarberSchema>>>;
+    const chairs = (data.chairs ?? []) as Array<z.infer<ReturnType<typeof createChairSchema>>>;
     const norm = (s?: string) => (s ?? "").trim().toLowerCase();
     const nameToIdxs = new Map<string, number[]>();
     barbers.forEach((b, i) => {
@@ -202,7 +204,7 @@ export const fullSchema = schema.extend({
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ["barbers", i, "name"],
-                    message: "Aynı isimde başka bir berber var",
+                    message: t('form.duplicateBarberName'),
                 })
             );
         }
@@ -219,31 +221,30 @@ export const fullSchema = schema.extend({
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ["chairs", i, "barberId"],
-                    message: "Bu berber başka koltuğa da atanmış",
+                    message: t('form.barberAssignedToAnotherChair'),
                 })
             );
         }
     }
-    // Berberlerin toplamı 30'u geçmemeli
     const validBarbersCount = barbers.filter(b => !!b.name?.trim()).length;
     if (validBarbersCount > 30) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["barbers"],
-            message: `Berber sayısı 30'u geçemez. Mevcut sayı: ${validBarbersCount}`,
+            message: t('form.maxBarbers').replace('{{count}}', validBarbersCount.toString()),
         });
     }
-    // Koltukların toplamı 30'u geçmemeli
     const validChairsCount = chairs.length;
     if (validChairsCount > 30) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["chairs"],
-            message: `Koltuk sayısı 30'u geçemez. Mevcut sayı: ${validChairsCount}`,
+            message: t('form.maxChairs').replace('{{count}}', validChairsCount.toString()),
         });
     }
 });
-export type FormValues = z.input<typeof fullSchema>;
+
+export type FormValues = z.input<ReturnType<typeof createFullSchema>>;
 type Props = {
     onClose?: () => void;
     error?: any; // API error durumu (optional, component içinde de kontrol edilir)
@@ -251,6 +252,8 @@ type Props = {
 };
 const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationStatus }: Props) => {
     const { userId } = useAuth();
+    const { t } = useLanguage();
+    const fullSchema = useMemo(() => createFullSchema(t), [t]);
     const [locationStatus, setLocationStatus] = useState<LocationStatus>(propLocationStatus || 'unknown');
     
     // Location status kontrolü (component içinde)
@@ -685,7 +688,7 @@ const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationS
     return (
         <View className='h-full'>
             <View className='flex-row justify-between items-center px-4'>
-                <Text className="text-white flex-1 font-ibm-plex-sans-regular text-2xl">İşletme Ekle</Text>
+                <Text className="text-white flex-1 font-century-gothic text-2xl">İşletme Ekle</Text>
                 <IconButton onPress={onClose} icon="close" iconColor="white" />
             </View>
             <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
@@ -1021,7 +1024,7 @@ const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationS
                         </View>
                     )}
 
-                    <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 mt-4 pb-2 text-xl">Koltuk Fiyatları Belirle</Text>
+                    <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">Koltuk Fiyatları Belirle</Text>
                     <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
                         <Controller
                             control={control}
@@ -1136,9 +1139,9 @@ const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationS
                             />
                         )}
                     </View>
-                    <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Çalışma Zamanını Belirle</Text>
+                    <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Çalışma Zamanını Belirle</Text>
                     <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
-                        <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek 8:00-9:00 , 10:00-11:00 gibi</Text>
+                        <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek 8:00-9:00 , 10:00-11:00 gibi</Text>
                         <View className="mt-2 px-0">
                             <View className="flex-row  gap-2">
                                 {DAYS_TR.map((d) => {
@@ -1264,9 +1267,9 @@ const FormStoreAdd = ({ onClose, error: propError, locationStatus: propLocationS
                             />
                         </View>
                     </View>
-                    <Text className="text-white font-ibm-plex-sans-regular ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
+                    <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
                     <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
-                        <Text className="text-[#c2a523] font-ibm-plex-sans-regular ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
+                        <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
                         <Button mode='contained-tonal' icon={'store'} style={{ borderRadius: 12, marginVertical: 10 }} onPress={pickMyCurrentLocation} buttonColor='#10B981' textColor='white'>İşletmenin konumunu al</Button>
                         <MapPicker
                             lat={latitude ?? undefined}

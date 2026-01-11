@@ -18,24 +18,28 @@ import { ProfileSkeleton } from '../../components/common/profileskeleton';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { LottieViewComponent } from '../../components/common/lottieview';
 import { MESSAGES } from '../../constants/messages';
+import { useLanguage } from '../../hook/useLanguage';
+import { LanguageSelector } from '../../components/common/LanguageSelector';
 
-const profileSchema = z.object({
-    firstName: z.string()
-        .min(2, "İsim en az 2 karakter olmalıdır")
-        .max(20, "İsim en fazla 20 karakter olabilir")
-        .regex(/^[^\s]+$/, "İsim boşluk içeremez"),
-    lastName: z.string()
-        .min(2, "Soyisim en az 2 karakter olmalıdır")
-        .max(20, "Soyisim en fazla 20 karakter olabilir")
-        .regex(/^[^\s]+$/, "Soyisim boşluk içeremez"),
-    phoneNumber: z.string()
-        .min(1, "Telefon numarası gereklidir")
-        .refine((val) => val.length === 10 || val.startsWith('+90'), "Telefon numarası 10 haneli olmalıdır veya +90 ile başlamalıdır"),
+const createProfileSchema = (t: (key: string) => string) => z.object({
+    firstName: z.string({ required_error: t('auth.firstName') + ' ' + t('common.required') })
+        .min(2, { message: t('auth.firstName') + ' ' + t('common.minLength').replace('{{min}}', '2') })
+        .max(20, { message: t('auth.firstName') + ' ' + t('common.maxLength').replace('{{max}}', '20') })
+        .regex(/^[^\s]+$/, { message: t('auth.firstName') + ' ' + t('common.noSpaces') }),
+    lastName: z.string({ required_error: t('auth.lastName') + ' ' + t('common.required') })
+        .min(2, { message: t('auth.lastName') + ' ' + t('common.minLength').replace('{{min}}', '2') })
+        .max(20, { message: t('auth.lastName') + ' ' + t('common.maxLength').replace('{{max}}', '20') })
+        .regex(/^[^\s]+$/, { message: t('auth.lastName') + ' ' + t('common.noSpaces') }),
+    phoneNumber: z.string({ required_error: t('auth.phoneNumber') + ' ' + t('common.required') })
+        .min(1, { message: t('auth.phoneNumber') + ' ' + t('common.required') })
+        .refine((val) => val.length === 10 || val.startsWith('+90'), { message: t('auth.phoneNumber') + ' ' + t('common.exactLength').replace('{{length}}', '10') + ' veya +90 ile başlamalıdır' }),
 });
 
-type ProfileFormValues = z.infer<typeof profileSchema>;
+type ProfileFormValues = z.infer<ReturnType<typeof createProfileSchema>>;
 
 const Index = () => {
+    const { t } = useLanguage();
+    const profileSchema = useMemo(() => createProfileSchema(t), [t]);
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
     const { data: userData, isLoading: isLoadingUser, refetch, isFetching, error: userError, isError: isUserError } = useGetMeQuery();
@@ -249,7 +253,7 @@ const Index = () => {
                         onPress={handleImagePick}
                     />
                 </View>
-                <Text className='font-ibm-plex-sans-regular text-center mt-3 text-white' style={{ fontSize: 20 }}>
+                <Text className='font-century-gothic text-center mt-3 text-white' style={{ fontSize: 20 }}>
                     {fullName}
                 </Text>
                 <View className='w-full px-8 pt-6'>
@@ -258,7 +262,16 @@ const Index = () => {
             </View>
 
             <View className='px-6 pt-6'>
-                <Text className='text-white text-lg mb-4 font-ibm-plex-sans-semibold'>Profil Bilgileri</Text>
+                <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.title')}</Text>
+                
+                {/* Language Selector */}
+                <View className='bg-[#1F2937] rounded-xl p-4 mb-4'>
+                    <View className='flex-row items-center justify-between mb-2'>
+                        <Text className='text-white text-base font-century-gothic-bold'>{t('profile.language')}</Text>
+                        <LanguageSelector showLabel={false} />
+                    </View>
+                </View>
+
                 <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
                     <View className='flex-row gap-3'>
                         <View className='flex-1'>
@@ -268,7 +281,7 @@ const Index = () => {
                                 render={({ field: { onChange, onBlur, value } }) => (
                                     <TextInput
                                         dense
-                                        label="İsim"
+                                        label={t('auth.firstName')}
                                         mode="outlined"
                                         value={value}
                                         onChangeText={onChange}
@@ -290,7 +303,7 @@ const Index = () => {
                                 render={({ field: { onChange, onBlur, value } }) => (
                                     <TextInput
                                         dense
-                                        label="Soyisim"
+                                        label={t('auth.lastName')}
                                         mode="outlined"
                                         value={value}
                                         onChangeText={onChange}
@@ -327,7 +340,7 @@ const Index = () => {
                             <>
                                 <TextInput
                                     dense
-                                    label="Telefon (10 haneli)"
+                                    label={t('profile.phonePlaceholder')}
                                     mode="outlined"
                                     value={value}
                                     onChangeText={onChange}
@@ -360,17 +373,17 @@ const Index = () => {
                         buttonColor="#10B981"
                         textColor="white"
                     >
-                        Kaydet
+                        {t('profile.save')}
                     </Button>
                 </View>
 
                 {/* Ayarlar Bölümü */}
-                <Text className='text-white text-lg mb-4 font-ibm-plex-sans-semibold'>Ayarlar</Text>
+                <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.settings')}</Text>
                 <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
                     <View className='flex-row items-center justify-between'>
                         <View className='flex-1 mr-4'>
-                            <Text className='text-white text-base font-medium mb-1'>Görsel Animasyonu</Text>
-                            <Text className='text-gray-400 text-sm'>Panel ve harita görsellerinde animasyon göster/gizle</Text>
+                            <Text className='text-white text-base font-medium mb-1'>{t('profile.imageAnimation')}</Text>
+                            <Text className='text-gray-400 text-sm'>{t('profile.imageAnimationDescription')}</Text>
                         </View>
                         <Switch
                             value={settingData?.data?.showImageAnimation ?? true}
@@ -408,7 +421,7 @@ const Index = () => {
                     textColor="white"
                     className="mb-4"
                 >
-                    Çıkış Yap
+                    {t('profile.logout')}
                 </Button>
             </View>
         </ScrollView>

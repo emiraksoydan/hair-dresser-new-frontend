@@ -68,7 +68,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
         <>
             <View className="flex flex-row justify-between items-center mt-4">
                 <View className='flex-row items-center gap-2'>
-                    <Text className="font-ibm-plex-sans-regular text-xl text-white"> Panelim</Text>
+                    <Text className="font-century-gothic-sans-regular text-xl text-white"> Panelim</Text>
                     {hasMineFreeBarber && isTracking && (
                         <View className={`w-2 h-2 rounded-full ${isUpdating ? 'bg-yellow-400' : 'bg-green-500'}`} />
                     )}

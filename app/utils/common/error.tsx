@@ -1,7 +1,11 @@
-﻿/**
+/**
  * Error handling utilities
  * Provides user-friendly error messages and error type detection
  */
+
+import i18n from '../../i18n/config';
+import { mapBackendMessage, mapBackendResponseMessage, handleBackendError } from '../backendMessageMapper';
+import { mapValidationMessage, handleValidationErrors } from '../validationMessageMapper';
 
 interface ApiError {
     data?: {
@@ -30,13 +34,13 @@ const extractFirstValidationError = (errors: unknown): string | null => {
 
     if (Array.isArray(errors)) {
         // FluentValidation format: [{ field: "...", message: "..." }]
-        const firstErrorWithMessage = errors.find((item) => 
+        const firstErrorWithMessage = errors.find((item) =>
             typeof item === 'object' && item !== null && (item as any).message
         );
         if (firstErrorWithMessage) {
             return (firstErrorWithMessage as any).message;
         }
-        
+
         // String array format
         const firstString = errors.find((item) => typeof item === 'string');
         return firstString ?? null;
@@ -56,16 +60,18 @@ const extractFirstValidationError = (errors: unknown): string | null => {
 };
 /**
  * Extracts error message from various error formats
+ * Now uses backend message mapper for translation
  */
 export const extractErrorMessage = (error: unknown): string => {
+    const t = (key: string) => i18n.t(key);
     // Handle null/undefined
     if (error == null) {
-        return 'İşlem başarısız.';
+        return t('common.operationFailed');
     }
 
-    // Handle string errors
+    // Handle string errors - map to frontend key
     if (typeof error === 'string') {
-        return error;
+        return mapBackendMessage(error);
     }
 
     const e = error as ApiError;
@@ -73,21 +79,24 @@ export const extractErrorMessage = (error: unknown): string => {
     // FluentValidation hatalarını kontrol et (hem array hem object formatında olabilir)
     const validationError = extractFirstValidationError(e?.data?.errors ?? e?.error?.data?.errors);
     if (validationError) {
-        return validationError;
+        // Validation mesajını map et
+        return mapValidationMessage(validationError);
     }
 
     // Backend'den gelen message'ı kontrol et (FluentValidation middleware'den gelen)
     const backendMessage = e?.data?.message ?? e?.error?.data?.message;
     if (backendMessage) {
-        return backendMessage;
+        // Backend mesajını map et
+        return mapBackendMessage(backendMessage);
     }
 
-    return (
-        e?.data?.error ??
-        e?.error?.message ??
-        e?.message ??
-        'İşlem başarısız.'
-    );
+    // Diğer error formatlarını kontrol et
+    const otherError = e?.data?.error ?? e?.error?.message ?? e?.message;
+    if (otherError) {
+        return mapBackendMessage(otherError);
+    }
+
+    return t('common.operationFailed');
 };
 
 /**
@@ -139,41 +148,21 @@ export const isDuplicateSlotError = (error: unknown): boolean => {
 
 /**
  * Gets user-friendly error message
+ * Now uses backend message mapper for automatic translation
  */
 export const getUserFriendlyErrorMessage = (error: unknown): string => {
+    const t = (key: string) => i18n.t(key);
+
     if (isDuplicateSlotError(error)) {
-        return "Bu randevu zamanı başka bir kullanıcı tarafından alındı. Lütfen başka bir saat seçin.";
+        return t('errors.duplicateSlot');
     }
 
+    // extractErrorMessage zaten backend message mapper kullanıyor
+    // Bu yüzden direkt kullanabiliriz
     const message = extractErrorMessage(error);
 
-    // Map common backend error messages to user-friendly Turkish messages
-    const errorMappings: Record<string, string> = {
-        "store not found": "Dükkan bulunamadı.",
-        "chair required": "Koltuk seçimi gereklidir.",
-        "start time end time required": "Başlangıç ve bitiş saati gereklidir.",
-        "location required": "Konum bilgisi gereklidir.",
-        "customer distance exceeded": "Dükkana olan mesafeniz çok uzak. Maksimum mesafe: 1 km.",
-        "freebarber distance exceeded": "Serbest berbere olan mesafeniz çok uzak. Maksimum mesafe: 1 km.",
-        "freebarber store distance exceeded": "Serbest berber ile dükkan arasındaki mesafe çok uzak. Maksimum mesafe: 1 km.",
-        "store freebarber distance exceeded": "Dükkan ile serbest berber arasındaki mesafe çok uzak. Maksimum mesafe: 1 km.",
-        "customer has active appointment": "Zaten aktif bir randevunuz var. Yeni randevu almak için mevcut randevunuzu tamamlamanız veya iptal etmeniz gerekir.",
-        "freebarber has active appointment": "Serbest berberin zaten aktif bir randevusu var.",
-        "store has active call": "Dükkanın zaten aktif bir çağrısı var.",
-        "store closed": "Dükkan bu saatlerde kapalı.",
-        "store not open": "Dükkan bu saatlerde açık değil.",
-        "appointment slot overlap": "Seçilen saat aralığı başka bir randevu ile çakışıyor.",
-        "appointment slot taken": "Bu randevu zamanı daha önce alınmış.",
-        "freebarber not available": "Serbest berber şu anda müsait değil.",
-    };
-
-    const lowerMessage = message.toLowerCase();
-    for (const [key, value] of Object.entries(errorMappings)) {
-        if (lowerMessage.includes(key)) {
-            return value;
-        }
-    }
-
+    // Eğer mesaj hala backend formatındaysa (mapping bulunamadıysa)
+    // Orijinal mesajı döndür (genellikle Türkçe olur)
     return message;
 };
 

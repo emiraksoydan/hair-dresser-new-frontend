@@ -8,6 +8,7 @@ import { BarberType, BarberStoreMineDto } from '../../types';
 import { useToggleFavoriteMutation, useIsFavoriteQuery, api } from '../../store/api';
 import { useAuth } from '../../hook/useAuth';
 import { ImageCarousel } from '../common/imagecarousel';
+import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
     store: BarberStoreMineDto;
@@ -25,6 +26,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
     const imageWidth = isList ? carouselWidth : 112;
     const imageHeight = isList ? 320 : 112;
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const { data: isFavoriteData } = useIsFavoriteQuery(store.id, { skip: !isAuthenticated });
     const [isFavorite, setIsFavorite] = useState(false);
@@ -48,7 +50,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
 
     const handleToggleFavorite = useCallback(async () => {
         if (!isAuthenticated) {
-            Alert.alert('Uyarı', 'Favori eklemek için giriş yapmanız gerekiyor.');
+            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
             return;
         }
 
@@ -79,7 +81,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
             setFavoriteCount(previousCount);
             // Hata durumunda sadece alert göster
             // State zaten backend'den gelen değerle güncellenecek (invalidateTags sayesinde)
-            Alert.alert('Hata', error?.data?.message || error?.message || 'Favori işlemi başarısız.');
+            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
         }
     }, [isAuthenticated, store.id, toggleFavorite, isFavorite, favoriteCount]);
 
@@ -92,7 +94,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
                         <View className={store.isOpenNow ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                            <Text className="text-white text-sm font-ibm-plex-sans-medium">
+                            <Text className="text-white text-sm font-century-gothic-sans-medium">
                                 {store.isOpenNow ? 'Açık' : 'Kapalı'}
                             </Text>
                         </View>
@@ -120,13 +122,13 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                                             size={14}
                                         />
 
-                                        <Text className="text-white text-base font-ibm-plex-sans-medium ml-1">
+                                        <Text className="text-white text-base font-century-gothic-sans-medium ml-1">
                                             {store.type === BarberType.MaleHairdresser ? 'Erkek' : store.type === BarberType.FemaleHairdresser ? 'Kadın' : 'Güzellik Salonu'}
                                         </Text>
 
                                     </View>
                                     <View className={`${store.isOpenNow ? 'bg-green-600' : 'bg-red-600'} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                        <Text className={`text-white font-ibm-plex-sans-medium text-base`}>
+                                        <Text className={`text-white font-century-gothic-sans-medium text-base`}>
                                             {store.isOpenNow ? 'Açık' : 'Kapalı'}
                                         </Text>
                                     </View>
@@ -145,7 +147,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                                 <Text
                                     numberOfLines={1}
                                     ellipsizeMode={'tail'}
-                                    className="font-ibm-plex-sans-semibold text-xl flex-shrink text-white"
+                                    className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
                                     style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                                 >
                                     {store.storeName}
@@ -183,7 +185,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                                         disabled={isTogglingFavorite}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs pb-2
+                                        className={`text-white font-century-gothic-sans-regular text-xs pb-2
                                             `}
                                     >
                                         ({favoriteCount})
@@ -206,7 +208,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                                         source={isFavorite ? "heart" : "heart-outline"}
                                     />
                                     <Text
-                                        className={`text-white font-ibm-plex-sans-regular text-xs pb-1`}
+                                        className={`text-white font-century-gothic-sans-regular text-xs pb-1`}
                                     >
                                         ({favoriteCount})
                                     </Text>
