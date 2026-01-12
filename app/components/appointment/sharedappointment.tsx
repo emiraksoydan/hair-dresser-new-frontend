@@ -78,8 +78,8 @@ export default function SharedAppointmentScreen() {
     // --- Helper Functions ---
     const formatPricingPolicy = useCallback((pricingType?: number, pricingValue?: number) => {
         if (pricingType === undefined || pricingValue === undefined) return null;
-        if (pricingType === PricingType.Percent) return t('appointment.pricing.percent', { value: pricingValue });
-        if (pricingType === PricingType.Rent) return t('appointment.pricing.rent', { value: pricingValue });
+        if (pricingType === PricingType.Percent) return t('card.pricingPercent', { value: pricingValue });
+        if (pricingType === PricingType.Rent) return t('card.pricingRent', { value: pricingValue });
         return null;
     }, [t]);
 
@@ -378,7 +378,7 @@ export default function SharedAppointmentScreen() {
                                 {passed && isApproved && (
                                     <View className="flex-row items-center ml-2">
                                         <Icon source="alert-circle" size={14} color="#f59e0b" />
-                                        <Text className="text-[#f59e0b] text-xs ml-1">Zaman Geçti</Text>
+                                        <Text className="text-[#f59e0b] text-xs ml-1">{t('appointment.labels.timePassed')}</Text>
                                     </View>
                                 )}
                             </View>
@@ -468,7 +468,7 @@ export default function SharedAppointmentScreen() {
                                                 {item.customerName}
                                             </Text>
                                             {item.customerNumber && (
-                                                <Text className="text-[#6b7280] text-xs">{t('appointment.labels.customerNumber')}: {item.customerNumber}</Text>
+                                                <Text className="text-[#6b7280] text-xs">{t('card.customerNumber')}: {item.customerNumber}</Text>
                                             )}
                                         </View>
                                     </View>
@@ -550,7 +550,7 @@ export default function SharedAppointmentScreen() {
                                                 iconColor="#6b7280"
                                             />
                                             <View className="flex-1">
-                                                <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Berberi</Text>
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.storeBarber')}</Text>
                                                 <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                     {item.manuelBarberName}
                                                 </Text>
@@ -562,7 +562,7 @@ export default function SharedAppointmentScreen() {
                                             myComment={item.myCommentForManuelBarber}
                                             averageRating={item.manuelBarberAverageRating}
                                             canRateNow={canRateTarget(item, 'manuelBarber')}
-                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
+                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || t('favorites.manuelBarber'), 'manuelBarber', item.manuelBarberImage)}
                                         />
                                     </View>
                                 ) : (
@@ -596,7 +596,7 @@ export default function SharedAppointmentScreen() {
                                             iconColor="#6b7280"
                                         />
                                         <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Adı</Text>
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.storeName')}</Text>
                                             <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                 {item.storeName}
                                             </Text>
@@ -626,7 +626,7 @@ export default function SharedAppointmentScreen() {
                                         myComment={item.myCommentForStore}
                                         averageRating={item.storeAverageRating}
                                         canRateNow={canRateTarget(item, 'store')}
-                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
+                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || t('labels.storeDefaultName'), 'store', item.storeImage)}
                                     />
                                 </View>
                             )}
@@ -650,12 +650,12 @@ export default function SharedAppointmentScreen() {
                                             iconColor="#6b7280"
                                         />
                                         <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Müşterisi</Text>
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">{t('card.customerOf')}</Text>
                                             <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                 {item.customerName || t('labels.customerDefaultName')}
                                             </Text>
                                             {item.customerNumber && (
-                                                <Text className="text-[#6b7280] text-xs">Müşteri No: {item.customerNumber}</Text>
+                                                <Text className="text-[#6b7280] text-xs">{t('card.customerNumber')}: {item.customerNumber}</Text>
                                             )}
                                         </View>
                                     </View>
@@ -700,7 +700,7 @@ export default function SharedAppointmentScreen() {
                                             iconColor="#6b7280"
                                         />
                                         <View className="flex-1">
-                                            <Text className="text-[#9ca3af] text-xs mb-0.5">Dükkan Adı</Text>
+                                            <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.storeName')}</Text>
                                             <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                 {item.storeName}
                                             </Text>
@@ -730,7 +730,7 @@ export default function SharedAppointmentScreen() {
                                         myComment={item.myCommentForStore}
                                         averageRating={item.storeAverageRating}
                                         canRateNow={canRateTarget(item, 'store')}
-                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || 'Dükkan', 'store', item.storeImage)}
+                                        onRatePress={() => item.barberStoreId && openRatingSheet(item.id, item.barberStoreId, item.storeName || t('labels.storeDefaultName'), 'store', item.storeImage)}
                                     />
                                 </View>
                             )}
@@ -749,9 +749,9 @@ export default function SharedAppointmentScreen() {
                                                 iconColor="#6b7280"
                                             />
                                             <View className="flex-1">
-                                                <Text className="text-[#9ca3af] text-xs mb-0.5">İşlemi Yapan</Text>
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.serviceProvider')}</Text>
                                                 <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
-                                                    {item.freeBarberName || 'Serbest Berber'}
+                                                    {item.freeBarberName || t('labels.freeBarberDefaultName')}
                                                 </Text>
                                                 <Text className="text-[#9ca3af] text-xs">{t('labels.freeBarberDefaultName')}</Text>
                                             </View>
@@ -791,11 +791,11 @@ export default function SharedAppointmentScreen() {
                                                 iconColor="#6b7280"
                                             />
                                             <View className="flex-1">
-                                                <Text className="text-[#9ca3af] text-xs mb-0.5">İşlemi Yapan</Text>
+                                                <Text className="text-[#9ca3af] text-xs mb-0.5">{t('appointment.labels.serviceProvider')}</Text>
                                                 <Text className="text-white text-sm font-semibold mb-1" numberOfLines={1} ellipsizeMode="tail">
                                                     {item.manuelBarberName}
                                                 </Text>
-                                                <Text className="text-[#9ca3af] text-xs">Dükkan Çalışanı</Text>
+                                                <Text className="text-[#9ca3af] text-xs">{t('appointment.labels.storeEmployee')}</Text>
                                             </View>
                                         </View>
                                         {/* Manuel barber için rating yapılabilir (sadece Customer) */}
@@ -804,7 +804,7 @@ export default function SharedAppointmentScreen() {
                                             myComment={item.myCommentForManuelBarber}
                                             averageRating={item.manuelBarberAverageRating}
                                             canRateNow={canRateTarget(item, 'manuelBarber')}
-                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || 'Manuel Berber', 'manuelBarber', item.manuelBarberImage)}
+                                            onRatePress={() => item.manuelBarberId && openRatingSheet(item.id, item.manuelBarberId, item.manuelBarberName || t('favorites.manuelBarber'), 'manuelBarber', item.manuelBarberImage)}
                                         />
                                     </View>
                                 ) : (
@@ -829,7 +829,7 @@ export default function SharedAppointmentScreen() {
                     <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-3 mb-3">
                         <View className="flex-row items-center mb-1">
                             <Icon source="cash" size={14} color="#f05e23" />
-                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">Fiyatlandırma:</Text>
+                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">{t('card.pricing')}:</Text>
                         </View>
                         <Text className="text-[#d1d5db] text-xs leading-4 ml-5">
                             {formatPricingPolicy(item.pricingType, item.pricingValue)}
@@ -841,7 +841,7 @@ export default function SharedAppointmentScreen() {
                     <View className="mt-0 mb-3">
                         <View className="flex-row items-center mb-1">
                             <Icon source="map-marker" size={14} color="#6b7280" />
-                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">Adres:</Text>
+                            <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">{t('appointment.labels.address')}:</Text>
                         </View>
                         <Text className="text-[#6b7280] text-xs leading-4 ml-5" numberOfLines={2} ellipsizeMode="tail">
                             {item.storeAddressDescription}
@@ -855,7 +855,7 @@ export default function SharedAppointmentScreen() {
                         <View className="flex-row items-center mb-2">
                             <Icon source="scissors-cutting" size={14} color="#6b7280" />
                             <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
-                                {userType === UserType.Customer ? 'İşlemlerim:' : 'Hizmetler:'}
+                                {userType === UserType.Customer ? `${t('appointment.labels.myServices')}:` : `${t('appointment.labels.services')}:`}
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} >
                                 {item.services.map((service) => (
@@ -864,7 +864,7 @@ export default function SharedAppointmentScreen() {
                                             {service.serviceName} :
                                         </Text>
                                         <Text className="text-[#22c55e] text-xs font-semibold">
-                                            ₺{Number(service.price).toFixed(0)}
+                                            {t('card.currencySymbol')}{Number(service.price).toFixed(0)}
                                         </Text>
                                     </View>
                                 ))}

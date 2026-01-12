@@ -1,12 +1,14 @@
 // app/components/customer/customercard.tsx
-import React, { useCallback, useState, useEffect } from 'react';
-import { View, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useCallback } from 'react';
+import { View } from 'react-native';
 import { Text } from '../common/Text';
-import { Icon, IconButton } from 'react-native-paper';
-import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { UserFavoriteDto, FavoriteTargetType } from '../../types';
-import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../../store/api';
-import { useAuth } from '../../hook/useAuth';
+import { useFavoriteToggle } from '../../hook/useFavoriteToggle';
+import { FavoriteButton } from '../common/FavoriteButton';
+import { RatingSection } from '../common/RatingSection';
+import { CardImage } from '../common/CardImage';
+import { CardHeader } from '../common/CardHeader';
+import { TypeLabel } from '../common/TypeLabel';
 import { useLanguage } from '../../hook/useLanguage';
 
 type Props = {
@@ -30,48 +32,22 @@ const CustomerCard: React.FC<Props> = ({
     onPressUpdate,
     onPressRatings
 }) => {
-    const coverImage = customer.imageUrl;
-    const { isAuthenticated } = useAuth();
+    const customerName = `${customer.firstName} ${customer.lastName}`;
     const { t } = useLanguage();
-    const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
-    const { data: isFavoriteData } = useIsFavoriteQuery(customer.id, { skip: !isAuthenticated });
-    const [isFavorite, setIsFavorite] = useState(false);
-    const [favoriteCount, setFavoriteCount] = useState(customer.favoriteCount || 0);
+    const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
+        targetId: customer.id,
+        targetType: FavoriteTargetType.Customer,
+        initialIsFavorite: false,
+        initialFavoriteCount: customer.favoriteCount || 0,
+    });
 
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(customer);
     }, [onPressUpdate, customer]);
 
-    // isFavoriteData değiştiğinde state'i güncelle
-    useEffect(() => {
-        if (isFavoriteData !== undefined) {
-            setIsFavorite(isFavoriteData);
-        }
-    }, [isFavoriteData]);
-
-    // customer.favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        if (customer.favoriteCount !== undefined && customer.favoriteCount !== null) {
-            setFavoriteCount(customer.favoriteCount);
-        }
-    }, [customer.favoriteCount]);
-
-    const handleToggleFavorite = useCallback(async () => {
-        if (!isAuthenticated) {
-            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
-            return;
-        }
-
-        try {
-            await toggleFavorite({
-                targetId: customer.id,
-                targetType: FavoriteTargetType.Customer,
-            }).unwrap();
-            // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
-        } catch (error: any) {
-            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
-        }
-    }, [isAuthenticated, customer.id, toggleFavorite]);
+    const handlePressRatings = useCallback(() => {
+        onPressRatings?.(customer.id, customerName);
+    }, [onPressRatings, customer.id, customerName]);
 
     return (
         <View
@@ -79,96 +55,52 @@ const CustomerCard: React.FC<Props> = ({
             className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'}`}
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
-                <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                    <Image
-                        defaultSource={require('../../../assets/images/empty.png')}
-                        className={`${isList ? 'w-full h-80' : 'h-28 w-28 mr-2'} rounded-lg mb-0`}
-                        source={
-                            coverImage
-                                ? { uri: coverImage }
-                                : require('../../../assets/images/empty.png')
-                        }
-                        resizeMode={'cover'}
+                <View className="relative mr-2">
+                    <CardImage
+                        singleImageUrl={customer.imageUrl}
+                        onPress={handlePressCard}
+                        isList={isList}
+                        width={isList ? cardWidth : 112}
+                        height={isList ? 320 : 112}
                     />
-                    {isList && (
+                    {isList && typeLabel && (
                         <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
-                            {typeLabel && (
-                                <View className={`${typeLabelColor} px-2 py-1 rounded-xl flex-row items-center justify-center`}>
-                                    <Text className="text-white text-base font-century-gothic-sans-medium">
-                                        {typeLabel}
-                                    </Text>
-                                </View>
-                            )}
+                            <TypeLabel label={typeLabel} color={typeLabelColor} />
                         </View>
                     )}
-                </TouchableOpacity>
+                </View>
                 <View className="flex-1 flex-col gap-2">
                     <View
                         className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'}`}
                     >
-                        <View className={`flex-row h-8 flex-1 ${isList ? 'items-center' : ''}`}>
-                            <Text
-                                numberOfLines={1}
-                                ellipsizeMode={'tail'}
-                                style={{ fontSize: 20 }}
-                                className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
-                            >
-                                {customer.firstName} {customer.lastName}
-                            </Text>
-
-                            <IconButton
-                                iconColor="gray"
-                                size={20}
-                                style={{
-                                    marginTop: 0,
-                                    paddingRight: 5,
-                                    paddingTop: isList ? 5 : 0,
-                                    paddingBottom: !isList ? 10 : 0,
-                                    flexShrink: 1,
-                                }}
-                                icon="account"
-                            />
-                        </View>
-
+                        <CardHeader
+                            title={customerName}
+                            isList={isList}
+                            icon="account"
+                        />
                         {isList && (
-                            <View className="flex-row items-center">
-                                <IconButton
-                                    size={25}
-                                    iconColor={isFavorite ? "red" : "gray"}
-                                    icon={isFavorite ? "heart" : "heart-outline"}
-                                    style={{
-                                        marginTop: !isList ? -5 : 0,
-                                        marginRight: !isList ? 0 : -8,
-                                    }}
-                                    onPress={handleToggleFavorite}
-                                    disabled={isTogglingFavorite}
-                                />
-                                <Text
-                                    className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'}`}
-                                >
-                                    ({favoriteCount})
-                                </Text>
-                            </View>
+                            <FavoriteButton
+                                isFavorite={isFavorite}
+                                favoriteCount={favoriteCount}
+                                isLoading={isLoading}
+                                onPress={toggleFavorite}
+                                variant="icon"
+                                className="pb-2"
+                            />
                         )}
                     </View>
 
                     {!isList && (
                         <View className="flex-row justify-between pr-2">
-                            <Text className='text-base text-gray-500'>Müşteri</Text>
-                            <TouchableOpacity
-                                onPress={handleToggleFavorite}
-                                disabled={isTogglingFavorite}
-                                className="flex-row items-center gap-1"
-                            >
-                                <Icon
-                                    size={25}
-                                    color={isFavorite ? "red" : "gray"}
-                                    source={isFavorite ? "heart" : "heart-outline"}
-                                />
-                                <Text className={`text-white font-century-gothic-sans-regular text-xs pb-1`}>
-                                    ({favoriteCount})
-                                </Text>
-                            </TouchableOpacity>
+                            <Text className='text-base text-gray-500'>{t('card.customer')}</Text>
+                            <FavoriteButton
+                                isFavorite={isFavorite}
+                                favoriteCount={favoriteCount}
+                                isLoading={isLoading}
+                                onPress={toggleFavorite}
+                                variant="button"
+                                className="pb-1"
+                            />
                         </View>
                     )}
 
@@ -176,27 +108,12 @@ const CustomerCard: React.FC<Props> = ({
                         className="flex-row justify-between items-center"
                         style={{ marginTop: !isList ? -5 : -10 }}
                     >
-                        <View className="flex-row items-center gap-1">
-                            <StarRatingDisplay
-                                rating={customer.rating || 0}
-                                starSize={15}
-                                starStyle={{ marginHorizontal: 0 }}
-                            />
-                            <Text className="text-white flex-1">{customer.rating?.toFixed(1) || '0.0'}</Text>
-                            {
-                                <TouchableOpacity
-                                    onPress={() => onPressRatings?.(customer.id, `${customer.firstName} ${customer.lastName}`)}
-                                    activeOpacity={0.7}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Text className="text-white underline mr-0 mb-0 text-xs">
-                                        Yorumlar
-                                    </Text>
-                                </TouchableOpacity>
-                            }
-                            <Text className="text-white text-xs">({customer.reviewCount || 0})</Text>
-
-                        </View>
+                        <RatingSection
+                            rating={customer.rating || 0}
+                            reviewCount={customer.reviewCount || 0}
+                            onPressRatings={handlePressRatings}
+                            showReviewsLink={!!onPressRatings}
+                        />
                     </View>
                 </View>
             </View>

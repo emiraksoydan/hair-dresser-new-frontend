@@ -14,6 +14,7 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { FormFreeBarberOperation } from '../../components/freebarber/formfreebarberoper';
 import { resolveApiErrorMessage } from '../../utils/common/error';
 import { StoreCardInner } from '../../components/store/storecard';
+import { useLanguage } from '../../hook/useLanguage';
 import { useNearbyStores } from '../../hook/useNearByStore';
 import { BarberStoreGetDto, AppointmentStatus, StoreSelectionType } from '../../types';
 import { FreeBarberPanelSection } from '../../components/freebarber/freebarberpanelsection';
@@ -34,6 +35,7 @@ import { DeferredRender } from "../../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
 
 const Index = () => {
+    const { t } = useLanguage();
     const router = useRouter();
 
     // Notification'lardan aktif StoreSelection randevusunu otomatik algıla
@@ -471,7 +473,7 @@ const Index = () => {
                                     {isFiltering ? (
                                         <LottieViewComponent
                                             animationSource={require('../../../assets/animations/empty.json')}
-                                            message="Filtreleme kriterlerine uygun sonuç bulunamadı"
+                                            message={t('empty.noResultsFound')}
                                         />
                                     ) : (
                                         <EmptyState

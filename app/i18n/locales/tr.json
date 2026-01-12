@@ -34,7 +34,11 @@
     "myProfile": "Profilim",
     "settings": "Ayarlar",
     "imageAnimation": "Görsel Animasyonu",
-    "imageAnimationDescription": "Panel ve harita görsellerinde animasyon göster/gizle"
+    "imageAnimationDescription": "Panel ve harita görsellerinde animasyon göster/gizle",
+    "photoUpdated": "Profil fotoğrafı güncellendi",
+    "photoUploadFailed": "Fotoğraf yüklenemedi",
+    "photoUploadError": "Fotoğraf yüklenirken hata oluştu",
+    "operationError": "Bir hata oluştu"
   },
   "navigation": {
     "welcome": "Hoşgeldiniz",
@@ -108,19 +112,22 @@
       "yes": "Evet",
       "no": "Hayır"
     },
-    "pricing": {
-      "percent": "Yapılan işlemlerin toplamının %{{value}} alınır",
-      "rent": "Koltuk Kiralama (Saatlik {{value}} TL)"
-    },
     "labels": {
       "customer": "Müşterisi",
-      "customerNumber": "Müşteri No",
       "rentingBarber": "Kiralayan Berber",
       "freeBarber": "Serbest Berber",
       "average": "Ortalama",
       "yourComment": "Sizin yorumunuz",
       "makeComment": "Yorum Yap",
-      "noAppointmentsInCategory": "Bu kategoride randevu bulunamadı."
+      "noAppointmentsInCategory": "Bu kategoride randevu bulunamadı.",
+      "timePassed": "Zaman Geçti",
+      "storeBarber": "Dükkan Berberi",
+      "storeName": "Dükkan Adı",
+      "serviceProvider": "İşlemi Yapan",
+      "storeEmployee": "Dükkan Çalışanı",
+      "address": "Adres",
+      "myServices": "İşlemlerim",
+      "services": "Hizmetler"
     }
   },
   "time": {
@@ -134,14 +141,14 @@
     "noNotifications": "Henüz bildiriminiz bulunmamaktadır.",
     "noFavorites": "Henüz favori listenizde bir şey bulunmamaktadır.",
     "noFavoritesAdded": "Henüz favori eklemediniz.",
-    "noFavoritesDescription": "Beğendiğiniz dükkanları ve berberleri favorilerinize ekleyebilirsiniz."
-  },
-  "favorites": {
-    "store": "Dükkan",
-    "freeBarber": "Serbest Berber",
-    "customer": "Müşteri",
-    "manuelBarber": "Manuel Berber",
-    "unknown": "Bilinmeyen"
+    "noFavoritesDescription": "Beğendiğiniz dükkanları ve berberleri favorilerinize ekleyebilirsiniz.",
+    "noBarbersNearby": "Yakınında şu an listelenecek berber bulunamadı.",
+    "noPanelAdded": "Henüz eklediğiniz panel bulunmuyor.",
+    "noStoresFound": "Filtreleme kriterlerine uygun işletme bulunamadı",
+    "noResultsFound": "Filtreleme kriterlerine uygun sonuç bulunamadı",
+    "noFreeBarbersFound": "Filtreleme kriterlerine uygun serbest berber bulunamadı",
+    "storeNotFound": "İşletme bulunamadı",
+    "freeBarberNotFound": "Serbest berber bulunamadı"
   },
   "filters": {
     "userType": "Kullanıcı Türü",
@@ -157,8 +164,6 @@
     "minimumRating": "Minimum Puan",
     "favoriteFilter": "Favori Filtresi",
     "all": "Hepsi",
-    "freeBarber": "Serbest Berber",
-    "store": "Dükkan",
     "available": "Müsait",
     "unavailable": "Müsait Değil",
     "rental": "Kiralama",
@@ -188,13 +193,17 @@
     "edit": "Düzenle",
     "close": "Kapat",
     "search": "Ara...",
+    "searchPlaceholder": "İsim ara...",
+    "noSearchResults": "Arama sonucu bulunamadı",
     "operationFailed": "İşlem başarısız",
     "operationSuccess": "İşlem başarılı",
     "unexpectedError": "Beklenmeyen bir hata meydana geldi",
     "networkError": "Bağlantı hatası. Lütfen tekrar deneyin.",
     "loadingError": "Yüklenirken bir hata oluştu.",
     "ok": "Tamam",
-    "refresh": "Yenile"
+    "refresh": "Yenile",
+    "add": "Ekle",
+    "update": "Güncelle"
   },
   "labels": {
     "freeBarber": "Serbest Berber",
@@ -206,6 +215,9 @@
   },
   "errors": {
     "operationFailed": "İşlem başarısız",
+    "serverUnreachable": "Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
+    "serverNoResponse": "Sunucudan cevap yok. Lütfen tekrar deneyin.",
+    "barberNotFound": "Berber bulunamadı",
     "duplicateSlot": "Bu randevu zamanı başka bir kullanıcı tarafından alındı. Lütfen başka bir saat seçin.",
     "storeNotFound": "Dükkan bulunamadı.",
     "chairRequired": "Koltuk seçimi gereklidir.",
@@ -364,7 +376,10 @@
     "deleteBarber": "Berberi Sil",
     "deleteBarberConfirm": "\"{{name}}\" isimli berberi silmek istediğinize emin misiniz?",
     "deleteChair": "Koltuğu Sil",
-    "deleteChairConfirm": "\"{{name}}\" isimli koltuğu silmek istediğinize emin misiniz?"
+    "deleteChairConfirm": "\"{{name}}\" isimli koltuğu silmek istediğinize emin misiniz?",
+    "selectMainCategory": "Ana kategori seç (Erkek Berber / Bayan Kuaför)",
+    "workingHoursInfo": "Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek 8:00-9:00 , 10:00-11:00 gibi",
+    "priceLabel": "Fiyat (₺)"
   },
   "languages": {
     "tr": "Türkçe",
@@ -398,14 +413,18 @@
     "selectStoreFirst": "Lütfen önce bir dükkan seçin.",
     "callBarber": "Berberi Çağır",
     "freebarberUserNotFound": "Serbest berber kullanıcısı bulunamadı.",
-    "barberCallFailed": "Berber çağırma işlemi başarısız."
+    "barberCallFailed": "Berber çağırma işlemi başarısız.",
+    "appointmentNotePlaceholder": "Hizmetler, fiyatlar, saat bilgisi yazabilirsiniz...",
+    "appointmentNotePlaceholderAlt": "Hizmetler, fiyatlar, saat bilgisi vb. yazabilirsiniz..."
   },
   "chat": {
     "connectionError": "Bağlantı Hatası",
     "connectionErrorMessage": "Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.",
     "messageCannotBeSent": "Mesaj Gönderilemez",
     "messageSendFailed": "Mesaj gönderilemedi",
-    "cannotSendToThread": "Bu thread için mesaj gönderemezsiniz."
+    "cannotSendToThread": "Bu thread için mesaj gönderemezsiniz.",
+    "messagePlaceholder": "Mesaj yazın...",
+    "messageCannotBeSentPlaceholder": "Mesaj gönderilemez"
   },
   "rating": {
     "selectRating": "Lütfen bir puan seçin.",
@@ -418,7 +437,9 @@
     "ratingOnlyForCompleted": "Sadece tamamlanmış veya iptal edilmiş randevular için değerlendirme yapılabilir.",
     "cannotRateYourself": "Kendi kendinize değerlendirme yapamazsınız.",
     "invalidTargetForRating": "Geçersiz hedef. Sadece Store ID, FreeBarber ID veya Customer UserId ile değerlendirme yapılabilir. ManuelBarber'a değerlendirme yapılamaz.",
-    "ratingAlreadyExists": "Bu randevu için bu hedefe zaten değerlendirme yaptınız. Değerlendirme güncellenemez."
+    "ratingAlreadyExists": "Bu randevu için bu hedefe zaten değerlendirme yaptınız. Değerlendirme güncellenemez.",
+    "all": "Hepsi",
+    "commentPlaceholder": "Yorumunuzu yazın..."
   },
   "notification": {
     "redirectFailed": "Yönlendirme başarısız oldu.",
@@ -454,6 +475,8 @@
     "newAppointmentRequestForStore": "Yeni randevu talebi"
   },
   "favorites": {
+    "manuelBarber": "Manuel Berber",
+    "unknown": "Bilinmeyen",
     "addedSuccess": "Favorilere eklendi.",
     "updatedSuccess": "Favori güncellendi.",
     "removedSuccess": "Favorilerden çıkarıldı.",
@@ -468,6 +491,65 @@
     "notFound": "Resim bulunamadı.",
     "urlNotFound": "Resim URL'i bulunamadı.",
     "ownerIdRequired": "Resim sahibi ID'si boş olamaz.",
-    "idRequired": "Resim ID'si boş olamaz."
+    "idRequired": "Resim ID'si boş olamaz.",
+    "add": "Resim Ekle"
+  },
+  "card": {
+    "customer": "Müşteri",
+    "reviews": "Yorumlar",
+    "reviewsCount": "Yorumlar ({{count}})",
+    "noReviews": "Yorumlar yok",
+    "calling": "Çağırılıyor...",
+    "callBarber": "Berberi Çağır",
+    "callBarberConfirm": "{{name}} adlı berberi çağırmak istediğinize emin misiniz?",
+    "customerNumber": "Müşteri No",
+    "customerOf": "Müşterisi",
+    "pricing": "Fiyatlandırma",
+    "pricingPercent": "Fiyatlandırma: yapılan işlemlerin toplamının %{{value}} alınır",
+    "pricingRent": "Fiyatlandırma: Koltuk kirası (Saatlik:{{value}}₺/saat)",
+    "currency": "TL",
+    "currencySymbol": "₺"
+  },
+  "status": {
+    "open": "Açık",
+    "closed": "Kapalı",
+    "available": "Müsait",
+    "busy": "Meşgul",
+    "availabilityStatus": "Müsaitlik Durumu"
+  },
+  "barberType": {
+    "male": "Erkek",
+    "female": "Kadın",
+    "maleHairdresser": "Erkek Berber",
+    "femaleHairdresser": "Kadın Kuaför",
+    "beautySalon": "Güzellik Salonu",
+    "maleHairdresserShort": "Erkek",
+    "femaleHairdresserShort": "Kadın",
+    "maleHairdresserOf": "Erkek Berberi",
+    "femaleHairdresserOf": "Kadın Kuaförü"
+  },
+  "location": {
+    "locationNotReady": "Konum hazır değil.",
+    "invalidLocationInfo": "Geçersiz konum bilgisi alındı.",
+    "locationError": "Konum alınırken bir hata oluştu.",
+    "permissionDenied": "Konum izni verilmedi.",
+    "permissionDeniedSettings": "Konum izni verilmedi. Lütfen ayarlardan konum iznini açın.",
+    "servicesDisabled": "Konum servisleri kapalı.",
+    "gateNotVerified": "Konum kapısı doğrulanamadı.",
+    "locationRequired": "Konum gerekli",
+    "locationInfoNotAvailable": "Konum bilgisi alınamadı.",
+    "locationClosed": "Konum kapalı",
+    "locationClosedMessage": "Devam edebilmek için cihaz konumunu açman gerekiyor.",
+    "cancel": "Vazgeç",
+    "openLocation": "Konumu Aç",
+    "settings": "Ayarlar",
+    "permissionRequired": "Konum izni gerekli",
+    "permissionRequiredMessage": "Yakındaki işletmeleri gösterebilmek için konum izni vermen gerekiyor.",
+    "permissionDeniedMessage": "Konum izni kapalı görünüyor. Ayarlardan konum iznini açman gerekiyor.",
+    "tryAgain": "Tekrar dene",
+    "dragLocation": "Konumu sürükleyip bırakabilirsin"
+  },
+  "settings": {
+    "updateSuccess": "Ayar başarıyla güncellendi"
   }
 }

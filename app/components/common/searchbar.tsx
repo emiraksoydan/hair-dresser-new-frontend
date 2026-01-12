@@ -3,12 +3,14 @@ import { Text } from './Text'
 import React, { useState } from 'react'
 import { Searchbar } from 'react-native-paper'
 import { SearchBarProps } from '../../types';
+import { useLanguage } from '../../hook/useLanguage';
 
 const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery }) => {
+    const { t } = useLanguage();
     const [isFocused, setIsFocused] = useState(false);
     return (
         <Searchbar
-            placeholder="İsim ara..."
+            placeholder={t('common.searchPlaceholder')}
             placeholderTextColor="#9a9b9d"
             onChangeText={setSearchQuery}
             value={searchQuery}

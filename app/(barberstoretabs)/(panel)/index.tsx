@@ -30,8 +30,10 @@ import { StoreMarker } from "../../components/common/storemarker";
 import { DeferredRender } from "../../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
 import { resolveApiErrorMessage } from "../../utils/common/error";
+import { useLanguage } from "../../hook/useLanguage";
 
 const Index = () => {
+    const { t } = useLanguage();
     const { data: stores = [], isLoading: storeLoading, refetch: refetchStores, error: storesError, isError: isStoresError } = useGetMineStoresQuery(undefined, {
         pollingInterval: 30_000,
         refetchOnMountOrArgChange: true,
@@ -456,13 +458,13 @@ const Index = () => {
                                     {isFiltering ? (
                                         <LottieViewComponent
                                             animationSource={require('../../../assets/animations/empty.json')}
-                                            message="Filtreleme kriterlerine uygun işletme bulunamadı"
+                                            message={t('empty.noStoresFound')}
                                         />
                                     ) : locationStatus === "denied" ? (
                                         <View style={{ minHeight: 200, maxHeight: 400 }}>
                                             <LottieViewComponent
                                                 animationSource={require('../../../assets/animations/Location.json')}
-                                                message="Konum izni verilmedi. Lütfen ayarlardan konum iznini açın."
+                                                message={t('location.permissionDeniedSettings')}
                                             />
                                         </View>
                                     ) : (
@@ -546,13 +548,13 @@ const Index = () => {
                                     {isFiltering ? (
                                         <LottieViewComponent
                                             animationSource={require('../../../assets/animations/empty.json')}
-                                            message="Filtreleme kriterlerine uygun sonuç bulunamadı"
+                                            message={t('empty.noResultsFound')}
                                         />
                                     ) : locationStatus === "denied" ? (
                                         <View style={{ minHeight: 200, maxHeight: 400 }}>
                                             <LottieViewComponent
                                                 animationSource={require('../../../assets/animations/Location.json')}
-                                                message="Konum izni verilmedi. Lütfen ayarlardan konum iznini açın."
+                                                message={t('location.permissionDeniedSettings')}
                                             />
                                         </View>
                                     ) : (

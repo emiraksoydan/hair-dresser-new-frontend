@@ -123,15 +123,15 @@ const Index = () => {
                     refreshToken: result.data.refreshToken,
                 });
 
-                dispatch(showSnack({ message: result.message || MESSAGES.PROFILE.UPDATE_SUCCESS, isError: false }));
+                dispatch(showSnack({ message: result.message || t('profile.updateSuccess'), isError: false }));
                 reset(data);
             } else {
-                dispatch(showSnack({ message: result.message || MESSAGES.PROFILE.UPDATE_FAILED, isError: true }));
+                dispatch(showSnack({ message: result.message || t('profile.operationError'), isError: true }));
             }
         } catch (error: any) {
-            dispatch(showSnack({ message: error?.data?.message || MESSAGES.PROFILE.UPDATE_ERROR, isError: true }));
+            dispatch(showSnack({ message: error?.data?.message || t('profile.updateFailed'), isError: true }));
         }
-    }, [updateProfile, dispatch, reset]);
+    }, [updateProfile, dispatch, reset, t]);
 
     const handleImagePick = useCallback(async () => {
         try {
@@ -160,16 +160,15 @@ const Index = () => {
             }
 
             if (result.success) {
-                dispatch(showSnack({ message: result.message || MESSAGES.PROFILE.IMAGE_UPDATE_SUCCESS, isError: false }));
+                dispatch(showSnack({ message: result.message ?? t('profile.photoUpdated'), isError: false }));
                 // RTK Query otomatik olarak cache'i güncelleyecek
             } else {
-                dispatch(showSnack({ message: result.message || MESSAGES.PROFILE.IMAGE_UPDATE_ERROR, isError: true }));
+                dispatch(showSnack({ message: result.message ?? t('profile.photoUploadFailed'), isError: true }));
             }
         } catch (error: any) {
-            const errorMessage = error?.data?.message || resolveApiErrorMessage(error);
-            dispatch(showSnack({ message: errorMessage || MESSAGES.PROFILE.IMAGE_UPDATE_FAILED, isError: true }));
+            dispatch(showSnack({ message: error?.message ?? t('profile.photoUploadError'), isError: true }));
         }
-    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch]);
+    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch, t]);
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -199,13 +198,18 @@ const Index = () => {
         }
     }, [logout, expoRouter]);
 
+    // Memoize error message - Hook'lar early return'lerden önce olmalı
+    const errorMessage = useMemo(() => {
+        if (!isUserError || !userError) return null;
+        return resolveApiErrorMessage(userError);
+    }, [isUserError, userError]);
+
     if (isLoadingUser) {
         return <ProfileSkeleton />;
     }
 
     // Error durumu - refresh edildiğinde de göster
-    if (isUserError && userError) {
-        const errorMessage = resolveApiErrorMessage(userError);
+    if (isUserError && userError && errorMessage) {
         return (
             <View className="flex-1 bg-[#151618]">
                 <ScrollView
@@ -221,7 +225,7 @@ const Index = () => {
                 >
                     <LottieViewComponent
                         animationSource={require('../../../assets/animations/error.json')}
-                        message={errorMessage}
+                        message={errorMessage || ''}
                     />
                 </ScrollView>
             </View>
@@ -396,10 +400,10 @@ const Index = () => {
                                         showImageAnimation: value,
                                     }).unwrap();
                                     // refetchSetting çağrısını kaldırdık - RTK Query otomatik güncelliyor
-                                    dispatch(showSnack({ message: settingResult.message || MESSAGES.PROFILE.SETTING_UPDATE_SUCCESS, isError: false }));
+                                    dispatch(showSnack({ message: settingResult.message || t('settings.updateSuccess'), isError: false }));
                                 } catch (error: any) {
                                     const errorMessage = error?.data?.message || resolveApiErrorMessage(error);
-                                    dispatch(showSnack({ message: errorMessage || MESSAGES.PROFILE.SETTING_UPDATE_ERROR, isError: true }));
+                                    dispatch(showSnack({ message: errorMessage || t('profile.settingUpdateError'), isError: true }));
                                 } finally {
                                     isUpdatingSettingRef.current = false;
                                 }

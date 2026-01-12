@@ -34,7 +34,11 @@
     "myProfile": "My Profile",
     "settings": "Settings",
     "imageAnimation": "Image Animation",
-    "imageAnimationDescription": "Show/hide animation in panel and map images"
+    "imageAnimationDescription": "Show/hide animation in panel and map images",
+    "photoUpdated": "Profile photo updated",
+    "photoUploadFailed": "Photo could not be uploaded",
+    "photoUploadError": "An error occurred while uploading photo",
+    "operationError": "An error occurred"
   },
   "navigation": {
     "welcome": "Welcome",
@@ -108,19 +112,22 @@
       "yes": "Yes",
       "no": "No"
     },
-    "pricing": {
-      "percent": "{{value}}% of total services is taken",
-      "rent": "Seat Rental ({{value}} TL per hour)"
-    },
     "labels": {
       "customer": "Customer",
-      "customerNumber": "Customer No",
       "rentingBarber": "Renting Barber",
       "freeBarber": "Free Barber",
       "average": "Average",
       "yourComment": "Your comment",
       "makeComment": "Make Comment",
-      "noAppointmentsInCategory": "No appointments found in this category."
+      "noAppointmentsInCategory": "No appointments found in this category.",
+      "timePassed": "Time Passed",
+      "storeBarber": "Store Barber",
+      "storeName": "Store Name",
+      "serviceProvider": "Service Provider",
+      "storeEmployee": "Store Employee",
+      "address": "Address",
+      "myServices": "My Services",
+      "services": "Services"
     }
   },
   "time": {
@@ -134,14 +141,11 @@
     "noNotifications": "You don't have any notifications yet.",
     "noFavorites": "You don't have anything in your favorites list yet.",
     "noFavoritesAdded": "You haven't added any favorites yet.",
-    "noFavoritesDescription": "You can add shops and barbers you like to your favorites."
-  },
-  "favorites": {
-    "store": "Store",
-    "freeBarber": "Free Barber",
-    "customer": "Customer",
-    "manuelBarber": "Manuel Barber",
-    "unknown": "Unknown"
+    "noFavoritesDescription": "You can add shops and barbers you like to your favorites.",
+    "noBarbersNearby": "No barbers found nearby to list at the moment.",
+    "noPanelAdded": "You haven't added a panel yet.",
+    "noStoresFound": "No stores found matching the filter criteria",
+    "noResultsFound": "No results found matching the filter criteria"
   },
   "filters": {
     "userType": "User Type",
@@ -157,8 +161,6 @@
     "minimumRating": "Minimum Rating",
     "favoriteFilter": "Favorite Filter",
     "all": "All",
-    "freeBarber": "Free Barber",
-    "store": "Store",
     "available": "Available",
     "unavailable": "Unavailable",
     "rental": "Rental",
@@ -188,13 +190,17 @@
     "edit": "Edit",
     "close": "Close",
     "search": "Search...",
+    "searchPlaceholder": "Search name...",
+    "noSearchResults": "No search results found",
     "operationFailed": "Operation failed",
     "operationSuccess": "Operation successful",
     "unexpectedError": "An unexpected error occurred",
     "networkError": "Connection error. Please try again.",
     "loadingError": "An error occurred while loading.",
     "ok": "OK",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "add": "Add",
+    "update": "Update"
   },
   "labels": {
     "freeBarber": "Free Barber",
@@ -206,6 +212,9 @@
   },
   "errors": {
     "operationFailed": "Operation failed",
+    "serverUnreachable": "Cannot reach server. Please check your internet connection.",
+    "serverNoResponse": "No response from server. Please try again.",
+    "barberNotFound": "Barber not found",
     "duplicateSlot": "This appointment time has been taken by another user. Please select another time.",
     "storeNotFound": "Store not found.",
     "chairRequired": "Chair selection is required.",
@@ -364,7 +373,10 @@
     "deleteBarber": "Delete Barber",
     "deleteBarberConfirm": "Are you sure you want to delete the barber named \"{{name}}\"?",
     "deleteChair": "Delete Chair",
-    "deleteChairConfirm": "Are you sure you want to delete the chair named \"{{name}}\"?"
+    "deleteChairConfirm": "Are you sure you want to delete the chair named \"{{name}}\"?",
+    "selectMainCategory": "Select main category (Male Hairdresser / Female Hairdresser)",
+    "workingHoursInfo": "Selected time slots will appear to customers in 1-hour intervals like 8:00-9:00, 10:00-11:00",
+    "priceLabel": "Price (₺)"
   },
   "languages": {
     "tr": "Turkish",
@@ -398,14 +410,18 @@
     "selectStoreFirst": "Please select a store first.",
     "callBarber": "Call Barber",
     "freebarberUserNotFound": "Free barber user not found.",
-    "barberCallFailed": "Barber call failed."
+    "barberCallFailed": "Barber call failed.",
+    "appointmentNotePlaceholder": "You can write services, prices, time information...",
+    "appointmentNotePlaceholderAlt": "You can write services, prices, time information, etc..."
   },
   "chat": {
     "connectionError": "Connection Error",
     "connectionErrorMessage": "Cannot connect to server. Please check your internet connection.",
     "messageCannotBeSent": "Message Cannot Be Sent",
     "messageSendFailed": "Message could not be sent",
-    "cannotSendToThread": "You cannot send messages to this thread."
+    "cannotSendToThread": "You cannot send messages to this thread.",
+    "messagePlaceholder": "Write a message...",
+    "messageCannotBeSentPlaceholder": "Message cannot be sent"
   },
   "rating": {
     "selectRating": "Please select a rating.",
@@ -418,7 +434,9 @@
     "ratingOnlyForCompleted": "Ratings can only be made for completed or cancelled appointments.",
     "cannotRateYourself": "You cannot rate yourself.",
     "invalidTargetForRating": "Invalid target. Ratings can only be made with Store ID, FreeBarber ID or Customer UserId. Cannot rate ManuelBarber.",
-    "ratingAlreadyExists": "You have already rated this target for this appointment. Rating cannot be updated."
+    "ratingAlreadyExists": "You have already rated this target for this appointment. Rating cannot be updated.",
+    "all": "All",
+    "commentPlaceholder": "Write your comment..."
   },
   "notification": {
     "redirectFailed": "Redirect failed.",
@@ -454,6 +472,8 @@
     "newAppointmentRequestForStore": "New appointment request"
   },
   "favorites": {
+    "manuelBarber": "Manuel Barber",
+    "unknown": "Unknown",
     "addedSuccess": "Added to favorites.",
     "updatedSuccess": "Favorite updated.",
     "removedSuccess": "Removed from favorites.",
@@ -468,6 +488,60 @@
     "notFound": "Image not found.",
     "urlNotFound": "Image URL not found.",
     "ownerIdRequired": "Image owner ID cannot be empty.",
-    "idRequired": "Image ID cannot be empty."
+    "idRequired": "Image ID cannot be empty.",
+    "add": "Add Image"
+  },
+  "card": {
+    "customer": "Customer",
+    "reviews": "Reviews",
+    "reviewsCount": "Reviews ({{count}})",
+    "noReviews": "No reviews",
+    "calling": "Calling...",
+    "callBarber": "Call Barber",
+    "callBarberConfirm": "Are you sure you want to call the barber named {{name}}?",
+    "customerNumber": "Customer No",
+    "customerOf": "Customer of",
+    "pricing": "Pricing",
+    "pricingPercent": "Pricing: {{value}}% of total services is taken",
+    "pricingRent": "Pricing: Seat Rental ({{value}} TL per hour)",
+    "currency": "TL",
+    "currencySymbol": "₺"
+  },
+  "status": {
+    "open": "Open",
+    "closed": "Closed",
+    "available": "Available",
+    "busy": "Busy",
+    "availabilityStatus": "Availability Status"
+  },
+  "barberType": {
+    "male": "Male",
+    "female": "Female",
+    "maleHairdresser": "Male Hairdresser",
+    "femaleHairdresser": "Female Hairdresser",
+    "beautySalon": "Beauty Salon",
+    "maleHairdresserShort": "Male",
+    "femaleHairdresserShort": "Female",
+    "maleHairdresserOf": "Male Hairdresser",
+    "femaleHairdresserOf": "Female Hairdresser"
+  },
+  "location": {
+    "locationNotReady": "Location is not ready.",
+    "invalidLocationInfo": "Invalid location information received.",
+    "locationError": "An error occurred while getting location.",
+    "permissionDenied": "Location permission denied.",
+    "permissionDeniedSettings": "Location permission denied. Please enable location permission from settings.",
+    "servicesDisabled": "Location services are disabled.",
+    "gateNotVerified": "Location gate could not be verified.",
+    "locationRequired": "Location Required",
+    "locationInfoNotAvailable": "Location information could not be obtained.",
+    "locationClosed": "Location Closed",
+    "locationClosedMessage": "You need to enable device location to continue.",
+    "cancel": "Cancel",
+    "openLocation": "Open Location",
+    "settings": "Settings"
+  },
+  "settings": {
+    "updateSuccess": "Setting updated successfully"
   }
 }

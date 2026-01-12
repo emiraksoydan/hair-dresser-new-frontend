@@ -13,6 +13,7 @@ import { FreeBarberPanelDto } from '../../types';
 import { useTrackFreeBarberLocation } from '../../hook/useTrackFreeBarberLocation';
 import { shouldShowFreeBarberPanel } from '../../utils/filter/panel-filters';
 import type { AppliedFilters } from '../../utils/filter/panel-filters';
+import { useLanguage } from '../../hook/useLanguage';
 
 interface Props {
     isList: boolean;
@@ -40,8 +41,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
     isLoading,
     isError,
     error, isTracking, isUpdating, searchQuery = '', appliedFilters, categoryNameById, showImageAnimation = true }: Props) => {
-
-
+    const { t } = useLanguage();
     const [expandedMineStore, setExpandedMineStore] = useState(true);
     const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
     const cardWidthFreeBarber = useMemo(
@@ -89,7 +89,7 @@ export const FreeBarberPanelSection = memo(({ isList, locationStatus, locationMe
                 </View>
             ) : !hasMineFreeBarber ? (
                 <>
-                    <LottieViewComponent message='Henüz eklediğiniz panel bulunmuyor.' />
+                    <LottieViewComponent message={t('empty.noPanelAdded')} />
                     <Button
                         style={{ marginTop: 10 }}
                         buttonColor='#c2a523'

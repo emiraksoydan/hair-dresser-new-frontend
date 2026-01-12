@@ -6,6 +6,7 @@ import { Icon } from 'react-native-paper';
 import { useGetRatingsByTargetQuery } from '../../store/api';
 import { RatingGetDto, UserType, BarberType } from '../../types';
 import { useAuth } from '../../hook/useAuth';
+import { useLanguage } from '../../hook/useLanguage';
 import { getBarberTypeName } from '../../utils/store/barber-type';
 
 type RatingsBottomSheetProps = {
@@ -20,6 +21,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
     onClose,
 }) => {
     const { userId } = useAuth();
+    const { t } = useLanguage();
 
     // Query'yi normal şekilde çalıştır - sheet açıldığında component mount olur ve query otomatik tetiklenir
     const { data: ratings, isLoading, refetch } = useGetRatingsByTargetQuery(targetId, {
@@ -105,9 +107,9 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                             {item.ratedFromUserType !== null && item.ratedFromUserType !== undefined && (
                                 <View className="bg-[#374151] rounded-full px-2 py-0.5">
                                     <Text className="text-[#9ca3af] text-[10px]">
-                                        {item.ratedFromUserType === UserType.Customer ? 'Müşteri' :
-                                            item.ratedFromUserType === UserType.FreeBarber ? 'Serbest Berber' :
-                                                item.ratedFromUserType === UserType.BarberStore ? 'Dükkan' : ''}
+                                        {item.ratedFromUserType === UserType.Customer ? t('card.customer') :
+                                            item.ratedFromUserType === UserType.FreeBarber ? t('labels.freeBarber') :
+                                                item.ratedFromUserType === UserType.BarberStore ? t('labels.store') : ''}
                                     </Text>
                                 </View>
                             )}
@@ -146,7 +148,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
     };
 
     const ratingFilters = [
-        { label: 'Hepsi', value: null },
+        { label: t('rating.all'), value: null },
         { label: '★ 5', value: 5 },
         { label: '★ 4', value: 4 },
         { label: '★ 3', value: 3 },
@@ -159,7 +161,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
             {/* Header */}
             <View className="px-4 pt-4 pb-3">
                 <Text className="text-white font-century-gothic-bold text-xl mb-4">
-                    Yorumlar
+                    {t('card.reviews')}
                 </Text>
 
                 {/* Rating Filtreleri - Sadece veri varsa göster */}
@@ -200,7 +202,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                 <View className="flex-1 items-center justify-center px-4">
                     <Icon source="comment-outline" size={64} color="#6b7280" />
                     <Text className="text-[#9ca3af] text-base mt-4 text-center">
-                        Yorumlar yok
+                        {t('card.noReviews')}
                     </Text>
                 </View>
             ) : filteredRatings.length === 0 ? (

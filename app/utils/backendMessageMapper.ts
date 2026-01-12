@@ -119,8 +119,10 @@ const backendToFrontendKeyMap: Record<string, string> = {
   'Favori güncellendi.': 'favorites.updatedSuccess',
   'Favorilerden çıkarıldı.': 'favorites.removedSuccess',
   'Favori bulunamadı.': 'favorites.notFound',
+  'Favoriden çıkarıldı.': 'favorites.removedSuccess',
   'Kendi kendinizi favorilere ekleyemezsiniz.': 'favorites.cannotFavoriteYourself',
   'Hedef kullanıcı bulunamadı.': 'favorites.targetUserNotFound',
+  'Target user not found': 'favorites.targetUserNotFound',
   'Randevu sayfasından favorileme için randevunuzun sonuçlanması gerekir.': 'errors.appointmentMustBeCompletedForFavorite',
 
   // Image Messages

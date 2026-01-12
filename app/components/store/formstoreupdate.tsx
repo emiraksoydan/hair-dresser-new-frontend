@@ -123,18 +123,14 @@ const createWorkingDaySchema = (t: (key: string) => string) => z.object({
     if (v.isClosed) return;
     if (!v.startTime) { ctx.addIssue({ code: 'custom', path: ['startTime'], message: t('form.startTimeRequired') }); return; }
     if (!v.endTime) { ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.endTimeRequired') }); return; }
-    if (v.startTime === "00:00") {
-        ctx.addIssue({ code: 'custom', path: ['startTime'], message: t('form.startTimeNotZero') });
-    }
+    // 00:00 kontrolü kaldırıldı - artık 00:00 seçilebilir
     const s = toMinutes(v.startTime);
     const e = toMinutes(v.endTime);
     if (s >= e) {
         ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.endTimeGreater') });
         return;
     }
-    const diffMin = e - s;
-    if (diffMin < 360) ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.workDurationMin') });
-    if (diffMin > 1080) ctx.addIssue({ code: 'custom', path: ['endTime'], message: t('form.workDurationMax') });
+    // Minimum ve maksimum saat kontrolleri kaldırıldı
 });
 
 const createChairSchema = (t: (key: string) => string) => z.object({
@@ -1217,7 +1213,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
                                                                     mode="outlined"
                                                                     dense
                                                                     keyboardType="numeric"
-                                                                    label="Fiyat (₺)"
+                                                                    label={t('form.priceLabel')}
                                                                     value={value ?? ''}
                                                                     onChangeText={(t) => {
                                                                         const raw = t.replace(/[^\d.,]/g, '');
@@ -1448,7 +1444,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
                             </View>
                             <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Çalışma Zamanını Belirle</Text>
                             <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
-                                <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek 8:00-9:00 , 10:00-11:00 gibi</Text>
+                                <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- {t('form.workingHoursInfo')}</Text>
                                 <View className="mt-2 px-0">
                                     <View className="flex-row  gap-2">
                                         {DAYS_TR.map((d) => {

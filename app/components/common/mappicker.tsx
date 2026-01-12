@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import MapView, { MapPressEvent, Marker } from "react-native-maps";
 import { IST } from "../../constants";
+import { useLanguage } from "../../hook/useLanguage";
 
 
 export const MapPicker = ({
@@ -14,6 +15,7 @@ export const MapPicker = ({
     address?: string;
     onChange: (lat: number, lng: number) => void;
 }) => {
+    const { t } = useLanguage();
     const mapRef = useRef<MapView>(null);
     const [coord, setCoord] = useState(
         lat != null && lng != null ? { latitude: lat, longitude: lng } : IST
@@ -54,8 +56,8 @@ export const MapPicker = ({
                         setCoord(next);
                         onChange(latitude, longitude);
                     }}
-                    title="Dükkan"
-                    description={address || "Konumu sürükleyip bırakabilirsin"}
+                    title={t('labels.storeDefaultName')}
+                    description={address || t('location.dragLocation')}
                 />
             </MapView>
         </View>

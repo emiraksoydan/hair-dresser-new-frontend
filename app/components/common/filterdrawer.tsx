@@ -160,12 +160,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             }
         });
 
-    const userTypes = [t('filters.all'), t('filters.freeBarber'), t('filters.store')];
+    const userTypes = [t('filters.all'), t('labels.freeBarber'), t('labels.store')];
     const mainCategories = React.useMemo(() => {
         // Kullanıcı türü "Serbest Berber" ise Güzellik Salonu'nu gizle
         let categories = parentCategories.map((cat: any) => cat.name);
         
-        if (selectedUserType === t('filters.freeBarber')) {
+        if (selectedUserType === t('labels.freeBarber')) {
             // Güzellik Salonu kategorisini filtrele (kategori adı dinamik olabilir)
             categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
         }

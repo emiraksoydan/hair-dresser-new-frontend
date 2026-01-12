@@ -9,7 +9,7 @@ import { APPOINTMENT_CONSTANTS } from "../../constants/appointment";
 import { ChairSlotDto, UserType, PricingType, StoreSelectionType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import FilterChip from "../common/filter-chip";
-import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm, areHourlyContiguous } from "../../utils/time/time-helper";
+import { fmtDateOnly, build7Days, normalizeTime, addMinutesToHHmm } from "../../utils/time/time-helper";
 import { useAuth } from "../../hook/useAuth";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
 import { useAppointmentBooking } from "../../hook/useAppointmentBooking";
@@ -341,9 +341,9 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                             <View className='bg-gray-800 px-3 py-2 rounded-lg mb-2'>
                                 <Text className='text-white text-base font-century-gothic'>
                                     {storeData?.pricingType!.toLowerCase() === 'percent'
-                                        ? `ℹ️ Fiyatlandırma: Toplam işlem tutarının %${storeData?.pricingValue} kadarı alınır.`
+                                        ? `ℹ️ ${t('card.pricingPercent', { value: storeData?.pricingValue })}`
                                         : storeData?.pricingType!.toLowerCase() === 'rent'
-                                            ? `ℹ️ Fiyatlandırma: Koltuk kirası uygulanır (${storeData?.pricingValue} ₺/saat).`
+                                            ? `ℹ️ ${t('card.pricingRent', { value: storeData?.pricingValue })}`
                                             : ''}
                                 </Text>
                             </View>
@@ -351,7 +351,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                         {isHourlyFree && (
                             <View className="flex-row items-center  px-3 pb-0 pt-2 rounded-lg mb-0">
                                 <Text className="text-white font-century-gothic">Saatlik Kiralama : </Text>
-                                <Text className="text-[#a3e635] font-century-gothic-bold text-lg">({totalPrice} ₺)</Text>
+                                <Text className="text-[#a3e635] font-century-gothic-bold text-lg">({totalPrice} {t('card.currencySymbol')})</Text>
                             </View>
                         )}
                         {(isAddStoreMode || (!isHourlyFree && (isFreeBarber || isCustomer))) && (
@@ -362,7 +362,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     </Text>
                                     <View className="flex-row items-center  px-2 py-0">
                                         <Text className="text-[#a3e635] font-century-gothic-bold text-xl">
-                                            {totalPrice} ₺
+                                            {totalPrice} {t('card.currencySymbol')}
                                         </Text>
                                     </View>
                                 </View>
@@ -388,7 +388,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                                         {item.serviceName}
                                                     </Text>
                                                     <Text style={{ color: isSelected ? "white" : "#d1d5db", fontSize: 14 }}>
-                                                        {item.price} ₺
+                                                        {item.price} {t('card.currencySymbol')}
                                                     </Text>
                                                 </View>
                                             </FilterChip>
@@ -417,10 +417,7 @@ const StoreBookingContent = ({ storeId, isBottomSheet = false, isFreeBarber = fa
                                     return;
                                 }
 
-                                if (!areHourlyContiguous(selectedSlotKeys)) {
-                                    Alert.alert(t('booking.warning'), t('booking.contiguousSlotsRequired'));
-                                    return;
-                                }
+                                // 1 saatlik ardışık slot kontrolü kaldırıldı - artık herhangi bir slot seçilebilir
 
                                 // Seçilen slotların hala müsait olduğunu kontrol et
                                 const sorted = [...selectedSlotKeys].sort();

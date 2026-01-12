@@ -20,6 +20,7 @@ import { getAppointmentStatusColor } from '../../utils/appointment/appointment-h
 import { COLORS } from '../../constants/colors';
 import { MESSAGES } from '../../constants/messages';
 import { useAuth } from '../../hook/useAuth';
+import { useLanguage } from '../../hook/useLanguage';
 
 interface MessageThreadListProps {
     routePrefix: string; // e.g., '/(customertabs)/(messages)' or '/(barberstoretabs)/(messages)'
@@ -28,6 +29,7 @@ interface MessageThreadListProps {
 
 export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefix, iconSource }) => {
     const router = useRouter();
+    const { t } = useLanguage();
     const { data: threads, isLoading, refetch, isFetching, error, isError } = useGetChatThreadsQuery();
     const formatTime = useFormatTime();
     const { userType: currentUserType } = useAuth();
@@ -81,11 +83,11 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
 
                 // Participant'ın türüne göre etiket
                 if (participant.userType === UserType.BarberStore) {
-                    return 'Dükkan';
+                    return t('labels.store');
                 } else if (participant.userType === UserType.FreeBarber) {
-                    return 'Serbest Berber';
+                    return t('labels.freeBarber');
                 } else if (participant.userType === UserType.Customer) {
-                    return 'Müşteri';
+                    return t('card.customer');
                 }
                 return '';
             };
@@ -99,11 +101,13 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 }
 
                 if (participant.userType === UserType.FreeBarber) {
-                    return participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın";
+                    return participant.barberType === BarberType.MaleHairdresser 
+                        ? t('barberType.maleHairdresserShort') 
+                        : t('barberType.femaleHairdresserShort');
                 } else if (participant.userType === UserType.BarberStore) {
-                    if (participant.barberType === BarberType.MaleHairdresser) return "Erkek Berberi";
-                    if (participant.barberType === BarberType.FemaleHairdresser) return "Kadın Kuaförü";
-                    return "Güzellik Salonu";
+                    if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
+                    if (participant.barberType === BarberType.FemaleHairdresser) return t('barberType.femaleHairdresserOf');
+                    return t('barberType.beautySalon');
                 }
                 return null;
             };

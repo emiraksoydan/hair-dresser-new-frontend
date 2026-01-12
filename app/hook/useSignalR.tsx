@@ -82,21 +82,28 @@ export const useSignalR = () => {
             // Event handler'ları ekleme fonksiyonu (yeniden bağlanma için kullanılacak)
             const setupEventHandlers = (conn: SignalR.HubConnection) => {
                 conn.on("badge.updated", (data: any) => {
-                    // Backend'den gelen data büyük harfle (UnreadNotifications, UnreadMessages) veya küçük harfle (unreadNotifications, unreadMessages) olabilir
-                    // Her iki durumu da destekle
+                    // Backend'den gelen data camelCase (unreadNotifications, unreadMessages) olarak gelir
+                    // SignalR JsonSerializerOptions PropertyNamingPolicy.CamelCase kullanıyor
                     const unreadNotifications = data?.unreadNotifications ?? data?.UnreadNotifications ?? 0;
                     const unreadMessages = data?.unreadMessages ?? data?.UnreadMessages ?? 0;
 
-                    // Sadece updateQueryData yap, invalidateTags gereksiz (zaten güncelleniyor)
+                    // ÖNEMLİ: RTK Query Immer kullanır, draft'ı mutate et
+                    // Ancak yeni değerler eski değerlerle aynıysa re-render olmayabilir
+                    // Bu yüzden her zaman güncelle - yeni bir obje oluştur ki React component'leri yeniden render olsun
                     dispatch(
                         api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
                             // Draft undefined ise yeni obje oluştur (query henüz çalışmamışsa)
                             if (!draft) {
                                 return { unreadNotifications, unreadMessages };
                             }
-                            // Draft varsa mutate et
+                            // Draft varsa yeni değerleri atayarak mutate et - Immer otomatik olarak yeni referans oluşturur
+                            // Ancak değerler aynı olsa bile yeni referans oluşturmak için explicit assignment yapıyoruz
                             draft.unreadMessages = unreadMessages;
                             draft.unreadNotifications = unreadNotifications;
+
+                            // Ekstra güvence: Her zaman yeni bir obje döndür (değerler aynı olsa bile)
+                            // Bu sayede React component'leri kesinlikle yeniden render olur
+                            return { ...draft, unreadMessages, unreadNotifications };
                         })
                     );
                 });
@@ -145,10 +152,63 @@ export const useSignalR = () => {
                             const existingIndex = draft.findIndex(n => n.id === dto.id);
                             if (existingIndex >= 0) {
                                 // Mevcut notification'ı tamamen güncelle (payload dahil)
+                                // ÖNEMLİ: Yeni bir obje oluştur ki React component'leri yeniden render olsun
+                                // isRead durumunu da güncelle (backend'den gelen güncel durum)
                                 draft[existingIndex] = { ...dto };
                             } else {
                                 // Yeni notification'ı başa ekle
                                 draft.unshift(dto);
+                            }
+
+                            // ÖNEMLİ: Aynı notification'ın kendisinin payload'ını da güncelle
+                            // (decision verildiğinde aynı notification'ın payload'ı güncellenmeli)
+                            const currentNotificationIndex = draft.findIndex(n => n.id === dto.id);
+                            if (currentNotificationIndex >= 0 && dto.payloadJson && dto.payloadJson.trim() !== '' && dto.payloadJson !== '{}') {
+                                try {
+                                    const newPayload = JSON.parse(dto.payloadJson);
+                                    if (newPayload && typeof newPayload === 'object') {
+                                        const currentNotification = draft[currentNotificationIndex];
+                                        if (currentNotification.payloadJson && currentNotification.payloadJson.trim() !== '' && currentNotification.payloadJson !== '{}') {
+                                            try {
+                                                const currentPayload = JSON.parse(currentNotification.payloadJson);
+                                                if (currentPayload && typeof currentPayload === 'object') {
+                                                    // Decision bilgilerini güncelle (status değişikliği için)
+                                                    if (newPayload.storeDecision !== undefined) {
+                                                        currentPayload.storeDecision = newPayload.storeDecision;
+                                                    }
+                                                    if (newPayload.freeBarberDecision !== undefined) {
+                                                        currentPayload.freeBarberDecision = newPayload.freeBarberDecision;
+                                                    }
+                                                    if (newPayload.customerDecision !== undefined) {
+                                                        currentPayload.customerDecision = newPayload.customerDecision;
+                                                    }
+                                                    if (newPayload.status !== undefined) {
+                                                        currentPayload.status = newPayload.status;
+                                                    }
+                                                    // Yeni bir obje oluştur ki React component'leri yeniden render olsun
+                                                    draft[currentNotificationIndex] = {
+                                                        ...currentNotification,
+                                                        payloadJson: JSON.stringify(currentPayload)
+                                                    };
+                                                }
+                                            } catch {
+                                                // Payload parse edilemezse, yeni payload'ı kullan
+                                                draft[currentNotificationIndex] = {
+                                                    ...currentNotification,
+                                                    payloadJson: dto.payloadJson
+                                                };
+                                            }
+                                        } else {
+                                            // Mevcut payload yoksa, yeni payload'ı kullan
+                                            draft[currentNotificationIndex] = {
+                                                ...currentNotification,
+                                                payloadJson: dto.payloadJson
+                                            };
+                                        }
+                                    }
+                                } catch {
+                                    // Yeni payload parse edilemezse atla
+                                }
                             }
 
                             // Appointment-related notification'lar için: Aynı appointmentId'ye sahip
@@ -417,6 +477,7 @@ export const useSignalR = () => {
                                 if (existingIndex >= 0) {
                                     if (shouldBeInThisFilter) {
                                         // Mevcut appointment'ı güncelle (customerDecision dahil tüm alanları)
+                                        // ÖNEMLİ: Yeni bir obje oluştur ki React component'leri yeniden render olsun
                                         draft[existingIndex] = { ...appointment };
                                         // Tarihe göre yeniden sırala
                                         draft.sort((a, b) => {
@@ -434,7 +495,7 @@ export const useSignalR = () => {
                                     }
                                 } else if (shouldBeInThisFilter) {
                                     // Yeni appointment'ı ekle (tarihe göre sıralı)
-                                    draft.push(appointment);
+                                    draft.push({ ...appointment });
                                     draft.sort((a, b) => {
                                         try {
                                             const dateA = new Date(a.appointmentDate + 'T' + a.startTime).getTime();

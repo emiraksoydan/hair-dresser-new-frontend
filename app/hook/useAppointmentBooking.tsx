@@ -6,8 +6,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { ChairSlotDto } from '../types';
-import { normalizeTime, areHourlyContiguous, addMinutesToHHmm } from '../utils/time/time-helper';
+import { normalizeTime, addMinutesToHHmm } from '../utils/time/time-helper';
 import { APPOINTMENT_CONSTANTS } from '../constants/appointment';
+import { useLanguage } from './useLanguage';
 
 interface UseAppointmentBookingProps {
     chairs: ChairSlotDto[];
@@ -55,10 +56,7 @@ export const useAppointmentBooking = ({ chairs, preselectedServices }: UseAppoin
             if (prev.includes(key)) return prev.filter((k) => k !== key);
 
             const next = [...prev, key];
-            if (!areHourlyContiguous(next)) {
-                Alert.alert("Uyarı", "Sadece art arda (boşluksuz) saatleri seçebilirsin.");
-                return prev;
-            }
+            // 1 saatlik ardışık slot kontrolü kaldırıldı - artık herhangi bir slot seçilebilir
             return next;
         });
     }, []);

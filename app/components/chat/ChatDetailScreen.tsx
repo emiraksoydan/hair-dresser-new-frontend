@@ -96,24 +96,53 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     const markThreadRead = useCallback(async () => {
         if (!threadId || markReadInFlightRef.current) return;
         markReadInFlightRef.current = true;
-        try {
-            await markRead(threadId).unwrap();
-        } catch {
-            // Hata durumunda sessizce devam et
-        } finally {
-            markReadInFlightRef.current = false;
-        }
-
+        
+        // Optimistic update: Thread unread count'unu 0 yap
+        let previousUnreadCount = 0;
         dispatch(
             api.util.updateQueryData("getChatThreads", undefined, (draft) => {
                 if (!draft) return;
                 const thread = draft.find(t => t.threadId === threadId);
                 if (thread) {
+                    previousUnreadCount = thread.unreadCount ?? 0;
                     thread.unreadCount = 0;
                 }
             })
         );
-        dispatch(api.util.invalidateTags(["Badge"]));
+        
+        // Optimistic badge count update: Badge count'u anlık olarak azalt
+        dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+            if (!draft) {
+                // Query henüz çalışmamışsa optimistic update yapma - query çalıştığında zaten doğru değeri alacak
+                return;
+            }
+            // Badge count'u azalt (minimum 0)
+            draft.unreadMessages = Math.max(0, (draft.unreadMessages ?? 0) - previousUnreadCount);
+            // Yeni referans oluştur ki React component'leri yeniden render olsun
+            return { ...draft };
+        }));
+        
+        try {
+            await markRead(threadId).unwrap();
+            // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
+        } catch {
+            // Hata durumunda optimistic update'i geri al
+            dispatch(
+                api.util.updateQueryData("getChatThreads", undefined, (draft) => {
+                    if (!draft) return;
+                    const thread = draft.find(t => t.threadId === threadId);
+                    if (thread) {
+                        thread.unreadCount = previousUnreadCount;
+                    }
+                })
+            );
+            dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                if (!draft) return;
+                draft.unreadMessages = (draft.unreadMessages ?? 0) + previousUnreadCount;
+            }));
+        } finally {
+            markReadInFlightRef.current = false;
+        }
     }, [threadId, markRead, dispatch]);
 
     // Mark thread as read when opened
@@ -398,11 +427,11 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
                                         // Participant'ın türüne göre etiket
                                         if (participant.userType === UserType.BarberStore) {
-                                            return 'Dükkan';
+                                            return t('labels.store');
                                         } else if (participant.userType === UserType.FreeBarber) {
-                                            return 'Serbest Berber';
+                                            return t('labels.freeBarber');
                                         } else if (participant.userType === UserType.Customer) {
-                                            return 'Müşteri';
+                                            return t('card.customer');
                                         }
                                         return null;
                                     };
@@ -416,11 +445,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                         }
 
                                         if (participant.userType === UserType.FreeBarber) {
-                                            return participant.barberType === BarberType.MaleHairdresser ? "Erkek" : "Kadın";
+                                            return participant.barberType === BarberType.MaleHairdresser 
+                                                ? t('barberType.maleHairdresserShort') 
+                                                : t('barberType.femaleHairdresserShort');
                                         } else if (participant.userType === UserType.BarberStore) {
-                                            if (participant.barberType === BarberType.MaleHairdresser) return "Erkek Berberi";
-                                            if (participant.barberType === BarberType.FemaleHairdresser) return "Kadın Kuaförü";
-                                            return "Güzellik Salonu";
+                                            if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
+                                            if (participant.barberType === BarberType.FemaleHairdresser) return t('barberType.femaleHairdresserOf');
+                                            return t('barberType.beautySalon');
                                         }
                                         return null;
                                     };
@@ -562,7 +593,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                                 <Text className="text-gray-400 text-xs font-century-gothic">
                                                     {senderParticipant.userType === UserType.BarberStore ? 'Dükkan' :
                                                         senderParticipant.userType === UserType.FreeBarber ? 'Serbest Berber' :
-                                                            'Müşteri'}
+                                                            t('card.customer')}
                                                 </Text>
                                             )}
                                             {!senderParticipant && (
@@ -645,7 +676,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                     <TextInput
                         value={messageText}
                         onChangeText={handleTextChange}
-                        placeholder={canSendMessage ? "Mesaj yazın..." : "Mesaj gönderilemez"}
+                        placeholder={canSendMessage ? t('chat.messagePlaceholder') : t('chat.messageCannotBeSentPlaceholder')}
                         placeholderTextColor="#6b7280"
                         className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 font-century-gothic"
                         multiline

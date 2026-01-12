@@ -654,7 +654,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                                                 ) : (
                                                     <>
                                                         <Icon source="image-plus" size={40} color="#888" />
-                                                        <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                                        <Text className="text-gray-500 mt-2">{t('image.add')}</Text>
                                                     </>
                                                 )}
                                             </TouchableOpacity>
@@ -797,7 +797,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                                                 data={parentCategoriesDropdownData}
                                                 labelField="label"
                                                 valueField="value"
-                                                placeholder="Ana kategori seç (Erkek Berber / Bayan Kuaför)"
+                                                placeholder={t('form.selectMainCategory')}
                                                 value={isValueValid ? value : null}
                                                 onChange={(item: any) => onChange(item.value)}
                                                 style={{
@@ -841,7 +841,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                                                 valueField="value"
                                                 value={(value ?? []) as string[]}
                                                 onChange={onChange}
-                                                placeholder="Hizmet seçin"
+                                                placeholder={t('filters.selectService')}
                                                 dropdownPosition="top"
                                                 inside
                                                 alwaysRenderSelectedItem
@@ -908,7 +908,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                                                             mode="outlined"
                                                             dense
                                                             keyboardType="numeric"
-                                                            label="Fiyat (₺)"
+                                                            label={t('form.priceLabel')}
                                                             value={value ?? ""}
                                                             onChangeText={(t) => onChange(t.replace(/[^\d.,]/g, ""))}
                                                             onBlur={() => {
@@ -937,7 +937,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                         {isEdit && (
                             <View className="px-4 mt-6">
                                 <View className="bg-gray-800 rounded-xl p-4 flex-row items-center justify-between border border-gray-700">
-                                    <Text className="text-white text-lg font-bold">Müsaitlik Durumu</Text>
+                                    <Text className="text-white text-lg font-bold">{t('status.availabilityStatus')}</Text>
                                     <Controller
                                         control={control}
                                         name="isAvailable"
@@ -961,7 +961,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
                             textColor="white"
                             labelStyle={{ fontSize: 16 }}
                         >
-                            {!isEdit ? "Ekle" : "Güncelle"}
+                            {!isEdit ? t('common.add') : t('common.update')}
                         </Button>
                     </View>
                 </>

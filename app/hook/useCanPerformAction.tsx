@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { LocationStatus } from '../types';
+import { useLanguage } from './useLanguage';
 
 /**
  * Hook to check if user can perform actions (appointment booking, panel add/update)
@@ -12,19 +13,20 @@ export function useCanPerformAction(
     locationStatus: LocationStatus | undefined,
     locationMessage?: string
 ): { canPerform: boolean; checkAndAlert: () => boolean } {
+    const { t } = useLanguage();
     const canPerform = !error && locationStatus !== 'denied';
 
     const checkAndAlert = (): boolean => {
         if (error) {
-            const errorMessage = error?.data?.message || error?.message || 'Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.';
-            Alert.alert('Hata', errorMessage);
+            const errorMessage = error?.data?.message || error?.message || t('errors.serverUnreachable');
+            Alert.alert(t('common.error'), errorMessage);
             return false;
         }
 
         if (locationStatus === 'denied') {
             Alert.alert(
-                'Konum İzni Gerekli',
-                locationMessage || 'Bu işlemi gerçekleştirmek için konum izni gereklidir. Lütfen ayarlardan konum iznini açın.'
+                t('location.locationRequired'),
+                locationMessage || t('location.permissionDeniedSettings')
             );
             return false;
         }

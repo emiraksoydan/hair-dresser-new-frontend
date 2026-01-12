@@ -67,12 +67,38 @@ export function NotificationsSheet({
 
     const handleMarkRead = useCallback(async (n: NotificationDto) => {
         if (!n.isRead) {
+            // Optimistic update: Notification'ı okundu olarak işaretle
             dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
                 const found = draft?.find((x) => x.id === n.id);
                 if (found) found.isRead = true;
             }));
-            try { await markRead(n.id).unwrap(); } catch {
-                // RTK Query optimistic update zaten yapıldı, hata durumunda cache'i geri alacak
+
+            // Optimistic badge count update: Badge count'u anlık olarak azalt
+            dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                if (!draft) {
+                    // Query henüz çalışmamışsa optimistic update yapma - query çalıştığında zaten doğru değeri alacak
+                    return;
+                }
+                // Badge count'u azalt (minimum 0)
+                draft.unreadNotifications = Math.max(0, (draft.unreadNotifications ?? 0) - 1);
+                // Yeni referans oluştur ki React component'leri yeniden render olsun
+                return { ...draft };
+            }));
+
+            try {
+                await markRead(n.id).unwrap();
+                // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
+            } catch {
+                // Hata durumunda optimistic update'i geri al
+                dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+                    const found = draft?.find((x) => x.id === n.id);
+                    if (found) found.isRead = false;
+                }));
+                dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
+                    if (!draft) return;
+                    draft.unreadNotifications = (draft.unreadNotifications ?? 0) + 1;
+                }));
+                // RTK Query invalidateTags ile de güncellenecek
             }
         }
     }, [dispatch, markRead]);
@@ -110,7 +136,10 @@ export function NotificationsSheet({
         // Optimistic update: Notification'ın status/decision alanlarını hemen güncelle
         const patchResult = dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
             if (!draft) return;
-            const found = draft.find((n) => n.id === notification.id);
+            const foundIndex = draft.findIndex((n) => n.id === notification.id);
+            if (foundIndex < 0) return;
+
+            const found = draft[foundIndex];
             if (found && found.payloadJson && found.payloadJson.trim() !== '' && found.payloadJson !== '{}') {
                 try {
                     const payload = JSON.parse(found.payloadJson);
@@ -126,7 +155,15 @@ export function NotificationsSheet({
                         if (shouldUpdateStatus) {
                             payload.status = approve ? AppointmentStatus.Approved : AppointmentStatus.Rejected;
                         }
-                        found.payloadJson = JSON.stringify(payload);
+
+                        // ÖNEMLİ: Yeni bir obje oluştur ki React component'leri yeniden render olsun
+                        // Hem notification objesi hem de payload güncellenmeli
+                        draft[foundIndex] = {
+                            ...found,
+                            payloadJson: JSON.stringify(payload),
+
+                            isRead: true
+                        };
                     }
                 } catch {
                     // Parse hatası durumunda devam et
@@ -159,12 +196,21 @@ export function NotificationsSheet({
                     return approve ? t('notification.appointmentApproved') : t('notification.appointmentRejected');
                 })();
 
-                // Bildirimi okundu olarak işaretle (otomatik)
+                // Bildirimi okundu olarak işaretle (otomatik) - Yeni obje referansı oluştur
+                dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
+                    const foundIndex = draft?.findIndex((x) => x.id === notification.id);
+                    if (foundIndex >= 0) {
+                        const found = draft[foundIndex];
+                        // Yeni obje referansı oluştur ki React component'i yeniden render olsun
+                        draft[foundIndex] = {
+                            ...found,
+                            isRead: true
+                        };
+                    }
+                }));
+
+                // Backend'e okundu olarak işaretle (async, hata önemsiz)
                 if (!notification.isRead) {
-                    dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
-                        const found = draft?.find((x) => x.id === notification.id);
-                        if (found) found.isRead = true;
-                    }));
                     try {
                         await markRead(notification.id).unwrap();
                     } catch {
@@ -258,10 +304,10 @@ export function NotificationsSheet({
 
     const formatPricingPolicy = useCallback((pricingType?: number, pricingValue?: number) => {
         if (pricingType === undefined || pricingValue === undefined) return null;
-        if (pricingType === PricingType.Percent) return `Fiyatlandırma: Yapılan işlemlerin toplamının %${pricingValue} alınır`;
-        if (pricingType === PricingType.Rent) return `Fiyatlandırma: Koltuk kirası (Saatlik: ${pricingValue}₺/saat)`;
+        if (pricingType === PricingType.Percent) return t('card.pricingPercent', { value: pricingValue });
+        if (pricingType === PricingType.Rent) return t('card.pricingRent', { value: pricingValue });
         return null;
-    }, []);
+    }, [t]);
 
     const formatRating = useCallback((rating?: number) => rating?.toFixed(1) ?? null, []);
 

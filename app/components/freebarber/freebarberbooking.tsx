@@ -191,7 +191,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
     // No Data
     if (!isAddStoreMode && !freeBarberData) {
         return (
-            <LottieViewComponent message={"Berber bulunamadı"} />
+            <LottieViewComponent message={t('errors.barberNotFound')} />
         );
     }
 
@@ -258,7 +258,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             onPress={async () => {
                                 try {
                                     if (!storeId) {
-                                        Alert.alert("Uyarı", "Dükkan bulunamadı.");
+                                        Alert.alert(t('booking.warning'), t('errors.storeNotFound'));
                                         return;
                                     }
 
@@ -268,7 +268,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     }
 
                                     if (!freeBarberUserId) {
-                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
+                                        Alert.alert(t('booking.warning'), t('booking.freebarberInfoNotFound'));
                                         return;
                                     }
 
@@ -312,7 +312,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             style={{ opacity: !freeBarberData?.isAvailable ? 0.7 : 1 }}
                             onPress={() => {
                                 if (!freeBarberData?.isAvailable) {
-                                    Alert.alert("Uyarı", "Bu berber şu anda müsait değil.");
+                                    Alert.alert(t('booking.warning'), t('booking.freebarberNotAvailable'));
                                     return;
                                 }
                                 setStoreSelectionType(StoreSelectionType.CustomRequest);
@@ -327,7 +327,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             style={{ opacity: !freeBarberData?.isAvailable ? 0.7 : 1 }}
                             onPress={() => {
                                 if (!freeBarberData?.isAvailable) {
-                                    Alert.alert("Uyarı", "Bu berber şu anda müsait değil.");
+                                    Alert.alert(t('booking.warning'), t('booking.freebarberNotAvailable'));
                                     return;
                                 }
                                 setStoreSelectionType(StoreSelectionType.StoreSelection);
@@ -354,7 +354,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             <View className="flex-row items-center gap-2 mb-2">
                                 <Text className="text-white font-century-gothic text-base">Berberin Hizmetleri</Text>
                                 <Text className="text-[#a3e635] font-century-gothic-bold text-base">
-                                    {totalPrice} ₺
+                                    {totalPrice} {t('card.currencySymbol')}
                                 </Text>
                             </View>
                             <FlatList
@@ -373,7 +373,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                             className={`rounded-xl px-4 py-2 ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
                                         >
                                             <Text style={{ color: isSelected ? "white" : "#d1d5db", fontSize: 14 }}>
-                                                {item.serviceName} - {item.price} ₺
+                                                {item.serviceName} - {item.price} {t('card.currencySymbol')}
                                             </Text>
                                         </FilterChip>
                                     );
@@ -425,7 +425,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     }
 
                                     if (!freeBarberUserId) {
-                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
+                                        Alert.alert(t('booking.warning'), t('booking.freebarberInfoNotFound'));
                                         return;
                                     }
 
@@ -495,7 +495,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                             <TextInput
                                 value={note}
                                 onChangeText={setNote}
-                                placeholder="Hizmetler, fiyatlar, saat bilgisi yazabilirsiniz..."
+                                placeholder={t('booking.appointmentNotePlaceholder')}
                                 placeholderTextColor="#9ca3af"
                                 multiline
                                 numberOfLines={3}
@@ -523,12 +523,12 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
 
                                     const locationResult = await getCurrentLocationSafe();
                                     if (!locationResult.ok) {
-                                        Alert.alert("Konum gerekli", locationResult.message ?? "Konum bilgisi alınamadı..");
+                                        Alert.alert(t('location.locationRequired'), locationResult.message ?? t('location.locationInfoNotAvailable'));
                                         return;
                                     }
 
                                     if (!freeBarberUserId) {
-                                        Alert.alert("Uyarı", "Serbest berber bilgisi bulunamadı.");
+                                        Alert.alert(t('booking.warning'), t('booking.freebarberInfoNotFound'));
                                         return;
                                     }
 
@@ -604,7 +604,7 @@ const FreeBarberBookingContent = ({ barberId, isBottomSheet = false, isBarberMod
                                     <TextInput
                                         value={note}
                                         onChangeText={setNote}
-                                        placeholder="Hizmetler, fiyatlar, saat bilgisi vb. yazabilirsiniz..."
+                                        placeholder={t('booking.appointmentNotePlaceholderAlt')}
                                         placeholderTextColor="#9ca3af"
                                         multiline
                                         numberOfLines={3}

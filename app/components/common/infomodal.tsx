@@ -4,6 +4,7 @@ import { Text } from './Text';
 import { Icon } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
 import SearchBar from './searchbar';
+import { useLanguage } from '../../hook/useLanguage';
 
 interface InfoModalProps {
     visible: boolean;
@@ -15,7 +16,9 @@ interface InfoModalProps {
     }>;
 }
 
-export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title = "Kullanım Bilgileri", items }) => {
+export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title, items }) => {
+    const { t } = useLanguage();
+    const defaultTitle = title || t('navigation.usageInfo');
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredItems = useMemo(() => {
@@ -38,7 +41,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title = 
                 <View className="bg-[#151618] rounded-2xl w-full max-w-lg max-h-[75%] border border-[#2a2c30]">
                     {/* Header */}
                     <View className="flex-row justify-between items-center p-4 border-b border-[#2a2c30]">
-                        <Text className="text-lg font-semibold text-white flex-1">{title}</Text>
+                        <Text className="text-lg font-semibold text-white flex-1">{defaultTitle}</Text>
                         <TouchableOpacity onPress={onClose} className="p-1 ml-2">
                             <Icon source="close" size={22} color="#9ca3af" />
                         </TouchableOpacity>
@@ -53,7 +56,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title = 
                     <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
                         {filteredItems.length === 0 ? (
                             <View className="py-8 items-center">
-                                <Text className="text-gray-400 text-sm">Arama sonucu bulunamadı</Text>
+                                <Text className="text-gray-400 text-sm">{t('common.noSearchResults')}</Text>
                             </View>
                         ) : (
                             filteredItems.map((item, index) => (

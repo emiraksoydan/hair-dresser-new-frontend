@@ -8,6 +8,7 @@ import { LottieViewComponent } from '../../components/common/lottieview';
 import { StoreCardInner } from '../../components/store/storecard';
 import { FreeBarberCardInner } from '../../components/freebarber/freebarbercard';
 import { resolveApiErrorMessage } from '../../utils/common/error';
+import { useLanguage } from '../../hook/useLanguage';
 
 export const SectionHeader = ({ title, expanded, onToggle }: any) => (
     <View className="flex flex-row justify-between items-center mt-4">
@@ -38,6 +39,7 @@ export const EmptyStateFunc = ({ loading, hasData, hasLocation, locationStatus, 
 );
 
 export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false }: any) => {
+    const { t } = useLanguage();
     const [expanded, setExpanded] = useState(true);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
@@ -91,7 +93,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
                 {isFiltering ? (
                     <LottieViewComponent
                         animationSource={require('../../../assets/animations/empty.json')}
-                        message="Filtreleme kriterlerine uygun işletme bulunamadı"
+                        message={t('empty.noStoresFound')}
                     />
                 ) : (
                     <EmptyStateFunc
@@ -100,7 +102,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
                         hasLocation={hasLocation}
                         locationStatus={locationStatus}
                         fetchedOnce={fetchedOnce}
-                        message="İşletme bulunamadı"
+                        message={t('empty.storeNotFound')}
                     />
                 )}
             </View>
@@ -139,6 +141,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
 });
 
 export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false }: any) => {
+    const { t } = useLanguage();
     const [expanded, setExpanded] = useState(false);
     const screenWidth = Dimensions.get('window').width;
     const cardWidth = expanded ? screenWidth * 0.92 : screenWidth * 0.94;
@@ -163,7 +166,7 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
             <View style={{ minHeight: 200, maxHeight: 400 }}>
                 <LottieViewComponent
                     animationSource={require('../../../assets/animations/Location.json')}
-                    message="Konum izni verilmedi. Lütfen ayarlardan konum iznini açın."
+                    message={t('location.permissionDeniedSettings')}
                 />
             </View>
         );
@@ -192,7 +195,7 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
                 {isFiltering ? (
                     <LottieViewComponent
                         animationSource={require('../../../assets/animations/empty.json')}
-                        message="Filtreleme kriterlerine uygun serbest berber bulunamadı"
+                        message={t('empty.noFreeBarbersFound')}
                     />
                 ) : (
                     <EmptyStateFunc
@@ -201,7 +204,7 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
                         hasLocation={hasLocation}
                         locationStatus={locationStatus}
                         fetchedOnce={fetchedOnce}
-                        message="Serbest berber bulunamadı"
+                        message={t('empty.freeBarberNotFound')}
                     />
                 )}
             </View>

@@ -8,6 +8,7 @@ import { getBarberTypeName } from "../../utils/store/barber-type";
 import React from "react";
 import { useIsFavoriteQuery } from "../../store/api";
 import { useAuth } from "../../hook/useAuth";
+import { useLanguage } from "../../hook/useLanguage";
 import { NotificationParticipantView } from "./NotificationParticipantView";
 
 // ---------------------------------------------------------------------------
@@ -42,6 +43,7 @@ export const NotificationItem = React.memo(({
 }) => {
     const unread = !item.isRead;
     const { isAuthenticated } = useAuth();
+    const { t } = useLanguage();
     let payload: NotificationPayload | null = null;
     try {
         if (item.payloadJson && item.payloadJson.trim() !== '' && item.payloadJson !== '{}') {
@@ -65,6 +67,8 @@ export const NotificationItem = React.memo(({
 
     // Payload'dan status al, eğer yoksa varsayılan olarak Pending
     // item.payloadJson değiştiğinde component yeniden render olmalı
+    // ÖNEMLİ: item.id de dependency'ye eklenmeli çünkü SignalR'dan gelen güncellemelerde
+    // aynı notification'ın payload'ı güncellenebilir ve component yeniden render olmalı
     const status = React.useMemo(() => {
         if (payload?.status !== undefined) {
             return payload.status as AppointmentStatus;
@@ -74,7 +78,7 @@ export const NotificationItem = React.memo(({
             return AppointmentStatus.Unanswered;
         }
         return AppointmentStatus.Pending;
-    }, [item.payloadJson, item.type]); // item.type da dependency'ye eklendi
+    }, [item.payloadJson, item.type, item.id]); // item.id eklendi - SignalR güncellemeleri için
     const recipientRole = payload?.recipientRole;
     // Store kontrolü: store objesi var mı ve içinde storeId veya storeOwnerUserId var mı?
     // FreeBarber kontrolü: freeBarber objesi var mı ve içinde userId var mı?
@@ -93,17 +97,18 @@ export const NotificationItem = React.memo(({
     // Boolean değerler backend bug'ı olabilir, bu durumda decision verilmemiş sayıyoruz
 
     // Decision değerini normalize et: sadece geçerli number değerlerini kabul et
-    const normalizeDecision = (v: any): DecisionStatus | null | undefined => {
+    // ÖNEMLİ: useMemo ile hesapla ki payload değiştiğinde yeniden hesaplansın
+    const normalizeDecision = React.useCallback((v: any): DecisionStatus | null | undefined => {
         if (v === undefined) return undefined;
         if (v === null) return null;
         if (typeof v === 'boolean') return undefined;
         if (typeof v === 'number') return v as DecisionStatus;
         return undefined;
-    };
+    }, []);
 
-    const storeDecision = normalizeDecision(payload?.storeDecision);
-    const freeBarberDecision = normalizeDecision(payload?.freeBarberDecision);
-    const customerDecision = normalizeDecision(payload?.customerDecision);
+    const storeDecision = React.useMemo(() => normalizeDecision(payload?.storeDecision), [payload?.storeDecision, normalizeDecision]);
+    const freeBarberDecision = React.useMemo(() => normalizeDecision(payload?.freeBarberDecision), [payload?.freeBarberDecision, normalizeDecision]);
+    const customerDecision = React.useMemo(() => normalizeDecision(payload?.customerDecision), [payload?.customerDecision, normalizeDecision]);
 
     // Butonları göstermek için decision kontrolü:
     // - Decision undefined veya null ise → butonlar gösterilir (henüz decision eklenmemiş)
@@ -274,14 +279,14 @@ export const NotificationItem = React.memo(({
     // 3. Status Pending olmalı VE decision verilmemiş olmalı
     // 4. Status notification type'ı değilse (AppointmentRejected, AppointmentCancelled, AppointmentCompleted, AppointmentApproved)
     // 5. Decision verilmişse (Approved, Rejected, NoAnswer) butonlar gösterilmemeli - ekstra güvenlik kontrolü
-    const hasDecisionGiven = decisionForRecipient !== undefined && 
-                             decisionForRecipient !== null && 
-                             decisionForRecipient !== DecisionStatus.Pending;
-    const shouldShowButtons = showDecisionButtons && 
-                             !showDecisionStatus && 
-                             isPending && 
-                             !isStatusNotificationType &&
-                             !hasDecisionGiven; // Decision verilmişse butonlar gösterilmez
+    const hasDecisionGiven = decisionForRecipient !== undefined &&
+        decisionForRecipient !== null &&
+        decisionForRecipient !== DecisionStatus.Pending;
+    const shouldShowButtons = showDecisionButtons &&
+        !showDecisionStatus &&
+        isPending &&
+        !isStatusNotificationType &&
+        !hasDecisionGiven; // Decision verilmişse butonlar gösterilmez
 
     // FreeBarber için "Dükkan Ekle" butonu KALDIRILDI
     // Otomatik algılama: Panel index'te aktif StoreSelection randevusu varsa otomatik mode=add-store
@@ -375,7 +380,7 @@ export const NotificationItem = React.memo(({
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {serviceOfferings.map((service) => (
                                         <View key={service.id} className="bg-[#2a2c30] rounded-lg px-2 ml-1  py-1">
-                                            <Text className="text-white text-sm">{service.serviceName} ₺{Number(service.price).toFixed(0)}</Text>
+                                            <Text className="text-white text-sm">{service.serviceName} {t('card.currencySymbol')}{Number(service.price).toFixed(0)}</Text>
                                         </View>
                                     ))}
                                 </ScrollView>

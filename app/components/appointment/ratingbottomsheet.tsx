@@ -62,7 +62,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
             };
 
             await createRating(dto).unwrap();
-            Alert.alert('Başarılı', 'Değerlendirmeniz kaydedildi.');
+            Alert.alert(t('common.success'), t('rating.ratingSaved'));
             onSuccess?.();
             onClose();
         } catch (error: any) {
@@ -152,7 +152,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
                     <Text className="text-white text-sm mb-2">Yorum (Opsiyonel)</Text>
                     <TextInput
                         className="bg-[#2a2c30] text-white rounded-lg p-3 mb-4 min-h-[100px] font-century-gothic"
-                        placeholder="Yorumunuzu yazın..."
+                        placeholder={t('rating.commentPlaceholder')}
                         placeholderTextColor="#6b7280"
                         value={comment}
                         onChangeText={setComment}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { MotiText } from 'moti';
+import { useLanguage } from '../../hook/useLanguage';
 
 type EmptyStateProps = {
     message?: string;
@@ -11,11 +12,13 @@ type EmptyStateProps = {
 };
 
 export const LottieViewComponent: React.FC<EmptyStateProps> = ({
-    message = 'Yakınında şu an listelenecek berber bulunamadı.',
+    message,
     style,
     animationSource = require('../../../assets/animations/empty.json'),
     animationSize = 120,
 }) => {
+    const { t } = useLanguage();
+    const defaultMessage = message || t('empty.noBarbersNearby');
     return (
         <View className="items-center justify-center py-8 px-4" style={[{ minHeight: 200, maxHeight: 400 }, style]}>
             <LottieView
@@ -36,7 +39,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
                 className="mt-2 text-white text-base text-center px-4"
                 numberOfLines={3}
             >
-                {message}
+                {defaultMessage}
             </MotiText>
         </View>
     );

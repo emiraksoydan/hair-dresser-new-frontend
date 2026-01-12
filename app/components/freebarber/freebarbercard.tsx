@@ -1,13 +1,18 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Image, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, TouchableOpacity, Alert } from 'react-native';
 import { Text } from '../common/Text';
-import { Icon, IconButton } from 'react-native-paper';
-import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { BarberType, FreeBarGetDto } from '../../types';
-import { useToggleFavoriteMutation, useCallFreeBarberMutation } from '../../store/api';
-import { useAuth } from '../../hook/useAuth';
-import { ImageCarousel } from '../common/imagecarousel';
+import { FreeBarGetDto, FavoriteTargetType } from '../../types';
+import { useFavoriteToggle } from '../../hook/useFavoriteToggle';
+import { useCallFreeBarberMutation } from '../../store/api';
 import { useLanguage } from '../../hook/useLanguage';
+import { CardImage } from '../common/CardImage';
+import { CardHeader } from '../common/CardHeader';
+import { FavoriteButton } from '../common/FavoriteButton';
+import { RatingSection } from '../common/RatingSection';
+import { StatusBadge } from '../common/StatusBadge';
+import { ServiceOfferingsList } from '../common/ServiceOfferingsList';
+import { TypeLabel } from '../common/TypeLabel';
+import { getShortBarberTypeLabel } from '../../utils/card-helpers';
 
 type Props = {
     freeBarber: FreeBarGetDto;
@@ -27,30 +32,28 @@ type Props = {
 
 const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWidthFreeBarber, typeLabel, typeLabelColor = 'bg-green-500', onPressUpdate, mode = 'default', onPressRatings, onCallFreeBarber, storeId, showImageAnimation = true, isMapMode = false }) => {
     const carouselWidth = Math.max(0, cardWidthFreeBarber);
-    const { isAuthenticated } = useAuth();
     const { t } = useLanguage();
-    const [toggleFavorite, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
     const [callFreeBarber, { isLoading: isCalling }] = useCallFreeBarberMutation();
-    const [isFavorite, setIsFavorite] = useState(freeBarber.isFavorited ?? false);
-    const [favoriteCount, setFavoriteCount] = useState(freeBarber.favoriteCount || 0);
     const [hasCalled, setHasCalled] = useState(false);
     const previousAvailableRef = useRef<boolean | null>(null);
 
-
     const isAvailable = freeBarber.isAvailable ?? true;
+
+    const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
+        targetId: freeBarber.id,
+        targetType: FavoriteTargetType.FreeBarber,
+        initialIsFavorite: freeBarber.isFavorited ?? false,
+        initialFavoriteCount: freeBarber.favoriteCount || 0,
+        skipQuery: true, // FreeBarberCard uses isFavorited from props
+    });
+
     const handlePressCard = useCallback(() => {
         onPressUpdate?.(freeBarber);
     }, [onPressUpdate, freeBarber]);
 
-    // freeBarber.isFavorited ve favoriteCount değiştiğinde state'i güncelle
-    useEffect(() => {
-        if (freeBarber.isFavorited !== undefined) {
-            setIsFavorite(freeBarber.isFavorited);
-        }
-        if (freeBarber.favoriteCount !== undefined && freeBarber.favoriteCount !== null) {
-            setFavoriteCount(freeBarber.favoriteCount);
-        }
-    }, [freeBarber.isFavorited, freeBarber.favoriteCount]);
+    const handlePressRatings = useCallback(() => {
+        onPressRatings?.(freeBarber.id, freeBarber.fullName);
+    }, [onPressRatings, freeBarber.id, freeBarber.fullName]);
 
     useEffect(() => {
         if (previousAvailableRef.current === false && isAvailable) {
@@ -58,23 +61,6 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
         }
         previousAvailableRef.current = isAvailable;
     }, [isAvailable]);
-
-    const handleToggleFavorite = useCallback(async () => {
-        if (!isAuthenticated) {
-            Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
-            return;
-        }
-
-        try {
-            await toggleFavorite({
-                targetId: freeBarber.id,
-                appointmentId: null,
-            }).unwrap();
-            // API.tsx'teki optimistic update ve invalidateTags ile state otomatik güncellenecek
-        } catch (error: any) {
-            Alert.alert(t('common.error'), error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed'));
-        }
-    }, [isAuthenticated, freeBarber.id, toggleFavorite]);
 
     const handleCallFreeBarber = useCallback(async () => {
         if (!storeId) {
@@ -84,7 +70,7 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
 
         Alert.alert(
             t('booking.callBarber'),
-            `${freeBarber.fullName} adlı berberi çağırmak istediğinize emin misiniz?`,
+            t('card.callBarberConfirm', { name: freeBarber.fullName }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -123,147 +109,87 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
             <View className={isList ? '' : 'pl-4 py-2 rounded-lg bg-[#202123]'}>
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-2'>
-                        <View className={freeBarber.isAvailable ? 'bg-green-600 px-2 py-1 rounded-xl flex-row items-center justify-center' : 'bg-red-600 px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                            <Text className="text-white text-sm font-century-gothic-sans-medium">
-                                {freeBarber.isAvailable ? 'Müsait' : 'Meşgul'}
-                            </Text>
-                        </View>
+                        <StatusBadge
+                            type={isAvailable ? 'available' : 'busy'}
+                            isList={false}
+                        />
                     </View>
                 )}
                 <View className={isList ? '' : 'flex flex-row'}>
 
-                    <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
-                        <ImageCarousel
-                            key={`freebarber-${freeBarber.id}-${isMapMode}`}
-                            images={freeBarber.imageList ?? []}
+                    <View className="relative mr-2">
+                        <CardImage
+                            images={freeBarber.imageList}
+                            onPress={handlePressCard}
+                            isList={isList}
                             width={isList ? carouselWidth : 112}
-                            mode={'default'}
                             height={isList ? 250 : 112}
                             autoPlay={showImageAnimation}
-                            borderRadiusClass="rounded-lg"
-                            showPagination={true}
                             isMapMode={isMapMode}
                         />
                         {isList && (
                             <View className='absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center'>
                                 {typeLabel && (
-                                    <View className={typeLabelColor + ' px-2 py-1 rounded-xl flex-row items-center justify-center'}>
-                                        <Text className="text-white text-base font-century-gothic-sans-medium">
-                                            {typeLabel}
-                                        </Text>
-                                    </View>
+                                    <TypeLabel label={typeLabel} color={typeLabelColor} />
                                 )}
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className={freeBarber.type == BarberType.MaleHairdresser ? 'bg-[#4c8ff7] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#ff69b4] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
-                                    style={{ elevation: 5 }}
-                                >
-                                    <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
-                                        {freeBarber.type == BarberType.MaleHairdresser ? "Erkek" : "Kadın"}
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => { }}
-                                    className={isAvailable ? 'bg-[#2e6a45] flex-row items-center px-2 py-2 rounded-full shadow-sm' : 'bg-[#b24949] flex-row items-center px-2 py-2 rounded-full shadow-sm'}
-                                    style={{ elevation: 5 }}
-                                >
-                                    <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
-                                        {isAvailable ? "Müsait" : "Meşgul"}
-                                    </Text>
-                                </TouchableOpacity>
+                                <StatusBadge
+                                    type="barber-type"
+                                    barberType={freeBarber.type}
+                                    isList={true}
+                                />
+                                <StatusBadge
+                                    type={isAvailable ? 'available' : 'busy'}
+                                    isList={true}
+                                />
                                 {mode === 'barbershop' && isAvailable && !hasCalled && (
                                     <TouchableOpacity
                                         onPress={handleCallFreeBarber}
                                         disabled={isCalling}
-                                        className=" bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
+                                        className="bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
                                         style={{ elevation: 5 }}
                                     >
                                         <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
-                                            {isCalling ? 'Çağırılıyor...' : 'Berberi Çağır'}
+                                            {isCalling ? t('card.calling') : t('card.callBarber')}
                                         </Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
                         )}
-
-                    </TouchableOpacity>
+                    </View>
 
                     <View className="flex-1 flex-col gap-2">
-
                         <View
-                            className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'
-                                }`}
+                            className={`flex-row justify-between ${!isList ? 'items-start' : 'items-center'}`}
                         >
-
-                            <View className={`flex-row h-8 flex-1 ${isList ? 'items-center' : ''}`}>
-                                <Text
-                                    numberOfLines={1}
-                                    ellipsizeMode={'tail'}
-                                    style={{ fontSize: 20 }}
-                                    className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
-                                >
-                                    {freeBarber.fullName}
-                                </Text>
-
-                                <IconButton
-                                    iconColor="gray"
-                                    size={20}
-                                    style={{
-                                        marginTop: 0,
-                                        paddingRight: 5,
-                                        paddingTop: isList ? 5 : 0,
-                                        paddingBottom: !isList ? 10 : 0,
-                                        flexShrink: 1,
-                                    }}
-                                    icon={
-                                        freeBarber.type === BarberType.MaleHairdresser
-                                            ? 'face-man'
-                                            : 'face-woman'
-                                    }
-                                />
-                            </View>
-
+                            <CardHeader
+                                title={freeBarber.fullName}
+                                isList={isList}
+                                barberType={freeBarber.type}
+                            />
                             {isList && (
-                                <View className="flex-row items-center">
-                                    <IconButton
-                                        size={25}
-                                        iconColor={isFavorite ? "red" : "gray"}
-                                        icon={isFavorite ? "heart" : "heart-outline"}
-                                        style={{
-                                            marginTop: !isList ? -5 : 0,
-                                            marginRight: !isList ? 0 : -8,
-                                        }}
-                                        onPress={handleToggleFavorite}
-                                        disabled={isTogglingFavorite}
-                                    />
-                                    <Text
-                                        className={`text-white font-century-gothic-sans-regular text-xs ${!isList ? 'pb-3 ml-[-8px] mr-2' : 'pb-2'
-                                            }`}
-                                    >
-                                        ({favoriteCount})
-                                    </Text>
-                                </View>
+                                <FavoriteButton
+                                    isFavorite={isFavorite}
+                                    favoriteCount={favoriteCount}
+                                    isLoading={isLoading}
+                                    onPress={toggleFavorite}
+                                    variant="icon"
+                                    className="pb-2"
+                                />
                             )}
                         </View>
                         {!isList && (
-                            <View className="flex-row  justify-between pr-2 ">
-                                <Text className='text-base text-gray-500'>{freeBarber.type === BarberType.MaleHairdresser ? "Erkek" : 'Kadın'}</Text>
-                                <TouchableOpacity
-                                    onPress={handleToggleFavorite}
-                                    disabled={isTogglingFavorite}
-                                    className="flex-row items-center gap-1"
-                                >
-                                    <Icon
-                                        size={25}
-                                        color={isFavorite ? "red" : "gray"}
-                                        source={isFavorite ? "heart" : "heart-outline"}
-                                    />
-                                    <Text
-                                        className={`text-white font-century-gothic-sans-regular text-xs pb-1`}
-                                    >
-                                        ({favoriteCount})
-                                    </Text>
-                                </TouchableOpacity>
+                            <View className="flex-row justify-between pr-2">
+                                <Text className='text-base text-gray-500'>
+                                    {getShortBarberTypeLabel(freeBarber.type)}
+                                </Text>
+                                <FavoriteButton
+                                    isFavorite={isFavorite}
+                                    favoriteCount={favoriteCount}
+                                    isLoading={isLoading}
+                                    onPress={toggleFavorite}
+                                    variant="button"
+                                    className="pb-1"
+                                />
                             </View>
                         )}
 
@@ -271,50 +197,17 @@ const FreeBarberCard: React.FC<Props> = ({ freeBarber, isList, expanded, cardWid
                             className="flex-row justify-between items-center"
                             style={{ marginTop: !isList ? -5 : -10 }}
                         >
-                            <View className="flex-row items-center gap-1">
-                                <StarRatingDisplay
-                                    rating={freeBarber.rating}
-                                    starSize={15}
-                                    starStyle={{ marginHorizontal: 0 }}
-                                />
-                                <Text className="text-white flex-1">{freeBarber.rating}</Text>
-                                <TouchableOpacity
-                                    onPress={() => onPressRatings?.(freeBarber.id, freeBarber.fullName)}
-                                    activeOpacity={0.7}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Text className="text-white underline mr-1 mb-0 text-xs">
-                                        Yorumlar ({freeBarber.reviewCount})
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                            <RatingSection
+                                rating={freeBarber.rating}
+                                reviewCount={freeBarber.reviewCount}
+                                onPressRatings={handlePressRatings}
+                            />
                         </View>
                     </View>
                 </View>
             </View>
 
-            {!!freeBarber.offerings?.length && (
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    className="mt-2"
-                    contentContainerStyle={{ gap: 8 }}
-                >
-                    {freeBarber.offerings.map((s) => (
-                        <View
-                            key={(s as any).id ?? s.serviceName}
-                            className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
-                        >
-                            <Text className="text-[#d1d5db] mr-1 text-sm">
-                                {s.serviceName} :
-                            </Text>
-                            <Text className="text-[#a3e635] text-sm">
-                                {s.price} TL
-                            </Text>
-                        </View>
-                    ))}
-                </ScrollView>
-            )}
+            <ServiceOfferingsList offerings={freeBarber.offerings || []} />
         </View>
     );
 };

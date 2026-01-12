@@ -11,6 +11,7 @@ import type { NotificationPayload } from '../../types';
 import { UserType, BarberType, ImageOwnerType } from '../../types';
 import { getBarberTypeName } from '../../utils/store/barber-type';
 import { OwnerAvatar } from '../common/owneravatar';
+import { useLanguage } from '../../hook/useLanguage';
 
 interface NotificationParticipantViewProps {
     payload: NotificationPayload;
@@ -31,6 +32,7 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
     isCustomerInFavorites,
     formatRating,
 }) => {
+    const { t } = useLanguage();
     const hasManualBarber = !!payload?.chair?.manuelBarberId || !!payload?.chair?.manuelBarberName;
 
     if (recipientRole === 'store') {
@@ -47,10 +49,10 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             iconSize={24}
                         />
                         <View className="flex-1">
-                            <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
-                            <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
+                            <Text className="text-[#9ca3af] text-xs">{t('card.customer')}</Text>
+                            <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || t('card.customer')}</Text>
                             {payload.customer?.customerNumber && (
-                                <Text className="text-[#6b7280] text-xs mt-0.5">Müşteri No: {payload.customer.customerNumber}</Text>
+                                <Text className="text-[#6b7280] text-xs mt-0.5">{t('card.customerNumber')}: {payload.customer.customerNumber}</Text>
                             )}
                             {isCustomerInFavorites && (
                                 <View className="flex-row items-center mt-0.5">
@@ -172,10 +174,10 @@ export const NotificationParticipantView: React.FC<NotificationParticipantViewPr
                             iconSize={20}
                         />
                         <View className="flex-1">
-                            <Text className="text-[#9ca3af] text-xs">Müşteri</Text>
-                            <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || 'Müşteri'}</Text>
+                            <Text className="text-[#9ca3af] text-xs">{t('card.customer')}</Text>
+                            <Text className="text-white text-sm font-semibold">{payload.customer?.displayName || t('card.customer')}</Text>
                             {payload.customer?.customerNumber && (
-                                <Text className="text-[#6b7280] text-xs mt-0.5">Müşteri No: {payload.customer.customerNumber}</Text>
+                                <Text className="text-[#6b7280] text-xs mt-0.5">{t('card.customerNumber')}: {payload.customer.customerNumber}</Text>
                             )}
                             {isCustomerInFavorites && (
                                 <View className="flex-row items-center mt-0.5">

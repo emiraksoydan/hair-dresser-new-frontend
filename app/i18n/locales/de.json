@@ -34,7 +34,11 @@
     "myProfile": "Mein Profil",
     "settings": "Einstellungen",
     "imageAnimation": "Bildanimation",
-    "imageAnimationDescription": "Animation in Panel- und Kartenbildern ein/ausblenden"
+    "imageAnimationDescription": "Animation in Panel- und Kartenbildern ein/ausblenden",
+    "photoUpdated": "Profilfoto aktualisiert",
+    "photoUploadFailed": "Foto konnte nicht hochgeladen werden",
+    "photoUploadError": "Fehler beim Hochladen des Fotos",
+    "operationError": "Ein Fehler ist aufgetreten"
   },
   "navigation": {
     "welcome": "Willkommen",
@@ -108,19 +112,22 @@
       "yes": "Ja",
       "no": "Nein"
     },
-    "pricing": {
-      "percent": "{{value}}% der Gesamtdienstleistungen werden genommen",
-      "rent": "Platzmiete ({{value}} TL pro Stunde)"
-    },
     "labels": {
       "customer": "Kunde",
-      "customerNumber": "Kundennummer",
       "rentingBarber": "Mietender Friseur",
       "freeBarber": "Freier Friseur",
       "average": "Durchschnitt",
       "yourComment": "Dein Kommentar",
       "makeComment": "Kommentar abgeben",
-      "noAppointmentsInCategory": "Keine Termine in dieser Kategorie gefunden."
+      "noAppointmentsInCategory": "Keine Termine in dieser Kategorie gefunden.",
+      "timePassed": "Zeit abgelaufen",
+      "storeBarber": "Geschäftsfriseur",
+      "storeName": "Geschäftsname",
+      "serviceProvider": "Dienstleister",
+      "storeEmployee": "Geschäftsangestellter",
+      "address": "Adresse",
+      "myServices": "Meine Dienstleistungen",
+      "services": "Dienstleistungen"
     }
   },
   "time": {
@@ -134,14 +141,14 @@
     "noNotifications": "Du hast noch keine Benachrichtigungen.",
     "noFavorites": "Du hast noch nichts in deiner Favoritenliste.",
     "noFavoritesAdded": "Du hast noch keine Favoriten hinzugefügt.",
-    "noFavoritesDescription": "Du kannst Geschäfte und Friseure, die dir gefallen, zu deinen Favoriten hinzufügen."
-  },
-  "favorites": {
-    "store": "Geschäft",
-    "freeBarber": "Freier Friseur",
-    "customer": "Kunde",
-    "manuelBarber": "Manueller Friseur",
-    "unknown": "Unbekannt"
+    "noFavoritesDescription": "Du kannst Geschäfte und Friseure, die dir gefallen, zu deinen Favoriten hinzufügen.",
+    "noBarbersNearby": "Keine Friseure in der Nähe gefunden, die derzeit aufgelistet werden können.",
+    "noPanelAdded": "Du hast noch kein Panel hinzugefügt.",
+    "noStoresFound": "Keine Geschäfte gefunden, die den Filterkriterien entsprechen",
+    "noResultsFound": "Keine Ergebnisse gefunden, die den Filterkriterien entsprechen",
+    "noFreeBarbersFound": "Keine freien Friseure gefunden, die den Filterkriterien entsprechen",
+    "storeNotFound": "Geschäft nicht gefunden",
+    "freeBarberNotFound": "Freier Friseur nicht gefunden"
   },
   "filters": {
     "userType": "Benutzertyp",
@@ -157,8 +164,6 @@
     "minimumRating": "Mindestbewertung",
     "favoriteFilter": "Favoritenfilter",
     "all": "Alle",
-    "freeBarber": "Freier Friseur",
-    "store": "Geschäft",
     "available": "Verfügbar",
     "unavailable": "Nicht verfügbar",
     "rental": "Miete",
@@ -188,13 +193,17 @@
     "edit": "Bearbeiten",
     "close": "Schließen",
     "search": "Suchen...",
+    "searchPlaceholder": "Name suchen...",
+    "noSearchResults": "Keine Suchergebnisse gefunden",
     "operationFailed": "Vorgang fehlgeschlagen",
     "operationSuccess": "Vorgang erfolgreich",
     "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten",
     "networkError": "Verbindungsfehler. Bitte versuche es erneut.",
     "loadingError": "Beim Laden ist ein Fehler aufgetreten.",
     "ok": "OK",
-    "refresh": "Aktualisieren"
+    "refresh": "Aktualisieren",
+    "add": "Hinzufügen",
+    "update": "Aktualisieren"
   },
   "labels": {
     "freeBarber": "Freier Friseur",
@@ -206,6 +215,9 @@
   },
   "errors": {
     "operationFailed": "Vorgang fehlgeschlagen",
+    "serverUnreachable": "Server nicht erreichbar. Bitte überprüfe deine Internetverbindung.",
+    "serverNoResponse": "Keine Antwort vom Server. Bitte versuche es erneut.",
+    "barberNotFound": "Friseur nicht gefunden",
     "duplicateSlot": "Dieser Terminzeitpunkt wurde bereits von einem anderen Benutzer gebucht. Bitte wähle eine andere Zeit.",
     "storeNotFound": "Geschäft nicht gefunden.",
     "chairRequired": "Platzauswahl ist erforderlich.",
@@ -364,7 +376,10 @@
     "deleteBarber": "Friseur löschen",
     "deleteBarberConfirm": "Bist du sicher, dass du den Friseur namens \"{{name}}\" löschen möchtest?",
     "deleteChair": "Platz löschen",
-    "deleteChairConfirm": "Bist du sicher, dass du den Platz namens \"{{name}}\" löschen möchtest?"
+    "deleteChairConfirm": "Bist du sicher, dass du den Platz namens \"{{name}}\" löschen möchtest?",
+    "selectMainCategory": "Hauptkategorie auswählen (Herrenfriseur / Damenfriseur)",
+    "workingHoursInfo": "Ausgewählte Zeitfenster werden Kunden in 1-Stunden-Intervallen angezeigt, z.B. 8:00-9:00, 10:00-11:00",
+    "priceLabel": "Preis (₺)"
   },
   "languages": {
     "tr": "Türkisch",
@@ -398,14 +413,18 @@
     "selectStoreFirst": "Bitte wähle zuerst ein Geschäft.",
     "callBarber": "Friseur rufen",
     "freebarberUserNotFound": "Freier Friseur-Benutzer nicht gefunden.",
-    "barberCallFailed": "Friseuranruf fehlgeschlagen."
+    "barberCallFailed": "Friseuranruf fehlgeschlagen.",
+    "appointmentNotePlaceholder": "Du kannst Dienstleistungen, Preise, Zeitinformationen schreiben...",
+    "appointmentNotePlaceholderAlt": "Du kannst Dienstleistungen, Preise, Zeitinformationen usw. schreiben..."
   },
   "chat": {
     "connectionError": "Verbindungsfehler",
     "connectionErrorMessage": "Verbindung zum Server nicht möglich. Bitte überprüfe deine Internetverbindung.",
     "messageCannotBeSent": "Nachricht kann nicht gesendet werden",
     "messageSendFailed": "Nachricht konnte nicht gesendet werden",
-    "cannotSendToThread": "Du kannst keine Nachrichten an diesen Thread senden."
+    "cannotSendToThread": "Du kannst keine Nachrichten an diesen Thread senden.",
+    "messagePlaceholder": "Nachricht schreiben...",
+    "messageCannotBeSentPlaceholder": "Nachricht kann nicht gesendet werden"
   },
   "rating": {
     "selectRating": "Bitte wähle eine Bewertung.",
@@ -418,7 +437,9 @@
     "ratingOnlyForCompleted": "Bewertungen können nur für abgeschlossene oder stornierte Termine abgegeben werden.",
     "cannotRateYourself": "Du kannst dich nicht selbst bewerten.",
     "invalidTargetForRating": "Ungültiges Ziel. Bewertungen können nur mit Geschäfts-ID, Freier-Friseur-ID oder Kunden-Benutzer-ID abgegeben werden. ManuelBarber kann nicht bewertet werden.",
-    "ratingAlreadyExists": "Du hast dieses Ziel für diesen Termin bereits bewertet. Bewertung kann nicht aktualisiert werden."
+    "ratingAlreadyExists": "Du hast dieses Ziel für diesen Termin bereits bewertet. Bewertung kann nicht aktualisiert werden.",
+    "all": "Alle",
+    "commentPlaceholder": "Schreibe deinen Kommentar..."
   },
   "notification": {
     "redirectFailed": "Weiterleitung fehlgeschlagen.",
@@ -454,6 +475,8 @@
     "newAppointmentRequestForStore": "Neue Terminanfrage"
   },
   "favorites": {
+    "manuelBarber": "Manueller Friseur",
+    "unknown": "Unbekannt",
     "addedSuccess": "Zu Favoriten hinzugefügt.",
     "updatedSuccess": "Favorit aktualisiert.",
     "removedSuccess": "Aus Favoriten entfernt.",
@@ -469,5 +492,66 @@
     "urlNotFound": "Bild-URL nicht gefunden.",
     "ownerIdRequired": "Bildbesitzer-ID darf nicht leer sein.",
     "idRequired": "Bild-ID darf nicht leer sein."
+  },
+  "card": {
+    "customer": "Kunde",
+    "reviews": "Bewertungen",
+    "reviewsCount": "Bewertungen ({{count}})",
+    "noReviews": "Keine Bewertungen",
+    "calling": "Wird angerufen...",
+    "callBarber": "Friseur anrufen",
+    "callBarberConfirm": "Sind Sie sicher, dass Sie den Friseur namens {{name}} anrufen möchten?",
+    "customerNumber": "Kundennummer",
+    "customerOf": "Kunde von",
+    "pricing": "Preisgestaltung",
+    "pricingPercent": "Preisgestaltung: {{value}}% des Gesamtbetrags der Dienstleistungen wird genommen",
+    "pricingRent": "Preisgestaltung: Sitzmiete ({{value}} TL pro Stunde)",
+    "currency": "TL",
+    "currencySymbol": "₺"
+  },
+  "status": {
+    "open": "Geöffnet",
+    "closed": "Geschlossen",
+    "available": "Verfügbar",
+    "busy": "Beschäftigt",
+    "availabilityStatus": "Verfügbarkeitsstatus"
+  },
+  "barberType": {
+    "male": "Männlich",
+    "female": "Weiblich",
+    "maleHairdresser": "Herrenfriseur",
+    "femaleHairdresser": "Damenfriseur",
+    "beautySalon": "Schönheitssalon",
+    "maleHairdresserShort": "Männlich",
+    "femaleHairdresserShort": "Weiblich",
+    "maleHairdresserOf": "Herrenfriseur",
+    "femaleHairdresserOf": "Damenfriseur"
+  },
+  "location": {
+    "locationNotReady": "Standort ist nicht bereit.",
+    "invalidLocationInfo": "Ungültige Standortinformationen erhalten.",
+    "locationError": "Beim Abrufen des Standorts ist ein Fehler aufgetreten.",
+    "permissionDenied": "Standortberechtigung verweigert.",
+    "permissionDeniedSettings": "Standortberechtigung verweigert. Bitte aktiviere die Standortberechtigung in den Einstellungen.",
+    "servicesDisabled": "Standortdienste sind deaktiviert.",
+    "gateNotVerified": "Standorttor konnte nicht verifiziert werden.",
+    "locationRequired": "Standort erforderlich",
+    "locationInfoNotAvailable": "Standortinformationen konnten nicht abgerufen werden.",
+    "locationClosed": "Standort geschlossen",
+    "locationClosedMessage": "Du musst den Gerätestandort aktivieren, um fortzufahren.",
+    "cancel": "Abbrechen",
+    "openLocation": "Standort öffnen",
+    "settings": "Einstellungen",
+    "permissionRequired": "Standortberechtigung erforderlich",
+    "permissionRequiredMessage": "Du musst die Standortberechtigung erteilen, um nahegelegene Unternehmen anzuzeigen.",
+    "permissionDeniedMessage": "Die Standortberechtigung scheint deaktiviert zu sein. Du musst die Standortberechtigung in den Einstellungen aktivieren.",
+    "tryAgain": "Erneut versuchen",
+    "dragLocation": "Du kannst den Standort ziehen und ablegen"
+  },
+  "settings": {
+    "updateSuccess": "Einstellung erfolgreich aktualisiert"
+  },
+  "image": {
+    "add": "Bild hinzufügen"
   }
 }

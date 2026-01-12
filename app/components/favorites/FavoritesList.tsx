@@ -133,11 +133,11 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const getTargetTypeLabel = useCallback((targetType: FavoriteTargetType) => {
         switch (targetType) {
             case FavoriteTargetType.Store:
-                return t('favorites.store');
+                return t('labels.store');
             case FavoriteTargetType.FreeBarber:
-                return t('favorites.freeBarber');
+                return t('labels.freeBarber');
             case FavoriteTargetType.Customer:
-                return t('favorites.customer');
+                return t('card.customer');
             case FavoriteTargetType.ManuelBarber:
                 return t('favorites.manuelBarber');
             default:

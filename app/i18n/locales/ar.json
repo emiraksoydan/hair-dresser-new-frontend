@@ -34,7 +34,11 @@
     "myProfile": "ملفي الشخصي",
     "settings": "الإعدادات",
     "imageAnimation": "رسوم متحركة للصور",
-    "imageAnimationDescription": "إظهار/إخفاء الرسوم المتحركة في صور اللوحة والخريطة"
+    "imageAnimationDescription": "إظهار/إخفاء الرسوم المتحركة في صور اللوحة والخريطة",
+    "photoUpdated": "تم تحديث صورة الملف الشخصي",
+    "photoUploadFailed": "فشل تحميل الصورة",
+    "photoUploadError": "حدث خطأ أثناء تحميل الصورة",
+    "operationError": "حدث خطأ"
   },
   "navigation": {
     "welcome": "مرحباً",
@@ -108,19 +112,22 @@
       "yes": "نعم",
       "no": "لا"
     },
-    "pricing": {
-      "percent": "يتم أخذ {{value}}% من إجمالي الخدمات",
-      "rent": "إيجار المقعد ({{value}} ليرة تركية في الساعة)"
-    },
     "labels": {
       "customer": "العميل",
-      "customerNumber": "رقم العميل",
       "rentingBarber": "الحلاق المستأجر",
       "freeBarber": "حلاق مستقل",
       "average": "المتوسط",
       "yourComment": "تعليقك",
       "makeComment": "إضافة تعليق",
-      "noAppointmentsInCategory": "لم يتم العثور على مواعيد في هذه الفئة."
+      "noAppointmentsInCategory": "لم يتم العثور على مواعيد في هذه الفئة.",
+      "timePassed": "انتهى الوقت",
+      "storeBarber": "حلاق المتجر",
+      "storeName": "اسم المتجر",
+      "serviceProvider": "مقدم الخدمة",
+      "storeEmployee": "موظف المتجر",
+      "address": "العنوان",
+      "myServices": "خدماتي",
+      "services": "الخدمات"
     }
   },
   "time": {
@@ -134,14 +141,14 @@
     "noNotifications": "ليس لديك أي إشعارات بعد.",
     "noFavorites": "ليس لديك أي شيء في قائمة المفضلة بعد.",
     "noFavoritesAdded": "لم تقم بإضافة أي مفضلات بعد.",
-    "noFavoritesDescription": "يمكنك إضافة المتاجر والحلاقين الذين يعجبونك إلى مفضلاتك."
-  },
-  "favorites": {
-    "store": "متجر",
-    "freeBarber": "حلاق مستقل",
-    "customer": "عميل",
-    "manuelBarber": "حلاق يدوي",
-    "unknown": "غير معروف"
+    "noFavoritesDescription": "يمكنك إضافة المتاجر والحلاقين الذين يعجبونك إلى مفضلاتك.",
+    "noBarbersNearby": "لم يتم العثور على حلاقين بالقرب منك في الوقت الحالي.",
+    "noPanelAdded": "لم تقم بإضافة لوحة بعد.",
+    "noStoresFound": "لم يتم العثور على متاجر تطابق معايير التصفية",
+    "noResultsFound": "لم يتم العثور على نتائج تطابق معايير التصفية",
+    "noFreeBarbersFound": "لم يتم العثور على حلاقين مستقلين يطابقون معايير التصفية",
+    "storeNotFound": "لم يتم العثور على المتجر",
+    "freeBarberNotFound": "لم يتم العثور على الحلاق المستقل"
   },
   "filters": {
     "userType": "نوع المستخدم",
@@ -157,8 +164,6 @@
     "minimumRating": "الحد الأدنى للتقييم",
     "favoriteFilter": "فلتر المفضلة",
     "all": "الكل",
-    "freeBarber": "حلاق مستقل",
-    "store": "متجر",
     "available": "متاح",
     "unavailable": "غير متاح",
     "rental": "إيجار",
@@ -188,13 +193,17 @@
     "edit": "تعديل",
     "close": "إغلاق",
     "search": "بحث...",
+    "searchPlaceholder": "ابحث عن الاسم...",
+    "noSearchResults": "لم يتم العثور على نتائج البحث",
     "operationFailed": "فشلت العملية",
     "operationSuccess": "نجحت العملية",
     "unexpectedError": "حدث خطأ غير متوقع",
     "networkError": "خطأ في الاتصال. يرجى المحاولة مرة أخرى.",
     "loadingError": "حدث خطأ أثناء التحميل.",
     "ok": "حسناً",
-    "refresh": "تحديث"
+    "refresh": "تحديث",
+    "add": "إضافة",
+    "update": "تحديث"
   },
   "labels": {
     "freeBarber": "حلاق مستقل",
@@ -206,6 +215,9 @@
   },
   "errors": {
     "operationFailed": "فشلت العملية",
+    "serverUnreachable": "لا يمكن الوصول إلى الخادم. يرجى التحقق من اتصالك بالإنترنت.",
+    "serverNoResponse": "لا يوجد رد من الخادم. يرجى المحاولة مرة أخرى.",
+    "barberNotFound": "لم يتم العثور على الحلاق",
     "duplicateSlot": "تم أخذ وقت الموعد هذا من قبل مستخدم آخر. يرجى اختيار وقت آخر.",
     "storeNotFound": "لم يتم العثور على المتجر.",
     "chairRequired": "اختيار الكرسي مطلوب.",
@@ -364,7 +376,10 @@
     "deleteBarber": "حذف الحلاق",
     "deleteBarberConfirm": "هل أنت متأكد أنك تريد حذف الحلاق المسمى \"{{name}}\"?",
     "deleteChair": "حذف الكرسي",
-    "deleteChairConfirm": "هل أنت متأكد أنك تريد حذف الكرسي المسمى \"{{name}}\"?"
+    "deleteChairConfirm": "هل أنت متأكد أنك تريد حذف الكرسي المسمى \"{{name}}\"?",
+    "selectMainCategory": "اختر الفئة الرئيسية (حلاق رجال / مصففة شعر نساء)",
+    "workingHoursInfo": "ستظهر الفترات الزمنية المحددة للعملاء بفواصل ساعة واحدة مثل 8:00-9:00، 10:00-11:00",
+    "priceLabel": "السعر (₺)"
   },
   "languages": {
     "tr": "التركية",
@@ -398,14 +413,18 @@
     "selectStoreFirst": "يرجى اختيار متجر أولاً.",
     "callBarber": "استدعاء الحلاق",
     "freebarberUserNotFound": "لم يتم العثور على مستخدم الحلاق المستقل.",
-    "barberCallFailed": "فشل استدعاء الحلاق."
+    "barberCallFailed": "فشل استدعاء الحلاق.",
+    "appointmentNotePlaceholder": "يمكنك كتابة الخدمات والأسعار ومعلومات الوقت...",
+    "appointmentNotePlaceholderAlt": "يمكنك كتابة الخدمات والأسعار ومعلومات الوقت، إلخ..."
   },
   "chat": {
     "connectionError": "خطأ في الاتصال",
     "connectionErrorMessage": "لا يمكن الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.",
     "messageCannotBeSent": "لا يمكن إرسال الرسالة",
     "messageSendFailed": "لم يتم إرسال الرسالة",
-    "cannotSendToThread": "لا يمكنك إرسال رسائل إلى هذا الموضوع."
+    "cannotSendToThread": "لا يمكنك إرسال رسائل إلى هذا الموضوع.",
+    "messagePlaceholder": "اكتب رسالة...",
+    "messageCannotBeSentPlaceholder": "لا يمكن إرسال الرسالة"
   },
   "rating": {
     "selectRating": "يرجى اختيار التقييم.",
@@ -418,7 +437,9 @@
     "ratingOnlyForCompleted": "يمكن إجراء التقييمات فقط للمواعيد المكتملة أو الملغاة.",
     "cannotRateYourself": "لا يمكنك تقييم نفسك.",
     "invalidTargetForRating": "هدف غير صالح. يمكن إجراء التقييمات فقط باستخدام معرف المتجر أو معرف الحلاق المستقل أو معرف المستخدم للعميل. لا يمكن تقييم الحلاق اليدوي.",
-    "ratingAlreadyExists": "قمت بتقييم هذا الهدف لهذا الموعد بالفعل. لا يمكن تحديث التقييم."
+    "ratingAlreadyExists": "قمت بتقييم هذا الهدف لهذا الموعد بالفعل. لا يمكن تحديث التقييم.",
+    "all": "الكل",
+    "commentPlaceholder": "اكتب تعليقك..."
   },
   "notification": {
     "redirectFailed": "فشل إعادة التوجيه.",
@@ -454,6 +475,8 @@
     "newAppointmentRequestForStore": "طلب موعد جديد"
   },
   "favorites": {
+    "manuelBarber": "حلاق يدوي",
+    "unknown": "غير معروف",
     "addedSuccess": "تمت الإضافة إلى المفضلة.",
     "updatedSuccess": "تم تحديث المفضلة.",
     "removedSuccess": "تمت الإزالة من المفضلة.",
@@ -468,6 +491,65 @@
     "notFound": "لم يتم العثور على الصورة.",
     "urlNotFound": "لم يتم العثور على رابط الصورة.",
     "ownerIdRequired": "معرف مالك الصورة لا يمكن أن يكون فارغاً.",
-    "idRequired": "معرف الصورة لا يمكن أن يكون فارغاً."
+    "idRequired": "معرف الصورة لا يمكن أن يكون فارغاً.",
+    "add": "إضافة صورة"
+  },
+  "card": {
+    "customer": "عميل",
+    "reviews": "التقييمات",
+    "reviewsCount": "التقييمات ({{count}})",
+    "noReviews": "لا توجد تقييمات",
+    "calling": "جاري الاتصال...",
+    "callBarber": "اتصل بالحلاق",
+    "callBarberConfirm": "هل أنت متأكد أنك تريد الاتصال بالحلاق المسمى {{name}}؟",
+    "customerNumber": "رقم العميل",
+    "customerOf": "عميل",
+    "pricing": "التسعير",
+    "pricingPercent": "التسعير: يتم أخذ {{value}}% من إجمالي الخدمات",
+    "pricingRent": "التسعير: إيجار المقعد ({{value}} ليرة تركية في الساعة)",
+    "currency": "ل.ت",
+    "currencySymbol": "₺"
+  },
+  "status": {
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "available": "متاح",
+    "busy": "مشغول",
+    "availabilityStatus": "حالة التوفر"
+  },
+  "barberType": {
+    "male": "ذكر",
+    "female": "أنثى",
+    "maleHairdresser": "حلاق رجال",
+    "femaleHairdresser": "مصففة شعر نساء",
+    "beautySalon": "صالون تجميل",
+    "maleHairdresserShort": "ذكر",
+    "femaleHairdresserShort": "أنثى",
+    "maleHairdresserOf": "حلاق رجال",
+    "femaleHairdresserOf": "مصففة شعر نساء"
+  },
+  "location": {
+    "locationNotReady": "الموقع غير جاهز.",
+    "invalidLocationInfo": "تم استلام معلومات موقع غير صالحة.",
+    "locationError": "حدث خطأ أثناء الحصول على الموقع.",
+    "permissionDenied": "تم رفض إذن الموقع.",
+    "permissionDeniedSettings": "تم رفض إذن الموقع. يرجى تمكين إذن الموقع من الإعدادات.",
+    "servicesDisabled": "خدمات الموقع معطلة.",
+    "gateNotVerified": "لا يمكن التحقق من بوابة الموقع.",
+    "locationRequired": "الموقع مطلوب",
+    "locationInfoNotAvailable": "لا يمكن الحصول على معلومات الموقع.",
+    "locationClosed": "الموقع مغلق",
+    "locationClosedMessage": "تحتاج إلى تمكين موقع الجهاز للمتابعة.",
+    "cancel": "إلغاء",
+    "openLocation": "فتح الموقع",
+    "settings": "الإعدادات",
+    "permissionRequired": "إذن الموقع مطلوب",
+    "permissionRequiredMessage": "تحتاج إلى منح إذن الموقع لإظهار الشركات القريبة.",
+    "permissionDeniedMessage": "يبدو أن إذن الموقع مغلق. تحتاج إلى فتح إذن الموقع من الإعدادات.",
+    "tryAgain": "حاول مرة أخرى",
+    "dragLocation": "يمكنك سحب وإفلات الموقع"
+  },
+  "settings": {
+    "updateSuccess": "تم تحديث الإعداد بنجاح"
   }
 }

@@ -129,7 +129,7 @@ const Index = () => {
         } catch (error: any) {
             dispatch(showSnack({ message: error?.data?.message || MESSAGES.PROFILE.UPDATE_ERROR, isError: true }));
         }
-    }, [updateProfile, dispatch, reset]);
+    }, [updateProfile, dispatch, reset, t]);
 
     const handleImagePick = useCallback(async () => {
         try {
@@ -158,15 +158,15 @@ const Index = () => {
             }
 
             if (result.success) {
-                dispatch(showSnack({ message: result.message ?? 'Profil fotoğrafı güncellendi', isError: false }));
+                dispatch(showSnack({ message: result.message ?? t('profile.photoUpdated'), isError: false }));
                 // RTK Query otomatik olarak cache'i güncelleyecek
             } else {
-                dispatch(showSnack({ message: result.message ?? 'Fotoğraf yüklenemedi', isError: true }));
+                dispatch(showSnack({ message: result.message ?? t('profile.photoUploadFailed'), isError: true }));
             }
         } catch (error: any) {
-            dispatch(showSnack({ message: error?.message ?? 'Fotoğraf yüklenirken hata oluştu', isError: true }));
+            dispatch(showSnack({ message: error?.message ?? t('profile.photoUploadError'), isError: true }));
         }
-    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch]);
+    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch, t]);
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -196,15 +196,15 @@ const Index = () => {
         }
     }, [logout, expoRouter]);
 
-    if (isLoadingUser) {
-        return <ProfileSkeleton />;
-    }
-
-    // Memoize error message
+    // Memoize error message - Hook'lar early return'lerden önce olmalı
     const errorMessage = useMemo(() => {
         if (!isUserError || !userError) return null;
         return resolveApiErrorMessage(userError);
     }, [isUserError, userError]);
+
+    if (isLoadingUser) {
+        return <ProfileSkeleton />;
+    }
 
     // Error durumu - refresh edildiğinde de göster
     if (isUserError && userError && errorMessage) {

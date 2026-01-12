@@ -98,7 +98,7 @@ export function useNearbyControl({
                 lastKnownPos.current = p;
 
                 if (!shouldFetchByMoveOrAge(p.lat, p.lon)) return;
-                
+
                 // Error varsa fetch yapma (sunucu çalışmıyor olabilir)
                 if (error) return;
 
@@ -124,7 +124,7 @@ export function useNearbyControl({
         try {
             // Background location permission kontrolü
             const { status } = await Location.requestBackgroundPermissionsAsync();
-            
+
             if (status === 'granted') {
                 // Background location task'ı başlat
                 await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
@@ -172,10 +172,10 @@ export function useNearbyControl({
         setLocationMessage("");
         setLocationStatus("granted");
         await startWatching();
-        
+
         // Background location'ı da başlat
         await startBackgroundLocation();
-        
+
         return true;
     }
 
@@ -185,7 +185,7 @@ export function useNearbyControl({
             stopBackgroundLocation();
             return;
         }
-        
+
         gateAndStart();
         return () => {
             watchRef.current?.remove();
