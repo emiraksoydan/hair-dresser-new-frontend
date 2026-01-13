@@ -37,10 +37,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   // Memoize image data to prevent re-renders
   const imageData = useMemo(() => images || [], [images]);
 
-  // Map mode değiştiğinde loading state'ini sıfırla ve component'i yeniden mount et
-  useEffect(() => {
-    setLoadedImages(new Set());
-  }, [isMapMode]);
+
 
   const handleImageLoad = (index: number) => {
     setLoadedImages(prev => new Set([...prev, index]));

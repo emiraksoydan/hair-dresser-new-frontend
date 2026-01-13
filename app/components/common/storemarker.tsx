@@ -1,4 +1,4 @@
-import React, { useState, memo } from "react";
+import React, { useState, memo, useEffect } from "react";
 import { View, Image, ActivityIndicator } from "react-native";
 import { Marker } from "react-native-maps";
 import { Icon } from "react-native-paper";
@@ -14,6 +14,7 @@ interface StoreMarkerProps {
 }
 
 export const StoreMarker = memo(({ storeId, coordinate, title, description, imageUrl, storeType, onPress }: StoreMarkerProps) => {
+    const [tracksViewChanges, setTracksViewChanges] = useState(true);
     const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
 
@@ -21,13 +22,21 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
     const iconName = storeType == 0 ? "face-man" : "face-woman";
     const hasImage = imageUrl && !imageError;
 
+    // Stop tracking after initial render to improve performance
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setTracksViewChanges(false);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
+
     return (
         <Marker
             key={`store-${storeId}`}
             coordinate={coordinate}
             title={title}
             description={description}
-            tracksViewChanges={false}
+            tracksViewChanges={tracksViewChanges}
             onPress={onPress}
         >
             <View
@@ -45,11 +54,20 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
                             source={{ uri: imageUrl }}
                             className="w-full h-full rounded-full"
                             resizeMode="cover"
-                            onLoadStart={() => setImageLoading(true)}
-                            onLoadEnd={() => setImageLoading(false)}
+                            onLoadStart={() => {
+                                setImageLoading(true);
+                                setTracksViewChanges(true);
+                            }}
+                            onLoadEnd={() => {
+                                setImageLoading(false);
+                                // Resim yüklendiğinde bir süre daha track et ki resim görünsün
+                                setTracksViewChanges(true);
+                                setTimeout(() => setTracksViewChanges(false), 200);
+                            }}
                             onError={() => {
                                 setImageLoading(false);
                                 setImageError(true);
+                                setTracksViewChanges(false);
                             }}
                         />
                         {imageLoading && (

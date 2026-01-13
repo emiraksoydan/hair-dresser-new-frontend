@@ -8,7 +8,7 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { useState } from 'react';
 import FormStoreAdd from '../components/store/formstoreadd';
 import { useBottomSheet } from '../hook/useBottomSheet';
-import { useGetBadgeCountsQuery } from '../store/api';
+import { useGetAllNotificationsQuery, useGetChatThreadsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { NotificationsSheet } from '../components/appointment/notificationsheet';
 import { useAuth } from '../hook/useAuth';
@@ -58,9 +58,16 @@ const BarberStoreLayout = () => {
         return [];
     }, [helpGuideResponse]);
 
-    const { data: badge } = useGetBadgeCountsQuery();
-    const unreadNoti = badge?.unreadNotifications ?? 0;
-    const unreadMsg = badge?.unreadMessages ?? 0;
+    const { data: notifications } = useGetAllNotificationsQuery();
+    const { data: threads } = useGetChatThreadsQuery();
+
+    const unreadNoti = useMemo(() => {
+        return notifications?.filter(n => !n.isRead).length || 0;
+    }, [notifications]);
+
+    const unreadMsg = useMemo(() => {
+        return threads?.reduce((acc, thread) => acc + (thread.unreadCount || 0), 0) || 0;
+    }, [threads]);
 
     // Play notification sound when badge count changes
     useNotificationSound(unreadNoti);

@@ -356,7 +356,8 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
     // prices sync
     useEffect(() => {
-        const next: Record<string, string> = { ...(currentPrices ?? {}) };
+        const currentPricesValues = getValues("prices") || {};
+        const next: Record<string, string> = { ...currentPricesValues };
         let changed = false;
 
         Object.keys(next).forEach((k) => {
@@ -375,7 +376,7 @@ export const FormFreeBarberOperation = React.memo(({ freeBarberId, enabled, onCl
 
         // Use shouldValidate: false to prevent validation cascade
         if (changed) setValue("prices", next, { shouldDirty: true, shouldValidate: false });
-    }, [selectedCategories, currentPrices, setValue]);
+    }, [selectedCategories, setValue, getValues]);
 
     // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
     const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(

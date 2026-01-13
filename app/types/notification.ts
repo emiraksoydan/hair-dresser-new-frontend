@@ -12,7 +12,7 @@ export enum NotificationType {
   AppointmentCompleted = 4,
   AppointmentUnanswered = 5,
   AppointmentDecisionUpdated = 6,
-  
+
   // 3'lü sistem için yeni bildirim tipleri
   FreeBarberRejectedInitial = 7,      // FreeBarber ilk isteği reddetti (Müşteri'ye)
   StoreRejectedSelection = 8,          // Store seçimi reddetti (FreeBarber+Müşteri'ye)
@@ -103,8 +103,5 @@ export interface NotificationPayload {
   isStoreInFavorites?: boolean; // FreeBarber için store favorilerinde mi?
 }
 
-export type BadgeCount = {
-  unreadNotifications: number;
-  unreadMessages: number;
-};
+
 

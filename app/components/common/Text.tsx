@@ -27,6 +27,7 @@ export const Text: React.FC<TextProps> = ({ className, style, ...props }) => {
     <RNText
       className={fontClassName}
       style={[fontStyle, style]}
+      allowFontScaling={false}
       {...props}
     />
   );

@@ -1,4 +1,4 @@
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, KeyboardAvoidingView, Platform } from 'react-native'
 import { Text } from '../common/Text'
 import React, { useEffect, useMemo, useState } from 'react'
 import { z } from "zod";
@@ -729,20 +729,26 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
     }, [selectedType, setValue]);
 
     useEffect(() => {
-        const next: Record<string, string> = { ...(currentPrices ?? {}) };
+        const currentPricesValues = getValues("prices") || {};
+        const next: Record<string, string> = { ...currentPricesValues };
         let changed = false;
+
+        // Remove keys not in selectedCategories
         Object.keys(next).forEach((k) => {
             if (!selectedCategories.includes(k)) {
                 delete next[k];
                 changed = true;
             }
         });
+
+        // Add keys for new selectedCategories
         selectedCategories.forEach((k) => {
             if (!(k in next)) {
                 next[k] = "";
                 changed = true;
             }
         });
+
         if (changed) {
             // Use shouldValidate: false to prevent validation cascade
             setValue("prices", next, {
@@ -750,7 +756,7 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
                 shouldValidate: false,
             });
         }
-    }, [selectedCategories, currentPrices, setValue]);
+    }, [selectedCategories, setValue, getValues]);
 
 
     // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
@@ -939,237 +945,629 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
     const c = safeCoord(location?.latitude, location?.longitude);
 
     return (
-        <View className='h-full'>
-            <View className='flex-row justify-between items-center px-4'>
-                <Text className="text-white flex-1 font-century-gothic text-2xl">İşletme Güncelle</Text>
-                <IconButton onPress={() => onClose?.()} icon="close" iconColor="white" />
-            </View>
-            <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
-            {!data ? (
-                <View className="flex-1 pt-4">
-                    {Array.from({ length: 1 }).map((_, i) => (
-                        <CrudSkeletonComponent key={i} />
-                    ))}
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <View className='h-full'>
+                <View className='flex-row justify-between items-center px-4'>
+                    <Text className="text-white flex-1 font-century-gothic text-2xl">İşletme Güncelle</Text>
+                    <IconButton onPress={() => onClose?.()} icon="close" iconColor="white" />
                 </View>
-            ) : (
-                <>
-                    <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
-                        <Text className="text-white text-xl mt-4 px-4">İşletme Resimleri (Maks 3)</Text>
-                        <View className="mt-4">
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-                            >
-                                {(images ?? []).map((img, index) => (
-                                    <View key={index} className="relative" style={{ width: 200, height: 150 }}>
-                                        <Image
-                                            className="w-full h-full rounded-xl"
-                                            source={{ uri: img.uri }}
-                                            resizeMode="cover"
-                                            onLoad={() => setLoadedStoreImages(prev => new Set(prev).add(index))}
-                                        />
-                                        {!loadedStoreImages.has(index) && (
-                                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10 }}>
-                                                <ActivityIndicator size="large" color="#888" />
-                                            </View>
-                                        )}
-                                        <TouchableOpacity
-                                            onPress={() => removeImage(index)}
-                                            className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
-                                            activeOpacity={0.85}
-                                        >
-                                            <Icon source="close" size={18} color="white" />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                                {(!images || images.length < 3) && (
-                                    <TouchableOpacity
-                                        onPress={pickMultipleImages}
-                                        disabled={isImagePickerLoading}
-                                        className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                        style={{ width: 200, height: 150 }}
-                                        activeOpacity={0.85}
-                                    >
-                                        {isImagePickerLoading ? (
-                                            <ActivityIndicator size="large" color="#888" />
-                                        ) : (
-                                            <>
-                                                <Icon source="image-plus" size={40} color="#888" />
-                                                <Text className="text-gray-500 mt-2">Resim Ekle</Text>
-                                            </>
-                                        )}
-                                    </TouchableOpacity>
-                                )}
-                            </ScrollView>
-                        </View>
-                        <Text className="text-white text-xl mt-6 px-4">İşletme Bilgileri</Text>
-                        <View className="mt-2 px-4">
-                            <Controller
-                                control={control}
-                                name="taxDocumentImage"
-                                render={({ field: { value, onChange } }) => (
-                                    <>
-                                        <TouchableOpacity
-                                            activeOpacity={0.85}
-                                            disabled={isTaxDocumentLoading}
-                                            onPress={async () => {
-                                                setIsTaxDocumentLoading(true);
-                                                try {
-                                                    const file = await handlePickImage();
-                                                    if (file) onChange(file);
-                                                } finally {
-                                                    setIsTaxDocumentLoading(false);
-                                                }
-                                            }}
-                                        >
-                                            <TextInput
-                                                label="Vergi Levhası Resmi"
-                                                mode="outlined"
-                                                value={value?.name ? truncateFileName(value.name) : "Resim seçilmedi"}
-                                                editable={false}
-                                                dense
-                                                pointerEvents="none"
-                                                textColor="white"
-                                                outlineColor={errors.taxDocumentImage ? "#b00020" : "#444"}
-                                                right={
-                                                    isTaxDocumentLoading ?
-                                                        <ActivityIndicator size="small" color="#888" style={{ marginRight: 12 }} /> :
-                                                        <TextInput.Icon icon="image" color="white" />
-                                                }
-                                                theme={{
-                                                    roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
-                                                }}
-                                                style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
+                <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
+                {!data ? (
+                    <View className="flex-1 pt-4">
+                        {Array.from({ length: 1 }).map((_, i) => (
+                            <CrudSkeletonComponent key={i} />
+                        ))}
+                    </View>
+                ) : (
+                    <>
+                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
+                            <Text className="text-white text-xl mt-4 px-4">İşletme Resimleri (Maks 3)</Text>
+                            <View className="mt-4">
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                                >
+                                    {(images ?? []).map((img, index) => (
+                                        <View key={index} className="relative" style={{ width: 200, height: 150 }}>
+                                            <Image
+                                                className="w-full h-full rounded-xl"
+                                                source={{ uri: img.uri }}
+                                                resizeMode="cover"
+                                                onLoad={() => setLoadedStoreImages(prev => new Set(prev).add(index))}
                                             />
+                                            {!loadedStoreImages.has(index) && (
+                                                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10 }}>
+                                                    <ActivityIndicator size="large" color="#888" />
+                                                </View>
+                                            )}
+                                            <TouchableOpacity
+                                                onPress={() => removeImage(index)}
+                                                className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
+                                                activeOpacity={0.85}
+                                            >
+                                                <Icon source="close" size={18} color="white" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                    {(!images || images.length < 3) && (
+                                        <TouchableOpacity
+                                            onPress={pickMultipleImages}
+                                            disabled={isImagePickerLoading}
+                                            className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                                            style={{ width: 200, height: 150 }}
+                                            activeOpacity={0.85}
+                                        >
+                                            {isImagePickerLoading ? (
+                                                <ActivityIndicator size="large" color="#888" />
+                                            ) : (
+                                                <>
+                                                    <Icon source="image-plus" size={40} color="#888" />
+                                                    <Text className="text-gray-500 mt-2">Resim Ekle</Text>
+                                                </>
+                                            )}
                                         </TouchableOpacity>
-                                        {value?.uri && !isTaxDocumentLoading && (
-                                            <View className="mt-2 mb-2 w-full">
-                                                <Image
-                                                    source={{ uri: value.uri }}
-                                                    style={{ width: '100%', height: 200, borderRadius: 10 }}
-                                                    resizeMode="cover"
-                                                />
-                                            </View>
-                                        )}
-                                        <HelperText type="error" visible={!!errors.taxDocumentImage}>
-                                            {taxDocErrorText}
-                                        </HelperText>
-                                    </>
-                                )}
-                            />
-                            <View className="flex-row gap-3">
-                                <View className="flex-1">
-                                    <Controller
-                                        control={control}
-                                        name="storeName"
-                                        render={({ field: { onChange, onBlur, value } }) => (
-                                            <>
+                                    )}
+                                </ScrollView>
+                            </View>
+                            <Text className="text-white text-xl mt-6 px-4">İşletme Bilgileri</Text>
+                            <View className="mt-2 px-4">
+                                <Controller
+                                    control={control}
+                                    name="taxDocumentImage"
+                                    render={({ field: { value, onChange } }) => (
+                                        <>
+                                            <TouchableOpacity
+                                                activeOpacity={0.85}
+                                                disabled={isTaxDocumentLoading}
+                                                onPress={async () => {
+                                                    setIsTaxDocumentLoading(true);
+                                                    try {
+                                                        const file = await handlePickImage();
+                                                        if (file) onChange(file);
+                                                    } finally {
+                                                        setIsTaxDocumentLoading(false);
+                                                    }
+                                                }}
+                                            >
                                                 <TextInput
-                                                    label="İşletme Adı"
+                                                    label="Vergi Levhası Resmi"
                                                     mode="outlined"
+                                                    value={value?.name ? truncateFileName(value.name) : "Resim seçilmedi"}
+                                                    editable={false}
                                                     dense
-                                                    value={value}
-                                                    onChangeText={onChange}
-                                                    onBlur={onBlur}
+                                                    pointerEvents="none"
                                                     textColor="white"
-                                                    outlineColor={errors.storeName ? "#b00020" : "#444"}
+                                                    outlineColor={errors.taxDocumentImage ? "#b00020" : "#444"}
+                                                    right={
+                                                        isTaxDocumentLoading ?
+                                                            <ActivityIndicator size="small" color="#888" style={{ marginRight: 12 }} /> :
+                                                            <TextInput.Icon icon="image" color="white" />
+                                                    }
                                                     theme={{
                                                         roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
                                                     }}
-                                                    style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: -6 }}
+                                                    style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
                                                 />
-                                                <HelperText type="error" visible={!!errors.storeName}>
-                                                    {errors.storeName?.message}
-                                                </HelperText>
-                                            </>
-                                        )}
-                                    />
+                                            </TouchableOpacity>
+                                            {value?.uri && !isTaxDocumentLoading && (
+                                                <View className="mt-2 mb-2 w-full">
+                                                    <Image
+                                                        source={{ uri: value.uri }}
+                                                        style={{ width: '100%', height: 200, borderRadius: 10 }}
+                                                        resizeMode="cover"
+                                                    />
+                                                </View>
+                                            )}
+                                            <HelperText type="error" visible={!!errors.taxDocumentImage}>
+                                                {taxDocErrorText}
+                                            </HelperText>
+                                        </>
+                                    )}
+                                />
+                                <View className="flex-row gap-3">
+                                    <View className="flex-1">
+                                        <Controller
+                                            control={control}
+                                            name="storeName"
+                                            render={({ field: { onChange, onBlur, value } }) => (
+                                                <>
+                                                    <TextInput
+                                                        label="İşletme Adı"
+                                                        mode="outlined"
+                                                        dense
+                                                        value={value}
+                                                        onChangeText={onChange}
+                                                        onBlur={onBlur}
+                                                        textColor="white"
+                                                        outlineColor={errors.storeName ? "#b00020" : "#444"}
+                                                        theme={{
+                                                            roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" }
+                                                        }}
+                                                        style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: -6 }}
+                                                    />
+                                                    <HelperText type="error" visible={!!errors.storeName}>
+                                                        {errors.storeName?.message}
+                                                    </HelperText>
+                                                </>
+                                            )}
+                                        />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Controller
+                                            control={control}
+                                            name="type"
+                                            render={({ field: { value, onChange } }) => {
+                                                // Use memoized dropdown data and validation set
+                                                const isValueValid = value && parentCategoriesValueSet.has(value);
+
+                                                return (
+                                                    <>
+                                                        <Dropdown
+                                                            data={parentCategoriesDropdownData}
+                                                            labelField="label"
+                                                            valueField="value"
+                                                            placeholder="Ana Kategori Seç"
+                                                            value={isValueValid ? value : null}
+                                                            onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
+                                                            style={{
+                                                                height: 42,
+                                                                borderRadius: 10,
+                                                                paddingHorizontal: 12,
+                                                                backgroundColor: "#1F2937",
+                                                                borderWidth: 1,
+                                                                borderColor: errors.type ? "#b00020" : "#444",
+                                                                justifyContent: "center",
+                                                                marginTop: 0,
+
+                                                            }}
+                                                            placeholderStyle={{ color: "gray" }}
+                                                            selectedTextStyle={{ color: "white" }}
+                                                            itemTextStyle={{ color: "white" }}
+                                                            containerStyle={{ backgroundColor: '#1F2937', borderWidth: 0, borderRadius: 10, overflow: 'hidden', }}
+                                                            activeColor="#3a3b3d"
+                                                        />
+                                                        <HelperText className='text-4xl' type="error" visible={!!errors.type}>
+                                                            {errors.type?.message}
+                                                        </HelperText>
+                                                    </>
+                                                );
+                                            }}
+                                        />
+                                    </View>
                                 </View>
-                                <View className="flex-1">
+                                {selectedType && categoryOptions.length > 0 ? (
+                                    <View className="mt-[-10x]">
+                                        <Text className="text-white text-xl mb-2">Hizmetler ({selectedType})</Text>
+                                        <Controller
+                                            control={control}
+                                            name="selectedCategories"
+                                            render={({ field: { value, onChange } }) => {
+                                                return (
+                                                    <>
+                                                        <MultiSelect
+                                                            key={`cats-${selectedType ?? "x"}-${categoryOptions.length}`}
+                                                            data={categoryOptionsWithSelected}
+                                                            labelField="label"
+                                                            valueField="value"
+                                                            value={(value ?? []).filter(v => categoryValueSet.has(v))}
+                                                            onChange={onChange}
+                                                            placeholder="Hizmet seçin"
+                                                            dropdownPosition="top"
+                                                            inside
+                                                            alwaysRenderSelectedItem
+                                                            visibleSelectedItem
+                                                            flatListProps={{
+                                                                initialNumToRender: 10,
+                                                                maxToRenderPerBatch: 10,
+                                                                windowSize: 5,
+                                                            }}
+                                                            style={{
+                                                                backgroundColor: "#1F2937",
+                                                                borderColor: errors.selectedCategories ? "#b00020" : "#444",
+                                                                borderWidth: 1,
+                                                                borderRadius: 10,
+                                                                paddingHorizontal: 12,
+                                                                paddingVertical: 8,
+                                                            }}
+                                                            containerStyle={{
+                                                                backgroundColor: "#1F2937",
+                                                                borderWidth: 1,
+                                                                borderColor: '#444',
+                                                                borderRadius: 10,
+                                                                overflow: 'hidden',
+
+                                                            }}
+                                                            placeholderStyle={{ color: "gray" }}
+                                                            selectedTextStyle={{ color: "white" }}
+                                                            itemTextStyle={{ color: "white" }}
+                                                            activeColor="#0f766e"
+                                                            selectedStyle={{
+                                                                borderRadius: 10,
+                                                                backgroundColor: "#374151",
+                                                                borderColor: "#0f766e",
+                                                                paddingHorizontal: 10,
+                                                                paddingVertical: 6,
+                                                                margin: 0,
+                                                            }}
+                                                            selectedTextProps={{ numberOfLines: 1 }}
+                                                        />
+
+
+                                                        <HelperText type="error" visible={!!errors.selectedCategories}>
+                                                            {errors.selectedCategories?.message}
+                                                        </HelperText>
+                                                    </>
+                                                )
+                                            }}
+                                        />
+                                    </View>
+                                ) : null}
+                                {selectedCategories.length > 0 && (
+                                    <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
+                                        {selectedCategories.map((categoryId) => {
+                                            const label = categoryLabelMap.get(categoryId) ?? categoryId;
+                                            return (
+                                                <View key={categoryId}>
+                                                    <View className="flex-row items-center gap-2 mb-0">
+                                                        <Text className="text-white w-[35%]" >{label} :</Text>
+                                                        <View className='w-[65%]'>
+                                                            <Controller
+                                                                control={control}
+                                                                name={`prices.${categoryId}` as const}
+                                                                render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
+                                                                    <TextInput
+                                                                        mode="outlined"
+                                                                        dense
+                                                                        keyboardType="numeric"
+                                                                        label={t('form.priceLabel')}
+                                                                        value={value ?? ''}
+                                                                        onChangeText={(t) => {
+                                                                            const raw = t.replace(/[^\d.,]/g, '');
+                                                                            onChange(raw);
+                                                                        }}
+                                                                        onBlur={() => {
+                                                                            const toTR = (s: string) => {
+                                                                                const n = Number(s.replace(/\./g, '').replace(',', '.'));
+                                                                                if (Number.isNaN(n)) return s;
+                                                                                return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+                                                                            };
+                                                                            onChange(toTR(value ?? ''));
+                                                                        }}
+                                                                        textColor="white"
+                                                                        outlineColor={error ? '#b00020' : '#444'}
+                                                                        style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: 20, height: 35 }}
+                                                                        theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
+                                                                    />
+                                                                )}
+                                                            />
+                                                            <HelperText type="error" visible={!!errors.prices?.[categoryId]}>
+                                                                {errors.prices?.[categoryId]?.message as string}
+                                                            </HelperText>
+                                                        </View>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                )}
+                                <View className="mt-2 mx-0 flex-row items-center">
+                                    <Text className="text-white text-xl flex-1">Çalışan Berber Sayısı : {barberFields.length}  </Text>
+                                    <Button mode="text" textColor="#c2a523" onPress={openCreateBarberModal}>Berber Ekle</Button>
+                                </View>
+                                {barberFields.length > 0 && (
+                                    <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
+                                        {barberFields.map((item, index) => (
+                                            <View key={item._key} className="flex-row items-center mb-3 gap-3">
+                                                {barbers[index]?.avatar?.uri
+                                                    ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
+                                                    : <Avatar.Icon size={40} icon="account-circle" />}
+
+                                                <Controller
+                                                    control={control}
+                                                    name={`barbers.${index}.name`}
+                                                    render={({ field: { value } }) => (
+                                                        <TextInput
+                                                            label="Berber adı"
+                                                            mode="outlined"
+                                                            dense
+                                                            value={value ?? ''}
+                                                            readOnly
+                                                            textColor="white"
+                                                            outlineColor="#444"
+                                                            theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
+                                                            style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1 }}
+                                                        />
+                                                    )}
+                                                />
+                                                <TouchableOpacity onPress={() => openEditBarberModal(index)}>
+                                                    <Icon size={22} source="update" color="#c2a523" />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => handleDeleteBarber(index)}>
+                                                    <Icon size={22} source="delete" color="#ef4444" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                        <HelperText type="error" visible={!!barberErrorText}>
+                                            {barberErrorText}
+                                        </HelperText>
+                                    </View>
+                                )}
+                                <View className="mt-4 mx-0 flex-row items-center">
+                                    <Text className="text-white text-xl flex-1">Koltuk Sayısı : {chairFields.length}</Text>
+                                    <Button mode="text" textColor="#c2a523" onPress={openCreateChairModal}>Koltuk Ekle</Button>
+                                </View>
+                                {chairFields.length > 0 && (
+                                    <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
+                                        {chairFields.map((item, index) => {
+                                            const chair = chairs[index];
+                                            if (!chair) return null;
+                                            const isBarberChair = !!chair.barberId;
+                                            const modeLabel = isBarberChair ? "Berber koltuğu" : "İsimli koltuk";
+                                            const barberName = isBarberChair
+                                                ? (barberMap.get(chair.barberId!) ?? "Atanmamış")
+                                                : "-";
+                                            return (
+                                                <View key={item._key} className="flex-row items-center gap-3 mt-2  mb-3">
+                                                    <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
+                                                    <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                        <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
+                                                    </View>
+                                                    <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
+                                                        {!isBarberChair ? (
+                                                            <Text className='text-white text-xs mb-1'>{chair.name}</Text>
+                                                        ) : (
+                                                            <Text className='text-white text-xs mb-1'>{barberName}</Text>
+                                                        )}
+                                                    </View>
+                                                    <TouchableOpacity onPress={() => openEditChairModal(index)}>
+                                                        <Icon size={22} source="update" color="#c2a523" />
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity onPress={() => handleChair(index)}>
+                                                        <Icon size={22} source="delete" color="#ef4444" />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            );
+                                        })}
+                                        <HelperText type="error" visible={!!chairsErrorText}>
+                                            {chairsErrorText}
+                                        </HelperText>
+                                    </View>
+                                )}
+
+                                <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">Koltuk Fiyatları Belirle</Text>
+                                <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
                                     <Controller
                                         control={control}
-                                        name="type"
-                                        render={({ field: { value, onChange } }) => {
-                                            // Use memoized dropdown data and validation set
-                                            const isValueValid = value && parentCategoriesValueSet.has(value);
-
-                                            return (
+                                        name="pricingType.mode"
+                                        render={({ field: { value, onChange } }) => (
+                                            <View className="flex-row justify-center gap-16 ">
+                                                {PRICING_OPTIONS.map((opt) => (
+                                                    <TouchableOpacity
+                                                        key={opt.value}
+                                                        onPress={() => onChange(opt.value)}
+                                                        className="flex-row items-center gap-2"
+                                                        activeOpacity={0.85}
+                                                    >
+                                                        <View
+                                                            className={`w-4 h-4 rounded-full border ${value === opt.value ? "bg-green-500 border-green-500" : "border-gray-400"
+                                                                }`}
+                                                        />
+                                                        <Text className="text-white">{opt.label}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        )}
+                                    />
+                                    {pricingMode === "rent" && (
+                                        <Controller
+                                            control={control}
+                                            name="pricingType.rent"
+                                            render={({ field: { value, onChange, onBlur } }) => (
+                                                <>
+                                                    <TextInput
+                                                        dense
+                                                        value={value?.toString() ?? ""}
+                                                        onChangeText={(t) => {
+                                                            const raw = t.replace(/[^\d.,]/g, '');
+                                                            onChange(raw);
+                                                        }}
+                                                        onBlur={() => {
+                                                            const toTR = (s: string) => {
+                                                                const n = Number(s.replace(/\./g, '').replace(',', '.'));
+                                                                if (Number.isNaN(n)) return s;
+                                                                return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+                                                            };
+                                                            onChange(toTR(value ?? ''));
+                                                        }}
+                                                        mode="outlined"
+                                                        label="Kiralama Fiyatı - 1 Saatlik"
+                                                        textColor="white"
+                                                        outlineColor={errors.pricingType?.rent ? "#b00020" : "#444"}
+                                                        theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
+                                                        style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: 8, }}
+                                                        keyboardType="numeric"
+                                                    />
+                                                    <HelperText type="error" visible={!!errors.pricingType?.rent}>
+                                                        {errors.pricingType?.rent?.message as string}
+                                                    </HelperText>
+                                                </>
+                                            )}
+                                        />
+                                    )}
+                                    {pricingMode === "percent" && (
+                                        <Controller
+                                            control={control}
+                                            name="pricingType.percent"
+                                            render={({ field: { value, onChange } }) => (
                                                 <>
                                                     <Dropdown
-                                                        data={parentCategoriesDropdownData}
+                                                        dropdownPosition="top"
+                                                        data={[
+                                                            { label: "10%", value: "10" },
+                                                            { label: "20%", value: "20" },
+                                                            { label: "30%", value: "30" },
+                                                            { label: "40%", value: "40" },
+                                                            { label: "50%", value: "50" },
+                                                            { label: "60%", value: "60" },
+                                                            { label: "70%", value: "70" },
+                                                            { label: "80%", value: "80" },
+                                                            { label: "90%", value: "90" },
+                                                        ]}
                                                         labelField="label"
                                                         valueField="value"
-                                                        placeholder="Ana Kategori Seç"
-                                                        value={isValueValid ? value : null}
-                                                        onChange={(item: { label: string; value: string }) => { onChange(item.value); }}
+                                                        value={value ? String(value) : undefined}
+                                                        placeholder="Yüzde Seçin"
+                                                        onChange={(item: { label: string; value: string }) => onChange(item.value)}
                                                         style={{
-                                                            height: 42,
-                                                            borderRadius: 10,
                                                             paddingHorizontal: 12,
+                                                            paddingVertical: 8,
+                                                            borderRadius: 10,
                                                             backgroundColor: "#1F2937",
                                                             borderWidth: 1,
-                                                            borderColor: errors.type ? "#b00020" : "#444",
-                                                            justifyContent: "center",
-                                                            marginTop: 0,
-
+                                                            borderColor: errors.pricingType?.percent ? "#b00020" : "#444",
+                                                            marginTop: 12,
+                                                            height: 42,
                                                         }}
                                                         placeholderStyle={{ color: "gray" }}
                                                         selectedTextStyle={{ color: "white" }}
                                                         itemTextStyle={{ color: "white" }}
-                                                        containerStyle={{ backgroundColor: '#1F2937', borderWidth: 0, borderRadius: 10, overflow: 'hidden', }}
-                                                        activeColor="#3a3b3d"
+                                                        containerStyle={{
+                                                            backgroundColor: "#1F2937",
+                                                            borderWidth: 1,
+                                                            borderColor: "#444",
+                                                            borderRadius: 10,
+                                                            overflow: "hidden",
+                                                        }}
+                                                        activeColor="#0f766e"
                                                     />
-                                                    <HelperText className='text-4xl' type="error" visible={!!errors.type}>
-                                                        {errors.type?.message}
+                                                    <HelperText type="error" visible={!!errors.pricingType?.percent}>
+                                                        {errors.pricingType?.percent?.message as string}
                                                     </HelperText>
                                                 </>
-                                            );
-                                        }}
-                                    />
+                                            )}
+                                        />
+                                    )}
                                 </View>
-                            </View>
-                            {selectedType && categoryOptions.length > 0 ? (
-                                <View className="mt-[-10x]">
-                                    <Text className="text-white text-xl mb-2">Hizmetler ({selectedType})</Text>
-                                    <Controller
-                                        control={control}
-                                        name="selectedCategories"
-                                        render={({ field: { value, onChange } }) => {
+                                <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Çalışma Saatleri</Text>
+                                <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
+                                    <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- {t('form.workingHoursInfo')}</Text>
+                                    <View className="mt-2 px-0">
+                                        <View className="flex-row  gap-2">
+                                            {DAYS_TR.map((d) => {
+                                                const isHoliday = (holidayDays ?? []).includes(d.day);
+                                                const isActive = activeDay === d.day;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={d.day}
+                                                        disabled={isHoliday}
+                                                        onPress={() => setActiveDay(d.day)}
+                                                        className={`px-3 py-2 rounded-full border ${isHoliday
+                                                            ? "opacity-40 border-gray-600"
+                                                            : isActive
+                                                                ? "bg-emerald-500"
+                                                                : "border-gray-500"
+                                                            }`}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <Text className="text-white text-xs">{d.label}</Text>
+                                                    </TouchableOpacity>
+
+                                                );
+                                            })}
+                                        </View>
+                                        {(() => {
+                                            const idx = (working ?? []).findIndex((w) => w.dayOfWeek === activeDay);
+                                            if (idx < 0) return null;
+                                            const dayRow = working[idx];
+                                            const isDisabled = dayRow?.isClosed || (holidayDays ?? []).includes(activeDay);
+                                            const dayErr = errors.workingHours?.[idx];
                                             return (
+                                                <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
+                                                    <View className="flex-row items-center mt-6">
+                                                        <Text className="text-white text-sm">Başlangıç saati:</Text>
+                                                        <DateTimePicker
+                                                            value={activeStart}
+                                                            mode="time"
+                                                            is24Hour
+                                                            locale="tr-TR"
+                                                            disabled={isDisabled}
+                                                            onChange={(_, d) => {
+                                                                if (!d || isDisabled) return;
+                                                                setActiveStart(d);
+                                                                setValue(`workingHours.${idx}.startTime`, fmtHHmm(d), {
+                                                                    shouldDirty: true, shouldValidate: true,
+                                                                });
+                                                                trigger([`workingHours.${idx}.startTime`, `workingHours.${idx}.endTime`]);
+                                                            }}
+                                                        />
+                                                        <Text className="text-white text-sm ml-5">Bitiş saati:</Text>
+                                                        <DateTimePicker
+                                                            value={activeEnd}
+                                                            mode="time"
+                                                            is24Hour
+                                                            locale="tr-TR"
+                                                            disabled={isDisabled}
+                                                            onChange={(_, d) => {
+                                                                if (!d || isDisabled) return;
+                                                                setActiveEnd(d);
+                                                                setValue(`workingHours.${idx}.endTime`, fmtHHmm(d), {
+                                                                    shouldDirty: true, shouldValidate: true,
+                                                                });
+                                                                trigger([`workingHours.${idx}.startTime`, `workingHours.${idx}.endTime`]);
+                                                            }}
+                                                        />
+                                                    </View>
+                                                    <HelperText type="error" visible={!!(dayErr?.startTime || dayErr?.endTime)}>
+                                                        {((dayErr?.startTime?.message as string) || (dayErr?.endTime?.message as string)) ?? ""}
+                                                    </HelperText>
+                                                </View>
+                                            );
+                                        })()}
+                                        <Text className="text-white text-xl mt-2">Tatil Günleri</Text>
+                                        <Controller
+                                            control={control}
+                                            name="holidayDays"
+                                            render={({ field: { value, onChange }, fieldState: { error } }) => (
                                                 <>
                                                     <MultiSelect
-                                                        key={`cats-${selectedType ?? "x"}-${categoryOptions.length}`}
-                                                        data={categoryOptionsWithSelected}
+                                                        data={HOLIDAY_OPTIONS}
                                                         labelField="label"
                                                         valueField="value"
-                                                        value={(value ?? []).filter(v => categoryValueSet.has(v))}
-                                                        onChange={onChange}
-                                                        placeholder="Hizmet seçin"
+                                                        value={(value ?? []).map(String)}
+                                                        onChange={(vals: string[]) => {
+                                                            const numeric = vals.map(v => Number(v));
+                                                            onChange(numeric);
+                                                            const current = getValues("workingHours") ?? [];
+                                                            const updated = current.map(w => ({
+                                                                ...w,
+                                                                isClosed: numeric.includes(w.dayOfWeek),
+                                                            }));
+                                                            setValue("workingHours", updated, {
+                                                                shouldDirty: true,
+                                                                shouldValidate: true,
+                                                            });
+                                                        }}
+                                                        placeholder="Tatil günlerini seç"
                                                         dropdownPosition="top"
                                                         inside
                                                         alwaysRenderSelectedItem
                                                         visibleSelectedItem
-                                                        flatListProps={{
-                                                            initialNumToRender: 10,
-                                                            maxToRenderPerBatch: 10,
-                                                            windowSize: 5,
-                                                        }}
                                                         style={{
                                                             backgroundColor: "#1F2937",
-                                                            borderColor: errors.selectedCategories ? "#b00020" : "#444",
+                                                            borderColor: error ? "#b00020" : "#444",
                                                             borderWidth: 1,
                                                             borderRadius: 10,
                                                             paddingHorizontal: 12,
                                                             paddingVertical: 8,
+                                                            marginTop: 8,
                                                         }}
                                                         containerStyle={{
                                                             backgroundColor: "#1F2937",
                                                             borderWidth: 1,
-                                                            borderColor: '#444',
+                                                            borderColor: "#444",
                                                             borderRadius: 10,
-                                                            overflow: 'hidden',
-
+                                                            overflow: "hidden",
                                                         }}
                                                         placeholderStyle={{ color: "gray" }}
                                                         selectedTextStyle={{ color: "white" }}
@@ -1181,491 +1579,101 @@ const FormStoreUpdate = ({ storeId, enabled, onClose, error: externalError, loca
                                                             borderColor: "#0f766e",
                                                             paddingHorizontal: 10,
                                                             paddingVertical: 6,
-                                                            margin: 0,
                                                         }}
-                                                        selectedTextProps={{ numberOfLines: 1 }}
                                                     />
-
-
-                                                    <HelperText type="error" visible={!!errors.selectedCategories}>
-                                                        {errors.selectedCategories?.message}
+                                                    <HelperText type="error" visible={!!error}>
+                                                        {error?.message as string}
                                                     </HelperText>
                                                 </>
-                                            )
-                                        }}
+                                            )}
+                                        />
+                                    </View>
+                                </View>
+                                <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
+                                <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
+                                    <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
+                                    <Button
+                                        loading={locBusy}
+                                        disabled={locBusy}
+                                        mode='contained-tonal'
+                                        icon={'store'}
+                                        className="my-2.5"
+                                        onPress={pickMyCurrentLocation}
+                                        buttonColor='#10B981'
+                                        textColor='white'
+                                    >
+                                        İşletmenin konumunu al
+                                    </Button>
+                                    <MapPicker
+                                        lat={c ? c.lat : undefined}
+                                        lng={c ? c.lon : undefined}
+                                        address={address}
+                                        onChange={async (la, ln) => { updateLocation(la, ln); await reverseAndSetAddress(la, ln); }}
                                     />
-                                </View>
-                            ) : null}
-                            {selectedCategories.length > 0 && (
-                                <View className="mt-0 mx-0  rounded-xl" style={{ backgroundColor: '#1F2937', paddingVertical: 6, paddingHorizontal: 16 }}>
-                                    {selectedCategories.map((categoryId) => {
-                                        const label = categoryLabelMap.get(categoryId) ?? categoryId;
-                                        return (
-                                            <View key={categoryId}>
-                                                <View className="flex-row items-center gap-2 mb-0">
-                                                    <Text className="text-white w-[35%]" >{label} :</Text>
-                                                    <View className='w-[65%]'>
-                                                        <Controller
-                                                            control={control}
-                                                            name={`prices.${categoryId}` as const}
-                                                            render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-                                                                <TextInput
-                                                                    mode="outlined"
-                                                                    dense
-                                                                    keyboardType="numeric"
-                                                                    label={t('form.priceLabel')}
-                                                                    value={value ?? ''}
-                                                                    onChangeText={(t) => {
-                                                                        const raw = t.replace(/[^\d.,]/g, '');
-                                                                        onChange(raw);
-                                                                    }}
-                                                                    onBlur={() => {
-                                                                        const toTR = (s: string) => {
-                                                                            const n = Number(s.replace(/\./g, '').replace(',', '.'));
-                                                                            if (Number.isNaN(n)) return s;
-                                                                            return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-                                                                        };
-                                                                        onChange(toTR(value ?? ''));
-                                                                    }}
-                                                                    textColor="white"
-                                                                    outlineColor={error ? '#b00020' : '#444'}
-                                                                    style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: 20, height: 35 }}
-                                                                    theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                                />
-                                                            )}
-                                                        />
-                                                        <HelperText type="error" visible={!!errors.prices?.[categoryId]}>
-                                                            {errors.prices?.[categoryId]?.message as string}
-                                                        </HelperText>
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            )}
-                            <View className="mt-2 mx-0 flex-row items-center">
-                                <Text className="text-white text-xl flex-1">Çalışan Berber Sayısı : {barberFields.length}  </Text>
-                                <Button mode="text" textColor="#c2a523" onPress={openCreateBarberModal}>Berber Ekle</Button>
-                            </View>
-                            {barberFields.length > 0 && (
-                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
-                                    {barberFields.map((item, index) => (
-                                        <View key={item._key} className="flex-row items-center mb-3 gap-3">
-                                            {barbers[index]?.avatar?.uri
-                                                ? <Avatar.Image size={40} source={{ uri: barbers[index]?.avatar?.uri }} />
-                                                : <Avatar.Icon size={40} icon="account-circle" />}
-
-                                            <Controller
-                                                control={control}
-                                                name={`barbers.${index}.name`}
-                                                render={({ field: { value } }) => (
-                                                    <TextInput
-                                                        label="Berber adı"
-                                                        mode="outlined"
-                                                        dense
-                                                        value={value ?? ''}
-                                                        readOnly
-                                                        textColor="white"
-                                                        outlineColor="#444"
-                                                        theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                        style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1 }}
-                                                    />
-                                                )}
-                                            />
-                                            <TouchableOpacity onPress={() => openEditBarberModal(index)}>
-                                                <Icon size={22} source="update" color="#c2a523" />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => handleDeleteBarber(index)}>
-                                                <Icon size={22} source="delete" color="#ef4444" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                    <HelperText type="error" visible={!!barberErrorText}>
-                                        {barberErrorText}
+                                    <HelperText type="error" visible={!!(errors.location?.latitude || errors.location?.longitude)}>
+                                        {(errors.location?.latitude?.message as string) || (errors.location?.longitude?.message as string) || ""}
                                     </HelperText>
-                                </View>
-                            )}
-                            <View className="mt-4 mx-0 flex-row items-center">
-                                <Text className="text-white text-xl flex-1">Koltuk Sayısı : {chairFields.length}</Text>
-                                <Button mode="text" textColor="#c2a523" onPress={openCreateChairModal}>Koltuk Ekle</Button>
-                            </View>
-                            {chairFields.length > 0 && (
-                                <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
-                                    {chairFields.map((item, index) => {
-                                        const chair = chairs[index];
-                                        if (!chair) return null;
-                                        const isBarberChair = !!chair.barberId;
-                                        const modeLabel = isBarberChair ? "Berber koltuğu" : "İsimli koltuk";
-                                        const barberName = isBarberChair
-                                            ? (barberMap.get(chair.barberId!) ?? "Atanmamış")
-                                            : "-";
-                                        return (
-                                            <View key={item._key} className="flex-row items-center gap-3 mt-2  mb-3">
-                                                <Icon size={24} source={'chair-rolling'} color='#c2a523'></Icon>
-                                                <View className='flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border'>
-                                                    <Text className='text-gray-500 text-xs mb-1'>{modeLabel}</Text>
-                                                </View>
-                                                <View className='flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border'>
-                                                    {!isBarberChair ? (
-                                                        <Text className='text-white text-xs mb-1'>{chair.name}</Text>
-                                                    ) : (
-                                                        <Text className='text-white text-xs mb-1'>{barberName}</Text>
-                                                    )}
-                                                </View>
-                                                <TouchableOpacity onPress={() => openEditChairModal(index)}>
-                                                    <Icon size={22} source="update" color="#c2a523" />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => handleChair(index)}>
-                                                    <Icon size={22} source="delete" color="#ef4444" />
-                                                </TouchableOpacity>
-                                            </View>
-                                        );
-                                    })}
-                                    <HelperText type="error" visible={!!chairsErrorText}>
-                                        {chairsErrorText}
-                                    </HelperText>
-                                </View>
-                            )}
-
-                            <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">Koltuk Fiyatları Belirle</Text>
-                            <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
-                                <Controller
-                                    control={control}
-                                    name="pricingType.mode"
-                                    render={({ field: { value, onChange } }) => (
-                                        <View className="flex-row justify-center gap-16 ">
-                                            {PRICING_OPTIONS.map((opt) => (
-                                                <TouchableOpacity
-                                                    key={opt.value}
-                                                    onPress={() => onChange(opt.value)}
-                                                    className="flex-row items-center gap-2"
-                                                    activeOpacity={0.85}
-                                                >
-                                                    <View
-                                                        className={`w-4 h-4 rounded-full border ${value === opt.value ? "bg-green-500 border-green-500" : "border-gray-400"
-                                                            }`}
-                                                    />
-                                                    <Text className="text-white">{opt.label}</Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    )}
-                                />
-                                {pricingMode === "rent" && (
                                     <Controller
                                         control={control}
-                                        name="pricingType.rent"
+                                        name="location.addressDescription"
                                         render={({ field: { value, onChange, onBlur } }) => (
                                             <>
                                                 <TextInput
-                                                    dense
-                                                    value={value?.toString() ?? ""}
-                                                    onChangeText={(t) => {
-                                                        const raw = t.replace(/[^\d.,]/g, '');
-                                                        onChange(raw);
-                                                    }}
-                                                    onBlur={() => {
-                                                        const toTR = (s: string) => {
-                                                            const n = Number(s.replace(/\./g, '').replace(',', '.'));
-                                                            if (Number.isNaN(n)) return s;
-                                                            return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-                                                        };
-                                                        onChange(toTR(value ?? ''));
-                                                    }}
+                                                    label="Adres açıklaması"
                                                     mode="outlined"
-                                                    label="Kiralama Fiyatı - 1 Saatlik"
+                                                    dense
+                                                    value={value}
+                                                    onChangeText={onChange}
+                                                    onBlur={onBlur}
+                                                    multiline
+                                                    readOnly
                                                     textColor="white"
-                                                    outlineColor={errors.pricingType?.rent ? "#b00020" : "#444"}
+                                                    outlineColor={errors.location?.addressDescription ? "#b00020" : "#444"}
                                                     theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                    style={{ backgroundColor: '#1F2937', borderWidth: 0, marginTop: 8, }}
-                                                    keyboardType="numeric"
+                                                    style={{ backgroundColor: "#1F2937", borderWidth: 0, marginTop: 0 }}
+                                                    placeholder="Örn: X caddesi, Y sk. Z no, dükkan girişi apartman sağında..."
                                                 />
-                                                <HelperText type="error" visible={!!errors.pricingType?.rent}>
-                                                    {errors.pricingType?.rent?.message as string}
-                                                </HelperText>
-                                            </>
-                                        )}
-                                    />
-                                )}
-                                {pricingMode === "percent" && (
-                                    <Controller
-                                        control={control}
-                                        name="pricingType.percent"
-                                        render={({ field: { value, onChange } }) => (
-                                            <>
-                                                <Dropdown
-                                                    dropdownPosition="top"
-                                                    data={[
-                                                        { label: "10%", value: "10" },
-                                                        { label: "20%", value: "20" },
-                                                        { label: "30%", value: "30" },
-                                                        { label: "40%", value: "40" },
-                                                        { label: "50%", value: "50" },
-                                                        { label: "60%", value: "60" },
-                                                        { label: "70%", value: "70" },
-                                                        { label: "80%", value: "80" },
-                                                        { label: "90%", value: "90" },
-                                                    ]}
-                                                    labelField="label"
-                                                    valueField="value"
-                                                    value={value ? String(value) : undefined}
-                                                    placeholder="Yüzde Seçin"
-                                                    onChange={(item: { label: string; value: string }) => onChange(item.value)}
-                                                    style={{
-                                                        paddingHorizontal: 12,
-                                                        paddingVertical: 8,
-                                                        borderRadius: 10,
-                                                        backgroundColor: "#1F2937",
-                                                        borderWidth: 1,
-                                                        borderColor: errors.pricingType?.percent ? "#b00020" : "#444",
-                                                        marginTop: 12,
-                                                        height: 42,
-                                                    }}
-                                                    placeholderStyle={{ color: "gray" }}
-                                                    selectedTextStyle={{ color: "white" }}
-                                                    itemTextStyle={{ color: "white" }}
-                                                    containerStyle={{
-                                                        backgroundColor: "#1F2937",
-                                                        borderWidth: 1,
-                                                        borderColor: "#444",
-                                                        borderRadius: 10,
-                                                        overflow: "hidden",
-                                                    }}
-                                                    activeColor="#0f766e"
-                                                />
-                                                <HelperText type="error" visible={!!errors.pricingType?.percent}>
-                                                    {errors.pricingType?.percent?.message as string}
-                                                </HelperText>
-                                            </>
-                                        )}
-                                    />
-                                )}
-                            </View>
-                            <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Çalışma Zamanını Belirle</Text>
-                            <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
-                                <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- {t('form.workingHoursInfo')}</Text>
-                                <View className="mt-2 px-0">
-                                    <View className="flex-row  gap-2">
-                                        {DAYS_TR.map((d) => {
-                                            const isHoliday = (holidayDays ?? []).includes(d.day);
-                                            const isActive = activeDay === d.day;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={d.day}
-                                                    disabled={isHoliday}
-                                                    onPress={() => setActiveDay(d.day)}
-                                                    className={`px-3 py-2 rounded-full border ${isHoliday
-                                                        ? "opacity-40 border-gray-600"
-                                                        : isActive
-                                                            ? "bg-emerald-500"
-                                                            : "border-gray-500"
-                                                        }`}
-                                                    activeOpacity={0.8}
-                                                >
-                                                    <Text className="text-white text-xs">{d.label}</Text>
-                                                </TouchableOpacity>
-
-                                            );
-                                        })}
-                                    </View>
-                                    {(() => {
-                                        const idx = (working ?? []).findIndex((w) => w.dayOfWeek === activeDay);
-                                        if (idx < 0) return null;
-                                        const dayRow = working[idx];
-                                        const isDisabled = dayRow?.isClosed || (holidayDays ?? []).includes(activeDay);
-                                        const dayErr = errors.workingHours?.[idx];
-                                        return (
-                                            <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
-                                                <View className="flex-row items-center mt-6">
-                                                    <Text className="text-white text-sm">Başlangıç saati:</Text>
-                                                    <DateTimePicker
-                                                        value={activeStart}
-                                                        mode="time"
-                                                        is24Hour
-                                                        locale="tr-TR"
-                                                        disabled={isDisabled}
-                                                        onChange={(_, d) => {
-                                                            if (!d || isDisabled) return;
-                                                            setActiveStart(d);
-                                                            setValue(`workingHours.${idx}.startTime`, fmtHHmm(d), {
-                                                                shouldDirty: true, shouldValidate: true,
-                                                            });
-                                                            trigger([`workingHours.${idx}.startTime`, `workingHours.${idx}.endTime`]);
-                                                        }}
-                                                    />
-                                                    <Text className="text-white text-sm ml-5">Bitiş saati:</Text>
-                                                    <DateTimePicker
-                                                        value={activeEnd}
-                                                        mode="time"
-                                                        is24Hour
-                                                        locale="tr-TR"
-                                                        disabled={isDisabled}
-                                                        onChange={(_, d) => {
-                                                            if (!d || isDisabled) return;
-                                                            setActiveEnd(d);
-                                                            setValue(`workingHours.${idx}.endTime`, fmtHHmm(d), {
-                                                                shouldDirty: true, shouldValidate: true,
-                                                            });
-                                                            trigger([`workingHours.${idx}.startTime`, `workingHours.${idx}.endTime`]);
-                                                        }}
-                                                    />
-                                                </View>
-                                                <HelperText type="error" visible={!!(dayErr?.startTime || dayErr?.endTime)}>
-                                                    {((dayErr?.startTime?.message as string) || (dayErr?.endTime?.message as string)) ?? ""}
-                                                </HelperText>
-                                            </View>
-                                        );
-                                    })()}
-                                    <Text className="text-white text-xl mt-2">Tatil Günleri</Text>
-                                    <Controller
-                                        control={control}
-                                        name="holidayDays"
-                                        render={({ field: { value, onChange }, fieldState: { error } }) => (
-                                            <>
-                                                <MultiSelect
-                                                    data={HOLIDAY_OPTIONS}
-                                                    labelField="label"
-                                                    valueField="value"
-                                                    value={(value ?? []).map(String)}
-                                                    onChange={(vals: string[]) => {
-                                                        const numeric = vals.map(v => Number(v));
-                                                        onChange(numeric);
-                                                        const current = getValues("workingHours") ?? [];
-                                                        const updated = current.map(w => ({
-                                                            ...w,
-                                                            isClosed: numeric.includes(w.dayOfWeek),
-                                                        }));
-                                                        setValue("workingHours", updated, {
-                                                            shouldDirty: true,
-                                                            shouldValidate: true,
-                                                        });
-                                                    }}
-                                                    placeholder="Tatil günlerini seç"
-                                                    dropdownPosition="top"
-                                                    inside
-                                                    alwaysRenderSelectedItem
-                                                    visibleSelectedItem
-                                                    style={{
-                                                        backgroundColor: "#1F2937",
-                                                        borderColor: error ? "#b00020" : "#444",
-                                                        borderWidth: 1,
-                                                        borderRadius: 10,
-                                                        paddingHorizontal: 12,
-                                                        paddingVertical: 8,
-                                                        marginTop: 8,
-                                                    }}
-                                                    containerStyle={{
-                                                        backgroundColor: "#1F2937",
-                                                        borderWidth: 1,
-                                                        borderColor: "#444",
-                                                        borderRadius: 10,
-                                                        overflow: "hidden",
-                                                    }}
-                                                    placeholderStyle={{ color: "gray" }}
-                                                    selectedTextStyle={{ color: "white" }}
-                                                    itemTextStyle={{ color: "white" }}
-                                                    activeColor="#0f766e"
-                                                    selectedStyle={{
-                                                        borderRadius: 10,
-                                                        backgroundColor: "#374151",
-                                                        borderColor: "#0f766e",
-                                                        paddingHorizontal: 10,
-                                                        paddingVertical: 6,
-                                                    }}
-                                                />
-                                                <HelperText type="error" visible={!!error}>
-                                                    {error?.message as string}
+                                                <HelperText type="error" visible={!!errors.location?.addressDescription}>
+                                                    {errors.location?.addressDescription?.message as string}
                                                 </HelperText>
                                             </>
                                         )}
                                     />
                                 </View>
                             </View>
-                            <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">Adres Belirle</Text>
-                            <View className='mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3'>
-                                <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">- Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın konumunu ala tıklayınız ama değilseniz haritadan konumunuza tıklayınız.</Text>
-                                <Button
-                                    loading={locBusy}
-                                    disabled={locBusy}
-                                    mode='contained-tonal'
-                                    icon={'store'}
-                                    className="my-2.5"
-                                    onPress={pickMyCurrentLocation}
-                                    buttonColor='#10B981'
-                                    textColor='white'
-                                >
-                                    İşletmenin konumunu al
-                                </Button>
-                                <MapPicker
-                                    lat={c ? c.lat : undefined}
-                                    lng={c ? c.lon : undefined}
-                                    address={address}
-                                    onChange={async (la, ln) => { updateLocation(la, ln); await reverseAndSetAddress(la, ln); }}
-                                />
-                                <HelperText type="error" visible={!!(errors.location?.latitude || errors.location?.longitude)}>
-                                    {(errors.location?.latitude?.message as string) || (errors.location?.longitude?.message as string) || ""}
-                                </HelperText>
-                                <Controller
-                                    control={control}
-                                    name="location.addressDescription"
-                                    render={({ field: { value, onChange, onBlur } }) => (
-                                        <>
-                                            <TextInput
-                                                label="Adres açıklaması"
-                                                mode="outlined"
-                                                dense
-                                                value={value}
-                                                onChangeText={onChange}
-                                                onBlur={onBlur}
-                                                multiline
-                                                readOnly
-                                                textColor="white"
-                                                outlineColor={errors.location?.addressDescription ? "#b00020" : "#444"}
-                                                theme={{ roundness: 10, colors: { onSurfaceVariant: "gray", primary: "white" } }}
-                                                style={{ backgroundColor: "#1F2937", borderWidth: 0, marginTop: 0 }}
-                                                placeholder="Örn: X caddesi, Y sk. Z no, dükkan girişi apartman sağında..."
-                                            />
-                                            <HelperText type="error" visible={!!errors.location?.addressDescription}>
-                                                {errors.location?.addressDescription?.message as string}
-                                            </HelperText>
-                                        </>
-                                    )}
-                                />
-                            </View>
+                        </ScrollView>
+                        <View className="px-4 my-3">
+                            <Button
+                                className="mt-2 mb-4"
+                                disabled={updateLoading || isSubmitting}
+                                loading={updateLoading || isSubmitting}
+                                mode="contained"
+                                onPress={handleSubmit(OnSubmit)}
+                                buttonColor="#1F2937"
+                                textColor="white"
+                            >
+                                Güncelle
+                            </Button>
                         </View>
-                    </ScrollView>
-                    <View className="px-4 my-3">
-                        <Button
-                            className="mt-2 mb-4"
-                            disabled={updateLoading || isSubmitting}
-                            loading={updateLoading || isSubmitting}
-                            mode="contained"
-                            onPress={handleSubmit(OnSubmit)}
-                            buttonColor="#1F2937"
-                            textColor="white"
-                        >
-                            Güncelle
-                        </Button>
-                    </View>
-                    <BarberEditModal
-                        visible={barberModalVisible}
-                        title={barberModalTitle}
-                        initialValues={barberInitialValues}
-                        onClose={closeBarberModal}
-                        storeId={storeId}
-                    />
-                    <ChairEditModal
-                        visible={chairModalVisible}
-                        title={chairModalTitle}
-                        initialValues={chairInitialValues}
-                        barbers={chairAvailableBarbers}
-                        onClose={closeChairModal}
-                        storeId={storeId}
-                    />
-                </>
-            )}
-        </View>
+                        <BarberEditModal
+                            visible={barberModalVisible}
+                            title={barberModalTitle}
+                            initialValues={barberInitialValues}
+                            onClose={closeBarberModal}
+                            storeId={storeId}
+                        />
+                        <ChairEditModal
+                            visible={chairModalVisible}
+                            title={chairModalTitle}
+                            initialValues={chairInitialValues}
+                            barbers={chairAvailableBarbers}
+                            onClose={closeChairModal}
+                            storeId={storeId}
+                        />
+                    </>
+                )}
+            </View>
+        </KeyboardAvoidingView>
     );
 
 }

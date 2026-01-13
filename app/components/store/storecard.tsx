@@ -29,7 +29,7 @@ type Props = {
 
 const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true, isMapMode = false }) => {
     const carouselWidth = Math.max(0, cardWidthStore);
-    
+
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: store.id,
         targetType: FavoriteTargetType.Store,
@@ -135,15 +135,13 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                     </View>
                 </View>
                 <ServiceOfferingsList offerings={store.serviceOfferings || []} />
+                {isViewerFromFreeBr && (
+                    <PricingInfo
+                        pricingType={store.pricingType}
+                        pricingValue={store.pricingValue}
+                    />
+                )}
             </View>
-
-
-            {isViewerFromFreeBr && (
-                <PricingInfo
-                    pricingType={store.pricingType}
-                    pricingValue={store.pricingValue}
-                />
-            )}
         </View>
     );
 };

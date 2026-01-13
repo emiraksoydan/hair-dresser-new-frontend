@@ -5,7 +5,7 @@ import { Icon, IconButton } from 'react-native-paper'
 import { useAppDispatch } from '../store/hook';
 import { showSnack } from '../store/snackbarSlice';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { useGetBadgeCountsQuery } from '../store/api';
+import { useGetAllNotificationsQuery, useGetChatThreadsQuery } from '../store/api';
 import { BadgeIconButton } from '../components/common/badgeiconbutton';
 import { useAuth } from '../hook/useAuth';
 import { useBottomSheet } from '../hook/useBottomSheet';
@@ -29,9 +29,16 @@ const FreeBarberLayout = () => {
         enablePanDownToClose: true,
         enableOverDrag: false,
     });
-    const { data: badge } = useGetBadgeCountsQuery();
-    const unreadNoti = badge?.unreadNotifications ?? 0;
-    const unreadMsg = badge?.unreadMessages ?? 0;
+    const { data: notifications } = useGetAllNotificationsQuery();
+    const { data: threads } = useGetChatThreadsQuery();
+
+    const unreadNoti = useMemo(() => {
+        return notifications?.filter(n => !n.isRead).length || 0;
+    }, [notifications]);
+
+    const unreadMsg = useMemo(() => {
+        return threads?.reduce((acc, thread) => acc + (thread.unreadCount || 0), 0) || 0;
+    }, [threads]);
     const { userName, userType } = useAuth();
 
     // Play notification sound when badge count changes

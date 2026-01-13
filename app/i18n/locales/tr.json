@@ -7,9 +7,9 @@
     "lastName": "Soyisim",
     "userType": "Kullanıcı Türü",
     "customer": "Müşteri",
-    "barber": "Berber",
+    "barber": "Serbest Çalışan",
     "salon": "Salon",
-    "start": "Başlayalım",
+    "start": "Devam Et",
     "alreadyHaveAccount": "Zaten hesabın var mı",
     "noAccount": "Hesabın yok mu",
     "login": "Giriş yap",
@@ -378,7 +378,7 @@
     "deleteChair": "Koltuğu Sil",
     "deleteChairConfirm": "\"{{name}}\" isimli koltuğu silmek istediğinize emin misiniz?",
     "selectMainCategory": "Ana kategori seç (Erkek Berber / Bayan Kuaför)",
-    "workingHoursInfo": "Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek 8:00-9:00 , 10:00-11:00 gibi",
+    "workingHoursInfo": "Seçtiğiniz zaman dilimleri müşteri tarafında 1 saat aralıklarla gözükecek",
     "priceLabel": "Fiyat (₺)"
   },
   "languages": {

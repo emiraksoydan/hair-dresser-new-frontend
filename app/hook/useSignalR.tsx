@@ -4,7 +4,7 @@ import * as SignalR from "@microsoft/signalr";
 import { useAppDispatch } from "../store/hook";
 import { api } from "../store/api";
 import { tokenStore } from "../lib/tokenStore";
-import type { BadgeCount, NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto, AppointmentGetDto } from "../types";
+import type { NotificationDto, ChatThreadListItemDto, ChatMessageDto, ChatMessageItemDto, AppointmentGetDto } from "../types";
 import { AppointmentStatus, AppointmentFilter } from "../types/appointment";
 import { NotificationType } from "../types";
 import { API_CONFIG } from "../constants/api";
@@ -53,7 +53,7 @@ export const useSignalR = () => {
                 }
                 setIsConnected(false);
                 // Token yoksa badge count'u invalidate et (login olmamış kullanıcı için)
-                dispatch(api.util.invalidateTags(['Badge']));
+                dispatch(api.util.invalidateTags([]));
                 return;
             }
 
@@ -81,27 +81,7 @@ export const useSignalR = () => {
 
             // Event handler'ları ekleme fonksiyonu (yeniden bağlanma için kullanılacak)
             const setupEventHandlers = (conn: SignalR.HubConnection) => {
-                conn.on("badge.updated", (data: any) => {
-                    // Backend'den gelen data camelCase (unreadNotifications, unreadMessages) olarak gelir
-                    // SignalR JsonSerializerOptions PropertyNamingPolicy.CamelCase kullanıyor
-                    const unreadNotifications = data?.unreadNotifications ?? data?.UnreadNotifications ?? 0;
-                    const unreadMessages = data?.unreadMessages ?? data?.UnreadMessages ?? 0;
 
-                    // ÖNEMLİ: RTK Query Immer kullanır, draft'ı mutate et
-                    // Immer otomatik olarak yeni referans oluşturur, return statement gerekmez
-                    dispatch(
-                        api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                            // Draft undefined ise yeni obje oluştur (query henüz çalışmamışsa)
-                            if (!draft) {
-                                return { unreadNotifications, unreadMessages };
-                            }
-                            // Draft varsa sadece mutate et - Immer otomatik olarak yeni referans oluşturur
-                            draft.unreadMessages = unreadMessages;
-                            draft.unreadNotifications = unreadNotifications;
-                            // Return statement'ı kaldırdık - Immer zaten yeni referans oluşturuyor
-                        })
-                    );
-                });
 
                 conn.on("notification.received", (dto: NotificationDto) => {
                     // Notification'ı listeye ekle veya güncelle
@@ -602,7 +582,7 @@ export const useSignalR = () => {
                                 connectionRef.current = newConnection;
                                 reconnectAttemptsRef.current = 0; // Başarılı bağlantı
                                 setIsConnected(true);
-                                dispatch(api.util.invalidateTags(['Badge', 'Chat', 'Notification']));
+                                dispatch(api.util.invalidateTags(['Chat', 'Notification']));
                             } else {
                                 await newConnection.stop();
                             }
@@ -625,7 +605,7 @@ export const useSignalR = () => {
                 reconnectAttemptsRef.current = 0; // Başarılı yeniden bağlantı
                 setIsConnected(true);
                 // Yeniden bağlandığında güncel verileri çek
-                dispatch(api.util.invalidateTags(['Badge', 'Chat', 'Notification']));
+                dispatch(api.util.invalidateTags(['Chat', 'Notification']));
             });
 
             try {
@@ -638,12 +618,12 @@ export const useSignalR = () => {
                 reconnectAttemptsRef.current = 0; // Başarılı bağlantı
                 setIsConnected(true);
                 // Bağlantı kurulduğunda badge count'u fetch et
-                dispatch(api.util.invalidateTags(['Badge']));
+                dispatch(api.util.invalidateTags([]));
             } catch (e) {
                 // SignalR connection errors are expected during network issues
                 // Arka planda otomatik yeniden bağlanma mekanizması devreye girecek
                 setIsConnected(false);
-                dispatch(api.util.invalidateTags(['Notification', 'Badge', 'Chat']));
+                dispatch(api.util.invalidateTags(['Notification', 'Chat']));
             }
         };
 
@@ -659,7 +639,6 @@ export const useSignalR = () => {
             }
 
             const c = connectionRef.current;
-            c?.off("badge.updated");
             c?.off("notification.received");
             c?.off("chat.message");
             c?.off("chat.threadCreated");

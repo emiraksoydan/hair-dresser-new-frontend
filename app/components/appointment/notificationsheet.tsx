@@ -33,7 +33,6 @@ export function NotificationsSheet({
 }) {
     const dispatch = useAppDispatch();
     const router = useRouter();
-    const insets = useSafeAreaInsets();
     const { data, isFetching, refetch } = useGetAllNotificationsQuery();
     const [markRead] = useMarkNotificationReadMutation();
     const [deleteNotification, { isLoading: isDeletingNotification }] = useDeleteNotificationMutation();
@@ -73,18 +72,6 @@ export function NotificationsSheet({
                 if (found) found.isRead = true;
             }));
 
-            // Optimistic badge count update: Badge count'u anlık olarak azalt
-            // Not: Backend'den badge.updated event'i gelecek ve doğru değeri gönderecek
-            dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                if (!draft) {
-                    // Query henüz çalışmamışsa optimistic update yapma - query çalıştığında zaten doğru değeri alacak
-                    return;
-                }
-                // Badge count'u azalt (minimum 0)
-                draft.unreadNotifications = Math.max(0, (draft.unreadNotifications ?? 0) - 1);
-                // Immer otomatik olarak yeni referans oluşturur
-            }));
-
             try {
                 await markRead(n.id).unwrap();
                 // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
@@ -93,10 +80,6 @@ export function NotificationsSheet({
                 dispatch(api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
                     const found = draft?.find((x) => x.id === n.id);
                     if (found) found.isRead = false;
-                }));
-                dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                    if (!draft) return;
-                    draft.unreadNotifications = (draft.unreadNotifications ?? 0) + 1;
                 }));
                 // RTK Query invalidateTags ile de güncellenecek
             }

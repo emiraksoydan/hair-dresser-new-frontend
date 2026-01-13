@@ -92,18 +92,18 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     // Typing indicator için debounce
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastTypingNotificationRef = useRef(false);
-    
+
     // Otomatik read için debounce
     const autoReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const markThreadRead = useCallback(async () => {
         if (!threadId || markReadInFlightRef.current) return;
         markReadInFlightRef.current = true;
-        
+
         // Thread'den unread count'u önce al (closure dışında)
         const currentThread = threads?.find(t => t.threadId === threadId);
         const previousUnreadCount = currentThread?.unreadCount ?? 0;
-        
+
         // Optimistic update: Thread unread count'unu 0 yap
         dispatch(
             api.util.updateQueryData("getChatThreads", undefined, (draft) => {
@@ -114,18 +114,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                 }
             })
         );
-        
-        // Optimistic badge count update: Badge count'u anlık olarak azalt
-        dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-            if (!draft) {
-                // Query henüz çalışmamışsa optimistic update yapma - query çalıştığında zaten doğru değeri alacak
-                return;
-            }
-            // Badge count'u azalt (minimum 0)
-            draft.unreadMessages = Math.max(0, (draft.unreadMessages ?? 0) - previousUnreadCount);
-            // Immer otomatik olarak yeni referans oluşturur
-        }));
-        
+
         try {
             await markRead(threadId).unwrap();
             // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
@@ -140,10 +129,6 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                     }
                 })
             );
-            dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
-                if (!draft) return;
-                draft.unreadMessages = (draft.unreadMessages ?? 0) + previousUnreadCount;
-            }));
         } finally {
             markReadInFlightRef.current = false;
         }
@@ -464,8 +449,8 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
                                         }
 
                                         if (participant.userType === UserType.FreeBarber) {
-                                            return participant.barberType === BarberType.MaleHairdresser 
-                                                ? t('barberType.maleHairdresserShort') 
+                                            return participant.barberType === BarberType.MaleHairdresser
+                                                ? t('barberType.maleHairdresserShort')
                                                 : t('barberType.femaleHairdresserShort');
                                         } else if (participant.userType === UserType.BarberStore) {
                                             if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
