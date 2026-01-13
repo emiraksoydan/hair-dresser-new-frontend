@@ -74,6 +74,7 @@ export function NotificationsSheet({
             }));
 
             // Optimistic badge count update: Badge count'u anlık olarak azalt
+            // Not: Backend'den badge.updated event'i gelecek ve doğru değeri gönderecek
             dispatch(api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
                 if (!draft) {
                     // Query henüz çalışmamışsa optimistic update yapma - query çalıştığında zaten doğru değeri alacak
@@ -81,8 +82,7 @@ export function NotificationsSheet({
                 }
                 // Badge count'u azalt (minimum 0)
                 draft.unreadNotifications = Math.max(0, (draft.unreadNotifications ?? 0) - 1);
-                // Yeni referans oluştur ki React component'leri yeniden render olsun
-                return { ...draft };
+                // Immer otomatik olarak yeni referans oluşturur
             }));
 
             try {

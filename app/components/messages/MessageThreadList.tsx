@@ -34,25 +34,10 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     const formatTime = useFormatTime();
     const { userType: currentUserType } = useAuth();
 
-    // Backend zaten filtreliyor ama frontend'de de ekstra güvenlik kontrolü yapıyoruz
-    // Favori thread'ler: Backend'den gelen thread zaten görünür (en az 1 aktif favori var)
-    // Randevu thread'leri: Sadece Pending/Approved durumunda görünür olmalı
-    const filteredThreads = useMemo(() => {
-        if (!threads) return [];
-        return threads.filter(thread => {
-            if (thread.isFavoriteThread) {
-                // Favori thread: Backend'den gelen thread zaten görünür (aktif favori var)
-                return true;
-            } else {
-                // Randevu thread'i: Sadece Pending/Approved durumunda görünür
-                if (thread.status !== undefined && thread.status !== null) {
-                    return thread.status === AppointmentStatus.Pending || thread.status === AppointmentStatus.Approved;
-                }
-                // Status yoksa (null/undefined) görünür olmamalı
-                return false;
-            }
-        });
-    }, [threads]);
+    // Backend zaten filtreliyor - backend'den gelen thread'leri olduğu gibi kullan
+    // Backend filtresi:
+    // - Favori thread'ler: En az 1 aktif favori varsa görünür
+    // - Randevu thread'leri: Sadece Pending/Approved durumunda görünür
 
     const renderItem = useCallback(({ item }: { item: ChatThreadListItemDto }) => {
         const hasUnread = item.unreadCount > 0;
@@ -309,7 +294,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     return (
         <View className="flex-1 bg-[#151618]">
             <LegendList
-                data={filteredThreads}
+                data={threads ?? []}
                 keyExtractor={(item) => item.threadId}
                 estimatedItemSize={100}
                 contentContainerStyle={{ padding: 16, gap: 12 }}

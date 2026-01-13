@@ -92,19 +92,24 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
     // Typing indicator için debounce
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastTypingNotificationRef = useRef(false);
+    
+    // Otomatik read için debounce
+    const autoReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const markThreadRead = useCallback(async () => {
         if (!threadId || markReadInFlightRef.current) return;
         markReadInFlightRef.current = true;
         
+        // Thread'den unread count'u önce al (closure dışında)
+        const currentThread = threads?.find(t => t.threadId === threadId);
+        const previousUnreadCount = currentThread?.unreadCount ?? 0;
+        
         // Optimistic update: Thread unread count'unu 0 yap
-        let previousUnreadCount = 0;
         dispatch(
             api.util.updateQueryData("getChatThreads", undefined, (draft) => {
                 if (!draft) return;
                 const thread = draft.find(t => t.threadId === threadId);
                 if (thread) {
-                    previousUnreadCount = thread.unreadCount ?? 0;
                     thread.unreadCount = 0;
                 }
             })
@@ -118,8 +123,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
             }
             // Badge count'u azalt (minimum 0)
             draft.unreadMessages = Math.max(0, (draft.unreadMessages ?? 0) - previousUnreadCount);
-            // Yeni referans oluştur ki React component'leri yeniden render olsun
-            return { ...draft };
+            // Immer otomatik olarak yeni referans oluşturur
         }));
         
         try {
@@ -143,7 +147,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         } finally {
             markReadInFlightRef.current = false;
         }
-    }, [threadId, markRead, dispatch]);
+    }, [threadId, markRead, dispatch, threads]);
 
     // Mark thread as read when opened
     useEffect(() => {
@@ -160,17 +164,27 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
 
     // ÖNEMLİ: ChatDetailScreen açıkken yeni mesaj geldiğinde otomatik read yap
     // Eğer kullanıcı sohbet odasında ise, mesaj geldiğinde otomatik okundu işaretlenmeli
+    // Debounce ile gereksiz istekleri önle (500ms gecikme ile)
     useEffect(() => {
         const connection = connectionRef?.current;
         if (!connection || !threadId || !currentUserId) return;
 
-        const handleNewMessage = async (dto: ChatMessageDto) => {
+        const handleNewMessage = (dto: ChatMessageDto) => {
             // Bu thread için gelen mesaj mı?
             if (dto.threadId !== threadId) return;
 
-            // Kendi gönderdiğimiz mesaj değilse (başkasından geldiyse) otomatik read yap
+            // Kendi gönderdiğimiz mesaj değilse (başkasından geldiyse) otomatik read yap (debounce ile)
             if (dto.senderUserId !== currentUserId) {
-                await markThreadRead();
+                // Önceki timeout'u temizle
+                if (autoReadTimeoutRef.current) {
+                    clearTimeout(autoReadTimeoutRef.current);
+                }
+                // 500ms sonra read yap (birden fazla mesaj gelirse sadece son mesajdan sonra read yapılır)
+                autoReadTimeoutRef.current = setTimeout(() => {
+                    markThreadRead().catch(() => {
+                        // Hata durumunda sessizce devam et
+                    });
+                }, 500);
             }
         };
 
@@ -179,6 +193,11 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ threadId }) 
         return () => {
             if (connection) {
                 connection.off("chat.message", handleNewMessage);
+            }
+            // Cleanup: timeout'u temizle
+            if (autoReadTimeoutRef.current) {
+                clearTimeout(autoReadTimeoutRef.current);
+                autoReadTimeoutRef.current = null;
             }
         };
     }, [threadId, currentUserId, markThreadRead, connectionRef]);

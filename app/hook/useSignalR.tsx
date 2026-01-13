@@ -88,22 +88,17 @@ export const useSignalR = () => {
                     const unreadMessages = data?.unreadMessages ?? data?.UnreadMessages ?? 0;
 
                     // ÖNEMLİ: RTK Query Immer kullanır, draft'ı mutate et
-                    // Ancak yeni değerler eski değerlerle aynıysa re-render olmayabilir
-                    // Bu yüzden her zaman güncelle - yeni bir obje oluştur ki React component'leri yeniden render olsun
+                    // Immer otomatik olarak yeni referans oluşturur, return statement gerekmez
                     dispatch(
                         api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
                             // Draft undefined ise yeni obje oluştur (query henüz çalışmamışsa)
                             if (!draft) {
                                 return { unreadNotifications, unreadMessages };
                             }
-                            // Draft varsa yeni değerleri atayarak mutate et - Immer otomatik olarak yeni referans oluşturur
-                            // Ancak değerler aynı olsa bile yeni referans oluşturmak için explicit assignment yapıyoruz
+                            // Draft varsa sadece mutate et - Immer otomatik olarak yeni referans oluşturur
                             draft.unreadMessages = unreadMessages;
                             draft.unreadNotifications = unreadNotifications;
-
-                            // Ekstra güvence: Her zaman yeni bir obje döndür (değerler aynı olsa bile)
-                            // Bu sayede React component'leri kesinlikle yeniden render olur
-                            return { ...draft, unreadMessages, unreadNotifications };
+                            // Return statement'ı kaldırdık - Immer zaten yeni referans oluşturuyor
                         })
                     );
                 });
