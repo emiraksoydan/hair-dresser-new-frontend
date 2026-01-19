@@ -11,9 +11,8 @@ import { useRouter } from 'expo-router';
 import { Icon } from 'react-native-paper';
 import { useGetChatThreadsQuery } from '../../store/api';
 import { ChatThreadListItemDto, ChatThreadParticipantDto, AppointmentStatus, UserType, BarberType, ImageOwnerType } from '../../types';
-import { LottieViewComponent } from '../common/lottieview';
-import { resolveApiErrorMessage } from '../../utils/common/error';
 import { SkeletonComponent } from '../common/skeleton';
+import { UnifiedStateWrapper } from '../common/UnifiedStateManager';
 import { OwnerAvatar } from '../common/owneravatar';
 import { useFormatTime } from '../../utils/time/time-formatter';
 import { getAppointmentStatusColor } from '../../utils/appointment/appointment-helpers';
@@ -229,51 +228,16 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     // Loading durumu
     if (isLoading) {
         return (
-            <View className="flex-1 bg-[#151618] pt-4">
+            <View className="flex-1 bg-[#151618] pt-4 px-4">
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
             </View>
         );
     }
 
-    // Network/Server error durumu - öncelikli göster
-    if (isError && error) {
-        const isRtkQueryError = (e: unknown): e is { status?: unknown; data?: any } =>
-            typeof e === 'object' && e !== null && 'status' in e;
-
-        const status = isRtkQueryError(error) ? error.status : undefined;
-        const isNetworkError = status === 'FETCH_ERROR' || status === 'TIMEOUT_ERROR';
-
-        const backendMessage = isRtkQueryError(error) ? (error.data as any)?.message : undefined;
-        const errorMessage =
-            backendMessage ||
-            (isNetworkError
-                ? 'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.'
-                : resolveApiErrorMessage(error));
-
-        return (
-            <ScrollView
-                className="flex-1 bg-[#151618]"
-                contentContainerStyle={{ flexGrow: 1 }}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isFetching && !isLoading}
-                        onRefresh={refetch}
-                        tintColor="#f05e23"
-                    />
-                }
-            >
-                <LottieViewComponent
-                    animationSource={require('../../../assets/animations/error.json')}
-                    message={errorMessage}
-                />
-            </ScrollView>
-        );
-    }
-
-    // Boş durum kontrolü
+    // Error veya Empty durumu - UnifiedStateWrapper ile
     const hasNoThreads = !threads || (Array.isArray(threads) && threads.length === 0);
 
-    if (hasNoThreads) {
+    if (isError || hasNoThreads) {
         return (
             <ScrollView
                 className="flex-1 bg-[#151618]"
@@ -286,7 +250,21 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                     />
                 }
             >
-                <LottieViewComponent message={MESSAGES.EMPTY_STATE.NO_MESSAGES} />
+                <UnifiedStateWrapper
+                    loading={isLoading}
+                    error={error}
+                    data={threads}
+                    fetchedOnce={true}
+                    onRetry={refetch}
+                    customMessages={{
+                        empty: t('empty.noMessages'),
+                    }}
+                    customAnimations={{
+                        empty: require("../../../assets/animations/messages-empty.json"),
+                    }}
+                >
+                    <View />
+                </UnifiedStateWrapper>
             </ScrollView>
         );
     }

@@ -28,20 +28,41 @@ export const useNotificationSound = (badgeCount: number) => {
     const SOUND_COOLDOWN_MS = 3000; // 3 saniye cooldown - çoklu bildirimlerde her biri için ses çalmasın
     const isPlayingRef = useRef<boolean>(false); // Şu anda bir ses çalıyor mu kontrolü
 
-    // Set audio mode for notifications
+    // Set audio mode for notifications - iOS sessiz modda bile çalsın
     useEffect(() => {
-        Audio.setAudioModeAsync({
-            playsInSilentModeIOS: true,
-            staysActiveInBackground: false,
-        });
+        const setupAudioMode = async () => {
+            try {
+                // expo-av paketindeki Audio.setAudioModeAsync kullanılıyor
+                // Eğer bu method yoksa veya hata veriyorsa, ses yine de çalacak
+                // Sadece iOS sessiz modda çalmayabilir
+                if (Audio.setAudioModeAsync) {
+                    await Audio.setAudioModeAsync({
+                        playsInSilentModeIOS: true,
+                        staysActiveInBackground: false,
+                        shouldDuckAndroid: true,
+                        playThroughEarpieceAndroid: false,
+                    });
+                }
+            } catch (error) {
+                // Audio mode ayarlanamadıysa sessizce devam et
+                // Ses yine de çalacak, sadece iOS silent modda çalmayabilir
+            }
+        };
+
+        setupAudioMode();
     }, []);
 
     // Monitor app state
     useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextAppState) => {
-            appStateRef.current = nextAppState;
-        });
-        return () => subscription.remove();
+        try {
+            const subscription = AppState.addEventListener('change', (nextAppState) => {
+                appStateRef.current = nextAppState;
+            });
+            return () => subscription.remove();
+        } catch {
+            // Parse hatası durumunda sessizce devam et
+            return () => { }; // Return a no-op cleanup function
+        }
     }, []);
 
     // Play sound when badge count increases

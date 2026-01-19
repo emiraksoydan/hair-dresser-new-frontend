@@ -1,9 +1,10 @@
-import { useSelector } from 'react-redux';
-import { hideSnack } from '../store/snackbarSlice';
-import { RootState } from '../store/redux-store';
-import { Portal, Snackbar } from 'react-native-paper';
-import React, { useRef, useCallback, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useSelector } from "react-redux";
+import { hideSnack } from "../store/snackbarSlice";
+import { RootState } from "../store/redux-store";
+import { Portal, Snackbar } from "react-native-paper";
+import React, { useRef, useCallback, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { useLanguage } from "./useLanguage";
 
 // useSnackbar hook kaldırıldı - direkt slice kullanın:
 // import { useAppDispatch } from '../store/hook';
@@ -13,8 +14,11 @@ import { useDispatch } from 'react-redux';
 
 // Global Snackbar Component
 export const GlobalSnackbar: React.FC = () => {
-  const { visible, message, isError } = useSelector((state: RootState) => state.snackbar);
+  const { visible, message, isError } = useSelector(
+    (state: RootState) => state.snackbar,
+  );
   const dispatch = useDispatch();
+  const { t } = useLanguage();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDismiss = useCallback(() => {
@@ -49,12 +53,12 @@ export const GlobalSnackbar: React.FC = () => {
         onDismiss={handleDismiss}
         duration={3000}
         style={{
-          backgroundColor: isError ? '#b91c1c' : '#15803d' // Kırmızı: hata, Yeşil: başarı
+          backgroundColor: isError ? "#b91c1c" : "#15803d", // Kırmızı: hata, Yeşil: başarı
         }}
         action={{
-          label: 'Kapat',
+          label: t("common.close"),
           onPress: handleDismiss,
-          textColor: 'white',
+          textColor: "white",
         }}
       >
         {message}

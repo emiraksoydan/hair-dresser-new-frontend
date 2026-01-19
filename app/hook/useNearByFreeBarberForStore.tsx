@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureLocationGateWithUI } from "../components/location/location-gate";
 import { BarberStoreMineDto, FreeBarGetDto, LocationStatus } from "../types";
-import { useLazyGetNearbyFreeBarberQuery } from "../store/api";
+import { useLazyGetFilteredFreeBarbersQueryQuery } from "../store/api";
 import { safeCoord } from "../utils/location/geo";
+import { FilterRequestDto } from "../types/filter";
 
 
 export type UseNearbyStoresParams = {
@@ -10,6 +11,8 @@ export type UseNearbyStoresParams = {
     enabled: boolean;
     hardRefreshMs?: number;
     radiusKm?: number;
+    filter?: FilterRequestDto;
+    currentUserId?: string;
 };
 
 export function useNearbyStoresControl({
@@ -17,8 +20,10 @@ export function useNearbyStoresControl({
     enabled,
     hardRefreshMs = 15_000,
     radiusKm = 1,
+    filter,
+    currentUserId,
 }: UseNearbyStoresParams) {
-    const [trigger] = useLazyGetNearbyFreeBarberQuery();
+    const [trigger] = useLazyGetFilteredFreeBarbersQueryQuery();
 
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
     const [freeBarbers, setFreeBarbers] = useState<FreeBarGetDto[]>([]);
@@ -41,6 +46,28 @@ export function useNearbyStoresControl({
         return JSON.stringify(stores.map(s => `${s.id}:${s.latitude},${s.longitude}`));
     }, [stores]);
 
+    // Filter fingerprint for detecting changes
+    const filterFingerprint = useMemo(() => {
+        if (!filter) return '';
+        return JSON.stringify({
+            mainCategory: filter.mainCategory,
+            serviceIds: filter.serviceIds,
+            priceSort: filter.priceSort,
+            minPrice: filter.minPrice,
+            maxPrice: filter.maxPrice,
+            pricingType: filter.pricingType,
+            isAvailable: filter.isAvailable,
+            isOpenNow: filter.isOpenNow,
+            minRating: filter.minRating,
+            favoritesOnly: filter.favoritesOnly,
+            userType: filter.userType,
+            searchQuery: filter.searchQuery,
+        });
+    }, [filter]);
+
+    // Track previous filter fingerprint
+    const prevFilterFingerprint = useRef(filterFingerprint);
+
     const fetchNearby = useCallback(async (showLoading: boolean = false) => {
         if (!enabled || !stores.length) return;
         // Error varsa ve manuel fetch değilse fetch yapma (hard refresh'te)
@@ -52,16 +79,27 @@ export function useNearbyStoresControl({
         }
         try {
             // Her mağaza için ayrı istek atıp sonuçları topluyoruz
-            const promises = stores.map(store => {
+            const promises = stores.map(async store => {
                 const c = safeCoord(store.latitude, store.longitude);
                 if (!c) return null;
                 // İlk store'un konumunu kaydet (filtreleme için)
                 if (!location && c) {
                     setLocation({ latitude: c.lat, longitude: c.lon });
                 }
-                // RTK Query'nin 'trigger'ı her zaman güncel cache veya yeni veri getirir
-                // Hard refresh için preferCacheValue: false kullan (cache'i bypass et, yeni veri fetch et)
-                return trigger({ lat: c.lat, lon: c.lon, radiusKm }, false).unwrap();
+                // Filtered endpoint kullan - tüm filtreleri gönder
+                const filterWithLocation: FilterRequestDto = {
+                    ...filter,
+                    latitude: c.lat,
+                    longitude: c.lon,
+                    distanceKm: radiusKm,
+                    currentUserId: currentUserId,
+                };
+                const result = await trigger(filterWithLocation, false);
+                if ('error' in result) {
+                    // Nearby barber fetch hatası sessizce atlanır
+                    return [];
+                }
+                return result.data || [];
             }).filter(Boolean);
 
             const results = await Promise.all(promises);
@@ -84,7 +122,7 @@ export function useNearbyStoresControl({
                 setIsLoading(false);
             }
         }
-    }, [enabled, stores, radiusKm, trigger, location, isInitialLoad, error]);
+    }, [enabled, stores, radiusKm, trigger, location, isInitialLoad, error, filter, currentUserId]);
 
     // 1. Durum: Store listesi veya koordinatı değişirse ANINDA çek (Optimistic update burayı tetikler)
     // İlk yüklemede loading göster, sonraki güncellemelerde gösterme
@@ -92,7 +130,26 @@ export function useNearbyStoresControl({
         fetchNearby(isInitialLoad);
     }, [storesFingerprint, fetchNearby, isInitialLoad]);
 
-    // 2. Durum: Periyodik olarak arka planda yenile (Timer)
+    // 2. Durum: Filtre değişirse yeniden çek
+    useEffect(() => {
+        // Skip if filter hasn't changed
+        if (prevFilterFingerprint.current === filterFingerprint) {
+            return;
+        }
+        
+        // Update previous fingerprint
+        prevFilterFingerprint.current = filterFingerprint;
+        
+        // Skip if initial load not completed yet
+        if (isInitialLoad) {
+            return;
+        }
+        
+        // Refetch with new filter
+        fetchNearby(false);
+    }, [filterFingerprint, fetchNearby, isInitialLoad]);
+
+    // 3. Durum: Periyodik olarak arka planda yenile (Timer)
     // Background refresh'lerde loading gösterme
     // ÖNEMLİ: Error veya location denied durumunda hard refresh'i durdur
     useEffect(() => {
@@ -100,7 +157,7 @@ export function useNearbyStoresControl({
         if (locationStatus !== "granted") return;
         // Error varsa hard refresh'i durdur (sunucu çalışmıyor olabilir)
         if (error) return;
-        
+
         const interval = setInterval(() => fetchNearby(false), hardRefreshMs);
         return () => clearInterval(interval);
     }, [enabled, hardRefreshMs, fetchNearby, locationStatus, error]);

@@ -8,11 +8,17 @@
  * Handles both direct array responses and wrapped responses ({ data: [...] })
  */
 export function transformArrayResponse<T>(response: unknown): T[] {
-  if (Array.isArray(response)) return response as T[];
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+  
   if (response && typeof response === 'object' && 'data' in response) {
     const data = (response as { data: unknown }).data;
-    if (Array.isArray(data)) return data as T[];
+    if (Array.isArray(data)) {
+      return data as T[];
+    }
   }
+  
   return [];
 }
 
@@ -20,11 +26,16 @@ export function transformArrayResponse<T>(response: unknown): T[] {
  * Transforms backend response to single object
  * Handles both direct object responses and wrapped responses ({ data: {...} })
  */
-export function transformObjectResponse<T>(response: unknown): T | null {
-  if (!response) return null;
-  if (typeof response === 'object' && 'data' in response) {
-    return (response as { data: unknown }).data as T;
+export function transformObjectResponse<T>(response: unknown): T {
+  if (!response) {
+    return {} as T;
   }
+  
+  if (typeof response === 'object' && 'data' in response) {
+    const data = (response as { data: unknown }).data;
+    return data as T;
+  }
+  
   return response as T;
 }
 

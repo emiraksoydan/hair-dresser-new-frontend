@@ -41,7 +41,7 @@ export const api = createApi({
     endpoints: (builder) => ({
 
         // --- AUTH API ---
-        sendOtp: builder.mutation<{ message: string; success: boolean }, { phoneNumber: string, userType?: UserType, Otppurpose: OtpPurpose }>({
+        sendOtp: builder.mutation<{ message: string; success: boolean }, { phoneNumber: string, userType?: UserType, otpPurpose: OtpPurpose }>({
             query: (body) => ({ url: 'Auth/send-otp', method: 'POST', body }),
         }),
         verifyOtp: builder.mutation<ApiResponse<AccessTokenDto>, VerifyOtpRequest>({
@@ -78,8 +78,9 @@ export const api = createApi({
                 params: { lat, lon, distance: radiusKm },
             }),
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: transformArrayResponse<BarberStoreGetDto>,
             providesTags: (result) =>
-                result
+                result && Array.isArray(result)
                     ? [
                         ...result.map(({ id }) => ({ type: 'MineStores' as const, id })),
                         { type: 'MineStores' as const, id: 'LIST' },
@@ -93,8 +94,9 @@ export const api = createApi({
         getMineStores: builder.query<BarberStoreMineDto[], void>({
             query: () => 'BarberStore/mine',
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: transformArrayResponse<BarberStoreMineDto>,
             providesTags: (result) =>
-                result
+                result && Array.isArray(result)
                     ? [...result.map(({ id }) => ({ type: 'MineStores' as const, id })), { type: 'MineStores' as const, id: 'LIST' }]
                     : [{ type: 'MineStores' as const, id: 'LIST' }],
         }),
@@ -102,11 +104,13 @@ export const api = createApi({
             query: (id) => `BarberStore/${id}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, id) => [{ type: 'GetStoreById' as const, id }],
+            transformResponse: (response: any) => transformObjectResponse<BarberStoreDetail>(response),
         }),
         getStoreForUsers: builder.query<BarberStoreMineDto, string>({
             query: (storeId) => `BarberStore/get-store-for-users?storeId=${storeId}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, storeId) => [{ type: 'StoreForUsers' as const, id: storeId }],
+            transformResponse: (response: any) => transformObjectResponse<BarberStoreMineDto>(response),
         }),
 
         // --- FREE BARBER API ---
@@ -140,8 +144,9 @@ export const api = createApi({
                 params: { lat, lon, distance: radiusKm },
             }),
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: transformArrayResponse<FreeBarGetDto>,
             providesTags: (result) =>
-                result
+                result && Array.isArray(result)
                     ? [
                         ...result.map(({ id }) => ({ type: 'MineFreeBarberPanel' as const, id })),
                         { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
@@ -156,16 +161,19 @@ export const api = createApi({
             query: () => 'FreeBarber/mypanel',
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             providesTags: ['MineFreeBarberPanel'],
+            transformResponse: (response: any) => transformObjectResponse<FreeBarberPanelDto>(response),
         }),
         getFreeBarberMinePanelDetail: builder.query<FreeBarberMinePanelDetailDto, string>({
             query: (id) => `FreeBarber/${id}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, id) => [{ type: 'MineFreeBarberPanel' as const, id }],
+            transformResponse: (response: any) => transformObjectResponse<FreeBarberMinePanelDetailDto>(response),
         }),
         getFreeBarberForUsers: builder.query<FreeBarberPanelDto, string>({
             query: (freeBarberId) => `FreeBarber/get-freebarber-for-users?freeBarberId=${freeBarberId}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             providesTags: (result, error, freeBarberId) => [{ type: 'FreeBarberForUsers' as const, id: freeBarberId }],
+            transformResponse: (response: any) => transformObjectResponse<FreeBarberPanelDto>(response),
         }),
 
         // --- MANUEL BARBER API ---
@@ -220,7 +228,7 @@ export const api = createApi({
             transformResponse: transformArrayResponse<AppointmentGetDto>,
             // Listeyi 'LIST' etiketiyle ve her öğeyi kendi ID'siyle etiketle
             providesTags: (result) =>
-                result
+                result && Array.isArray(result)
                     ? [
                         ...result.map(({ id }) => ({ type: 'Appointment' as const, id })),
                         { type: 'Appointment', id: 'LIST' },
@@ -295,10 +303,31 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
+            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
+                // Optimistic update: immediately update notification cache
+                const patchResult = dispatch(
+                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
+                        const notification = draft.find(n => n.appointmentId === appointmentId && n.type === 0); // AppointmentCreated
+                        if (notification && notification.payloadJson) {
+                            try {
+                                const payload = JSON.parse(notification.payloadJson);
+                                payload.storeDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
+                                notification.payloadJson = JSON.stringify(payload);
+                            } catch { /* ignore parse errors */ }
+                        }
+                    })
+                );
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // Rollback on error
+                    patchResult.undo();
+                }
+            },
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                { type: 'Notification', id: 'LIST' },
+                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
         freeBarberDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
@@ -307,11 +336,31 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
+            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
+                // Optimistic update: immediately update notification cache
+                const patchResult = dispatch(
+                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
+                        const notification = draft.find(n => n.appointmentId === appointmentId && n.type === 0); // AppointmentCreated
+                        if (notification && notification.payloadJson) {
+                            try {
+                                const payload = JSON.parse(notification.payloadJson);
+                                payload.freeBarberDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
+                                notification.payloadJson = JSON.stringify(payload);
+                            } catch { /* ignore parse errors */ }
+                        }
+                    })
+                );
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // Rollback on error
+                    patchResult.undo();
+                }
+            },
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                'Notification', // Bildirim listesini invalidate et
-                { type: 'Notification' as const, id: 'LIST' }, // Tüm bildirimleri invalidate et
+                // Notification invalidation removed - badge.updated SignalR event handles this
                 { type: 'Appointment', id: 'availability' }
             ],
         }),
@@ -321,10 +370,34 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
+            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
+                // Optimistic update: immediately update notification cache
+                const patchResult = dispatch(
+                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
+                        // Update both AppointmentCreated and StoreApprovedSelection notifications
+                        const notifications = draft.filter(n => n.appointmentId === appointmentId && (n.type === 0 || n.type === 9));
+                        notifications.forEach(notification => {
+                            if (notification.payloadJson) {
+                                try {
+                                    const payload = JSON.parse(notification.payloadJson);
+                                    payload.customerDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
+                                    notification.payloadJson = JSON.stringify(payload);
+                                } catch { /* ignore parse errors */ }
+                            }
+                        });
+                    })
+                );
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // Rollback on error
+                    patchResult.undo();
+                }
+            },
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                { type: 'Notification', id: 'LIST' },
+                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
         cancelAppointment: builder.mutation<ApiResponse<boolean>, string>({
@@ -335,7 +408,7 @@ export const api = createApi({
             invalidatesTags: (result, error, appointmentId) => [
                 { type: 'Appointment', id: appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                { type: 'Notification', id: 'LIST' },
+                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
 
@@ -349,7 +422,7 @@ export const api = createApi({
             invalidatesTags: (result, error, appointmentId) => [
                 { type: 'Appointment', id: appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                { type: 'Notification', id: 'LIST' },
+                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
 
@@ -386,6 +459,8 @@ export const api = createApi({
                     { type: 'Notification' as const, id: 'LIST' },
                 ];
             },
+            // Cache süresini kısalt - bildirimler sık güncellenir
+            keepUnusedDataFor: 5, // 5 saniye - daha kısa cache süresi
         }),
         markNotificationRead: builder.mutation<void, string>({
             query: (id) => ({ url: `Notification/read/${id}`, method: 'POST' }),
@@ -420,6 +495,7 @@ export const api = createApi({
                 params: before ? { before } : undefined,
             }),
             keepUnusedDataFor: CACHE_DURATIONS.LIST,
+            transformResponse: transformArrayResponse<ChatMessageItemDto>,
         }),
         getChatMessagesByThread: builder.query<ChatMessageItemDto[], { threadId: string; before?: string }>({
             query: ({ threadId, before }) => ({
@@ -490,6 +566,7 @@ export const api = createApi({
         getRatingById: builder.query<RatingGetDto, string>({
             query: (ratingId) => `Rating/${ratingId}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
+            transformResponse: (response: any) => transformObjectResponse<RatingGetDto>(response),
         }),
         getRatingsByTarget: builder.query<RatingGetDto[], string>({
             query: (targetId) => `Rating/target/${targetId}`,
@@ -499,6 +576,7 @@ export const api = createApi({
         getMyRatingForAppointment: builder.query<RatingGetDto, { appointmentId: string; targetId: string }>({
             query: ({ appointmentId, targetId }) => `Rating/appointment/${appointmentId}/target/${targetId}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
+            transformResponse: (response: any) => transformObjectResponse<RatingGetDto>(response),
         }),
 
         // --- FAVORITE API ---
@@ -724,6 +802,7 @@ export const api = createApi({
         }),
 
         // --- FILTERED API ---
+        // Mutation version (for manual triggers)
         getFilteredStores: builder.mutation<BarberStoreGetDto[], FilterRequestDto>({
             query: (filter) => ({
                 url: 'BarberStore/filtered',
@@ -731,6 +810,7 @@ export const api = createApi({
                 body: filter,
             }),
             invalidatesTags: [],
+            transformResponse: transformArrayResponse<BarberStoreGetDto>,
         }),
 
         getFilteredFreeBarbers: builder.mutation<FreeBarGetDto[], FilterRequestDto>({
@@ -740,6 +820,50 @@ export const api = createApi({
                 body: filter,
             }),
             invalidatesTags: ['MineFreeBarberPanel'],
+            transformResponse: transformArrayResponse<FreeBarGetDto>,
+        }),
+
+        // Query version (for useNearby hook with filters)
+        getFilteredStoresQuery: builder.query<BarberStoreGetDto[], FilterRequestDto>({
+            query: (filter) => ({
+                url: 'BarberStore/filtered',
+                method: 'POST',
+                body: filter,
+            }),
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: transformArrayResponse<BarberStoreGetDto>,
+            providesTags: (result) =>
+                result && Array.isArray(result)
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'MineStores' as const, id })),
+                        { type: 'MineStores' as const, id: 'LIST' },
+                        { type: 'MineStores' as const, id: 'FILTERED' },
+                    ]
+                    : [
+                        { type: 'MineStores' as const, id: 'LIST' },
+                        { type: 'MineStores' as const, id: 'FILTERED' },
+                    ],
+        }),
+
+        getFilteredFreeBarbersQuery: builder.query<FreeBarGetDto[], FilterRequestDto>({
+            query: (filter) => ({
+                url: 'FreeBarber/filtered',
+                method: 'POST',
+                body: filter,
+            }),
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: transformArrayResponse<FreeBarGetDto>,
+            providesTags: (result) =>
+                result && Array.isArray(result)
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'MineFreeBarberPanel' as const, id })),
+                        { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                        { type: 'MineFreeBarberPanel' as const, id: 'FILTERED' },
+                    ]
+                    : [
+                        { type: 'MineFreeBarberPanel' as const, id: 'LIST' },
+                        { type: 'MineFreeBarberPanel' as const, id: 'FILTERED' },
+                    ],
         }),
 
         // --- IMAGE API ---
@@ -751,11 +875,11 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             transformResponse: transformArrayResponse<ImageGetDto>,
         }),
-        uploadImage: builder.mutation<ApiResponse<string>, FormData>({
-            query: (formData) => ({
-                url: 'Image/upload',
+        uploadImage: builder.mutation<ApiResponse<string>, { data: FormData; isProfileImage?: boolean }>({
+            query: ({ data, isProfileImage = true }) => ({
+                url: `Image/upload?isProfileImage=${isProfileImage}`,
                 method: 'POST',
-                body: formData,
+                body: data,
             }),
             invalidatesTags: [
                 { type: 'StoreForUsers', id: 'LIST' },
@@ -763,6 +887,7 @@ export const api = createApi({
                 'MineStores',
                 { type: 'MineStores', id: 'LIST' },
                 'MineFreeBarberPanel',
+                'UserProfile'
             ],
         }),
 
@@ -808,6 +933,7 @@ export const api = createApi({
                 { type: 'MineStores', id: 'LIST' },
                 'MineFreeBarberPanel',
                 'GetStoreById',
+                'UserProfile', // ✅ FIX: UserProfile cache'i invalidate et
             ],
         }),
 
@@ -816,6 +942,17 @@ export const api = createApi({
             query: () => 'User/me',
             providesTags: ['UserProfile'],
             keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+            transformResponse: (response: unknown): ApiResponse<UserProfileDto> => {
+                const transformed = transformApiResponse<UserProfileDto>(response);
+                if (transformed) {
+                    return {
+                        success: transformed.success,
+                        message: transformed.message,
+                        data: transformed.data,
+                    };
+                }
+                return response as ApiResponse<UserProfileDto>;
+            },
         }),
 
         updateProfile: builder.mutation<ApiResponse<AccessTokenDto>, UpdateUserDto>({
@@ -887,6 +1024,24 @@ export const api = createApi({
             }),
         }),
 
+        // --- BADGE API ---
+        getBadgeCounts: builder.query<ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>, void>({
+            query: () => 'Badge',
+            providesTags: ['Notification', 'Chat'],
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
+            transformResponse: (response: unknown): ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }> => {
+                const transformed = transformApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>(response);
+                if (transformed) {
+                    return {
+                        success: transformed.success,
+                        message: transformed.message,
+                        data: transformed.data,
+                    };
+                }
+                return response as ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>;
+            },
+        }),
+
     }),
 });
 
@@ -899,8 +1054,7 @@ export const {
     useAddBarberStoreMutation,
     useUpdateBarberStoreMutation,
     useLazyGetNearbyStoresQuery,
-    useGetMineStoresQuery,
-    useLazyGetMineStoresQuery,
+    useGetStoreByIdQuery,
     useLazyGetStoreByIdQuery,
     useAddManuelBarberMutation,
     useDeleteManuelBarberMutation,
@@ -916,14 +1070,12 @@ export const {
     useUpdateFreeBarberPanelMutation,
     useGetAvailabilityQuery,
     useGetAllAppointmentByFilterQuery,
-
     useGetStoreForUsersQuery,
     useGetWorkingHoursByTargetQuery,
     useGetFreeBarberForUsersQuery,
     useUpdateFreeBarberLocationMutation,
     useUpdateFreeBarberAvailabilityMutation,
     useGetAllNotificationsQuery,
-
     useMarkNotificationReadMutation,
     useDeleteNotificationMutation,
     useDeleteAllNotificationsMutation,
@@ -935,6 +1087,8 @@ export const {
     useAddStoreToAppointmentMutation,
     useStoreDecisionMutation,
     useFreeBarberDecisionMutation,
+    useGetMineStoresQuery,
+    useLazyGetMineStoresQuery,
     useCustomerDecisionMutation,
     useCancelAppointmentMutation,
     useCompleteAppointmentMutation,
@@ -962,6 +1116,8 @@ export const {
     useLazyGetChildCategoriesQuery,
     useGetFilteredStoresMutation,
     useGetFilteredFreeBarbersMutation,
+    useLazyGetFilteredStoresQueryQuery,
+    useLazyGetFilteredFreeBarbersQueryQuery,
     useGetImagesByOwnerQuery,
     useLazyGetImagesByOwnerQuery,
     useUploadImageMutation,
@@ -975,4 +1131,5 @@ export const {
     useGetHelpGuideByUserTypeQuery,
     useRegisterFcmTokenMutation,
     useUnregisterFcmTokenMutation,
+    useGetBadgeCountsQuery,
 } = api;

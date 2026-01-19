@@ -15,7 +15,7 @@ import { useAppDispatch } from '../../store/hook';
 import { showSnack } from '../../store/snackbarSlice';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
-import { resolveApiErrorMessage } from '../../utils/common/error';
+import { getErrorMessage } from '../../utils/errorHandler';
 import { LottieViewComponent } from '../../components/common/lottieview';
 import { MESSAGES } from '../../constants/messages';
 import { useLanguage } from '../../hook/useLanguage';
@@ -32,14 +32,15 @@ const createProfileSchema = (t: (key: string) => string) => z.object({
         .regex(/^[^\s]+$/, { message: t('auth.lastName') + ' ' + t('common.noSpaces') }),
     phoneNumber: z.string({ required_error: t('auth.phoneNumber') + ' ' + t('common.required') })
         .min(1, { message: t('auth.phoneNumber') + ' ' + t('common.required') })
-        .refine((val) => val.length === 10 || val.startsWith('+90'), { message: t('auth.phoneNumber') + ' ' + t('common.exactLength').replace('{{length}}', '10') + ' veya +90 ile başlamalıdır' }),
+        .refine((val) => val.length === 10 || val.startsWith('+90'), { message: t('auth.phoneNumber') + ' ' + t('common.exactLength').replace('{{length}}', '10') + ' ' + t('common.orStartWith90') }),
 });
 
 type ProfileFormValues = z.infer<ReturnType<typeof createProfileSchema>>;
 
 const Index = () => {
-    const { t } = useLanguage();
-    const profileSchema = useMemo(() => createProfileSchema(t), [t]);
+    const { t, currentLanguage } = useLanguage();
+    const profileSchema = useMemo(() => createProfileSchema(t), [t, currentLanguage]);
+    const resolver = useMemo(() => zodResolver(profileSchema), [profileSchema]);
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
     const { data: userData, isLoading: isLoadingUser, refetch, isFetching, error: userError, isError: isUserError } = useGetMeQuery();
@@ -59,9 +60,10 @@ const Index = () => {
     }), []);
 
     // Memoize avatar source
-    const avatarSource = useMemo(() => ({
-        uri: userData?.data?.image?.imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s'
-    }), [userData?.data?.image?.imageUrl]);
+    const avatarSource = useMemo(() => {
+        const baseUrl = userData?.data?.image?.imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s';
+        return { uri: baseUrl };
+    }, [userData?.data?.image?.imageUrl]);
 
     // Memoize full name
     const fullName = useMemo(() => {
@@ -73,14 +75,22 @@ const Index = () => {
         handleSubmit,
         formState: { errors, isDirty },
         reset,
+        trigger,
     } = useForm<ProfileFormValues>({
-        resolver: zodResolver(profileSchema),
+        resolver,
         defaultValues: {
             firstName: '',
             lastName: '',
             phoneNumber: '',
         },
     });
+
+    // Dil değiştiğinde validation'ı tetikle
+    useEffect(() => {
+        if (Object.keys(errors).length > 0) {
+            trigger();
+        }
+    }, [currentLanguage, trigger, errors]);
 
     // Memoize phone number processing
     const processedPhone = useMemo(() => {
@@ -110,23 +120,26 @@ const Index = () => {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 phoneNumber: phoneNumber,
-            }).unwrap();
+            });
+            if ('error' in result) {
+                throw new Error('Profile update failed');
+            }
 
-            if (result.success && result.data) {
+            if (result.data?.success && result.data?.data) {
                 // Yeni token'ı kaydet
                 tokenStore.set({
-                    accessToken: result.data.token,
-                    refreshToken: result.data.refreshToken,
+                    accessToken: result.data.data.token,
+                    refreshToken: result.data.data.refreshToken,
                 });
                 await saveTokens({
-                    accessToken: result.data.token,
-                    refreshToken: result.data.refreshToken,
+                    accessToken: result.data.data.token,
+                    refreshToken: result.data.data.refreshToken,
                 });
 
                 dispatch(showSnack({ message: t('profile.updateSuccess'), isError: false }));
                 reset(data);
             } else {
-                dispatch(showSnack({ message: result.message || t('profile.operationError'), isError: true }));
+                dispatch(showSnack({ message: result.data?.message || t('profile.operationError'), isError: true }));
             }
         } catch (error: any) {
             dispatch(showSnack({ message: error?.data?.message || t('profile.updateFailed'), isError: true }));
@@ -151,24 +164,31 @@ const Index = () => {
 
             if (existingImageId) {
                 // Mevcut blob'u güncelle (aynı URL korunur)
-                result = await updateImageBlob({ imageId: existingImageId, file: formData }).unwrap();
+                result = await updateImageBlob({ imageId: existingImageId, file: formData });
+                if ('error' in result) {
+                    throw new Error('Image update failed');
+                }
             } else {
                 // Yeni blob oluştur
                 formData.append('ownerType', String(ImageOwnerType.User));
                 formData.append('ownerId', userData.data.id);
-                result = await uploadImage(formData).unwrap();
+                result = await uploadImage({ data: formData, isProfileImage: true });
+                if ('error' in result) {
+                    throw new Error('Image upload failed');
+                }
             }
 
-            if (result.success) {
-                dispatch(showSnack({ message: t('profile.photoUpdated'), isError: false }));
-                // RTK Query otomatik olarak cache'i güncelleyecek
+            if (result.data?.success) {
+                dispatch(showSnack({ message: result.data?.message ?? t('profile.photoUpdated'), isError: false }));
+                // Manually refetch user profile to get updated image
+                await refetch();
             } else {
-                dispatch(showSnack({ message: t('profile.photoUploadFailed'), isError: true }));
+                dispatch(showSnack({ message: result.data?.message ?? t('profile.photoUploadFailed'), isError: true }));
             }
-        } catch (error) {
-            dispatch(showSnack({ message: t('profile.photoUploadError'), isError: true }));
+        } catch (error: any) {
+            dispatch(showSnack({ message: error?.message ?? t('profile.photoUploadError'), isError: true }));
         }
-    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch, t]);
+    }, [userData?.data?.id, userData?.data?.imageId, uploadImage, updateImageBlob, dispatch, t, refetch]);
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -185,8 +205,11 @@ const Index = () => {
         try {
             const tokenLoad = tokenStore.refresh;
             if (tokenLoad !== null && tokenLoad !== undefined) {
-                const res = await logout({ refreshToken: tokenLoad }).unwrap();
-                if (res.success)
+                const res = await logout({ refreshToken: tokenLoad });
+                if ('error' in res) {
+                    // Logout hatası sessizce atlanır
+                }
+                if (res.data?.success)
                     InteractionManager.runAfterInteractions(() => {
                         tokenStore.clear();
                         clearStoredTokens();
@@ -201,7 +224,7 @@ const Index = () => {
     // Memoize error message - Hook'lar early return'lerden önce olmalı
     const errorMessage = useMemo(() => {
         if (!isUserError || !userError) return null;
-        return resolveApiErrorMessage(userError);
+        return getErrorMessage(userError);
     }, [isUserError, userError]);
 
     if (isLoadingUser) {
@@ -258,7 +281,7 @@ const Index = () => {
                         onPress={handleImagePick}
                     />
                 </View>
-                <Text className='font-century-gothic text-center mt-3 text-white' style={{ fontSize: 20 }}>
+                <Text className='font-century-gothic-bold text-center mt-3 text-white' style={{ fontSize: 20 }}>
                     {fullName}
                 </Text>
                 <View className='w-full px-8 pt-6'>
@@ -268,7 +291,7 @@ const Index = () => {
 
             <View className='px-6 pt-6'>
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.title')}</Text>
-                
+
                 {/* Language Selector */}
                 <View className='bg-[#1F2937] rounded-xl p-4 mb-4'>
                     <View className='flex-row items-center justify-between mb-2'>
@@ -295,7 +318,7 @@ const Index = () => {
                                         error={!!errors.firstName}
                                         outlineColor={errors.firstName ? "#b00020" : "#444"}
                                         theme={textInputTheme}
-                                        style={{ backgroundColor: '#2D3748', marginBottom: 0 }}
+                                        style={{ backgroundColor: '#2D3748', marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
                                 )}
                             />
@@ -317,7 +340,7 @@ const Index = () => {
                                         error={!!errors.lastName}
                                         outlineColor={errors.lastName ? "#b00020" : "#444"}
                                         theme={textInputTheme}
-                                        style={{ backgroundColor: '#2D3748', marginBottom: 0 }}
+                                        style={{ backgroundColor: '#2D3748', marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
                                 )}
                             />
@@ -326,12 +349,12 @@ const Index = () => {
                     {(errors.firstName || errors.lastName) && (
                         <View className='flex-row gap-3 mt-[-8px]'>
                             <View className='flex-1'>
-                                <HelperText type="error" visible={!!errors.firstName} style={{ marginTop: 0, paddingTop: 0 }}>
+                                <HelperText type="error" visible={!!errors.firstName} style={{ marginTop: 0, paddingTop: 0, fontFamily: 'CenturyGothic' }}>
                                     {errors.firstName?.message || ' '}
                                 </HelperText>
                             </View>
                             <View className='flex-1'>
-                                <HelperText type="error" visible={!!errors.lastName} style={{ marginTop: 0, paddingTop: 0 }}>
+                                <HelperText type="error" visible={!!errors.lastName} style={{ marginTop: 0, paddingTop: 0, fontFamily: 'CenturyGothic' }}>
                                     {errors.lastName?.message || ' '}
                                 </HelperText>
                             </View>
@@ -358,10 +381,10 @@ const Index = () => {
                                         roundness: 10,
                                         colors: { onSurfaceVariant: "gray", primary: "white" }
                                     }}
-                                    style={{ backgroundColor: '#2D3748', marginBottom: 0, marginTop: 8 }}
+                                    style={{ backgroundColor: '#2D3748', marginBottom: 0, marginTop: 8, fontFamily: 'CenturyGothic' }}
                                 />
                                 {errors.phoneNumber && (
-                                    <HelperText type="error" visible={true} style={{ marginTop: 0, paddingTop: 0 }}>
+                                    <HelperText type="error" visible={true} style={{ marginTop: 0, paddingTop: 0, fontFamily: 'CenturyGothic' }}>
                                         {errors.phoneNumber?.message}
                                     </HelperText>
                                 )}

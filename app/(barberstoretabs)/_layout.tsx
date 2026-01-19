@@ -1,461 +1,117 @@
-import { TouchableOpacity, View } from 'react-native'
-import { Text } from '../components/common/Text'
-import { Tabs } from 'expo-router';
-import { Icon, IconButton } from 'react-native-paper';
-import { useAppDispatch } from '../store/hook';
-import { showSnack } from '../store/snackbarSlice';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import React, { useState } from 'react';
-import FormStoreAdd from '../components/store/formstoreadd';
-import { useBottomSheet } from '../hook/useBottomSheet';
-import { useGetAllNotificationsQuery, useGetChatThreadsQuery } from '../store/api';
-import { BadgeIconButton } from '../components/common/badgeiconbutton';
-import { NotificationsSheet } from '../components/appointment/notificationsheet';
-import { useAuth } from '../hook/useAuth';
-import { DeferredRender } from '../components/common/deferredrender';
-import { CrudSkeletonComponent } from '../components/common/crudskeleton';
-import { InfoModal } from '../components/common/infomodal';
-import { HeaderDropdownMenu } from '../components/common/headerdropdownmenu';
-import { useNotificationSound } from '../hook/useNotificationSound';
-import { useGetHelpGuideByUserTypeQuery } from '../store/api';
-import { UserType } from '../types';
-import { useMemo } from 'react';
-import { useLanguage } from '../hook/useLanguage';
+import React, { useMemo } from "react";
+import { View } from "react-native";
+import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BaseTabLayout, TabConfig } from "../components/layout/BaseTabLayout";
+import { UserType } from "../types";
+import { useLanguage } from "../hook/useLanguage";
+import { useBottomSheet } from "../hook/useBottomSheet";
+import { DeferredRender } from "../components/common/deferredrender";
+import { CrudSkeletonComponent } from "../components/common/crudskeleton";
+import FormStoreAdd from "../components/store/formstoreadd";
 
 const BarberStoreLayout = () => {
-    const { t } = useLanguage();
-    const { userName, userType } = useAuth();
-    const [infoModalVisible, setInfoModalVisible] = useState(false);
-    const dispatch = useAppDispatch();
+  const { t } = useLanguage();
 
-    // Bottom sheet hooks
-    const addStoreSheet = useBottomSheet({
-        snapPoints: ['100%'],
-        enablePanDownToClose: false,
-        enableOverDrag: false,
-    });
+  // Bottom sheet hook for add store
+  const addStoreSheet = useBottomSheet({
+    snapPoints: ["100%"],
+    enablePanDownToClose: false,
+    enableOverDrag: false,
+  });
 
-    const notificationsSheet = useBottomSheet({
-        snapPoints: ["100%"],
-        enablePanDownToClose: true,
-        enableOverDrag: false,
-    });
+  const tabs: TabConfig[] = [
+    {
+      name: "(panel)",
+      headerTitle: t("navigation.welcome"),
+      icon: "store-outline",
+      iconFocused: "store",
+      label: t("navigation.shops"),
+      showHeaderLeft: true,
+      headerTitleAlign: "left",
+    },
+    {
+      name: "(appointment)",
+      headerTitle: t("navigation.myAppointments"),
+      icon: "clock-outline",
+      iconFocused: "clock",
+      label: t("navigation.appointments"),
+    },
+    {
+      name: "(messages)",
+      headerTitle: t("navigation.myMessages"),
+      icon: "message-outline",
+      iconFocused: "message",
+      label: t("navigation.messages"),
+    },
+    {
+      name: "(favorites)",
+      headerTitle: t("navigation.myFavorites"),
+      icon: "heart-outline",
+      iconFocused: "heart",
+      label: t("navigation.favorites"),
+    },
+    {
+      name: "(profile)",
+      headerTitle: t("profile.myProfile"),
+      icon: "account-outline",
+      iconFocused: "account",
+      label: t("navigation.profile"),
+    },
+  ];
 
-    // Help guide items - API'den dinamik olarak çek
-    const { data: helpGuideResponse, isLoading: isLoadingHelpGuide } = useGetHelpGuideByUserTypeQuery(
-        UserType.BarberStore,
-        { skip: userType !== UserType.BarberStore }
-    );
+  // Dropdown menu items - memoized
+  const dropdownMenuItems = useMemo(
+    () => [
+      {
+        icon: "plus",
+        label: t("navigation.addStore"),
+        onPress: () => addStoreSheet.present(),
+      },
+      {
+        icon: "shopping-outline",
+        label: t("navigation.shopping"),
+        onPress: () => {},
+      },
+    ],
+    [t, addStoreSheet],
+  );
 
-    // API'den gelen veriyi InfoModal formatına dönüştür (fallback olarak hardcoded veriler)
-    const infoItems = useMemo(() => {
-        if (helpGuideResponse?.success && helpGuideResponse?.data && helpGuideResponse.data.length > 0) {
-            return helpGuideResponse.data.map((guide) => ({
-                title: guide.title,
-                description: guide.description,
-            }));
-        }
-        return [];
-    }, [helpGuideResponse]);
+  // Add Store Bottom Sheet
+  const renderAdditionalBottomSheets = () => (
+    <BottomSheetModal
+      ref={addStoreSheet.ref}
+      backdropComponent={addStoreSheet.makeBackdrop()}
+      handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+      backgroundStyle={{ backgroundColor: "#151618" }}
+      onChange={addStoreSheet.handleChange}
+      snapPoints={addStoreSheet.snapPoints}
+      enableOverDrag={addStoreSheet.enableOverDrag}
+      enablePanDownToClose={addStoreSheet.enablePanDownToClose}
+    >
+      <BottomSheetView className="h-full pt-2">
+        <DeferredRender
+          active={addStoreSheet.isOpen}
+          placeholder={
+            <View className="flex-1 pt-4">
+              <CrudSkeletonComponent />
+            </View>
+          }
+        >
+          <FormStoreAdd onClose={() => addStoreSheet.dismiss()} />
+        </DeferredRender>
+      </BottomSheetView>
+    </BottomSheetModal>
+  );
 
-    const { data: notifications } = useGetAllNotificationsQuery();
-    const { data: threads } = useGetChatThreadsQuery();
+  return (
+    <BaseTabLayout
+      userType={UserType.BarberStore}
+      accentColor="#f05e23"
+      tabs={tabs}
+      dropdownMenuItems={dropdownMenuItems}
+      renderAdditionalBottomSheets={renderAdditionalBottomSheets}
+    />
+  );
+};
 
-    const unreadNoti = useMemo(() => {
-        return notifications?.filter(n => !n.isRead).length || 0;
-    }, [notifications]);
-
-    const unreadMsg = useMemo(() => {
-        return threads?.reduce((acc, thread) => acc + (thread.unreadCount || 0), 0) || 0;
-    }, [threads]);
-
-    // Play notification sound when badge count changes
-    useNotificationSound(unreadNoti);
-
-    return (
-        <>
-            <Tabs
-                initialRouteName="(panel)"
-                screenOptions={{
-                    tabBarStyle: {
-                        backgroundColor: "#191a1c",
-                        borderColor: '#191a1c',
-                    },
-
-                    headerShown: false,
-                }}>
-                <Tabs.Screen name="index" options={{ href: null }} />
-                <Tabs.Screen
-                    name="(panel)"
-                    options={{
-                        headerStyle: {
-                            backgroundColor: '#151618',
-                        },
-                        headerShown: true,
-                        headerTitle: () => (
-                            <Text className='text-lg  text-white mr-0' >
-                                {userName ? t('navigation.welcomeWithName', { name: userName }) : t('navigation.welcome')}
-                            </Text>
-                        ),
-                        tabBarIcon: ({ focused }) => (
-                            <IconButton
-                                icon={focused ? 'store' : 'store-outline'}
-                                iconColor={focused ? '#f05e23' : '#38393b'}
-                                size={30}
-                                style={{ margin: 0, }}
-                            />
-                        ),
-                        tabBarLabel: ({ focused }) => (
-                            <Text
-                                className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
-                            >
-                                {t('navigation.shops')}
-                            </Text>
-                        ),
-                        headerTitleAlign: 'left',
-                        headerRight: () => (
-                            <View className='flex-row items-center justify-center mr-2'>
-                                <BadgeIconButton
-                                    icon="bell-outline"
-                                    iconColor="white"
-                                    size={20}
-                                    badgeCount={unreadNoti}
-                                    onPress={() => notificationsSheet.present()}
-                                    animateWhenActive={true}
-                                />
-                                <HeaderDropdownMenu
-                                    items={[
-                                        {
-                                            icon: 'plus',
-                                            label: t('navigation.addStore'),
-                                            onPress: () => addStoreSheet.present(),
-                                        },
-                                        {
-                                            icon: 'information-outline',
-                                            label: t('navigation.info'),
-                                            onPress: () => setInfoModalVisible(true),
-                                        },
-                                        {
-                                            icon: 'shopping-outline',
-                                            label: t('navigation.shopping'),
-                                            onPress: () => { },
-                                        },
-                                    ]}
-                                />
-
-                            </View>
-                        ),
-
-                    }}
-                />
-                <Tabs.Screen
-                    name="(appointment)"
-                    options={{
-                        headerStyle: {
-                            backgroundColor: '#151618',
-                        },
-                        headerShown: true,
-                        headerTitle: () => (
-                            <Text className='text-lg text-white mr-0' >
-                                {t('navigation.myAppointments')}
-                            </Text>
-                        ),
-                        tabBarIcon: ({ focused }) => (
-                            <IconButton
-                                icon={focused ? 'clock' : 'clock-outline'}
-                                iconColor={focused ? '#f05e23' : '#38393b'}
-                                size={30}
-                                style={{ margin: 0, }}
-                            />
-                        ),
-                        tabBarLabel: ({ focused }) => (
-                            <Text
-                                className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
-                            >
-                                {t('navigation.appointments')}
-                            </Text>
-                        ),
-                        headerTitleAlign: 'center',
-                        headerRight: () => (
-                            <View className='flex-row justify-center items-center mr-2'>
-                                <BadgeIconButton
-                                    icon="bell-outline"
-                                    iconColor="white"
-                                    size={20}
-                                    badgeCount={unreadNoti}
-                                    onPress={() => notificationsSheet.present()}
-                                    animateWhenActive={true}
-                                />
-                                <HeaderDropdownMenu
-                                    items={[
-                                        {
-                                            icon: 'plus',
-                                            label: t('navigation.addStore'),
-                                            onPress: () => addStoreSheet.present(),
-                                        },
-                                        {
-                                            icon: 'information-outline',
-                                            label: t('navigation.info'),
-                                            onPress: () => setInfoModalVisible(true),
-                                        },
-                                        {
-                                            icon: 'shopping-outline',
-                                            label: t('navigation.shopping'),
-                                            onPress: () => { },
-                                        },
-                                    ]}
-                                />
-                            </View>
-                        ),
-
-                    }}
-                />
-                <Tabs.Screen
-                    name="(messages)"
-                    options={{
-                        headerStyle: {
-                            backgroundColor: '#151618',
-                        },
-                        headerShown: true,
-                        headerTitle: () => (
-                            <Text className='text-lg text-white mr-0' >
-                                {t('navigation.myMessages')}
-                            </Text>
-                        ),
-                        tabBarIcon: ({ focused }) => (
-                            <BadgeIconButton
-                                icon={focused ? "message" : "message-outline"}
-                                iconColor={focused ? "#f05e23" : "#38393b"}
-                                size={30}
-                                badgeCount={unreadMsg}
-                                onPress={undefined} // tab zaten navigation yapıyor
-                            />
-                        ),
-                        tabBarLabel: ({ focused }) => (
-                            <Text
-                                className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
-                            >
-                                {t('navigation.messages')}
-                            </Text>
-                        ),
-                        headerTitleAlign: 'center',
-                        headerRight: () => (
-                            <View className='flex-row items-center justify-center mr-2'>
-                                <BadgeIconButton
-                                    icon="bell-outline"
-                                    iconColor="white"
-                                    size={20}
-                                    badgeCount={unreadNoti}
-                                    onPress={() => notificationsSheet.present()}
-                                    animateWhenActive={true}
-                                />
-                                <HeaderDropdownMenu
-                                    items={[
-                                        {
-                                            icon: 'plus',
-                                            label: t('navigation.addStore'),
-                                            onPress: () => addStoreSheet.present(),
-                                        },
-                                        {
-                                            icon: 'information-outline',
-                                            label: t('navigation.info'),
-                                            onPress: () => setInfoModalVisible(true),
-                                        },
-                                        {
-                                            icon: 'shopping-outline',
-                                            label: t('navigation.shopping'),
-                                            onPress: () => { },
-                                        },
-                                    ]}
-                                />
-                            </View>
-                        ),
-
-                    }}
-                />
-                <Tabs.Screen
-                    name="(favorites)"
-                    options={{
-                        headerStyle: {
-                            backgroundColor: '#151618',
-                        },
-                        headerShown: true,
-                        headerTitle: () => (
-                            <Text className='text-lg text-white mr-0' >
-                                {t('navigation.myFavorites')}
-                            </Text>
-                        ),
-                        tabBarIcon: ({ focused }) => (
-                            <IconButton
-                                icon={focused ? 'heart' : 'heart-outline'}
-                                iconColor={focused ? '#f05e23' : '#38393b'}
-                                size={30}
-                                style={{ margin: 0, }}
-                            />
-                        ),
-                        tabBarLabel: ({ focused }) => (
-                            <Text
-                                className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
-                            >
-                                {t('navigation.favorites')}
-                            </Text>
-                        ),
-                        headerTitleAlign: 'center',
-                        headerRight: () => (
-                            <View className='flex-row items-center justify-center mr-2'>
-                                <BadgeIconButton
-                                    icon="bell-outline"
-                                    iconColor="white"
-                                    size={20}
-                                    badgeCount={unreadNoti}
-                                    onPress={() => notificationsSheet.present()}
-                                    animateWhenActive={true}
-                                />
-                                <HeaderDropdownMenu
-                                    items={[
-                                        {
-                                            icon: 'plus',
-                                            label: t('navigation.addStore'),
-                                            onPress: () => addStoreSheet.present(),
-                                        },
-                                        {
-                                            icon: 'information-outline',
-                                            label: t('navigation.info'),
-                                            onPress: () => setInfoModalVisible(true),
-                                        },
-                                        {
-                                            icon: 'shopping-outline',
-                                            label: t('navigation.shopping'),
-                                            onPress: () => { },
-                                        },
-                                    ]}
-                                />
-                            </View>
-                        ),
-
-                    }}
-                />
-                <Tabs.Screen
-                    name="(profile)"
-                    options={{
-                        headerStyle: {
-                            backgroundColor: '#151618',
-                        },
-                        headerShown: true,
-                        headerTitle: () => (
-                            <Text className='text-lg text-white mr-0' >
-                                {t('profile.myProfile')}
-                            </Text>
-                        ),
-                        tabBarIcon: ({ focused }) => (
-                            <IconButton
-                                icon={focused ? 'account' : 'account-outline'}
-                                iconColor={focused ? '#f05e23' : '#38393b'}
-                                size={30}
-                                style={{ margin: 0, }}
-                            />
-                        ),
-                        tabBarLabel: ({ focused }) => (
-                            <Text
-                                className={`text-xs ${focused ? 'text-[#f05e23]' : 'text-[#454648]'}`}
-                            >
-                                {t('navigation.profile')}
-                            </Text>
-                        ),
-                        headerTitleAlign: 'center',
-                        headerRight: () => (
-                            <View className='flex-row items-center justify-center mr-2'>
-                                <BadgeIconButton
-                                    icon="bell-outline"
-                                    iconColor="white"
-                                    size={20}
-                                    badgeCount={unreadNoti}
-                                    onPress={() => notificationsSheet.present()}
-                                    animateWhenActive={true}
-                                />
-                                <HeaderDropdownMenu
-                                    items={[
-                                        {
-                                            icon: 'plus',
-                                            label: t('navigation.addStore'),
-                                            onPress: () => addStoreSheet.present(),
-                                        },
-                                        {
-                                            icon: 'information-outline',
-                                            label: t('navigation.info'),
-                                            onPress: () => setInfoModalVisible(true),
-                                        },
-                                        {
-                                            icon: 'shopping-outline',
-                                            label: t('navigation.shopping'),
-                                            onPress: () => { },
-                                        },
-                                    ]}
-                                />
-                            </View>
-                        ),
-
-                    }}
-                />
-            </Tabs>
-            <BottomSheetModal
-                ref={notificationsSheet.ref}
-                backdropComponent={notificationsSheet.makeBackdrop()}
-                handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-                backgroundStyle={{ backgroundColor: "#151618" }}
-                snapPoints={notificationsSheet.snapPoints}
-                enableOverDrag={notificationsSheet.enableOverDrag}
-                enablePanDownToClose={notificationsSheet.enablePanDownToClose}
-                onChange={notificationsSheet.handleChange}
-            >
-                <NotificationsSheet
-                    onClose={() => notificationsSheet.dismiss()}
-                    autoOpenFirstUnread={true}
-                    onDeleteSuccess={(message) => {
-                        dispatch(showSnack({ message, isError: false }));
-                    }}
-                    onDeleteInfo={(message) => {
-                        dispatch(showSnack({ message, isError: true }));
-                    }}
-                    onDeleteError={(message) => {
-                        dispatch(showSnack({ message, isError: true }));
-                    }}
-                />
-            </BottomSheetModal>
-            <BottomSheetModal
-                ref={addStoreSheet.ref}
-                backdropComponent={addStoreSheet.makeBackdrop()}
-                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
-                backgroundStyle={{ backgroundColor: '#151618' }}
-                onChange={addStoreSheet.handleChange}
-                snapPoints={addStoreSheet.snapPoints}
-                enableOverDrag={addStoreSheet.enableOverDrag}
-                enablePanDownToClose={addStoreSheet.enablePanDownToClose}
-            >
-                <BottomSheetView className='h-full pt-2'>
-                    <DeferredRender
-                        active={addStoreSheet.isOpen}
-                        placeholder={
-                            <View className="flex-1 pt-4">
-                                <CrudSkeletonComponent />
-                            </View>
-                        }
-                    >
-                        <FormStoreAdd onClose={() => addStoreSheet.dismiss()} />
-                    </DeferredRender>
-                </BottomSheetView>
-            </BottomSheetModal>
-            <InfoModal
-                visible={infoModalVisible}
-                onClose={() => setInfoModalVisible(false)}
-                title={t('navigation.usageInfo')}
-                items={infoItems}
-            />
-        </>
-
-
-    )
-}
-
-export default BarberStoreLayout
-
+export default BarberStoreLayout;

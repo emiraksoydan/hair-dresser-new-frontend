@@ -115,7 +115,7 @@ export function useNearbyControl({
     async function startBackgroundLocation() {
         // Expo Go background location'ı desteklemez
         if (IS_EXPO_GO) {
-            console.log('Background location is not supported in Expo Go');
+            // Background location Expo Go'da desteklenmiyor
             return;
         }
 
@@ -139,7 +139,7 @@ export function useNearbyControl({
                 backgroundTaskStarted.current = true;
             }
         } catch (error) {
-            console.error('Background location start error:', error);
+            // Background location başlatma hatası sessizce atlanır
         }
     }
 
@@ -156,7 +156,7 @@ export function useNearbyControl({
             }
             backgroundTaskStarted.current = false;
         } catch (error) {
-            console.error('Background location stop error:', error);
+            // Background location durdurma hatası sessizce atlanır
         }
     }
 

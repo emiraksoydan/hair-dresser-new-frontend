@@ -27,7 +27,7 @@ export async function getCurrentLocationSafe(): Promise<LocationResult> {
 
         return { ok: true, lat, lon };
     } catch {
-        return { ok: false, message: "Konum alınırken bir hata oluştu." };
+        return { ok: false, message: "Konum servisi kullanılamıyor. Lütfen daha sonra tekrar deneyin." };
     }
 }
 

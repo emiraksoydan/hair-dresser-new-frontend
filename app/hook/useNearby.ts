@@ -1,6 +1,9 @@
 /**
  * Generic hook for nearby data fetching
  * Consolidates useNearbyStores and useNearbyFreeBarber logic
+ * 
+ * NOTE: This is the simple version without filter support.
+ * For filter support, use useNearbyWithFilter instead.
  */
 
 import { useCallback } from "react";
@@ -35,7 +38,7 @@ interface UseNearbyResult<T> {
 }
 
 /**
- * Generic hook for fetching nearby data
+ * Generic hook for fetching nearby data (simple version without filters)
  * @param queryHook - RTK Query lazy query hook (e.g., useLazyGetNearbyStoresQuery)
  * @param options - Configuration options
  */
@@ -81,4 +84,3 @@ export function useNearby<T>(
         retryPermission: nearby.retryPermission,
     };
 }
-

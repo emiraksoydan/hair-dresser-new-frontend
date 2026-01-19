@@ -18,13 +18,13 @@ interface LocationData {
 // Background location task handler - sadece development/production build'de çalışır
 const defineBackgroundLocationTask = () => {
   if (IS_EXPO_GO) {
-    console.log('Background location task is not available in Expo Go');
+    // Background location task Expo Go'da desteklenmiyor
     return;
   }
 
   TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
     if (error) {
-      console.error('Background location error:', error);
+      // Background location hatası sessizce atlanır
       return;
     }
 
@@ -62,15 +62,13 @@ const defineBackgroundLocationTask = () => {
                 }),
               });
 
-              if (!response.ok) {
-                console.error('Background location update failed:', response.statusText);
-              }
+              // Response başarısız olsa bile sessizce devam et
             } catch (error) {
-              console.error('Background location update error:', error);
+              // Background location update hatası sessizce atlanır
             }
           }
         } catch (error) {
-          console.error('Token decode error in background task:', error);
+          // Token decode hatası sessizce atlanır
         }
       }
     }

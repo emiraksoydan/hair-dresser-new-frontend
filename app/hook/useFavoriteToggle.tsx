@@ -1,9 +1,9 @@
 import { useCallback, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
 import { useToggleFavoriteMutation, useIsFavoriteQuery } from '../store/api';
 import { useAuth } from './useAuth';
 import { useLanguage } from './useLanguage';
 import { FavoriteTargetType } from '../types';
+import { useAlert } from './useAlert';
 
 interface UseFavoriteToggleOptions {
   targetId: string;
@@ -35,6 +35,7 @@ export const useFavoriteToggle = ({
 }: UseFavoriteToggleOptions): UseFavoriteToggleReturn => {
   const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
+  const { alert, alertError } = useAlert();
   const [toggleFavoriteMutation, { isLoading: isTogglingFavorite }] = useToggleFavoriteMutation();
 
   // Query for favorite status (only if authenticated and not skipped)
@@ -68,7 +69,7 @@ export const useFavoriteToggle = ({
 
   const toggleFavorite = useCallback(async () => {
     if (!isAuthenticated) {
-      Alert.alert(t('booking.warning'), t('booking.loginRequiredForFavorite'));
+      alert(t('booking.warning'), t('booking.loginRequiredForFavorite'), undefined, 'warning');
       return;
     }
 
@@ -77,25 +78,33 @@ export const useFavoriteToggle = ({
         targetId,
         targetType,
         appointmentId,
-      }).unwrap();
+      });
+      if ('error' in result) {
+        // Favorite toggle hatası - kullanıcıya göster
+        alertError(
+          t('common.error'),
+          (result.error as any)?.data?.message || (result.error as any)?.message || t('appointment.alerts.favoriteFailed')
+        );
+        return;
+      }
 
       // Update state from response
-      if (result?.data) {
-        setIsFavorite(result.data.isFavorite ?? !isFavorite);
-        if (result.data.favoriteCount !== undefined) {
-          setFavoriteCount(result.data.favoriteCount);
+      if (result?.data?.data) {
+        setIsFavorite(result.data.data.isFavorite ?? !isFavorite);
+        if (result.data.data.favoriteCount !== undefined) {
+          setFavoriteCount(result.data.data.favoriteCount);
         }
       } else {
         // Fallback: toggle isFavorite if response doesn't have data
         setIsFavorite(prev => !prev);
       }
     } catch (error: any) {
-      Alert.alert(
+      alertError(
         t('common.error'),
         error?.data?.message || error?.message || t('appointment.alerts.favoriteFailed')
       );
     }
-  }, [isAuthenticated, targetId, targetType, appointmentId, toggleFavoriteMutation, t, isFavorite]);
+  }, [isAuthenticated, targetId, targetType, appointmentId, toggleFavoriteMutation, t, isFavorite, alert, alertError]);
 
   return {
     isFavorite,

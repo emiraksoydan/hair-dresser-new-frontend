@@ -16,8 +16,10 @@ export function useTrackFreeBarberLocation(enabled: boolean, barberId: string | 
                     id: barberId,
                     latitude: lat,
                     longitude: lon
-                }).unwrap();
+                });
+                // Location update hatası sessizce atlanır
             } catch (error) {
+                // Sessizce devam et
             }
         },
     });

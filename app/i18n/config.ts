@@ -26,7 +26,7 @@ export const loadLanguage = async (): Promise<string> => {
     }
     return 'tr'; // Varsayılan dil
   } catch (error) {
-    console.error('Error loading language:', error);
+    // Dil yükleme hatası - varsayılan dil döndür
     return 'tr';
   }
 };
@@ -37,7 +37,7 @@ export const saveLanguage = async (language: string): Promise<void> => {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     i18n.changeLanguage(language);
   } catch (error) {
-    console.error('Error saving language:', error);
+    // Dil kaydetme hatası sessizce atlanır
   }
 };
 

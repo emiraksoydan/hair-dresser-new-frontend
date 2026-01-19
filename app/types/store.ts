@@ -10,7 +10,7 @@ export enum PricingType {
 }
 
 export enum ImageOwnerType {
-  User = 1,
+  User = 1,        // Only for profile images (User.ImageId)
   Store = 2,
   ManuelBarber = 3,
   FreeBarber = 4
@@ -52,6 +52,7 @@ export type BarberStoreUpdateDto = {
 
 export type BarberStoreGetDto = {
   id: string;
+  barberStoreOwnerId?: string; // Kendi dükkanına tıklandığında güncelleme sheet'i açmak için gerekli
   storeName: string;
   pricingType: string;
   pricingValue: number;
@@ -67,6 +68,7 @@ export type BarberStoreGetDto = {
   reviewCount: number;
   serviceOfferings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+  isOwnStore?: boolean; // Kullanıcının kendi dükkanı mı (filtrelerden etkilenmez)
 };
 
 export type BarberStoreMineDto = {

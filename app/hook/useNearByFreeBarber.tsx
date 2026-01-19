@@ -1,14 +1,35 @@
 // useNearByFreeBarber.ts (useNearbyFreeBarber)
 // Wrapper hook for free barbers - uses the generic useNearby hook
-import { useLazyGetNearbyFreeBarberQuery } from "../store/api";
-import { useNearby } from "./useNearby";
+import { useLazyGetNearbyFreeBarberQuery, useLazyGetFilteredFreeBarbersQueryQuery } from "../store/api";
+import { useNearbyWithFilter } from "./useNearbyWithFilter";
 import type { FreeBarGetDto } from "../types";
+import type { FilterRequestDto } from "../types/filter";
 
-export function useNearbyFreeBarber(enabled: boolean) {
-    const result = useNearby<FreeBarGetDto>(
-        useLazyGetNearbyFreeBarberQuery,
-        { enabled }
-    );
+interface UseNearbyFreeBarberOptions {
+    enabled: boolean;
+    filter?: FilterRequestDto;
+    useFilteredEndpoint?: boolean;
+}
+
+export function useNearbyFreeBarber(enabledOrOptions: boolean | UseNearbyFreeBarberOptions) {
+    // Support both old (boolean) and new (options object) API
+    const options: UseNearbyFreeBarberOptions = typeof enabledOrOptions === 'boolean' 
+        ? { enabled: enabledOrOptions }
+        : enabledOrOptions;
+
+    // Always call both hooks (React rules of hooks)
+    const [nearbyTrigger, nearbyResult] = useLazyGetNearbyFreeBarberQuery();
+    const [filteredTrigger, filteredResult] = useLazyGetFilteredFreeBarbersQueryQuery();
+
+    const result = useNearbyWithFilter<FreeBarGetDto>({
+        enabled: options.enabled,
+        filter: options.filter,
+        useFilteredEndpoint: options.useFilteredEndpoint,
+        nearbyTrigger,
+        nearbyResult,
+        filteredTrigger,
+        filteredResult,
+    });
 
     return {
         freeBarbers: result.data,

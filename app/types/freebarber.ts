@@ -45,6 +45,7 @@ export type FreeBarGetDto = {
   longitude: number;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+  isOwnPanel?: boolean; // Kullanıcının kendi paneli mi (filtrelerden etkilenmez)
 };
 
 export type FreeBarberPanelDto = {

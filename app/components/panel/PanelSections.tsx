@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/common/emptystateresult';
 import { LottieViewComponent } from '../../components/common/lottieview';
 import { StoreCardInner } from '../../components/store/storecard';
 import { FreeBarberCardInner } from '../../components/freebarber/freebarbercard';
-import { resolveApiErrorMessage } from '../../utils/common/error';
+import { getErrorMessage } from '../../utils/errorHandler';
 import { useLanguage } from '../../hook/useLanguage';
 
 export const SectionHeader = ({ title, expanded, onToggle }: any) => (
@@ -38,7 +38,7 @@ export const EmptyStateFunc = ({ loading, hasData, hasLocation, locationStatus, 
     </View>
 );
 
-export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false }: any) => {
+export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false, onRetry }: any) => {
     const { t } = useLanguage();
     const [expanded, setExpanded] = useState(true);
     const screenWidth = Dimensions.get('window').width;
@@ -46,13 +46,14 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
 
     // Network/Server error durumu - öncelikli göster
     if (error) {
-        const errorMessage = resolveApiErrorMessage(error);
+        const errorMessage = getErrorMessage(error);
 
         return (
             <View style={{ minHeight: 200, maxHeight: 400 }}>
                 <LottieViewComponent
                     animationSource={require('../../../assets/animations/error.json')}
                     message={errorMessage}
+                    onRetry={onRetry}
                 />
             </View>
         );
@@ -140,7 +141,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
     );
 });
 
-export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false }: any) => {
+export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false, onRetry }: any) => {
     const { t } = useLanguage();
     const [expanded, setExpanded] = useState(false);
     const screenWidth = Dimensions.get('window').width;
@@ -148,13 +149,14 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
 
     // Network/Server error durumu - öncelikli göster
     if (error) {
-        const errorMessage = resolveApiErrorMessage(error);
+        const errorMessage = getErrorMessage(error);
 
         return (
             <View style={{ minHeight: 200, maxHeight: 400 }}>
                 <LottieViewComponent
                     animationSource={require('../../../assets/animations/error.json')}
                     message={errorMessage}
+                    onRetry={onRetry}
                 />
             </View>
         );

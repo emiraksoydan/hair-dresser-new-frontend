@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, FlatList, Dimensions, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { View, FlatList, Dimensions, RefreshControl, ScrollView } from 'react-native';
 import { Text } from '../common/Text';
 import { LegendList } from '@legendapp/list';
-import { useGetMyFavoritesQuery, useGetMeQuery, useGetMineStoresQuery, useGetFreeBarberMinePanelQuery, useGetSettingQuery } from '../../store/api';
-import { FavoriteGetDto, FavoriteTargetType } from '../../types';
+import { useGetMyFavoritesQuery, useGetMeQuery, useGetFreeBarberMinePanelQuery, useGetSettingQuery } from '../../store/api';
+import { FavoriteGetDto, FavoriteTargetType, UserType } from '../../types';
 import { StoreCardInner } from '../store/storecard';
 import { FreeBarberCardInner } from '../freebarber/freebarbercard';
 import { CustomerCardInner } from '../customer/customercard';
@@ -14,9 +14,8 @@ import { Icon } from 'react-native-paper';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { RatingsBottomSheet } from '../rating/ratingsbottomsheet';
 import { useBottomSheet } from '../../hook/useBottomSheet';
-import { LottieViewComponent } from '../common/lottieview';
-import { resolveApiErrorMessage } from '../../utils/common/error';
 import FormStoreUpdate from '../store/formstoreupdate';
+import { UnifiedStateWrapper } from '../common/UnifiedStateManager';
 import { FormFreeBarberOperation } from '../freebarber/formfreebarberoper';
 import { SkeletonComponent } from '../common/skeleton';
 import { useLanguage } from '../../hook/useLanguage';
@@ -28,10 +27,16 @@ type FavoritesListProps = {
 const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const { t } = useLanguage();
     const { data: favorites, isLoading, refetch, isFetching, error, isError } = useGetMyFavoritesQuery();
-    const { data: currentUser } = useGetMeQuery();
-    // Favoriler listesinde hem store hem freeBarber olabileceği için her zaman query'leri çalıştır
-    const { data: myStores = [] } = useGetMineStoresQuery();
-    const { data: myFreeBarber } = useGetFreeBarberMinePanelQuery();
+    const { data: currentUser, isLoading: isUserLoading, isSuccess: isUserSuccess } = useGetMeQuery();
+    
+    // Kullanıcı tipi kontrolü - currentUser yüklenene kadar bekle
+    const userType = currentUser?.data?.userType;
+    const isFreeBarberUser = userType === UserType.FreeBarber;
+    
+    // FreeBarber kullanıcıları için kendi panelini çek (güncelleme sheet'i için gerekli)
+    const { data: myFreeBarber } = useGetFreeBarberMinePanelQuery(undefined, {
+        skip: !isUserSuccess || !isFreeBarberUser,
+    });
     const { data: settingData } = useGetSettingQuery();
     const router = useRouter();
 
@@ -55,19 +60,15 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const screenWidth = Dimensions.get("window").width;
     const cardWidth = screenWidth * 0.92;
 
-    // Kullanıcının kendi store ID'lerini al
-    const myStoreIds = useMemo(() => {
-        return new Set(myStores.map(s => s.id));
-    }, [myStores]);
-
-    // Kullanıcının kendi freeBarber user ID'sini al
-    const myFreeBarberUserId = useMemo(() => {
+    // Kullanıcının kendi user ID'sini al
+    const currentUserId = useMemo(() => {
         return currentUser?.data?.id;
     }, [currentUser]);
 
     const goStoreDetail = useCallback((store: BarberStoreGetDto) => {
         // Eğer kullanıcının kendi store'u ise update sheet'e yönlendir
-        if (myStoreIds.has(store.id)) {
+        // barberStoreOwnerId ile currentUserId karşılaştır
+        if (store.barberStoreOwnerId && currentUserId && store.barberStoreOwnerId === currentUserId) {
             setSelectedStoreForUpdate(store);
             setTimeout(() => {
                 updateStoreSheet.present();
@@ -79,11 +80,12 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
             pathname: "/store/[storeId]",
             params: { storeId: store.id, mode: mode },
         });
-    }, [router, mode, myStoreIds, updateStoreSheet]);
+    }, [router, mode, currentUserId, updateStoreSheet]);
 
     const goFreeBarberDetail = useCallback((freeBarber: FreeBarGetDto) => {
         // Eğer kullanıcının kendi freeBarber paneli ise update sheet'e yönlendir
-        if (freeBarber.freeBarberUserId && myFreeBarberUserId && freeBarber.freeBarberUserId === myFreeBarberUserId) {
+        // freeBarberUserId ile currentUserId karşılaştır
+        if (freeBarber.freeBarberUserId && currentUserId && freeBarber.freeBarberUserId === currentUserId) {
             setTimeout(() => {
                 updateFreeBarberSheet.present();
             }, 100);
@@ -94,7 +96,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
             pathname: "/freebarber/[freeBarberId]",
             params: { freeBarberId: freeBarber.id },
         });
-    }, [router, myFreeBarberUserId, updateFreeBarberSheet]);
+    }, [router, currentUserId, updateFreeBarberSheet]);
 
 
 
@@ -223,16 +225,14 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 
     if (isLoading) {
         return (
-            <View className="flex-1 bg-[#151618] justify-center items-center">
-                <ActivityIndicator size="large" color="#f05e23" />
+            <View className="flex-1 bg-[#151618] pt-4 px-4">
+                {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
             </View>
         );
     }
 
-    // Network/Server error durumu - öncelikli göster
-    if (isError && error) {
-        const errorMessage = resolveApiErrorMessage(error);
-
+    // Error veya Empty durumu - UnifiedStateWrapper ile
+    if (isError || allFavorites.length === 0) {
         return (
             <View className="flex-1 bg-[#151618]">
                 <ScrollView
@@ -245,10 +245,21 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                         />
                     }
                 >
-                    <LottieViewComponent
-                        animationSource={require('../../../assets/animations/error.json')}
-                        message={errorMessage}
-                    />
+                    <UnifiedStateWrapper
+                        loading={isLoading}
+                        error={error}
+                        data={allFavorites}
+                        fetchedOnce={true}
+                        onRetry={refetch}
+                        customMessages={{
+                            empty: t('empty.noFavoritesAdded'),
+                        }}
+                        customAnimations={{
+                            empty: require("../../../assets/animations/favorites-empty.json"),
+                        }}
+                    >
+                        <View />
+                    </UnifiedStateWrapper>
                 </ScrollView>
             </View>
         );
@@ -268,17 +279,6 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
                         onRefresh={refetch}
                         tintColor="#f05e23"
                     />
-                }
-                ListEmptyComponent={
-                    <View className="items-center justify-center mt-20 p-5">
-                        <Icon source="heart-outline" size={48} color="#2a2c30" />
-                        <Text className="text-[#6b7280] mt-4 text-center">
-                            {t('empty.noFavoritesAdded')}
-                        </Text>
-                        <Text className="text-[#6b7280] mt-2 text-center text-sm">
-                            {t('empty.noFavoritesDescription')}
-                        </Text>
-                    </View>
                 }
             />
 

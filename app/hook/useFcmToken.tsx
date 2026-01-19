@@ -35,17 +35,17 @@ export const useFcmToken = () => {
       try {
         // Use dynamic import check - if module doesn't exist, this will throw
         const messagingModule = require('@react-native-firebase/messaging');
-        
+
         // Check if module and default export exist
         if (!messagingModule) {
           return null;
         }
-        
+
         // Check if default export exists (it might be undefined in Expo Go)
         if (typeof messagingModule.default === 'undefined') {
           return null;
         }
-        
+
         messaging = messagingModule.default;
       } catch (requireError: any) {
         // Module doesn't exist or can't be loaded (expected in Expo Go)
@@ -95,9 +95,14 @@ export const useFcmToken = () => {
         fcmToken: tokenToRegister,
         deviceId: Platform.OS, // Can be enhanced with device-specific ID
         platform: Platform.OS === 'ios' ? 'ios' : 'android',
-      }).unwrap();
+      });
 
-      if (result?.success) {
+      if ('error' in result) {
+        // Error registering FCM token - silently fail
+        return false;
+      }
+
+      if (result.data?.success) {
         setFcmToken(tokenToRegister);
         setIsRegistered(true);
         return true;
@@ -118,9 +123,14 @@ export const useFcmToken = () => {
     try {
       const result = await unregisterFcmToken({
         fcmToken: tokenToUnregister,
-      }).unwrap();
+      });
 
-      if (result?.success) {
+      if ('error' in result) {
+        // Error unregistering FCM token - silently fail
+        return false;
+      }
+
+      if (result.data?.success) {
         setFcmToken(null);
         setIsRegistered(false);
         return true;

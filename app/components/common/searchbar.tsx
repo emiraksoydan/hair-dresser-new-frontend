@@ -29,6 +29,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery }) =>
                 paddingVertical: 0,
                 color: "white",
                 minHeight: 0,
+                fontFamily: 'CenturyGothic',
             }}
         />
     );

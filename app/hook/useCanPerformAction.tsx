@@ -1,6 +1,6 @@
-import { Alert } from 'react-native';
 import { LocationStatus } from '../types';
 import { useLanguage } from './useLanguage';
+import { useAlert } from './useAlert';
 
 /**
  * Hook to check if user can perform actions (appointment booking, panel add/update)
@@ -14,17 +14,18 @@ export function useCanPerformAction(
     locationMessage?: string
 ): { canPerform: boolean; checkAndAlert: () => boolean } {
     const { t } = useLanguage();
+    const { alertError } = useAlert();
     const canPerform = !error && locationStatus !== 'denied';
 
     const checkAndAlert = (): boolean => {
         if (error) {
             const errorMessage = error?.data?.message || error?.message || t('errors.serverUnreachable');
-            Alert.alert(t('common.error'), errorMessage);
+            alertError(t('common.error'), errorMessage);
             return false;
         }
 
         if (locationStatus === 'denied') {
-            Alert.alert(
+            alertError(
                 t('location.locationRequired'),
                 locationMessage || t('location.permissionDeniedSettings')
             );

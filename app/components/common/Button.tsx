@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button as PaperButton } from 'react-native-paper';
-import { View, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, View, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
+import { Text } from './Text';
+import { Icon } from 'react-native-paper';
 
 interface ButtonProps {
     onPress: () => void;
@@ -35,53 +36,118 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     const isDisabled = disabled || loading;
 
-    // React Native Paper Button kullan ve className için View ile wrap et
-    const button = (
-        <PaperButton
-            mode={mode}
+    // Mode'a göre default renkler
+    const getDefaultColors = () => {
+        switch (mode) {
+            case 'contained':
+                return {
+                    bg: buttonColor || '#10B981', // emerald-500
+                    text: textColor || '#FFFFFF',
+                    bgDisabled: '#374151', // gray-700
+                    textDisabled: '#9CA3AF', // gray-400
+                    border: 'transparent',
+                };
+            case 'outlined':
+                return {
+                    bg: 'transparent',
+                    text: textColor || '#10B981',
+                    bgDisabled: 'transparent',
+                    textDisabled: '#6B7280', // gray-500
+                    border: buttonColor || '#10B981',
+                    borderDisabled: '#4B5563', // gray-600
+                };
+            case 'text':
+                return {
+                    bg: 'transparent',
+                    text: textColor || '#10B981',
+                    bgDisabled: 'transparent',
+                    textDisabled: '#6B7280',
+                    border: 'transparent',
+                };
+            case 'contained-tonal':
+                return {
+                    bg: buttonColor || '#064E3B', // emerald-900
+                    text: textColor || '#10B981',
+                    bgDisabled: '#1F2937', // gray-800
+                    textDisabled: '#6B7280',
+                    border: 'transparent',
+                };
+            default:
+                return {
+                    bg: '#10B981',
+                    text: '#FFFFFF',
+                    bgDisabled: '#374151',
+                    textDisabled: '#9CA3AF',
+                    border: 'transparent',
+                };
+        }
+    };
+
+    const colors = getDefaultColors();
+
+    const buttonStyle: ViewStyle = {
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        backgroundColor: isDisabled ? colors.bgDisabled : colors.bg,
+        borderWidth: mode === 'outlined' ? 1 : 0,
+        borderColor: isDisabled
+            ? colors.borderDisabled || colors.border
+            : colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...(style as ViewStyle),
+    };
+
+    const textStyle: TextStyle = {
+        fontSize: 16,
+        fontWeight: '600',
+        color: isDisabled ? colors.textDisabled : colors.text,
+        ...(labelStyle as TextStyle),
+    };
+
+    const content = (
+        <TouchableOpacity
             onPress={onPress}
             disabled={isDisabled}
-            loading={loading}
-            icon={icon}
-            buttonColor={buttonColor}
-            textColor={textColor}
-            style={[
-                {
-                    borderRadius: 10,
-                    paddingVertical: 2,
-                    paddingHorizontal: 16,
-                },
-                style,
-            ]}
-            contentStyle={[
-                {
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                },
-                contentStyle,
-            ]}
-            labelStyle={[
-                {
-                    fontSize: 16,
-                    fontWeight: '600',
-                },
-                labelStyle,
-            ]}
+            activeOpacity={0.7}
+            style={buttonStyle}
             testID={testID}
         >
-            {children}
-        </PaperButton>
+            <View
+                style={[
+                    {
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                    },
+                    contentStyle,
+                ]}
+            >
+                {loading && (
+                    <ActivityIndicator
+                        size="small"
+                        color={isDisabled ? colors.textDisabled : colors.text}
+                    />
+                )}
+                {!loading && icon && (
+                    <Icon
+                        source={icon}
+                        size={20}
+                        color={isDisabled ? colors.textDisabled : colors.text}
+                    />
+                )}
+                <Text style={textStyle}>{children}</Text>
+            </View>
+        </TouchableOpacity>
     );
 
     // className varsa View ile wrap et
     if (className) {
-        return (
-            <View className={className}>
-                {button}
-            </View>
-        );
+        return <View className={className}>{content}</View>;
     }
 
-    return button;
+    return content;
 };

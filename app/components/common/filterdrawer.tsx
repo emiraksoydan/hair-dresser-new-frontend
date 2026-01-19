@@ -50,9 +50,10 @@ interface FilterDrawerProps {
     selectedPricingType: string; // 'Hepsi' | 'Kiralama' | 'Yüzdelik'
     onChangePricingType: (type: string) => void;
 
-    // Müsaitlik durumu
-    availabilityFilter: 'all' | 'available' | 'unavailable';
-    onChangeAvailability: (filter: 'all' | 'available' | 'unavailable') => void;
+    // Durum filtresi (hem Store hem FreeBarber için ortak)
+    // Store: açık/kapalı, FreeBarber: müsait/meşgul
+    statusFilter: 'all' | 'available' | 'unavailable';
+    onChangeStatus: (filter: 'all' | 'available' | 'unavailable') => void;
 
     // Puanlama filtresi
     selectedRating: number; // 0 = Hepsi, 1-5 = yıldız sayısı
@@ -62,8 +63,7 @@ interface FilterDrawerProps {
     showFavoritesOnly: boolean;
     onChangeFavoritesOnly: (value: boolean) => void;
 
-    // Aksiyon butonları
-    onApplyFilters: () => void;
+    // Temizle butonu
     onClearFilters: () => void;
 }
 
@@ -86,13 +86,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     showPricingType = false,
     selectedPricingType,
     onChangePricingType,
-    availabilityFilter,
-    onChangeAvailability,
+    statusFilter,
+    onChangeStatus,
     selectedRating,
     onChangeRating,
     showFavoritesOnly,
     onChangeFavoritesOnly,
-    onApplyFilters,
     onClearFilters,
 }) => {
     const { t } = useLanguage();
@@ -160,25 +159,44 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             }
         });
 
-    const userTypes = [t('filters.all'), t('labels.freeBarber'), t('labels.store')];
+    // User types with language-independent keys and translated labels
+    const userTypeOptions = [
+        { key: 'all', label: t('filters.all') },
+        { key: 'freeBarber', label: t('labels.freeBarber') },
+        { key: 'store', label: t('labels.store') },
+    ];
+    
     const mainCategories = React.useMemo(() => {
-        // Kullanıcı türü "Serbest Berber" ise Güzellik Salonu'nu gizle
+        // Kullanıcı türü "freeBarber" ise Güzellik Salonu'nu gizle
         let categories = parentCategories.map((cat: any) => cat.name);
         
-        if (selectedUserType === t('labels.freeBarber')) {
+        if (selectedUserType === 'freeBarber') {
             // Güzellik Salonu kategorisini filtrele (kategori adı dinamik olabilir)
             categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
         }
         
-        // "Hepsi" ve filtrelenmiş kategorileri birleştir, duplicate'leri kaldır
-        const allCategories = [t('filters.all'), ...categories];
+        // "all" ve filtrelenmiş kategorileri birleştir, duplicate'leri kaldır
+        const allCategories = ['all', ...categories];
         return Array.from(new Set(allCategories)); // Duplicate'leri kaldır
-    }, [parentCategories, selectedUserType, t]);
-    const pricingTypes = [t('filters.all'), t('filters.rental'), t('filters.percentage')];
-    const availabilityOptions = [
+    }, [parentCategories, selectedUserType]);
+    
+    // Get translated label for main category
+    const getMainCategoryLabel = (category: string) => {
+        if (category === 'all') return t('filters.all');
+        return category; // Category names come from backend, already in correct language
+    };
+    
+    // Pricing types with language-independent keys and translated labels
+    const pricingTypeOptions = [
+        { key: 'all', label: t('filters.all') },
+        { key: 'rent', label: t('filters.rental') },
+        { key: 'percent', label: t('filters.percentage') },
+    ];
+    // Unified status options - works for both Store (open/closed) and FreeBarber (available/unavailable)
+    const statusOptions = [
         { label: t('filters.all'), value: 'all' },
-        { label: t('filters.available'), value: 'available' },
-        { label: t('filters.unavailable'), value: 'unavailable' },
+        { label: t('filters.availableOpen'), value: 'available' },
+        { label: t('filters.unavailableClosed'), value: 'unavailable' },
     ];
     const ratingOptions = [
         { label: t('filters.all'), value: 0 },
@@ -216,7 +234,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <Animated.View style={[styles.drawer, drawerStyle]}>
                         {/* Header */}
                         <View className="flex-row items-center justify-between p-4 border-b border-gray-700">
-                            <Text className="text-white text-xl font-century-gothic-bold">Filtreler</Text>
+                            <Text className="text-white text-xl font-century-gothic-bold">{t('filters.title')}</Text>
                             <TouchableOpacity onPress={onClose}>
                                 <Icon source="close" size={24} color="#fff" />
                             </TouchableOpacity>
@@ -240,19 +258,19 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         className="mb-4"
                                         contentContainerStyle={{ gap: 8 }}
                                     >
-                                        {userTypes.map((type) => {
-                                            const isSelected = selectedUserType === type;
+                                        {userTypeOptions.map((option) => {
+                                            const isSelected = selectedUserType === option.key;
                                             return (
                                                 <TouchableOpacity
-                                                    key={type}
-                                                    onPress={() => onChangeUserType(type)}
+                                                    key={option.key}
+                                                    onPress={() => onChangeUserType(option.key)}
                                                     className={`px-4 py-2 rounded-full border ${
                                                         isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
                                                     }`}
                                                     activeOpacity={0.7}
                                                 >
                                                     <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                        {type}
+                                                        {option.label}
                                                     </Text>
                                                 </TouchableOpacity>
                                             );
@@ -275,8 +293,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             >
                                     {mainCategories.map((category, index) => {
                                     const isSelected = selectedMainCategory === category;
-                                    // "Hepsi" için özel key, diğerleri için index kullan (unique garantisi için)
-                                    const uniqueKey = category === t('filters.all') ? 'category-all' : `category-${index}-${category}`;
+                                    // "all" için özel key, diğerleri için index kullan (unique garantisi için)
+                                    const uniqueKey = category === 'all' ? 'category-all' : `category-${index}-${category}`;
                                     
                                     return (
                                         <TouchableOpacity
@@ -288,7 +306,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                             activeOpacity={0.7}
                                         >
                                             <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                {category}
+                                                {getMainCategoryLabel(category)}
                                             </Text>
                                         </TouchableOpacity>
                                     );
@@ -332,9 +350,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                             borderRadius: 10,
                                             overflow: 'hidden',
                                         }}
-                                        placeholderStyle={{ color: "gray", fontSize: 14 }}
-                                        selectedTextStyle={{ color: "white", fontSize: 14 }}
-                                        itemTextStyle={{ color: "white", fontSize: 14 }}
+                                        placeholderStyle={{ color: "gray", fontSize: 14, fontFamily: 'CenturyGothic' }}
+                                        selectedTextStyle={{ color: "white", fontSize: 14, fontFamily: 'CenturyGothic' }}
+                                        itemTextStyle={{ color: "white", fontSize: 14, fontFamily: 'CenturyGothic' }}
                                         inputSearchStyle={{ color: "white", fontSize: 14 }}
                                         activeColor="#0f766e"
                                         selectedStyle={{
@@ -363,19 +381,19 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         className="mb-4"
                                         contentContainerStyle={{ gap: 8 }}
                                     >
-                                        {pricingTypes.map((type) => {
-                                            const isSelected = selectedPricingType === type;
+                                        {pricingTypeOptions.map((option) => {
+                                            const isSelected = selectedPricingType === option.key;
                                             return (
                                                 <TouchableOpacity
-                                                    key={type}
-                                                    onPress={() => onChangePricingType(type)}
+                                                    key={option.key}
+                                                    onPress={() => onChangePricingType(option.key)}
                                                     className={`px-4 py-2 rounded-full border ${
                                                         isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
                                                     }`}
                                                     activeOpacity={0.7}
                                                 >
                                                     <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                        {type}
+                                                        {option.label}
                                                     </Text>
                                                 </TouchableOpacity>
                                             );
@@ -470,9 +488,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
 
                             <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
 
-                            {/* Müsaitlik Durumu - Horizontal ScrollView */}
+                            {/* Durum Filtresi - Hem Store (açık/kapalı) hem FreeBarber (müsait/meşgul) için ortak */}
                             <Text className="text-white text-base font-century-gothic-bold mb-2">
-                                {t('filters.availability')}
+                                {t('filters.status')}
                             </Text>
                             <ScrollView
                                 horizontal
@@ -480,12 +498,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 className="mb-4"
                                 contentContainerStyle={{ gap: 8 }}
                             >
-                                {availabilityOptions.map((option) => {
-                                    const isSelected = availabilityFilter === option.value;
+                                {statusOptions.map((option) => {
+                                    const isSelected = statusFilter === option.value;
                                     return (
                                         <TouchableOpacity
                                             key={option.value}
-                                            onPress={() => onChangeAvailability(option.value as any)}
+                                            onPress={() => onChangeStatus(option.value as any)}
                                             className={`px-4 py-2 rounded-full border ${
                                                 isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
                                             }`}
@@ -562,18 +580,11 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             </ScrollView>
                         </ScrollView>
 
-                        {/* Footer Buttons */}
-                        <View className="px-4 py-3 flex-row border-t border-gray-700 gap-3">
-                            <TouchableOpacity
-                                onPress={onApplyFilters}
-                                className="flex-1 bg-[#f05e23] rounded-lg py-2.5 items-center justify-center"
-                                activeOpacity={0.8}
-                            >
-                                <Text className="text-white text-sm font-semibold">{t('filters.apply')}</Text>
-                            </TouchableOpacity>
+                        {/* Footer Button - Only Clear */}
+                        <View className="px-4 py-3 border-t border-gray-700">
                             <TouchableOpacity
                                 onPress={onClearFilters}
-                                className="flex-1 border border-[#f05e23] rounded-lg py-2.5 items-center justify-center"
+                                className="w-full border border-[#f05e23] rounded-lg py-2.5 items-center justify-center"
                                 activeOpacity={0.8}
                             >
                                 <Text className="text-[#f05e23] text-sm font-semibold">{t('filters.clear')}</Text>

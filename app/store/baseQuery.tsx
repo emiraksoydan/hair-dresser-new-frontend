@@ -178,7 +178,7 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
       }
 
       // Network error veya diğer beklenmeyen hatalar
-      const errorMessage = error?.message || 'Beklenmeyen bir hata oluştu';
+      const errorMessage = error?.message || 'Servise ulaşılamadı. Lütfen daha sonra tekrar deneyin.';
       return {
         error: {
           status: 'FETCH_ERROR',

@@ -1,45 +1,49 @@
 import React from "react";
 import { LottieViewComponent } from "./lottieview";
 import { EmptyStateProps } from "../../types";
-
-
+import { useLanguage } from "../../hook/useLanguage";
 
 export const EmptyState = ({
-    loading,
-    locationStatus,
-    hasLocation,
-    fetchedOnce,
-    hasData,
-    noResultText,
-    needLocationText = "Lütfen konumunuzu açınız.",
-    deniedText = "Konum izni verilmedi. Tekrar dene veya ayarlardan izin ver.",
-    onRetry,
+  loading,
+  locationStatus,
+  hasLocation,
+  fetchedOnce,
+  hasData,
+  noResultText,
+  needLocationText,
+  deniedText,
+  onRetry,
 }: EmptyStateProps) => {
-    if (loading) return null;
+  const { t } = useLanguage();
 
-    const showDenied = locationStatus === "denied";
-    const showNeedLocation = !showDenied && !hasLocation;
-    const showNoResults = fetchedOnce && !hasData && hasLocation;
+  const defaultNeedLocationText =
+    needLocationText || t("location.locationRequired");
+  const defaultDeniedText = deniedText || t("location.permissionDeniedMessage");
+  if (loading) return null;
 
-    if (showDenied) {
-        return (
-            <LottieViewComponent
-                animationSource={require("../../../assets/animations/Location.json")}
-                message={deniedText}
-            />
-        );
-    }
-    if (showNeedLocation) {
-        return (
-            <LottieViewComponent
-                animationSource={require("../../../assets/animations/Location.json")}
-                message={needLocationText}
-            />
-        );
-    }
+  const showDenied = locationStatus === "denied";
+  const showNeedLocation = !showDenied && !hasLocation;
+  const showNoResults = fetchedOnce && !hasData && hasLocation;
 
-    if (showNoResults) {
-        return <LottieViewComponent message={noResultText} />;
-    }
-    return null;
+  if (showDenied) {
+    return (
+      <LottieViewComponent
+        animationSource={require("../../../assets/animations/Location.json")}
+        message={defaultDeniedText}
+      />
+    );
+  }
+  if (showNeedLocation) {
+    return (
+      <LottieViewComponent
+        animationSource={require("../../../assets/animations/Location.json")}
+        message={defaultNeedLocationText}
+      />
+    );
+  }
+
+  if (showNoResults) {
+    return <LottieViewComponent message={noResultText} />;
+  }
+  return null;
 };

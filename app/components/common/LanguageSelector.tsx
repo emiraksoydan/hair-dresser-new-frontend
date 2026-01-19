@@ -27,7 +27,6 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showLabel = 
     setModalVisible(false);
     // Async işlemi arka planda yap, await beklemeden devam et
     changeLanguage(language).catch((error) => {
-      console.error('Error changing language:', error);
       // Hata durumunda eski dil'e geri dön
       setLocalCurrentLanguage(currentLanguage);
     });

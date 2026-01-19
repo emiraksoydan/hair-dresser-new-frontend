@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react'
 import { useFonts } from 'expo-font';
 import '../global.css';
 import { Provider as ReduxProvider } from 'react-redux';
-import { Provider as PaperProvider, DefaultTheme, configureFonts } from "react-native-paper";
+import { Provider as PaperProvider, DefaultTheme } from "react-native-paper";
 import { store } from './store/redux-store';
 import { Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
@@ -19,10 +19,11 @@ import {
 } from '@gorhom/bottom-sheet';
 import { clearStoredTokens } from './lib/tokenStorage';
 import { tokenStore } from './lib/tokenStore';
-import { useSignalR } from './hook/useSignalR';
+import { useSignalRV2 } from './hook/useSignalRV2';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useFcmToken } from './hook/useFcmToken';
 import { GlobalSnackbar } from './hook/useSnackbar';
+import { GlobalAlert } from './components/common/GlobalAlert';
 // Background location task'ı kaydet (Expo Go'da çalışmaz)
 import './tasks/backgroundLocation';
 // i18n initialization
@@ -62,22 +63,30 @@ const RootLayout = () => {
   if (!ready || !fontsLoaded) return null;
 
   // Century Gothic fontunu tüm Paper component'lerinde kullan
-  const centuryGothicFont = Platform.select({
-    ios: 'CenturyGothic',
-    android: 'CenturyGothic',
-    default: 'CenturyGothic',
-  }) || 'CenturyGothic';
+  const centuryGothicFont = 'CenturyGothic';
+  const centuryGothicBoldFont = 'CenturyGothic-Bold';
 
-  const fontConfig = configureFonts({
-    config: {
-      // Tüm font variant'larına Century Gothic uygula
-      fontFamily: centuryGothicFont,
-    },
-  });
-
+  // Tüm font variant'larını Century Gothic ile yapılandır
   const paperTheme = {
     ...DefaultTheme,
-    fonts: fontConfig,
+    fonts: {
+      ...DefaultTheme.fonts,
+      displayLarge: { ...DefaultTheme.fonts.displayLarge, fontFamily: centuryGothicBoldFont },
+      displayMedium: { ...DefaultTheme.fonts.displayMedium, fontFamily: centuryGothicBoldFont },
+      displaySmall: { ...DefaultTheme.fonts.displaySmall, fontFamily: centuryGothicBoldFont },
+      headlineLarge: { ...DefaultTheme.fonts.headlineLarge, fontFamily: centuryGothicBoldFont },
+      headlineMedium: { ...DefaultTheme.fonts.headlineMedium, fontFamily: centuryGothicBoldFont },
+      headlineSmall: { ...DefaultTheme.fonts.headlineSmall, fontFamily: centuryGothicBoldFont },
+      titleLarge: { ...DefaultTheme.fonts.titleLarge, fontFamily: centuryGothicBoldFont },
+      titleMedium: { ...DefaultTheme.fonts.titleMedium, fontFamily: centuryGothicFont },
+      titleSmall: { ...DefaultTheme.fonts.titleSmall, fontFamily: centuryGothicFont },
+      labelLarge: { ...DefaultTheme.fonts.labelLarge, fontFamily: centuryGothicFont },
+      labelMedium: { ...DefaultTheme.fonts.labelMedium, fontFamily: centuryGothicFont },
+      labelSmall: { ...DefaultTheme.fonts.labelSmall, fontFamily: centuryGothicFont },
+      bodyLarge: { ...DefaultTheme.fonts.bodyLarge, fontFamily: centuryGothicFont },
+      bodyMedium: { ...DefaultTheme.fonts.bodyMedium, fontFamily: centuryGothicFont },
+      bodySmall: { ...DefaultTheme.fonts.bodySmall, fontFamily: centuryGothicFont },
+    },
   };
 
   return (
@@ -102,6 +111,7 @@ const RootLayout = () => {
               </Stack>
               <StatusBar />
               <GlobalSnackbar />
+              <GlobalAlert />
             </BottomSheetModalProvider>
           </PaperProvider>
         </GestureHandlerRootView>
@@ -111,7 +121,7 @@ const RootLayout = () => {
 }
 
 function SignalRBootstrap() {
-  useSignalR();
+  useSignalRV2();
   return null;
 }
 
