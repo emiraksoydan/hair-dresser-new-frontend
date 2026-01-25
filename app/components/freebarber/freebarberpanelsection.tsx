@@ -64,10 +64,10 @@ export const FreeBarberPanelSection = memo(
     const shouldShow = useMemo(() => {
       if (!freeBarber) return true;
       if (!searchQuery) return true;
-      
+
       const query = searchQuery.toLowerCase();
       const fullName = freeBarber.fullName?.toLowerCase() || "";
-      
+
       return fullName.includes(query);
     }, [freeBarber, searchQuery]);
 
@@ -106,18 +106,18 @@ export const FreeBarberPanelSection = memo(
             ))}
           </View>
         ) : !hasMineFreeBarber ? (
-          <>
+          <View className="bg-[#1a1b25] rounded-xl mt-2">
             <LottieViewComponent message={t("empty.noPanelAdded")} />
             <Button
-              style={{ marginTop: 10 }}
-              buttonColor="#c2a523"
+              style={{ marginTop: -10, marginBottom: 10, marginHorizontal: 10 }}
+              buttonColor="#ffb900"
               mode="contained"
               icon={"plus"}
               onPress={() => onOpenPanel(null)}
             >
               {t("common.add")}
             </Button>
-          </>
+          </View>
         ) : locationStatus === "error" ? (
           <LottieViewComponent
             animationSource={require("../../../assets/animations/Location.json")}

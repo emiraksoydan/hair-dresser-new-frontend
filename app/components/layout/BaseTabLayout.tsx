@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { View } from "react-native";
 import { Tabs } from "expo-router";
-import { IconButton } from "react-native-paper";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { CustomCurvedTabBar, CustomTabItem } from "../common/CustomCurvedTabBar";
 import { Text } from "../common/Text";
 import { BadgeIconButton } from "../common/badgeiconbutton";
 import { HeaderActions } from "../common/HeaderActions";
@@ -81,7 +81,6 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
     { skip: !isAuthenticated },
   );
 
-  // API'den gelen veriyi InfoModal formatına dönüştür
   const infoItems = useMemo(() => {
     if (helpGuideResponse?.success && helpGuideResponse?.data?.length > 0) {
       return helpGuideResponse.data.map((guide) => ({
@@ -106,26 +105,28 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
     () => {
       if (dropdownMenuItems && dropdownMenuItems.length > 0) {
         return (
-          <View className="flex-row items-center justify-center mr-2">
+          <View className="flex-row items-center justify-center mr-2 h-full">
             <BadgeIconButton
               icon="bell-outline"
               iconColor="white"
-              size={20}
+              size={22}
               badgeCount={unreadNoti}
               onPress={handleNotificationPress}
               animateWhenActive={true}
             />
-            <HeaderDropdownMenu items={dropdownMenuItems} />
+            <HeaderDropdownMenu iconSize={22} items={dropdownMenuItems} />
           </View>
         );
       }
 
       return (
-        <HeaderActions
-          unreadNoti={unreadNoti}
-          onNotificationPress={handleNotificationPress}
-          onInfoPress={handleInfoPress}
-        />
+        <View className="h-full justify-center">
+          <HeaderActions
+            unreadNoti={unreadNoti}
+            onNotificationPress={handleNotificationPress}
+            onInfoPress={handleInfoPress}
+          />
+        </View>
       );
     },
     [
@@ -136,54 +137,72 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
     ],
   );
 
-  // Tab icon renderer
-  const renderTabIcon = useCallback(
-    (iconName: string, focused: boolean, badgeCount?: number) => {
-      if (badgeCount !== undefined) {
-        return (
-          <BadgeIconButton
-            icon={iconName}
-            iconColor={focused ? accentColor : "#38393b"}
-            size={30}
-            badgeCount={badgeCount}
-            onPress={undefined}
-          />
+  // Custom Curved Tab Bar renderer
+  const renderCurvedTabBar = useCallback(
+    (props: any) => {
+      const { state, navigation } = props;
+
+      const activeRoute = state.routes[state.index];
+      let activeIndex = 0;
+
+      if (activeRoute.name !== "index") {
+        const matchingTabIndex = tabs.findIndex(
+          (tab: TabConfig) => tab.name === activeRoute.name
         );
+        if (matchingTabIndex >= 0) {
+          activeIndex = matchingTabIndex;
+        }
       }
 
+      // Dinamik olarak curvedTabs oluştur - Material Design icon isimleri
+      const customTabs: CustomTabItem[] = tabs.map((tab) => ({
+        key: tab.name,
+        label: String(tab.label || ""),
+        icon: tab.icon, // Outline icon (pasif)
+        iconFocused: tab.iconFocused, // Filled icon (aktif/float)
+        badgeCount: tab.name === "(messages)" ? unreadMsg : undefined,
+      }));
+
+      const handleTabPress = (index: number, tabItem: CustomTabItem) => {
+        if (tabItem.key) {
+          navigation.navigate(tabItem.key as any);
+        } else {
+          const tabRoutes = state.routes.filter((route: any) => route.name !== "index");
+          const targetRoute = tabRoutes[index];
+          if (targetRoute) {
+            navigation.navigate(targetRoute.name);
+          }
+        }
+      };
+
       return (
-        <IconButton
-          icon={iconName}
-          iconColor={focused ? accentColor : "#38393b"}
-          size={30}
-          style={{ margin: 0 }}
-        />
+        <View style={{ backgroundColor: "#0d0d12" }}>
+          <CustomCurvedTabBar
+            tabs={customTabs}
+            activeIndex={activeIndex}
+            onTabPress={handleTabPress}
+            accentColor={accentColor}
+            backgroundColor="#1a1b25"
+            activeIconColor="#FFFFFF"
+            inactiveIconColor="#9CA3AF"
+            height={60}
+          />
+        </View>
       );
     },
-    [accentColor],
-  );
-
-  // Tab label renderer
-  const renderTabLabel = useCallback(
-    (label: string, focused: boolean) => (
-      <Text
-        className={`text-xs ${focused ? `text-[${accentColor}]` : "text-[#454648]"}`}
-      >
-        {label}
-      </Text>
-    ),
-    [accentColor],
+    [tabs, unreadMsg, accentColor],
   );
 
   return (
     <>
       <Tabs
+        tabBar={renderCurvedTabBar}
         screenOptions={{
-          tabBarStyle: {
-            backgroundColor: "#191a1c",
-            borderColor: "#191a1c",
-          },
           headerShown: false,
+          tabBarShowLabel: false,
+          tabBarStyle: {
+            display: "none",
+          },
         }}
       >
         <Tabs.Screen name="index" options={{ href: null }} />
@@ -193,31 +212,20 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
             key={tab.name}
             name={tab.name}
             options={{
-              headerStyle: { backgroundColor: "#151618" },
+              headerStyle: {
+                backgroundColor: "#0d0d12",
+                height: 80,
+              },
               headerShown: true,
               headerTitle: () => (
-                <Text className="text-lg text-white mr-0">
-                  {tab.showHeaderLeft && userName
-                    ? t("navigation.welcomeWithName", { name: userName })
-                    : tab.headerTitle}
-                </Text>
+                <View className="flex-1 justify-center">
+                  <Text className="text-2xl  text-white mr-0">
+                    {tab.showHeaderLeft && userName
+                      ? t("navigation.welcomeWithName", { name: userName })
+                      : tab.headerTitle}
+                  </Text>
+                </View>
               ),
-              tabBarIcon: ({ focused }) => {
-                // Messages tab özel durumu - badge count ile
-                if (tab.name === "(messages)") {
-                  return renderTabIcon(
-                    focused ? tab.iconFocused : tab.icon,
-                    focused,
-                    unreadMsg,
-                  );
-                }
-
-                return renderTabIcon(
-                  focused ? tab.iconFocused : tab.icon,
-                  focused,
-                );
-              },
-              tabBarLabel: ({ focused }) => renderTabLabel(tab.label, focused),
               headerTitleAlign: tab.headerTitleAlign || "center",
               headerRight: renderHeaderRight,
             }}

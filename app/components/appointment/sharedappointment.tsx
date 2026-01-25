@@ -1,12 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import {
-  View,
-  TouchableOpacity,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
-  ScrollView,
-} from "react-native";
+import { View, TouchableOpacity, RefreshControl, ActivityIndicator, ScrollView, } from "react-native";
 import { Text } from "../common/Text";
 import { LegendList } from "@legendapp/list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,28 +7,16 @@ import { Icon } from "react-native-paper";
 import { StarRatingDisplay } from "react-native-star-rating-widget";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import {
-  useGetAllAppointmentByFilterQuery,
-  useCancelAppointmentMutation,
-  useCompleteAppointmentMutation,
-  useToggleFavoriteMutation,
-  useDeleteAppointmentMutation,
-  useDeleteAllAppointmentsMutation,
+  useGetAllAppointmentByFilterQuery, useCancelAppointmentMutation, useCompleteAppointmentMutation, useToggleFavoriteMutation,
+  useDeleteAppointmentMutation, useDeleteAllAppointmentsMutation,
 } from "../../store/api";
-import {
-  AppointmentStatus,
-  AppointmentFilter,
-  AppointmentGetDto,
-  AppointmentRequester,
-} from "../../types/appointment";
+import { AppointmentStatus, AppointmentFilter, AppointmentGetDto, AppointmentRequester, } from "../../types/appointment";
 import { useAuth } from "../../hook/useAuth";
 import { BarberType, UserType, PricingType, ImageOwnerType } from "../../types";
 import FilterChip from "../common/filter-chip";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import { RatingBottomSheet } from "./ratingbottomsheet";
-import {
-  getAppointmentStatusColor,
-  getAppointmentStatusText,
-} from "../../utils/appointment/appointment-helpers";
+import { getAppointmentStatusColor, getAppointmentStatusText, } from "../../utils/appointment/appointment-helpers";
 import { OwnerAvatar } from "../common/owneravatar";
 import { SkeletonComponent } from "../common/skeleton";
 import { UnifiedStateWrapper } from "../common/UnifiedStateManager";
@@ -469,67 +450,67 @@ export default function SharedAppointmentScreen() {
         {/* Durum Badge'i - Active tab'ında ve tamamlanan/iptal durumlarında göster */}
         {(activeFilter === AppointmentFilter.Active ||
           isCompletedOrCancelled) && (
-          <View className="mb-3 pb-3 border-b border-[#2a2c30]">
-            <View className="flex-row items-center gap-2 justify-between">
-              <View className="flex-row items-center gap-2">
-                <Icon
-                  source={
-                    isApproved
-                      ? "check-circle"
-                      : item.status === AppointmentStatus.Pending
-                        ? "clock-outline"
-                        : isUnanswered
-                          ? "clock-alert"
-                          : item.status === AppointmentStatus.Rejected
-                            ? "close-circle"
-                            : item.status === AppointmentStatus.Cancelled
-                              ? "cancel"
-                              : item.status === AppointmentStatus.Completed
-                                ? "check-all"
-                                : "information"
-                  }
-                  size={16}
-                  color={statusColor}
-                />
-                <Text
-                  className={`text-sm font-semibold`}
-                  style={{ color: statusColor }}
-                >
-                  {statusText}
-                </Text>
-                {/* Zaman geçmişse uyarı göster - Active tab'ında sadece Approved randevular var */}
-                {passed && isApproved && (
-                  <View className="flex-row items-center ml-2">
-                    <Icon source="alert-circle" size={14} color="#f59e0b" />
-                    <Text className="text-[#f59e0b] text-xs ml-1">
-                      {t("appointment.labels.timePassed")}
-                    </Text>
-                  </View>
-                )}
+            <View className="mb-3 pb-3 border-b border-[#2a2c30]">
+              <View className="flex-row items-center gap-2 justify-between">
+                <View className="flex-row items-center gap-2">
+                  <Icon
+                    source={
+                      isApproved
+                        ? "check-circle"
+                        : item.status === AppointmentStatus.Pending
+                          ? "clock-outline"
+                          : isUnanswered
+                            ? "clock-alert"
+                            : item.status === AppointmentStatus.Rejected
+                              ? "close-circle"
+                              : item.status === AppointmentStatus.Cancelled
+                                ? "cancel"
+                                : item.status === AppointmentStatus.Completed
+                                  ? "check-all"
+                                  : "information"
+                    }
+                    size={16}
+                    color={statusColor}
+                  />
+                  <Text
+                    className={`text-sm font-semibold`}
+                    style={{ color: statusColor }}
+                  >
+                    {statusText}
+                  </Text>
+                  {/* Zaman geçmişse uyarı göster - Active tab'ında sadece Approved randevular var */}
+                  {passed && isApproved && (
+                    <View className="flex-row items-center ml-2">
+                      <Icon source="alert-circle" size={14} color="#f59e0b" />
+                      <Text className="text-[#f59e0b] text-xs ml-1">
+                        {t("appointment.labels.timePassed")}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {item.appointmentRequester != AppointmentRequester.Store &&
+                  userType != UserType.FreeBarber &&
+                  item.startTime &&
+                  item.endTime && (
+                    <View className="flex-row items-center">
+                      <Icon source="calendar" size={14} color="#6b7280" />
+                      <Text className="text-[#9ca3af] text-xs ml-1.5">
+                        {new Date(item.appointmentDate).toLocaleDateString(
+                          "tr-TR",
+                          { day: "numeric", month: "long" },
+                        )}
+                      </Text>
+                      <Text className="text-[#6b7280] mx-1.5">•</Text>
+                      <Icon source="clock-outline" size={14} color="#6b7280" />
+                      <Text className="text-[#9ca3af] text-xs ml-1">
+                        {item.startTime.substring(0, 5)} -{" "}
+                        {item.endTime.substring(0, 5)}
+                      </Text>
+                    </View>
+                  )}
               </View>
-              {item.appointmentRequester != AppointmentRequester.Store &&
-                userType != UserType.FreeBarber &&
-                item.startTime &&
-                item.endTime && (
-                  <View className="flex-row items-center">
-                    <Icon source="calendar" size={14} color="#6b7280" />
-                    <Text className="text-[#9ca3af] text-xs ml-1.5">
-                      {new Date(item.appointmentDate).toLocaleDateString(
-                        "tr-TR",
-                        { day: "numeric", month: "long" },
-                      )}
-                    </Text>
-                    <Text className="text-[#6b7280] mx-1.5">•</Text>
-                    <Icon source="clock-outline" size={14} color="#6b7280" />
-                    <Text className="text-[#9ca3af] text-xs ml-1">
-                      {item.startTime.substring(0, 5)} -{" "}
-                      {item.endTime.substring(0, 5)}
-                    </Text>
-                  </View>
-                )}
             </View>
-          </View>
-        )}
+          )}
         <View className="mb-4">
           <View className="flex-row gap-2 items-center justify-end flex-wrap">
             {showCompleteButton && (
@@ -628,34 +609,34 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                    <View className="mb-3">
-                      <TouchableOpacity
-                        onPress={() =>
-                          item.customerUserId &&
-                          handleToggleFavorite(item.customerUserId, item.id)
-                        }
-                        disabled={isTogglingFavorite}
-                        className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                      >
-                        <Icon
-                          source={
-                            item.isCustomerFavorite ? "heart" : "heart-outline"
+                      <View className="mb-3">
+                        <TouchableOpacity
+                          onPress={() =>
+                            item.customerUserId &&
+                            handleToggleFavorite(item.customerUserId, item.id)
                           }
-                          size={14}
-                          color={
-                            item.isCustomerFavorite ? "#ef4444" : "#6b7280"
-                          }
-                        />
-                        <Text
-                          className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          disabled={isTogglingFavorite}
+                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                         >
-                          {item.isCustomerFavorite
-                            ? t("appointment.actions.inFavorites")
-                            : t("appointment.actions.addToFavorites")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                          <Icon
+                            source={
+                              item.isCustomerFavorite ? "heart" : "heart-outline"
+                            }
+                            size={14}
+                            color={
+                              item.isCustomerFavorite ? "#ef4444" : "#6b7280"
+                            }
+                          />
+                          <Text
+                            className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          >
+                            {item.isCustomerFavorite
+                              ? t("appointment.actions.inFavorites")
+                              : t("appointment.actions.addToFavorites")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   <RatingDisplay
                     myRating={item.myRatingForCustomer}
                     myComment={item.myCommentForCustomer}
@@ -703,36 +684,36 @@ export default function SharedAppointmentScreen() {
                     </View>
                     {(activeFilter === AppointmentFilter.Cancelled ||
                       activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
-                        <TouchableOpacity
-                          onPress={() =>
-                            item.freeBarberId &&
-                            handleToggleFavorite(item.freeBarberId, item.id)
-                          }
-                          disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                        >
-                          <Icon
-                            source={
-                              item.isFreeBarberFavorite
-                                ? "heart"
-                                : "heart-outline"
+                        <View className="mb-3">
+                          <TouchableOpacity
+                            onPress={() =>
+                              item.freeBarberId &&
+                              handleToggleFavorite(item.freeBarberId, item.id)
                             }
-                            size={14}
-                            color={
-                              item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
-                            }
-                          />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                            disabled={isTogglingFavorite}
+                            className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                           >
-                            {item.isFreeBarberFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                            <Icon
+                              source={
+                                item.isFreeBarberFavorite
+                                  ? "heart"
+                                  : "heart-outline"
+                              }
+                              size={14}
+                              color={
+                                item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
+                              }
+                            />
+                            <Text
+                              className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                            >
+                              {item.isFreeBarberFavorite
+                                ? t("appointment.actions.inFavorites")
+                                : t("appointment.actions.addToFavorites")}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     <RatingDisplay
                       myRating={item.myRatingForFreeBarber}
                       myComment={item.myCommentForFreeBarber}
@@ -744,7 +725,7 @@ export default function SharedAppointmentScreen() {
                           item.id,
                           item.freeBarberId,
                           item.freeBarberName ||
-                            t("labels.freeBarberDefaultName"),
+                          t("labels.freeBarberDefaultName"),
                           "freeBarber",
                           item.freeBarberImage,
                         )
@@ -848,32 +829,32 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                    <View className="mb-3">
-                      <TouchableOpacity
-                        onPress={() =>
-                          item.barberStoreId &&
-                          handleToggleFavorite(item.barberStoreId, item.id)
-                        }
-                        disabled={isTogglingFavorite}
-                        className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                      >
-                        <Icon
-                          source={
-                            item.isStoreFavorite ? "heart" : "heart-outline"
+                      <View className="mb-3">
+                        <TouchableOpacity
+                          onPress={() =>
+                            item.barberStoreId &&
+                            handleToggleFavorite(item.barberStoreId, item.id)
                           }
-                          size={14}
-                          color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
-                        />
-                        <Text
-                          className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          disabled={isTogglingFavorite}
+                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                         >
-                          {item.isStoreFavorite
-                            ? t("appointment.actions.inFavorites")
-                            : t("appointment.actions.addToFavorites")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                          <Icon
+                            source={
+                              item.isStoreFavorite ? "heart" : "heart-outline"
+                            }
+                            size={14}
+                            color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
+                          />
+                          <Text
+                            className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          >
+                            {item.isStoreFavorite
+                              ? t("appointment.actions.inFavorites")
+                              : t("appointment.actions.addToFavorites")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   <RatingDisplay
                     myRating={item.myRatingForStore}
                     myComment={item.myCommentForStore}
@@ -933,34 +914,34 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                    <View className="mb-3">
-                      <TouchableOpacity
-                        onPress={() =>
-                          item.customerUserId &&
-                          handleToggleFavorite(item.customerUserId, item.id)
-                        }
-                        disabled={isTogglingFavorite}
-                        className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                      >
-                        <Icon
-                          source={
-                            item.isCustomerFavorite ? "heart" : "heart-outline"
+                      <View className="mb-3">
+                        <TouchableOpacity
+                          onPress={() =>
+                            item.customerUserId &&
+                            handleToggleFavorite(item.customerUserId, item.id)
                           }
-                          size={14}
-                          color={
-                            item.isCustomerFavorite ? "#ef4444" : "#6b7280"
-                          }
-                        />
-                        <Text
-                          className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          disabled={isTogglingFavorite}
+                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                         >
-                          {item.isCustomerFavorite
-                            ? t("appointment.actions.inFavorites")
-                            : t("appointment.actions.addToFavorites")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                          <Icon
+                            source={
+                              item.isCustomerFavorite ? "heart" : "heart-outline"
+                            }
+                            size={14}
+                            color={
+                              item.isCustomerFavorite ? "#ef4444" : "#6b7280"
+                            }
+                          />
+                          <Text
+                            className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          >
+                            {item.isCustomerFavorite
+                              ? t("appointment.actions.inFavorites")
+                              : t("appointment.actions.addToFavorites")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   <RatingDisplay
                     myRating={item.myRatingForCustomer}
                     myComment={item.myCommentForCustomer}
@@ -1016,32 +997,32 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                    <View className="mb-3">
-                      <TouchableOpacity
-                        onPress={() =>
-                          item.barberStoreId &&
-                          handleToggleFavorite(item.barberStoreId, item.id)
-                        }
-                        disabled={isTogglingFavorite}
-                        className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                      >
-                        <Icon
-                          source={
-                            item.isStoreFavorite ? "heart" : "heart-outline"
+                      <View className="mb-3">
+                        <TouchableOpacity
+                          onPress={() =>
+                            item.barberStoreId &&
+                            handleToggleFavorite(item.barberStoreId, item.id)
                           }
-                          size={14}
-                          color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
-                        />
-                        <Text
-                          className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          disabled={isTogglingFavorite}
+                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                         >
-                          {item.isStoreFavorite
-                            ? t("appointment.actions.inFavorites")
-                            : t("appointment.actions.addToFavorites")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                          <Icon
+                            source={
+                              item.isStoreFavorite ? "heart" : "heart-outline"
+                            }
+                            size={14}
+                            color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
+                          />
+                          <Text
+                            className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                          >
+                            {item.isStoreFavorite
+                              ? t("appointment.actions.inFavorites")
+                              : t("appointment.actions.addToFavorites")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   <RatingDisplay
                     myRating={item.myRatingForStore}
                     myComment={item.myCommentForStore}
@@ -1093,36 +1074,36 @@ export default function SharedAppointmentScreen() {
                     </View>
                     {(activeFilter === AppointmentFilter.Cancelled ||
                       activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
-                        <TouchableOpacity
-                          onPress={() =>
-                            item.freeBarberId &&
-                            handleToggleFavorite(item.freeBarberId, item.id)
-                          }
-                          disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
-                        >
-                          <Icon
-                            source={
-                              item.isFreeBarberFavorite
-                                ? "heart"
-                                : "heart-outline"
+                        <View className="mb-3">
+                          <TouchableOpacity
+                            onPress={() =>
+                              item.freeBarberId &&
+                              handleToggleFavorite(item.freeBarberId, item.id)
                             }
-                            size={14}
-                            color={
-                              item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
-                            }
-                          />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                            disabled={isTogglingFavorite}
+                            className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
                           >
-                            {item.isFreeBarberFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                            <Icon
+                              source={
+                                item.isFreeBarberFavorite
+                                  ? "heart"
+                                  : "heart-outline"
+                              }
+                              size={14}
+                              color={
+                                item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
+                              }
+                            />
+                            <Text
+                              className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
+                            >
+                              {item.isFreeBarberFavorite
+                                ? t("appointment.actions.inFavorites")
+                                : t("appointment.actions.addToFavorites")}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     <RatingDisplay
                       myRating={item.myRatingForFreeBarber}
                       myComment={item.myCommentForFreeBarber}
@@ -1134,7 +1115,7 @@ export default function SharedAppointmentScreen() {
                           item.id,
                           item.freeBarberId,
                           item.freeBarberName ||
-                            t("labels.freeBarberDefaultName"),
+                          t("labels.freeBarberDefaultName"),
                           "freeBarber",
                           item.freeBarberImage,
                         )
@@ -1281,7 +1262,7 @@ export default function SharedAppointmentScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0D0D0D]" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-[#0d0d12]" style={{ paddingTop: insets.top }}>
       <View className="pt-0 pb-2">
         <View className="px-4 mb-2 flex-row gap-2">
           <FilterChip

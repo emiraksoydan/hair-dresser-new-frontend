@@ -131,6 +131,65 @@ export const useAlert = () => {
     dispatch(hideAlert());
   }, [dispatch]);
 
+  /**
+   * Simple success message (only message, auto title)
+   */
+  const showSuccess = useCallback(
+    (message: string) => {
+      dispatch(
+        showAlert({
+          title: 'Başarılı',
+          message,
+          buttons: [{ text: 'Tamam' }],
+          type: 'success',
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  /**
+   * Simple error message (only message, auto title)
+   */
+  const showError = useCallback(
+    (message: string) => {
+      dispatch(
+        showAlert({
+          title: 'Hata',
+          message,
+          buttons: [{ text: 'Tamam' }],
+          type: 'error',
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  /**
+   * Confirm dialog with title and message
+   */
+  const showConfirm = useCallback(
+    (
+      title: string,
+      message: string,
+      onConfirm: () => void,
+      onCancel?: () => void
+    ) => {
+      dispatch(
+        showAlert({
+          title,
+          message,
+          buttons: [
+            { text: 'Hayır', style: 'cancel', onPress: onCancel },
+            { text: 'Evet', onPress: onConfirm },
+          ],
+          type: 'warning',
+        })
+      );
+    },
+    [dispatch]
+  );
+
   return {
     alert,
     alertSuccess,
@@ -138,6 +197,10 @@ export const useAlert = () => {
     alertWarning,
     confirm,
     dismiss,
+    // Simple versions with auto titles
+    showSuccess,
+    showError,
+    showConfirm,
   };
 };
 

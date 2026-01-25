@@ -28,11 +28,11 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     const { t } = useLanguage();
     const { data: favorites, isLoading, refetch, isFetching, error, isError } = useGetMyFavoritesQuery();
     const { data: currentUser, isLoading: isUserLoading, isSuccess: isUserSuccess } = useGetMeQuery();
-    
+
     // Kullanıcı tipi kontrolü - currentUser yüklenene kadar bekle
     const userType = currentUser?.data?.userType;
     const isFreeBarberUser = userType === UserType.FreeBarber;
-    
+
     // FreeBarber kullanıcıları için kendi panelini çek (güncelleme sheet'i için gerekli)
     const { data: myFreeBarber } = useGetFreeBarberMinePanelQuery(undefined, {
         skip: !isUserSuccess || !isFreeBarberUser,
@@ -225,7 +225,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
 
     if (isLoading) {
         return (
-            <View className="flex-1 bg-[#151618] pt-4 px-4">
+            <View className="flex-1  pt-4 px-4">
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
             </View>
         );
@@ -234,7 +234,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     // Error veya Empty durumu - UnifiedStateWrapper ile
     if (isError || allFavorites.length === 0) {
         return (
-            <View className="flex-1 bg-[#151618]">
+            <View className="flex-1 ">
                 <ScrollView
                     contentContainerStyle={{ flexGrow: 1 }}
                     refreshControl={
@@ -266,7 +266,7 @@ const FavoritesList: React.FC<FavoritesListProps> = ({ mode = 'store' }) => {
     }
 
     return (
-        <View className="flex-1 bg-[#151618]">
+        <View className="flex-1 ">
             <LegendList
                 data={allFavorites}
                 keyExtractor={(item) => item.id}

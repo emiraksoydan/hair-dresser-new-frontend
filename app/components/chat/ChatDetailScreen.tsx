@@ -25,7 +25,6 @@ import {
   useMarkChatThreadReadMutation,
   useGetChatThreadsQuery,
   useNotifyTypingMutation,
-  api,
 } from "../../store/api";
 import {
   ChatMessageItemDto,
@@ -43,7 +42,6 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { useAppDispatch } from "../../store/hook";
 import { setActiveThreadId } from "../../lib/activeChatThread";
 import { OwnerAvatar } from "../common/owneravatar";
 import { useAlert } from "../../hook/useAlert";
@@ -65,7 +63,6 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
   const flatListRef = useRef<FlatList>(null);
   const { userId: currentUserId, userType: currentUserType } = useAuth();
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const dispatch = useAppDispatch();
   const { t } = useLanguage();
   const { alertError } = useAlert();
 
@@ -140,37 +137,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
     if (!threadId || markReadInFlightRef.current) return;
     markReadInFlightRef.current = true;
 
-    // Thread'den unread count'u önce al (closure dışında)
-    const currentThread = threads?.find((t) => t.threadId === threadId);
-    const previousUnreadCount = currentThread?.unreadCount ?? 0;
+    // NO optimistic update - backend SignalR events are source of truth
+    // Backend will send badge.updated event with correct counts
+    await markRead(threadId);
+    // Error handling is silent - backend events are source of truth
 
-    // Optimistic update: Thread unread count'unu 0 yap
-    dispatch(
-      api.util.updateQueryData("getChatThreads", undefined, (draft) => {
-        if (!draft) return;
-        const thread = draft.find((t) => t.threadId === threadId);
-        if (thread) {
-          thread.unreadCount = 0;
-        }
-      }),
-    );
-
-    const markReadResult = await markRead(threadId);
-    if ("error" in markReadResult) {
-      // Hata durumunda optimistic update'i geri al
-      dispatch(
-        api.util.updateQueryData("getChatThreads", undefined, (draft) => {
-          if (!draft) return;
-          const thread = draft.find((t) => t.threadId === threadId);
-          if (thread) {
-            thread.unreadCount = previousUnreadCount;
-          }
-        }),
-      );
-    }
-    // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
     markReadInFlightRef.current = false;
-  }, [threadId, markRead, dispatch, threads]);
+  }, [threadId, markRead]);
 
   // Mark thread as read when opened
   useEffect(() => {
@@ -451,7 +424,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#151618] items-center justify-center">
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#22c55e" />
       </View>
     );
@@ -459,7 +432,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
   if (!currentThread) {
     return (
-      <View className="flex-1 bg-[#151618] items-center justify-center">
+      <View className="flex-1 items-center justify-center">
         <Text className="text-gray-400">Sohbet bulunamadı</Text>
         <TouchableOpacity onPress={() => router.back()} className="mt-4">
           <Text className="text-green-500">Geri Dön</Text>
@@ -470,7 +443,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-[#151618]"
+      className="flex-1"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
@@ -679,11 +652,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                 style={{ flexShrink: 1, minWidth: 0 }}
               >
                 <View
-                  className={`rounded-2xl px-4 py-2.5 ${
-                    isMe
-                      ? "bg-green-600 rounded-tr-sm"
-                      : "bg-gray-700 rounded-tl-sm"
-                  }`}
+                  className={`rounded-2xl px-4 py-2.5 ${isMe
+                    ? "bg-green-600 rounded-tr-sm"
+                    : "bg-gray-700 rounded-tl-sm"
+                    }`}
                   style={{ flexShrink: 1 }}
                 >
                   {!isMe && (
@@ -698,7 +670,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                             {senderParticipant.userType === UserType.BarberStore
                               ? "Dükkan"
                               : senderParticipant.userType ===
-                                  UserType.FreeBarber
+                                UserType.FreeBarber
                                 ? "Serbest Berber"
                                 : t("card.customer")}
                           </Text>
@@ -816,11 +788,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
           <TouchableOpacity
             onPress={handleSend}
             disabled={!messageText.trim() || isSending || !canSendMessage}
-            className={`w-10 h-10 rounded-full items-center justify-center ${
-              messageText.trim() && canSendMessage
-                ? "bg-green-600"
-                : "bg-gray-700"
-            }`}
+            className={`w-10 h-10 rounded-full items-center justify-center ${messageText.trim() && canSendMessage
+              ? "bg-green-600"
+              : "bg-gray-700"
+              }`}
           >
             {isSending ? (
               <ActivityIndicator size="small" color="white" />

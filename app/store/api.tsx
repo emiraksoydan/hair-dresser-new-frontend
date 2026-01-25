@@ -13,7 +13,10 @@ import {
     ToggleFavoriteDto, ToggleFavoriteResponseDto, FavoriteGetDto,
     ImageGetDto, ImageOwnerType,
     AddStoreToAppointmentRequestDto, CreateStoreToFreeBarberRequestDto,
-    UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto, HelpGuideGetDto
+    UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto, HelpGuideGetDto,
+    ComplaintGetDto, CreateComplaintDto,
+    RequestGetDto, CreateRequestDto,
+    BlockedGetDto, CreateBlockedDto, UnblockDto, BlockStatusDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 import { transformArrayResponse, transformObjectResponse, transformBooleanResponse, transformApiResponse } from '../utils/api/transform-response';
@@ -31,7 +34,7 @@ const CACHE_DURATIONS = {
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting", "HelpGuide"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting", "HelpGuide", "Complaint", "Request", "Blocked", "Rating"],
     // Only refetch on reconnect for critical data (Notification)
     // refetchOnFocus is disabled to prevent unnecessary requests
     refetchOnReconnect: false,
@@ -303,31 +306,11 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
-            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
-                // Optimistic update: immediately update notification cache
-                const patchResult = dispatch(
-                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
-                        const notification = draft.find(n => n.appointmentId === appointmentId && n.type === 0); // AppointmentCreated
-                        if (notification && notification.payloadJson) {
-                            try {
-                                const payload = JSON.parse(notification.payloadJson);
-                                payload.storeDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
-                                notification.payloadJson = JSON.stringify(payload);
-                            } catch { /* ignore parse errors */ }
-                        }
-                    })
-                );
-                try {
-                    await queryFulfilled;
-                } catch {
-                    // Rollback on error
-                    patchResult.undo();
-                }
-            },
+            // NO optimistic update - backend SignalR events are source of truth
+            // Backend sends: notification.updated, badge.updated, appointment.updated
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
         freeBarberDecision: builder.mutation<ApiResponse<boolean>, { appointmentId: string; approve: boolean }>({
@@ -336,31 +319,11 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
-            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
-                // Optimistic update: immediately update notification cache
-                const patchResult = dispatch(
-                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
-                        const notification = draft.find(n => n.appointmentId === appointmentId && n.type === 0); // AppointmentCreated
-                        if (notification && notification.payloadJson) {
-                            try {
-                                const payload = JSON.parse(notification.payloadJson);
-                                payload.freeBarberDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
-                                notification.payloadJson = JSON.stringify(payload);
-                            } catch { /* ignore parse errors */ }
-                        }
-                    })
-                );
-                try {
-                    await queryFulfilled;
-                } catch {
-                    // Rollback on error
-                    patchResult.undo();
-                }
-            },
+            // NO optimistic update - backend SignalR events are source of truth
+            // Backend sends: notification.updated, badge.updated, appointment.updated
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                // Notification invalidation removed - badge.updated SignalR event handles this
                 { type: 'Appointment', id: 'availability' }
             ],
         }),
@@ -370,34 +333,11 @@ export const api = createApi({
                 method: 'POST',
                 params: { approve },
             }),
-            async onQueryStarted({ appointmentId, approve }, { dispatch, queryFulfilled }) {
-                // Optimistic update: immediately update notification cache
-                const patchResult = dispatch(
-                    api.util.updateQueryData('getAllNotifications', undefined, (draft) => {
-                        // Update both AppointmentCreated and StoreApprovedSelection notifications
-                        const notifications = draft.filter(n => n.appointmentId === appointmentId && (n.type === 0 || n.type === 9));
-                        notifications.forEach(notification => {
-                            if (notification.payloadJson) {
-                                try {
-                                    const payload = JSON.parse(notification.payloadJson);
-                                    payload.customerDecision = approve ? 1 : 2; // 1=Approved, 2=Rejected
-                                    notification.payloadJson = JSON.stringify(payload);
-                                } catch { /* ignore parse errors */ }
-                            }
-                        });
-                    })
-                );
-                try {
-                    await queryFulfilled;
-                } catch {
-                    // Rollback on error
-                    patchResult.undo();
-                }
-            },
+            // NO optimistic update - backend SignalR events are source of truth
+            // Backend sends: notification.updated, badge.updated, appointment.updated
             invalidatesTags: (result, error, arg) => [
                 { type: 'Appointment', id: arg.appointmentId },
                 { type: 'Appointment', id: 'LIST' },
-                // Notification invalidation removed - badge.updated SignalR event handles this
             ],
         }),
         cancelAppointment: builder.mutation<ApiResponse<boolean>, string>({
@@ -464,7 +404,10 @@ export const api = createApi({
         }),
         markNotificationRead: builder.mutation<void, string>({
             query: (id) => ({ url: `Notification/read/${id}`, method: 'POST' }),
-            invalidatesTags: (result, error, id) => [{ type: 'Notification' as const, id }],
+            invalidatesTags: (result, error, id) => [
+                { type: 'Notification' as const, id },
+                { type: 'Notification' as const, id: 'LIST' }, // Badge refetch
+            ],
         }),
         deleteNotification: builder.mutation<ApiResponse<boolean>, string>({
             query: (id) => ({ url: `Notification/${id}`, method: 'DELETE' }),
@@ -485,7 +428,13 @@ export const api = createApi({
         getChatThreads: builder.query<ChatThreadListItemDto[], void>({
             query: () => 'Chat/threads',
             transformResponse: transformArrayResponse<ChatThreadListItemDto>,
-            providesTags: ['Chat'],
+            providesTags: (result) =>
+                result && Array.isArray(result)
+                    ? [
+                        ...result.map(({ threadId }) => ({ type: 'Chat' as const, id: threadId })),
+                        { type: 'Chat' as const, id: 'LIST' },
+                    ]
+                    : [{ type: 'Chat' as const, id: 'LIST' }],
             keepUnusedDataFor: CACHE_DURATIONS.LIST,
         }),
         getChatMessages: builder.query<ChatMessageItemDto[], { appointmentId: string; before?: string }>({
@@ -512,7 +461,8 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
-            invalidatesTags: ['Chat'],
+            // SignalR handles real-time updates, no need for full invalidation
+            invalidatesTags: [],
         }),
         sendChatMessageByThread: builder.mutation<ApiResponse<ChatMessageDto>, { threadId: string; text: string }>({
             query: ({ threadId, text }) => ({
@@ -520,28 +470,40 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
-            invalidatesTags: ['Chat'],
+            // SignalR handles real-time updates, no need for full invalidation
+            invalidatesTags: [],
         }),
         markChatThreadRead: builder.mutation<ApiResponse<boolean>, string>({
             query: (threadId) => ({
                 url: `Chat/thread/${threadId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: [],
+            // Invalidate both Chat thread and Badge count
+            invalidatesTags: (result, error, threadId) => [
+                { type: 'Chat' as const, id: threadId },
+                { type: 'Chat' as const, id: 'LIST' },
+                { type: 'Notification' as const, id: 'LIST' }, // Badge count refetch
+            ],
         }),
         markChatThreadReadByAppointment: builder.mutation<ApiResponse<boolean>, string>({
             query: (appointmentId) => ({
                 url: `Chat/${appointmentId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Chat'],
+            // Specific invalidation - thread will be updated via SignalR
+            invalidatesTags: (result, error, appointmentId) => [
+                { type: 'Chat' as const, id: appointmentId },
+            ],
         }),
         markChatThreadReadByThread: builder.mutation<ApiResponse<boolean>, string>({
             query: (threadId) => ({
                 url: `Chat/thread/${threadId}/read`,
                 method: 'POST',
             }),
-            invalidatesTags: ['Chat'],
+            // Specific invalidation - thread will be updated via SignalR
+            invalidatesTags: (result, error, threadId) => [
+                { type: 'Chat' as const, id: threadId },
+            ],
         }),
         notifyTyping: builder.mutation<ApiResponse<boolean>, { threadId: string; isTyping: boolean }>({
             query: ({ threadId, isTyping }) => ({
@@ -557,11 +519,13 @@ export const api = createApi({
             invalidatesTags: (result, error, arg) => [
                 { type: 'StoreForUsers', id: arg.targetId },
                 { type: 'FreeBarberForUsers', id: arg.targetId },
+                { type: 'Rating', id: arg.targetId },
+                { type: 'Rating', id: 'LIST' },
             ],
         }),
         deleteRating: builder.mutation<ApiResponse<boolean>, string>({
             query: (ratingId) => ({ url: `Rating/${ratingId}`, method: 'DELETE' }),
-            invalidatesTags: [],
+            invalidatesTags: [{ type: 'Rating', id: 'LIST' }],
         }),
         getRatingById: builder.query<RatingGetDto, string>({
             query: (ratingId) => `Rating/${ratingId}`,
@@ -572,6 +536,10 @@ export const api = createApi({
             query: (targetId) => `Rating/target/${targetId}`,
             keepUnusedDataFor: CACHE_DURATIONS.DYNAMIC,
             transformResponse: transformArrayResponse<RatingGetDto>,
+            providesTags: (result, error, targetId) => [
+                { type: 'Rating' as const, id: targetId },
+                { type: 'Rating' as const, id: 'LIST' },
+            ],
         }),
         getMyRatingForAppointment: builder.query<RatingGetDto, { appointmentId: string; targetId: string }>({
             query: ({ appointmentId, targetId }) => `Rating/appointment/${appointmentId}/target/${targetId}`,
@@ -1027,7 +995,10 @@ export const api = createApi({
         // --- BADGE API ---
         getBadgeCounts: builder.query<ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>, void>({
             query: () => 'Badge',
-            providesTags: ['Notification', 'Chat'],
+            providesTags: [
+                { type: 'Notification' as const, id: 'LIST' },
+                { type: 'Chat' as const, id: 'LIST' },
+            ],
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
             transformResponse: (response: unknown): ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }> => {
                 const transformed = transformApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>(response);
@@ -1040,6 +1011,58 @@ export const api = createApi({
                 }
                 return response as ApiResponse<{ notificationUnreadCount: number; chatUnreadCount: number; threadUnreadCounts: Record<string, number> }>;
             },
+        }),
+
+        // --- COMPLAINT API ---
+        createComplaint: builder.mutation<ApiResponse<ComplaintGetDto>, CreateComplaintDto>({
+            query: (body) => ({ url: 'Complaint/create', method: 'POST', body }),
+            invalidatesTags: ['Complaint'],
+        }),
+        getMyComplaints: builder.query<ComplaintGetDto[], void>({
+            query: () => 'Complaint/my-complaints',
+            providesTags: ['Complaint'],
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+            transformResponse: transformArrayResponse<ComplaintGetDto>,
+        }),
+        deleteComplaint: builder.mutation<ApiResponse<boolean>, string>({
+            query: (complaintId) => ({ url: `Complaint/${complaintId}`, method: 'DELETE' }),
+            invalidatesTags: ['Complaint'],
+        }),
+
+        // --- REQUEST API ---
+        createRequest: builder.mutation<ApiResponse<RequestGetDto>, CreateRequestDto>({
+            query: (body) => ({ url: 'Request/create', method: 'POST', body }),
+            invalidatesTags: ['Request'],
+        }),
+        getMyRequests: builder.query<RequestGetDto[], void>({
+            query: () => 'Request/my-requests',
+            providesTags: ['Request'],
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+            transformResponse: transformArrayResponse<RequestGetDto>,
+        }),
+        deleteRequest: builder.mutation<ApiResponse<boolean>, string>({
+            query: (requestId) => ({ url: `Request/${requestId}`, method: 'DELETE' }),
+            invalidatesTags: ['Request'],
+        }),
+
+        // --- BLOCKED API ---
+        blockUser: builder.mutation<ApiResponse<BlockedGetDto>, CreateBlockedDto>({
+            query: (body) => ({ url: 'Blocked/block', method: 'POST', body }),
+            invalidatesTags: ['Blocked', { type: 'StoreForUsers', id: 'LIST' }, { type: 'FreeBarberForUsers', id: 'LIST' }],
+        }),
+        unblockUser: builder.mutation<ApiResponse<boolean>, UnblockDto>({
+            query: (body) => ({ url: 'Blocked/unblock', method: 'POST', body }),
+            invalidatesTags: ['Blocked', { type: 'StoreForUsers', id: 'LIST' }, { type: 'FreeBarberForUsers', id: 'LIST' }],
+        }),
+        getMyBlockedUsers: builder.query<BlockedGetDto[], void>({
+            query: () => 'Blocked/my-blocked',
+            providesTags: ['Blocked'],
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+            transformResponse: transformArrayResponse<BlockedGetDto>,
+        }),
+        getBlockStatus: builder.query<ApiResponse<BlockStatusDto>, string>({
+            query: (otherUserId) => `Blocked/status/${otherUserId}`,
+            keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
         }),
 
     }),
@@ -1132,4 +1155,17 @@ export const {
     useRegisterFcmTokenMutation,
     useUnregisterFcmTokenMutation,
     useGetBadgeCountsQuery,
+    // Complaint
+    useCreateComplaintMutation,
+    useGetMyComplaintsQuery,
+    useDeleteComplaintMutation,
+    // Request
+    useCreateRequestMutation,
+    useGetMyRequestsQuery,
+    useDeleteRequestMutation,
+    // Blocked
+    useBlockUserMutation,
+    useUnblockUserMutation,
+    useGetMyBlockedUsersQuery,
+    useGetBlockStatusQuery,
 } = api;

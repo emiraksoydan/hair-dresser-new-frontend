@@ -49,7 +49,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title, i
 
                     {/* Search Bar */}
                     <View className="px-4 pt-4 pb-2">
-                        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+                        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} showButtons={false} />
                     </View>
 
                     {/* Content */}

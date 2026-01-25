@@ -16,6 +16,9 @@ export * from "./chat";
 export * from "./location";
 export * from "./rating";
 export * from "./favorite";
+export * from "./complaint";
+export * from "./request";
+export * from "./blocked";
 
 // UI and Form types
 export * from "./ui";

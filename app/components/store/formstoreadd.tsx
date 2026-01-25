@@ -153,9 +153,7 @@ const createLocationSchema = (t: (key: string) => string) =>
     .object({
       latitude: z.number(),
       longitude: z.number(),
-      addressDescription: z
-        .string({ required_error: t("form.addressRequired") })
-        .min(1, t("form.addressMinLength")),
+      addressDescription: z.string().optional().default(""),
     })
     .superRefine((v, ctx) => {
       if (v.latitude == null || v.longitude == null) {
@@ -573,7 +571,7 @@ const FormStoreAdd = ({
       storeName: data.storeName,
       type: mapBarberType(data.type),
       pricingType: mapPricingType(data.pricingType.mode),
-      addressDescription: data.location.addressDescription,
+      addressDescription: data.location.addressDescription ?? "",
       latitude: data.location.latitude,
       longitude: data.location.longitude,
       pricingValue:

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from './Text';
 import { Icon } from 'react-native-paper';
 import { MotiView } from 'moti';
@@ -19,13 +19,11 @@ interface HeaderDropdownMenuProps {
 export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
     items,
     iconColor = 'white',
-    iconSize = 20,
+    iconSize = 22, // Boyut biraz küçültüldü
 }) => {
     const [isOpen, setIsOpen] = useState(false);
 
-    const toggleMenu = () => {
-        setIsOpen((prev) => !prev);
-    };
+    const toggleMenu = () => setIsOpen((prev) => !prev);
 
     const handleItemPress = (onPress: () => void) => {
         onPress();
@@ -33,69 +31,53 @@ export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
     };
 
     return (
-        <View className="relative">
+        <View className='relative ml-2'>
+            {/* Tetikleyici Dairesel Buton */}
             <TouchableOpacity
                 onPress={toggleMenu}
-                className="items-center justify-center"
-
+                activeOpacity={0.7}
+                className="w-12 h-12 items-center justify-center rounded-full bg-[#1a1b25]"
             >
                 <Icon source="menu" size={iconSize} color={iconColor} />
             </TouchableOpacity>
 
+            {/* Dropdown Menü İçeriği */}
             <MotiView
+
                 from={{ opacity: 0, scale: 0.8, translateY: -10 }}
                 animate={{
                     opacity: isOpen ? 1 : 0,
                     scale: isOpen ? 1 : 0.8,
-                    translateY: isOpen ? 0 : -10,
+                    translateY: isOpen ? -5 : -10,
                 }}
                 transition={{
                     type: 'timing',
-                    duration: 200,
+                    duration: 150,
                 }}
-                style={{
-                    position: 'absolute',
-                    top: 25,
-                    right: 0,
-                    backgroundColor: '#1F2937',
-                    borderRadius: 12,
-                    paddingVertical: 8,
-                    paddingHorizontal: 4,
-                    minWidth: 180,
-                    zIndex: 1000,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 8,
-                }}
+                style={styles.dropdown}
                 pointerEvents={isOpen ? 'auto' : 'none'}
             >
                 {items.map((item, index) => (
                     <TouchableOpacity
                         key={index}
                         onPress={() => handleItemPress(item.onPress)}
-                        className="flex-row items-center px-4 py-3 rounded-lg active:bg-[#2D3748]"
+                        className="flex-row items-center px-4 py-2.5 rounded-lg active:bg-[#2D3748]"
                     >
-                        <View style={{ marginRight: 12 }}>
-                            <Icon source={item.icon} size={20} color="white" />
+                        <View style={{ marginRight: 10 }}>
+                            <Icon source={item.icon} size={18} color="white" />
                         </View>
-                        <Text className="text-white text-base font-medium">{item.label}</Text>
+                        {/* Yazı boyutu text-sm (14px) yapılarak küçültüldü */}
+                        <Text className="text-white text-sm font-medium">
+                            {item.label}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </MotiView>
 
-            {/* Backdrop */}
+            {/* Arka Plan Kapatma Katmanı (Backdrop) */}
             {isOpen && (
                 <TouchableOpacity
-                    style={{
-                        position: 'absolute',
-                        top: -1000,
-                        left: -1000,
-                        right: -1000,
-                        bottom: -1000,
-                        zIndex: 999,
-                    }}
+                    style={styles.backdrop}
                     activeOpacity={1}
                     onPress={() => setIsOpen(false)}
                 />
@@ -104,3 +86,32 @@ export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
     );
 };
 
+const styles = StyleSheet.create({
+
+    dropdown: {
+        position: 'absolute',
+        top: 48, // Butonun hemen altı
+        right: 0,
+        backgroundColor: '#1a1b25',
+        borderRadius: 14,
+        paddingVertical: 6,
+        paddingHorizontal: 4,
+        minWidth: 170,
+        zIndex: 1000,
+        // Shadow (iOS)
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        // Elevation (Android)
+        elevation: 12,
+    },
+    backdrop: {
+        position: 'absolute',
+        top: -500,
+        left: -500,
+        right: -500,
+        bottom: -500,
+        zIndex: 999,
+    },
+});

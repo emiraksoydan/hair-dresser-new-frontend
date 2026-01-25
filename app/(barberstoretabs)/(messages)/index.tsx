@@ -8,7 +8,7 @@ import { MessageThreadList } from '../../components/messages/MessageThreadList';
 const BarberStoreMessagesPage = () => {
     return (
         <MessageThreadList
-            routePrefix="/(barberstoretabs)/(messages)/(details)"
+            routePrefix="/(barberstoretabs)/(messages)"
             iconSource="account"
         />
     );

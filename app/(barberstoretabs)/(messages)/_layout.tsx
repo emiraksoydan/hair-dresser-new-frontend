@@ -6,11 +6,11 @@ const MessagesLayout = () => {
     return (
         <Stack screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#151618' },
+            contentStyle: { backgroundColor: '#0d0d12' },
         }}>
             <Stack.Screen name="index" />
-            <Stack.Screen 
-                name="details" 
+            <Stack.Screen
+                name="details"
                 options={{
                     presentation: 'modal',
                     headerShown: false,

@@ -10,10 +10,10 @@ import {
   useCustomerDecisionMutation,
   api,
 } from "../../store/api";
-import { useLanguage } from "../../hook/useLanguage";
 import { useAppDispatch } from "../../store/hook";
+import { useLanguage } from "../../hook/useLanguage";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef } from "react";
 import {
   AppointmentStatus,
   DecisionStatus,
@@ -24,7 +24,6 @@ import {
 import { TouchableOpacity, View, ActivityIndicator } from "react-native";
 import { Text } from "../common/Text";
 import { Icon } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NotificationItemOptimized } from "./NotificationItemOptimized";
 import { useRouter } from "expo-router";
 import { useAlert } from "../../hook/useAlert";
@@ -50,8 +49,8 @@ export function NotificationsSheet({
   onDeleteInfo?: (message: string) => void;
   onDeleteError?: (message: string) => void;
 }) {
-  const dispatch = useAppDispatch();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { data, isFetching, refetch } = useGetAllNotificationsQuery();
   const [markRead] = useMarkNotificationReadMutation();
   const [deleteNotification, { isLoading: isDeletingNotification }] =
@@ -67,6 +66,9 @@ export function NotificationsSheet({
     useFreeBarberDecisionMutation();
   const [customerDecision, { isLoading: isCustomerDeciding }] =
     useCustomerDecisionMutation();
+
+  // Double-tap prevention: Track which notifications are being processed
+  const processingNotificationsRef = useRef<Set<string>>(new Set());
 
   // FreeBarber için "Dükkan Ekle" butonu handler
   const handleAddStore = useCallback(
@@ -94,41 +96,35 @@ export function NotificationsSheet({
 
   const handleMarkRead = useCallback(
     async (n: NotificationDto) => {
-      if (!n.isRead) {
-        // Optimistic update: Notification'ı okundu olarak işaretle
-        dispatch(
-          api.util.updateQueryData(
-            "getAllNotifications",
-            undefined,
-            (draft) => {
-              const found = draft?.find((x) => x.id === n.id);
-              if (found) found.isRead = true;
-            },
-          ),
-        );
+      // Double-tap prevention: Skip if already processing
+      if (processingNotificationsRef.current.has(n.id) || n.isRead) {
+        return;
+      }
 
-        const markReadResult = await markRead(n.id);
-        if ("error" in markReadResult) {
-          // Hata durumunda optimistic update'i geri al
-          dispatch(
-            api.util.updateQueryData(
-              "getAllNotifications",
-              undefined,
-              (draft) => {
-                const found = draft?.find((x) => x.id === n.id);
-                if (found) found.isRead = false;
-              },
-            ),
-          );
-          // RTK Query invalidateTags ile de güncellenecek
-        }
-        // Backend'den badge.updated event'i gelecek ve doğru badge count'u güncelleyecek
+      // Mark as processing to prevent double-tap
+      processingNotificationsRef.current.add(n.id);
+
+      try {
+        // NO optimistic update - backend notification.updated event is source of truth
+        // Backend will send notification.updated event with correct isRead status
+        await markRead(n.id);
+        // Badge refetch via invalidatesTags (Notification LIST) in markNotificationRead
+        // notification.updated SignalR event will update the notification state
+      } catch {
+        // Error handling is silent - backend events are source of truth
+        // If backend call fails, notification.updated event won't come, so state stays unchanged
+      } finally {
+        // Remove from processing set after a short delay to allow backend event to arrive
+        setTimeout(() => {
+          processingNotificationsRef.current.delete(n.id);
+        }, 1000);
       }
     },
-    [dispatch, markRead],
+    [markRead],
   );
 
-  // --- Anlık UI Güncellemesi İçin Geliştirilmiş HandleDecision ---
+  // --- Backend-Authoritative Decision Handler ---
+  // NO optimistic updates - UI changes only when SignalR events arrive from backend
   const handleDecision = useCallback(
     async (notification: NotificationDto, approve: boolean) => {
       if (!notification.appointmentId) return;
@@ -148,14 +144,8 @@ export function NotificationsSheet({
 
       const isStoreSelection =
         parsedPayload?.storeSelectionType === StoreSelectionType.StoreSelection;
-      const decisionValue = approve
-        ? DecisionStatus.Approved
-        : DecisionStatus.Rejected;
-      const shouldUpdateStatus =
-        !isStoreSelection ||
-        (userType === UserType.Customer && approve) ||
-        (userType === UserType.FreeBarber && !approve);
 
+      // FreeBarber rejection check after customer approval
       if (
         userType === UserType.FreeBarber &&
         isStoreSelection &&
@@ -169,53 +159,8 @@ export function NotificationsSheet({
         return;
       }
 
-      // Optimistic update: Notification'ın status/decision alanlarını hemen güncelle
-      const patchResult = dispatch(
-        api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
-          if (!draft) return;
-          const foundIndex = draft.findIndex((n) => n.id === notification.id);
-          if (foundIndex < 0) return;
-
-          const found = draft[foundIndex];
-          if (
-            found &&
-            found.payloadJson &&
-            found.payloadJson.trim() !== "" &&
-            found.payloadJson !== "{}"
-          ) {
-            try {
-              const payload = JSON.parse(found.payloadJson);
-              if (payload && typeof payload === "object") {
-                if (userType === UserType.BarberStore) {
-                  payload.storeDecision = decisionValue;
-                } else if (userType === UserType.FreeBarber) {
-                  payload.freeBarberDecision = decisionValue;
-                } else if (userType === UserType.Customer) {
-                  payload.customerDecision = decisionValue;
-                }
-
-                if (shouldUpdateStatus) {
-                  payload.status = approve
-                    ? AppointmentStatus.Approved
-                    : AppointmentStatus.Rejected;
-                }
-
-                // ÖNEMLİ: Yeni bir obje oluştur ki React component'leri yeniden render olsun
-                // Hem notification objesi hem de payload güncellenmeli
-                draft[foundIndex] = {
-                  ...found,
-                  payloadJson: JSON.stringify(payload),
-
-                  isRead: true,
-                };
-              }
-            } catch {
-              // Parse hatası durumunda devam et
-            }
-          }
-        }),
-      );
-
+      // Call the appropriate API based on user type
+      // NO optimistic updates - wait for SignalR events
       let result;
       if (userType === UserType.BarberStore) {
         const storeResult = await storeDecision({
@@ -223,7 +168,6 @@ export function NotificationsSheet({
           approve,
         });
         if ("error" in storeResult) {
-          patchResult.undo();
           const errorMessage =
             (storeResult.error as any)?.data?.message ||
             t("common.operationFailed");
@@ -237,7 +181,6 @@ export function NotificationsSheet({
           approve,
         });
         if ("error" in freeBarberResult) {
-          patchResult.undo();
           const errorMessage =
             (freeBarberResult.error as any)?.data?.message ||
             t("common.operationFailed");
@@ -251,7 +194,6 @@ export function NotificationsSheet({
           approve,
         });
         if ("error" in customerResult) {
-          patchResult.undo();
           const errorMessage =
             (customerResult.error as any)?.data?.message ||
             t("common.operationFailed");
@@ -260,13 +202,27 @@ export function NotificationsSheet({
         }
         result = customerResult.data;
       } else {
-        // userType yoksa optimistic update'i geri al
-        patchResult.undo();
         return;
       }
 
       if (result?.success) {
-        // Başlık ve mesaj belirle
+        // Auto-mark notification as read after successful decision
+        // NO optimistic update - backend notification.updated event is source of truth
+        if (!notification.isRead && !processingNotificationsRef.current.has(notification.id)) {
+          processingNotificationsRef.current.add(notification.id);
+          try {
+            await markRead(notification.id);
+            // notification.updated SignalR event will update the notification state
+          } catch {
+            /* badge.updated / invalidatesTags handle count */
+          } finally {
+            setTimeout(() => {
+              processingNotificationsRef.current.delete(notification.id);
+            }, 1000);
+          }
+        }
+
+        // Show success message
         const { title: successTitle, message: successMessage } = (() => {
           if (isStoreSelection && userType === UserType.BarberStore) {
             return {
@@ -286,40 +242,14 @@ export function NotificationsSheet({
           };
         })();
 
-        // Bildirimi okundu olarak işaretle (otomatik) - Yeni obje referansı oluştur
-        dispatch(
-          api.util.updateQueryData(
-            "getAllNotifications",
-            undefined,
-            (draft) => {
-              const foundIndex = draft?.findIndex(
-                (x) => x.id === notification.id,
-              );
-              if (foundIndex >= 0) {
-                const found = draft[foundIndex];
-                // Yeni obje referansı oluştur ki React component'i yeniden render olsun
-                draft[foundIndex] = {
-                  ...found,
-                  isRead: true,
-                };
-              }
-            },
-          ),
-        );
-
-        // Backend'e okundu olarak işaretle (async, hata önemsiz)
-        if (!notification.isRead) {
-          // Fire and forget - hata önemsiz
-          markRead(notification.id);
-        }
-
-        // Badge count backend'den badge.updated event'i ile otomatik güncelleniyor
-        // Notification listesi zaten updateQueryData ile güncellendi
-
         alertSuccess(successTitle, successMessage);
+
+        // UI UPDATES:
+        // - notification.updated event will update the notification payload (hide buttons, show status)
+        // - badge.updated event will update the badge count
+        // - appointment.updated event will update the appointment list
+        // All handled by SignalR in useSignalRV2
       } else {
-        // Hata durumunda optimistic update'i geri al
-        patchResult.undo();
         alertError(
           t("common.error"),
           result?.message || t("common.operationFailed"),
@@ -331,8 +261,8 @@ export function NotificationsSheet({
       storeDecision,
       freeBarberDecision,
       customerDecision,
-      dispatch,
       markRead,
+      dispatch,
       t,
       alert,
       alertSuccess,
@@ -506,6 +436,9 @@ export function NotificationsSheet({
       <BottomSheetFlatList
         data={data ?? []}
         keyExtractor={(x: NotificationDto) => `${x.id}-${x.type}-${x.createdAt}`}
+        // CRITICAL: extraData must change when any notification's _updatedAt changes
+        // This forces FlatList to re-render items when SignalR updates arrive
+        extraData={data?.map(n => `${n.id}-${n._updatedAt || 0}`).join(',')}
         refreshing={isFetching}
         onRefresh={refetch}
         style={{ flex: 1 }}

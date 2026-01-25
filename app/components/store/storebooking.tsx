@@ -209,7 +209,15 @@ const StoreBookingContent = ({
 
   const canSubmit = useMemo(() => {
     const baseReady = !!selectedChairId && selectedSlotKeys.length > 0;
-    const requireServices = isAddStoreMode ? true : !isHourlyFree;
+    
+    // Servis seçimi zorunlu olduğu durumlar:
+    // 1. isAddStoreMode=true (FreeBarber dükkan ekliyor)
+    // 2. isFreeBarber=true VE pricingType=percent (yüzdelik sistem, servis fiyatına göre hesaplanır)
+    // 3. isCustomer=true (müşteri dükkandan randevu alıyor - her zaman servis seçmeli)
+    //
+    // Servis seçimi zorunlu OLMAYAN durumlar:
+    // 1. isFreeBarber=true VE pricingType=rent (saatlik kiralama - isHourlyFree=true)
+    const requireServices = isAddStoreMode || isCustomer || (isFreeBarber && !isHourlyFree);
 
     return baseReady && (requireServices ? selectedServices.length > 0 : true);
   }, [
@@ -218,6 +226,8 @@ const StoreBookingContent = ({
     selectedServices.length,
     isHourlyFree,
     isAddStoreMode,
+    isCustomer,
+    isFreeBarber,
   ]);
 
   return (

@@ -139,6 +139,9 @@ export type AppointmentGetDto = {
   
   // Note
   note?: string; // Randevu notu (Customer -> FreeBarber randevusunda)
+
+  // Frontend-only field: SignalR event'lerinde React.memo re-render'ı tetiklemek için
+  _updatedAt?: number;
 }
 
 export type SlotDto = {

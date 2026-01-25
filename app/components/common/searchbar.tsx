@@ -1,37 +1,71 @@
-import { StyleSheet, View } from 'react-native'
-import { Text } from './Text'
-import React, { useState } from 'react'
-import { Searchbar } from 'react-native-paper'
+import React, { useState } from 'react';
+import { View, TextInput } from 'react-native';
+import { IconButton, Icon } from 'react-native-paper';
 import { SearchBarProps } from '../../types';
 import { useLanguage } from '../../hook/useLanguage';
 
-const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery }) => {
+// Tip tanımına buton fonksiyonlarını da eklediğini varsayıyorum
+interface ExtendedSearchBarProps extends SearchBarProps {
+    isList?: boolean;
+    setIsList?: (val: boolean) => void;
+    onFilterPress?: () => void;
+    showButtons?: boolean;
+}
+
+const SearchBar: React.FC<ExtendedSearchBarProps> = ({
+    searchQuery,
+    setSearchQuery,
+    isList = true,
+    setIsList,
+    onFilterPress,
+    showButtons = true,
+}) => {
     const { t } = useLanguage();
     const [isFocused, setIsFocused] = useState(false);
+
+    // Butonları gösterip göstermeyeceğimizi belirle
+    const shouldShowButtons = showButtons && setIsList && onFilterPress;
+
     return (
-        <Searchbar
-            placeholder={t('common.searchPlaceholder')}
-            placeholderTextColor="#9a9b9d"
-            onChangeText={setSearchQuery}
-            value={searchQuery}
+        <View
+            className={`flex-row items-center px-3 rounded-xl bg-[#1a1b25] h-14`}
             style={{
-                borderRadius: 10,
-                backgroundColor: "#202123",
-                height: 38,
                 borderWidth: 1.5,
-                borderColor: isFocused ? "#f05e23" : "#2f3032",
+                borderColor: isFocused ? "#ffb900" : "#1a1b25",
             }}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            iconColor="#f05e23"
-            inputStyle={{
-                fontSize: 14,
-                paddingVertical: 0,
-                color: "white",
-                minHeight: 0,
-                fontFamily: 'CenturyGothic',
-            }}
-        />
+        >
+            <Icon source="magnify" size={22} color="#9aa1ae" />
+
+            <TextInput
+                placeholder={t('common.searchPlaceholder')}
+                placeholderTextColor="#474b5a"
+                onChangeText={setSearchQuery}
+                value={searchQuery}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className="flex-1 ml-2 text-white text-[15px]"
+                style={{ fontFamily: 'CenturyGothic' }}
+            />
+
+            {shouldShowButtons && (
+                <View className="flex-row items-center">
+                    <IconButton
+                        icon={isList ? "format-list-bulleted" : "view-grid-outline"}
+                        iconColor={'#9aa1ae'}
+                        size={22}
+                        onPress={() => setIsList(!isList)}
+                        style={{ margin: 0 }}
+                    />
+                    <IconButton
+                        icon="filter-variant"
+                        iconColor="#9aa1ae"
+                        size={22}
+                        onPress={onFilterPress}
+                        style={{ margin: 0 }}
+                    />
+                </View>
+            )}
+        </View>
     );
 };
 

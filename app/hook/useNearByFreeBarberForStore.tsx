@@ -68,10 +68,16 @@ export function useNearbyStoresControl({
     // Track previous filter fingerprint
     const prevFilterFingerprint = useRef(filterFingerprint);
 
-    const fetchNearby = useCallback(async (showLoading: boolean = false) => {
+    const fetchNearby = useCallback(async (showLoading: boolean = false, isRetry: boolean = false) => {
         if (!enabled || !stores.length) return;
-        // Error varsa ve manuel fetch değilse fetch yapma (hard refresh'te)
-        if (error && !showLoading) return;
+        // Error varsa ve retry değilse ve manuel fetch değilse fetch yapma (hard refresh'te)
+        // isRetry true ise (retry butonuna basıldı), error'u temizleyip tekrar dene
+        if (error && !showLoading && !isRetry) return;
+        
+        // Retry durumunda önce error'u temizle
+        if (isRetry) {
+            setError(null);
+        }
 
         // Sadece ilk yüklemede veya manuel fetch'te loading göster
         if (showLoading || isInitialLoad) {
@@ -79,6 +85,9 @@ export function useNearbyStoresControl({
         }
         try {
             // Her mağaza için ayrı istek atıp sonuçları topluyoruz
+            let hasAnyError = false;
+            let lastError: any = null;
+            
             const promises = stores.map(async store => {
                 const c = safeCoord(store.latitude, store.longitude);
                 if (!c) return null;
@@ -96,7 +105,9 @@ export function useNearbyStoresControl({
                 };
                 const result = await trigger(filterWithLocation, false);
                 if ('error' in result) {
-                    // Nearby barber fetch hatası sessizce atlanır
+                    // Hata varsa kaydet - servis hatası olabilir
+                    hasAnyError = true;
+                    lastError = result.error;
                     return [];
                 }
                 return result.data || [];
@@ -113,7 +124,13 @@ export function useNearbyStoresControl({
             });
 
             setFreeBarbers(Array.from(allBarbers.values()));
-            setError(null);
+            
+            // Eğer tüm istekler hata verdiyse ve sonuç boşsa, hatayı göster
+            if (hasAnyError && allBarbers.size === 0) {
+                setError(lastError);
+            } else {
+                setError(null);
+            }
             setIsInitialLoad(false); // İlk yükleme tamamlandı
         } catch (err) {
             setError(err);
@@ -170,9 +187,11 @@ export function useNearbyStoresControl({
         location,
         error,
         manualFetch: () => {
-            // Error veya location denied durumunda manual fetch yapma
-            if (error || locationStatus !== "granted") return;
-            fetchNearby(true);
+            // Location denied ise hiçbir şey yapma
+            if (locationStatus !== "granted") return;
+            // Error varsa retry olarak çağır (error'u temizleyip tekrar dener)
+            // Error yoksa normal fetch
+            fetchNearby(true, !!error);
         }, // Manuel fetch'te loading göster
     };
 }

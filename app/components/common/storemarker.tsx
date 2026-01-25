@@ -1,4 +1,4 @@
-import React, { useState, memo, useEffect } from "react";
+import React, { useState, memo, useEffect, useRef } from "react";
 import { View, Image, ActivityIndicator } from "react-native";
 import { Marker } from "react-native-maps";
 import { Icon } from "react-native-paper";
@@ -17,18 +17,47 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
     const [tracksViewChanges, setTracksViewChanges] = useState(true);
     const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const imageUrlRef = useRef<string | undefined>(imageUrl);
+    const mountedRef = useRef(true);
 
     const bg = storeType == 0 ? "#2563eb" : storeType == 1 ? "#db2777" : "#16a34a";
     const iconName = storeType == 0 ? "face-man" : "face-woman";
     const hasImage = imageUrl && !imageError;
 
-    // Stop tracking after initial render to improve performance
+    // Component mount/unmount tracking
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setTracksViewChanges(false);
-        }, 500);
-        return () => clearTimeout(timer);
+        mountedRef.current = true;
+        // Her mount'ta resmi yeniden yükle
+        setTracksViewChanges(true);
+        setImageLoaded(false);
+
+        return () => {
+            mountedRef.current = false;
+        };
     }, []);
+
+    // Image URL değiştiğinde tracksViewChanges'i true yap ve error'ı sıfırla
+    useEffect(() => {
+        if (imageUrl !== imageUrlRef.current) {
+            imageUrlRef.current = imageUrl;
+            setImageError(false);
+            setImageLoaded(false);
+            setTracksViewChanges(true);
+        }
+    }, [imageUrl]);
+
+    // Resim yüklendikten sonra tracking'i kapat (performans için)
+    useEffect(() => {
+        if (imageLoaded || imageError || !hasImage) {
+            const timer = setTimeout(() => {
+                if (mountedRef.current) {
+                    setTracksViewChanges(false);
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [imageLoaded, imageError, hasImage]);
 
     return (
         <Marker
@@ -55,19 +84,24 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
                             className="w-full h-full rounded-full"
                             resizeMode="cover"
                             onLoadStart={() => {
-                                setImageLoading(true);
-                                setTracksViewChanges(true);
+                                if (mountedRef.current) {
+                                    setImageLoading(true);
+                                    setTracksViewChanges(true);
+                                }
                             }}
                             onLoadEnd={() => {
-                                setImageLoading(false);
-                                // Resim yüklendiğinde bir süre daha track et ki resim görünsün
-                                setTracksViewChanges(true);
-                                setTimeout(() => setTracksViewChanges(false), 200);
+                                if (mountedRef.current) {
+                                    setImageLoading(false);
+                                    setImageLoaded(true);
+                                    // Resim yüklendiğinde bir süre daha track et ki resim görünsün
+                                    setTracksViewChanges(true);
+                                }
                             }}
                             onError={() => {
-                                setImageLoading(false);
-                                setImageError(true);
-                                setTracksViewChanges(false);
+                                if (mountedRef.current) {
+                                    setImageLoading(false);
+                                    setImageError(true);
+                                }
                             }}
                         />
                         {imageLoading && (

@@ -1,13 +1,14 @@
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import { BaseTabLayout, TabConfig } from "../components/layout/BaseTabLayout";
+import { BaseTabLayout } from "../components/layout/BaseTabLayout";
 import { UserType } from "../types";
 import { useLanguage } from "../hook/useLanguage";
 import { useBottomSheet } from "../hook/useBottomSheet";
 import { DeferredRender } from "../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../components/common/crudskeleton";
 import FormStoreAdd from "../components/store/formstoreadd";
+import { getCommonTabs, panelTabConfigs, accentColors } from "../config/tabConfig";
 
 const BarberStoreLayout = () => {
   const { t } = useLanguage();
@@ -19,45 +20,11 @@ const BarberStoreLayout = () => {
     enableOverDrag: false,
   });
 
-  const tabs: TabConfig[] = [
-    {
-      name: "(panel)",
-      headerTitle: t("navigation.welcome"),
-      icon: "store-outline",
-      iconFocused: "store",
-      label: t("navigation.shops"),
-      showHeaderLeft: true,
-      headerTitleAlign: "left",
-    },
-    {
-      name: "(appointment)",
-      headerTitle: t("navigation.myAppointments"),
-      icon: "clock-outline",
-      iconFocused: "clock",
-      label: t("navigation.appointments"),
-    },
-    {
-      name: "(messages)",
-      headerTitle: t("navigation.myMessages"),
-      icon: "message-outline",
-      iconFocused: "message",
-      label: t("navigation.messages"),
-    },
-    {
-      name: "(favorites)",
-      headerTitle: t("navigation.myFavorites"),
-      icon: "heart-outline",
-      iconFocused: "heart",
-      label: t("navigation.favorites"),
-    },
-    {
-      name: "(profile)",
-      headerTitle: t("profile.myProfile"),
-      icon: "account-outline",
-      iconFocused: "account",
-      label: t("navigation.profile"),
-    },
-  ];
+  const tabs = useMemo(() => getCommonTabs(t, {
+    icon: panelTabConfigs.barberStore.icon,
+    iconFocused: panelTabConfigs.barberStore.iconFocused,
+    label: t(panelTabConfigs.barberStore.labelKey),
+  }), [t]);
 
   // Dropdown menu items - memoized
   const dropdownMenuItems = useMemo(
@@ -106,7 +73,7 @@ const BarberStoreLayout = () => {
   return (
     <BaseTabLayout
       userType={UserType.BarberStore}
-      accentColor="#f05e23"
+      accentColor={accentColors.barberStore}
       tabs={tabs}
       dropdownMenuItems={dropdownMenuItems}
       renderAdditionalBottomSheets={renderAdditionalBottomSheets}

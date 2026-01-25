@@ -2,12 +2,14 @@ import { configureStore } from '@reduxjs/toolkit'
 import { api } from './api';
 import snackbarReducer from './snackbarSlice';
 import alertReducer from './alertSlice';
+import signalrReducer from './signalrSlice';
 
 export const store = configureStore({
     reducer: {
         [api.reducerPath]: api.reducer,
         snackbar: snackbarReducer,
         alert: alertReducer,
+        signalr: signalrReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

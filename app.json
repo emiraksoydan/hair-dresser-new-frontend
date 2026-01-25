@@ -16,9 +16,9 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Uygulama, yakınınızdaki dükkan ve berberleri göstermek için konumunuza ihtiyaç duyar.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
-        "NSLocationAlwaysUsageDescription": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
+        "NSLocationWhenInUseUsageDescription": "This app needs your location to show nearby barbershops and barbers.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs your location even when closed to keep free barbers' locations updated.",
+        "NSLocationAlwaysUsageDescription": "This app needs your location even when closed to keep free barbers' locations updated.",
         "UIBackgroundModes": [
           "location",
           "fetch"
@@ -40,7 +40,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDZ--Buc1cYh2HEC4tJ-KqacMz5DQalXbA"
+          "apiKey": "AIzaSyD4Irc_91MJjOw0CE7WpENeJZHNgHjOqtM"
         }
       },
       "googleServicesFile": "./google-services.json",
@@ -54,9 +54,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
-          "locationAlwaysPermission": "Uygulama, uygulama kapalıyken bile konumunuzu güncellemek için konumunuza ihtiyaç duyar. Bu, serbest berberlerin konumlarını güncel tutmak için gereklidir.",
-          "locationWhenInUsePermission": "Uygulama, yakınınızdaki dükkan ve berberleri göstermek için konumunuza ihtiyaç duyar."
+          "locationAlwaysAndWhenInUsePermission": "This app needs your location even when closed to keep free barbers' locations updated.",
+          "locationAlwaysPermission": "This app needs your location even when closed to keep free barbers' locations updated.",
+          "locationWhenInUsePermission": "This app needs your location to show nearby barbershops and barbers."
         }
       ],
       "@react-native-firebase/app",

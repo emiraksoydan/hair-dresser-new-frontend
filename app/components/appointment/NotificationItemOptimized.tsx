@@ -14,7 +14,7 @@ import { useIsFavoriteQuery } from "../../store/api";
 import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { NotificationParticipantView } from "./NotificationParticipantView";
-import { mapBackendMessage } from "../../utils/errorHandler";
+import { getMessage } from "../../utils/errorHandler";
 
 // ---------------------------------------------------------------------------
 // Sadeleştirilmiş Notification Item Component
@@ -122,15 +122,49 @@ const getMyDecision = (
   return null;
 };
 
+// Helper function to safely parse payload and extract decision fields
+const parsePayloadDecisions = (payloadJson: string | undefined | null) => {
+  if (!payloadJson || payloadJson.trim() === "" || payloadJson === "{}") {
+    return { storeDecision: null, freeBarberDecision: null, customerDecision: null, status: null };
+  }
+  try {
+    const payload = JSON.parse(payloadJson);
+    return {
+      storeDecision: payload?.storeDecision ?? null,
+      freeBarberDecision: payload?.freeBarberDecision ?? null,
+      customerDecision: payload?.customerDecision ?? null,
+      status: payload?.status ?? null,
+    };
+  } catch {
+    return { storeDecision: null, freeBarberDecision: null, customerDecision: null, status: null };
+  }
+};
+
 // Custom comparison function for React.memo
 const areEqual = (prev: NotificationItemProps, next: NotificationItemProps) => {
-  return (
-    prev.item.id === next.item.id &&
-    prev.item.isRead === next.item.isRead &&
-    prev.item.payloadJson === next.item.payloadJson &&
-    prev.isProcessing === next.isProcessing &&
-    prev.isDeleting === next.isDeleting
-  );
+  // CRITICAL: _updatedAt check - this is the primary mechanism for forcing re-renders
+  // When SignalR sends notification.updated event, _updatedAt is set to Date.now()
+  if (prev.item._updatedAt !== next.item._updatedAt) return false;
+
+  // Basic field comparison
+  if (prev.item.id !== next.item.id) return false;
+  if (prev.item.isRead !== next.item.isRead) return false;
+  if (prev.isProcessing !== next.isProcessing) return false;
+  if (prev.isDeleting !== next.isDeleting) return false;
+
+  // String comparison for payloadJson
+  if (prev.item.payloadJson !== next.item.payloadJson) return false;
+
+  // Deep comparison for decision fields (belt and suspenders approach)
+  const prevDecisions = parsePayloadDecisions(prev.item.payloadJson);
+  const nextDecisions = parsePayloadDecisions(next.item.payloadJson);
+
+  if (prevDecisions.storeDecision !== nextDecisions.storeDecision) return false;
+  if (prevDecisions.freeBarberDecision !== nextDecisions.freeBarberDecision) return false;
+  if (prevDecisions.customerDecision !== nextDecisions.customerDecision) return false;
+  if (prevDecisions.status !== nextDecisions.status) return false;
+
+  return true;
 };
 
 export const NotificationItemOptimized = React.memo<NotificationItemProps>(
@@ -195,10 +229,8 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       return AppointmentStatus.Pending;
     }, [payload?.status, item.type]);
 
-    const isPending = appointmentStatus === AppointmentStatus.Pending;
-
-    // ========== SÜRE KONTROLÜ ==========
-    const isExpired = React.useMemo(() => {
+    // Süre kontrolü - expired ise status'u unanswered olarak güncelle
+    const isExpiredCheck = React.useMemo(() => {
       // pendingExpiresAt varsa onu kullan
       if (payload?.pendingExpiresAt) {
         let dateStr = payload.pendingExpiresAt;
@@ -213,7 +245,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       }
 
       // Yoksa createdAt + timeout hesapla
-      if (isPending) {
+      if (appointmentStatus === AppointmentStatus.Pending) {
         let createdStr = item.createdAt;
         if (
           typeof createdStr === "string" &&
@@ -246,11 +278,24 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       payload?.pendingExpiresAt,
       payload?.storeSelectionType,
       payload?.store,
-      isPending,
+      appointmentStatus,
       item.createdAt,
       userType,
       storeDecision,
     ]);
+
+    // Expired ise status'u unanswered olarak güncelle
+    const finalAppointmentStatus = React.useMemo(() => {
+      if (isExpiredCheck && appointmentStatus === AppointmentStatus.Pending) {
+        return AppointmentStatus.Unanswered;
+      }
+      return appointmentStatus;
+    }, [isExpiredCheck, appointmentStatus]);
+
+    const isPending = finalAppointmentStatus === AppointmentStatus.Pending;
+
+    // ========== SÜRE KONTROLÜ ==========
+    const isExpired = isExpiredCheck;
 
     // ========== STATUS GÖSTERİMİ ==========
     // Status bildirimi tipleri (bu tipler doğrudan status gösterir)
@@ -264,12 +309,12 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
 
     // Status'u belirle
     const statusKind = React.useMemo<StatusKind>(() => {
-      // 1. Randevu durumuna göre (payload.status)
-      if (appointmentStatus === AppointmentStatus.Approved) return "approved";
-      if (appointmentStatus === AppointmentStatus.Rejected) return "rejected";
-      if (appointmentStatus === AppointmentStatus.Cancelled) return "cancelled";
-      if (appointmentStatus === AppointmentStatus.Completed) return "completed";
-      if (appointmentStatus === AppointmentStatus.Unanswered)
+      // 1. Randevu durumuna göre (finalAppointmentStatus - expired kontrolü ile güncellenmiş)
+      if (finalAppointmentStatus === AppointmentStatus.Approved) return "approved";
+      if (finalAppointmentStatus === AppointmentStatus.Rejected) return "rejected";
+      if (finalAppointmentStatus === AppointmentStatus.Cancelled) return "cancelled";
+      if (finalAppointmentStatus === AppointmentStatus.Completed) return "completed";
+      if (finalAppointmentStatus === AppointmentStatus.Unanswered)
         return "unanswered";
 
       // 2. Status bildirim tipine göre
@@ -290,7 +335,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       }
 
       return null;
-    }, [appointmentStatus, item.type, isPending, hasMyDecision, myDecision]);
+    }, [finalAppointmentStatus, item.type, isPending, hasMyDecision, myDecision]);
 
     // Status gösterilecek mi?
     const showStatus = statusKind !== null || isStatusNotification;
@@ -315,6 +360,17 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       if (hasMyDecision) return false;
       if (statusKind !== null) return false; // Final status varsa buton gösterme
 
+      // KRİTİK: Herhangi bir taraf reddettiyse tüm kullanıcılarda butonları gizle
+      // Bu kontrol, backend'den payload güncellemesi gelmeden önce de çalışır
+      if (storeDecision === DecisionStatus.Rejected) return false;
+      if (freeBarberDecision === DecisionStatus.Rejected) return false;
+      if (customerDecision === DecisionStatus.Rejected) return false;
+
+      // KRİTİK: Herhangi bir tarafın kararı NoAnswer ise (timeout) butonları gizle
+      if (storeDecision === DecisionStatus.NoAnswer) return false;
+      if (freeBarberDecision === DecisionStatus.NoAnswer) return false;
+      if (customerDecision === DecisionStatus.NoAnswer) return false;
+
       // Rol bazlı kontroller
       if (userType === UserType.BarberStore) {
         // Store her zaman onay/red verebilir (kendi kararını vermemişse)
@@ -324,8 +380,27 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       }
 
       if (userType === UserType.FreeBarber) {
-        // FreeBarber: StoreSelection flow'da ve store seçilmemişse sadece RED
-        // Diğer durumlarda normal onay/red
+        // StoreSelection flow'da özel kontroller
+        if (payload?.storeSelectionType === StoreSelectionType.StoreSelection) {
+          // Dükkan seçildiyse ve Store'un kararı bekleniyorsa → buton yok
+          // FreeBarber dükkan seçtikten sonra artık karar veremez (Store'un sırası)
+          if (payload?.store && storeDecision === DecisionStatus.Pending) {
+            return false;
+          }
+          // Dükkan seçilmemişse sadece RED butonu gösterilecek (showOnlyRejectButton)
+          // Bu durumda canShowButtons true olmalı
+          if (!payload?.store) {
+            return (
+              freeBarberDecision === null ||
+              freeBarberDecision === DecisionStatus.Pending
+            );
+          }
+          // Store onayladıysa ve Customer'ın kararı bekleniyorsa → buton yok
+          if (storeDecision === DecisionStatus.Approved) {
+            return false;
+          }
+        }
+        // CustomRequest flow veya diğer durumlar
         return (
           freeBarberDecision === null ||
           freeBarberDecision === DecisionStatus.Pending
@@ -421,14 +496,16 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       if (onAddStore && item.appointmentId) onAddStore(item.appointmentId);
     }, [item.appointmentId, onAddStore]);
 
-    // Tıklama: Karar bekleyen ve süresi dolmamış bildirimlerde tıklama devre dışı
+    // Tıklama: Aksiyon bildirimlerinde (onay/red) dokunarak okuma yok; sadece diğer türlerde.
+    // Karar bekleyen + süresi dolmamış aksiyonlarda kart tıklanmasın (butonlara odaklanılsın).
     const isAwaitingDecision =
       isActionableType && isPending && !isExpired && !hasMyDecision;
     const handlePress = React.useCallback(() => {
+      if (isActionableType) return; // Aksiyon tiplerinde dokunarak okuma yapılmaz
       if (!isAwaitingDecision && !item.isRead) {
         onMarkRead(item);
       }
-    }, [isAwaitingDecision, item, onMarkRead]);
+    }, [isActionableType, isAwaitingDecision, item, onMarkRead]);
 
     const unread = !item.isRead;
 
@@ -452,7 +529,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
           <Text
             className={`text-white flex-1 text-base ${unread ? "font-bold" : "font-medium"}`}
           >
-            {mapBackendMessage(item.title)}
+            {getMessage(item.title)}
           </Text>
           <View className="flex-row items-center gap-2">
             {onDelete &&
@@ -646,22 +723,10 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
           </View>
         )}
 
-        {/* Add Store Button (FreeBarber in StoreSelection flow) */}
-        {userType === UserType.FreeBarber &&
-          payload?.storeSelectionType === StoreSelectionType.StoreSelection &&
-          isPending &&
-          !isExpired &&
-          !payload?.store && (
-            <TouchableOpacity
-              onPress={handleAddStore}
-              className="mt-3 bg-blue-600 py-3 px-4 rounded-xl flex-row items-center justify-center"
-            >
-              <Icon source="store-plus" size={18} color="white" />
-              <Text className="text-white font-semibold ml-2">
-                {t("notification.addStore")}
-              </Text>
-            </TouchableOpacity>
-          )}
+        {/* Add Store Button (FreeBarber in StoreSelection flow) - KALDIRILDI
+            FreeBarber dükkan eklemek için doğrudan Yakındaki Dükkanlar sayfasına gidip
+            oradan randevu oluşturabilir. Bu buton gereksiz karmaşıklık yaratıyordu.
+        */}
       </TouchableOpacity>
     );
   },

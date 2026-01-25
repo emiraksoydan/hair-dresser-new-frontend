@@ -13,7 +13,7 @@ interface FallbackImageProps extends Omit<ImageProps, 'source'> {
 
 export const FallbackImage: React.FC<FallbackImageProps> = ({
   source,
-  fallbackSource = require('../../../assets/images/empty.png'),
+  fallbackSource,
   showIconFallback = false,
   iconName = 'image-outline',
   iconSize = 40,
@@ -46,10 +46,15 @@ export const FallbackImage: React.FC<FallbackImageProps> = ({
     );
   }
 
+  // If should show fallback but no fallbackSource and no icon fallback, return null or empty view
+  if (shouldShowFallback && !fallbackSource && !showIconFallback) {
+    return <View style={style} />;
+  }
+
   return (
     <Image
       {...props}
-      source={shouldShowFallback ? fallbackSource : source}
+      source={shouldShowFallback ? (fallbackSource || undefined) : source}
       style={style}
       onError={handleError}
       onLoad={handleLoad}

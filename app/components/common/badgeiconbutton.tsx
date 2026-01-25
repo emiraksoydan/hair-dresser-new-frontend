@@ -1,8 +1,13 @@
 import React, { useEffect } from "react";
 import { View } from "react-native";
 import { Badge, IconButton } from "react-native-paper";
-import { useAnimatedStyle, useSharedValue, withRepeat, withTiming, interpolate } from "react-native-reanimated";
-import Animated from "react-native-reanimated";
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
+    interpolate
+} from "react-native-reanimated";
 
 type Props = {
     icon: string;
@@ -11,29 +16,27 @@ type Props = {
     badgeCount?: number;
     onPress?: () => void;
     badgeColor?: string;
-    animateWhenActive?: boolean; // Bildirim çanı için animasyon
+    animateWhenActive?: boolean;
 };
 
 export function BadgeIconButton({
     icon,
     iconColor = "white",
-    size = 24,
+    size = 22,
     badgeCount = 0,
     onPress,
-    badgeColor = "#f05e23",
+    badgeColor = "#ef4444",
     animateWhenActive = false,
 }: Props) {
-    const show = (badgeCount ?? 0) > 0;
-    const text = badgeCount! > 99 ? "99+" : String(badgeCount);
-    
-    // Animasyon için shared value
+    const show = badgeCount > 0;
+    const text = badgeCount > 99 ? "99+" : String(badgeCount);
+
+    // Animasyon değerleri
     const scale = useSharedValue(1);
     const rotation = useSharedValue(0);
-    
-    // Bildirim varsa ve animasyon aktifse animasyonu başlat
+
     useEffect(() => {
         if (animateWhenActive && show) {
-            // Sürekli animasyon: scale ve rotation (sallanma efekti)
             scale.value = withRepeat(
                 withTiming(1.15, { duration: 600 }),
                 -1,
@@ -45,13 +48,11 @@ export function BadgeIconButton({
                 true
             );
         } else {
-            // Animasyonu durdur
             scale.value = withTiming(1, { duration: 200 });
             rotation.value = withTiming(0, { duration: 200 });
         }
     }, [show, animateWhenActive]);
-    
-    // Icon için animasyonlu style
+
     const animatedIconStyle = useAnimatedStyle(() => {
         const rotate = interpolate(rotation.value, [0, 1], [-15, 15]);
         return {
@@ -61,26 +62,30 @@ export function BadgeIconButton({
             ],
         };
     });
-    
-    // Bildirim varsa ve animasyon aktifse kırmızı renk kullan
-    const finalIconColor = animateWhenActive && show ? "#ef4444" : iconColor;
 
     return (
-        <View style={{ position: "relative" }}>
-            {animateWhenActive && show ? (
-                <Animated.View style={animatedIconStyle}>
-                    <IconButton icon={icon} iconColor={finalIconColor} size={size} onPress={onPress} />
-                </Animated.View>
-            ) : (
-                <IconButton icon={icon} iconColor={finalIconColor} size={size} onPress={onPress} />
-            )}
+        // Menü butonuyla aynı: w-10 h-10, rounded-full ve bg-[#1F2937]
+        <View className={`${icon === 'bell-outline' || icon === 'bell' ? 'bg-[#1a1b25] ' : ''} w-12 h-12 items-center justify-center rounded-full relative `}>
+            <Animated.View style={animateWhenActive && show ? animatedIconStyle : {}}>
+                <IconButton
+                    icon={icon}
+                    iconColor={iconColor}
+                    size={size}
+                    onPress={onPress}
+                    style={{ margin: 0 }} // Ekstra boşluğu kaldırır
+                />
+            </Animated.View>
+
             {show && (
                 <Badge
                     style={{
                         position: "absolute",
-                        top: 2,
-                        right: 2,
+                        top: -2, // Dairenin biraz dışına/kenarına taşması için
+                        right: -2,
                         backgroundColor: badgeColor,
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                        lineHeight: 14,
                     }}
                     size={16}
                 >

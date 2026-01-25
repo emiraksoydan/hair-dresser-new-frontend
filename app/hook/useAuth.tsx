@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { tokenStore } from '../lib/tokenStore';
 import { JwtPayload, UserType } from '../types';
@@ -15,9 +15,30 @@ interface AuthResult {
 /**
  * Custom hook for authentication state and user information
  * Centralizes JWT decoding logic to avoid code duplication
+ *
+ * IMPORTANT: Uses useState + useEffect to make token changes reactive
+ * This ensures components re-render when token changes (login/logout/refresh)
  */
 export const useAuth = (): AuthResult => {
-    const token = tokenStore.access;
+    // Make token reactive - components will re-render when token changes
+    const [token, setToken] = useState<string | null>(tokenStore.access);
+
+    // Subscribe to token changes
+    useEffect(() => {
+        // Initial sync
+        setToken(tokenStore.access);
+
+        // Listen for token changes (login, logout, refresh)
+        const unsubscribe = tokenStore.onTokenChange((hasToken, newToken) => {
+            console.log('[useAuth] Token change detected:', hasToken, newToken ? 'token exists' : 'no token');
+            // Update local state when token changes
+            setToken(hasToken ? (newToken ?? tokenStore.access) : null);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     const userType = useMemo(() => {
         if (!token) return null;

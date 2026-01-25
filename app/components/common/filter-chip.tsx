@@ -14,14 +14,17 @@ interface FilterChipProps {
     icon?: React.ReactNode;
 }
 
-const FilterChip: React.FC<FilterChipProps> = ({ itemKey, selected, className = 'rounded-3xl border-[1.5px] border-[#fb9400] px-3 py-2 flex-row flex-1', fontSize = 12, isDisabled = false, onPress, children, icon }) => {
+const FilterChip: React.FC<FilterChipProps> = ({ itemKey, selected, className = 'rounded-3xl border-[1.5px] px-3 py-2 flex-row flex-1', fontSize = 12, isDisabled = false, onPress, children, icon }) => {
     return (
         <TouchableOpacity
             key={itemKey}
             disabled={isDisabled}
             onPress={onPress}
-            className={`items-center justify-center   ${className}  ${selected ? 'bg-green-500' : ''
-                }`}
+            style={{
+                backgroundColor: selected ? '#ffb900' : 'transparent',
+                borderColor: selected ? '#ffb900' : '#fb9400'
+            }}
+            className={`items-center justify-center   ${className}`}
         >
             {icon && <View className="mr-1">{icon}</View>}
             {typeof children === 'string' || typeof children === 'number' ? (

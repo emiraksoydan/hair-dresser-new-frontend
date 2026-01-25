@@ -132,10 +132,11 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
         }
       }
 
-      // Fix operator precedence: && has higher precedence than || 
+      // Fix operator precedence: && has higher precedence than ||
       if ((res.error?.status === 401 || res.error?.status === 403 || res.error?.status === 419 || res.error?.status === 498) && tokenStore.refresh) {
         if (!refreshing) {
           refreshing = (async () => {
+            tokenStore.setRefreshing(true); // SignalR'a bildir
             try {
               const r = await rawNoAuth(
                 { url: 'Auth/refresh', method: 'POST', body: { refreshToken: tokenStore.refresh } },
@@ -150,6 +151,8 @@ export const baseQueryWithReauth: BaseQueryFn<any, unknown, FetchBaseQueryError>
               tokenStore.clear();
               await clearStoredTokens();
               return false;
+            } finally {
+              tokenStore.setRefreshing(false); // SignalR'a bildir
             }
           })();
         }

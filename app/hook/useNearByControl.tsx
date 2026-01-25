@@ -288,8 +288,8 @@ export function useNearbyControl({
         initialLoading,
         manualFetch: async () => {
             if (!lastKnownPos.current || locationStatus !== "granted") return;
-            // Error varsa manual fetch yapma (sunucu çalışmıyor olabilir)
-            if (error) return;
+            // Error varsa da manual fetch yapabilir (retry için)
+            // User retry butonuna bastığında tekrar denemeli
             await savedFetchHandler.current?.(lastKnownPos.current.lat, lastKnownPos.current.lon);
         },
         retryPermission,

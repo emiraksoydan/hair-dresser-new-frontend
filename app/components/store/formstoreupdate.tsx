@@ -181,9 +181,7 @@ const createLocationSchema = (t: (key: string) => string) =>
     .object({
       latitude: z.number(),
       longitude: z.number(),
-      addressDescription: z
-        .string({ required_error: t("form.addressRequired") })
-        .min(1, t("form.addressMinLength")),
+      addressDescription: z.string().optional().default(""),
     })
     .superRefine((v, ctx) => {
       if (v.latitude == null || v.longitude == null) {
@@ -388,11 +386,32 @@ const FormStoreUpdate = ({
   );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  const {
+    control,
+    handleSubmit,
+    trigger,
+    setValue,
+    getValues,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<FormUpdateValues>({
+    resolver,
+    shouldFocusError: true,
+    mode: "onSubmit",
+    defaultValues: { storeName: data?.storeName },
+  });
+
   useEffect(() => {
     if (enabled && storeId) {
       triggerGetStore(storeId);
     }
-  }, [enabled, storeId, triggerGetStore]);
+    // enabled false olduğunda veya storeId değiştiğinde data'yı temizle
+    if (!enabled) {
+      // Form'u reset et
+      reset();
+    }
+  }, [enabled, storeId, triggerGetStore, reset]);
 
   const dispatch = useAppDispatch();
 
@@ -472,21 +491,6 @@ const FormStoreUpdate = ({
         name: b.name,
       }));
   };
-  const {
-    control,
-    handleSubmit,
-    trigger,
-    setValue,
-    getValues,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<FormUpdateValues>({
-    resolver,
-    shouldFocusError: true,
-    mode: "onSubmit",
-    defaultValues: { storeName: data?.storeName },
-  });
 
   // Dil değiştiğinde validation'ı tetikle
   useEffect(() => {
@@ -1093,7 +1097,7 @@ const FormStoreUpdate = ({
       storeName: form.storeName,
       type: mapBarberType(form.type),
       pricingType: mapPricingType(form.pricingType.mode),
-      addressDescription: form.location.addressDescription,
+      addressDescription: form.location.addressDescription ?? "",
       latitude: form.location.latitude,
       longitude: form.location.longitude,
       pricingValue:
@@ -1283,7 +1287,7 @@ const FormStoreUpdate = ({
           />
         </View>
         <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
-        {!data ? (
+        {!enabled ? null : isLoading || !data ? (
           <View className="flex-1 pt-4">
             {Array.from({ length: 1 }).map((_, i) => (
               <CrudSkeletonComponent key={i} />

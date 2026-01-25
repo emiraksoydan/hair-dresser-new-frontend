@@ -146,8 +146,6 @@ export const FormFreeBarberOperation = React.memo(
     const schema = useMemo(() => createSchema(t), [t, currentLanguage]);
     const resolver = useMemo(() => zodResolver(schema), [schema]);
 
-    const [triggerGetFreeBarberPanel, { data }] =
-      useLazyGetFreeBarberMinePanelDetailQuery();
     const [triggerGetFreeBarberMinePanel] =
       useLazyGetFreeBarberMinePanelQuery();
     const [addFreeBarber, { isLoading: addFreeBarberLoad }] =
@@ -214,6 +212,10 @@ export const FormFreeBarberOperation = React.memo(
       });
     }, [parentCategoriesRaw]);
 
+    // Edit ise panel detay çek - useEffect'lerden önce tanımlanmalı
+    const [triggerGetFreeBarberPanel, { data, isLoading }] =
+      useLazyGetFreeBarberMinePanelDetailQuery();
+
     // FreeBarber için sadece Erkek Berber ve Bayan Kuaför kategorilerini göster (Güzellik Salonu hariç)
     const allowedParentCategories = React.useMemo(() => {
       return parentCategories.filter(
@@ -241,13 +243,16 @@ export const FormFreeBarberOperation = React.memo(
 
     // Not: Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
     // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için name -> id dönüşümü yapmıyoruz.
-
-    // Edit ise panel detay çek
+    
     useEffect(() => {
-      if (!enabled) return;
+      if (!enabled) {
+        // enabled false olduğunda form'u reset et
+        reset();
+        return;
+      }
       if (!isEdit) return;
       triggerGetFreeBarberPanel(freeBarberId!);
-    }, [enabled, isEdit, freeBarberId, triggerGetFreeBarberPanel]);
+    }, [enabled, isEdit, freeBarberId, triggerGetFreeBarberPanel, reset]);
 
     const pickMultipleImages = async () => {
       setIsImagePickerLoading(true);
@@ -840,7 +845,7 @@ export const FormFreeBarberOperation = React.memo(
     }, []);
 
     // Skeleton sadece edit + data gelene kadar
-    const showSkeleton = isEdit && !data;
+    const showSkeleton = isEdit && (isLoading || !data);
 
     return (
       <View className="h-full">
@@ -857,7 +862,7 @@ export const FormFreeBarberOperation = React.memo(
 
         <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
 
-        {showSkeleton ? (
+        {!enabled ? null : showSkeleton ? (
           <View className="flex-1 pt-4">
             <CrudSkeletonComponent />
           </View>

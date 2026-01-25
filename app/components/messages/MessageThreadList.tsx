@@ -85,8 +85,8 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 }
 
                 if (participant.userType === UserType.FreeBarber) {
-                    return participant.barberType === BarberType.MaleHairdresser 
-                        ? t('barberType.maleHairdresserShort') 
+                    return participant.barberType === BarberType.MaleHairdresser
+                        ? t('barberType.maleHairdresserShort')
                         : t('barberType.femaleHairdresserShort');
                 } else if (participant.userType === UserType.BarberStore) {
                     if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
@@ -240,7 +240,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     if (isError || hasNoThreads) {
         return (
             <ScrollView
-                className="flex-1 bg-[#151618]"
+                className="flex-1"
                 contentContainerStyle={{ flexGrow: 1 }}
                 refreshControl={
                     <RefreshControl
@@ -270,7 +270,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     }
 
     return (
-        <View className="flex-1 bg-[#151618]">
+        <View className="flex-1">
             <LegendList
                 data={threads ?? []}
                 keyExtractor={(item) => item.threadId}

@@ -11,8 +11,6 @@ import MapView from "react-native-maps";
 import { IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import SearchBar from "../../components/common/searchbar";
-import FormatListButton from "../../components/common/formatlistbutton";
-import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
@@ -29,7 +27,6 @@ import { BarberMarker } from "../../components/freebarber/barbermarker";
 import { RatingsBottomSheet } from "../../components/rating/ratingsbottomsheet";
 import { StoreMarker } from "../../components/common/storemarker";
 import { DeferredRender } from "../../components/common/deferredrender";
-import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import { UnifiedStateWrapper } from "../../components/common/UnifiedStateManager";
 import { useNearbyStores } from "../../hook/useNearByStore";
@@ -474,7 +471,7 @@ const Index = () => {
   ]);
 
   return (
-    <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
+    <View className="flex flex-1 pl-4 pr-2 bg-[#0d0d12]">
       <View
         className={
           isMapMode
@@ -487,10 +484,11 @@ const Index = () => {
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              isList={isList}
+              setIsList={setIsList}
+              onFilterPress={() => setFilterDrawerVisible(true)}
             />
           </View>
-          <FormatListButton isList={isList} setIsList={setIsList} />
-          <FilterButton onPress={() => setFilterDrawerVisible(true)} />
         </View>
       </View>
 
@@ -567,7 +565,7 @@ const Index = () => {
             if (item.type === "stores-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -606,7 +604,7 @@ const Index = () => {
 
             if (item.type === "freebarbers-header") {
               return (
-                <View className="flex flex-row justify-between items-center mt-4">
+                <View className="flex flex-row justify-between items-center mt-12">
                   <Text className="font-century-gothic text-xl text-white">
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
@@ -655,7 +653,7 @@ const Index = () => {
             if (item.type === "freebarbers-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -700,12 +698,12 @@ const Index = () => {
       {/* Map toggle button */}
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
-        className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
+        className="absolute right-0 bottom-6 bg-[#1a1b25] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
         style={{ elevation: 8 }}
       >
         <IconButton
           icon={isMapMode ? "format-list-bulleted" : "map"}
-          iconColor="#c2a523"
+          iconColor="#ffb900"
           size={24}
           style={{ margin: 0 }}
         />
@@ -744,9 +742,9 @@ const Index = () => {
           updateFilterCriteria({ pricingType: value })
         }
         showPricingType={true}
-        statusFilter={filterCriteria.status || "all"}
+        statusFilter={(filterCriteria.status || "all") as "all" | "available" | "unavailable"}
         onChangeStatus={(value) =>
-          updateFilterCriteria({ status: value })
+          updateFilterCriteria({ status: value as "all" | "available" | "unavailable" })
         }
         selectedRating={filterCriteria.minRating || 0}
         onChangeRating={(value) => updateFilterCriteria({ minRating: value })}
@@ -782,6 +780,7 @@ const Index = () => {
                   <StoreBookingContent
                     storeId={selectedMapItem.id}
                     isBottomSheet={true}
+                    isCustomer={true}
                   />
                 ) : (
                   <FreeBarberBookingContent

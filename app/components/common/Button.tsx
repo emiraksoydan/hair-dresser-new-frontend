@@ -36,6 +36,19 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     const isDisabled = disabled || loading;
 
+    // buttonColor'a göre disabled rengi hesapla
+    const getDisabledColor = (color: string): string => {
+        // Emerald renkleri için koyu versiyonlar
+        if (color === '#059669') {
+            return '#047857'; // emerald-700 (daha koyu)
+        }
+        if (color === '#10B981') {
+            return '#059669'; // emerald-600 (daha koyu)
+        }
+        // Diğer renkler için genel koyu versiyon
+        return '#374151'; // gray-700 (fallback)
+    };
+
     // Mode'a göre default renkler
     const getDefaultColors = () => {
         switch (mode) {
@@ -43,7 +56,7 @@ export const Button: React.FC<ButtonProps> = ({
                 return {
                     bg: buttonColor || '#10B981', // emerald-500
                     text: textColor || '#FFFFFF',
-                    bgDisabled: '#374151', // gray-700
+                    bgDisabled: buttonColor ? getDisabledColor(buttonColor) : '#374151', // gray-700
                     textDisabled: '#9CA3AF', // gray-400
                     border: 'transparent',
                 };

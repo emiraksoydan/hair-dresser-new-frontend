@@ -11,8 +11,6 @@ import { Text } from "../../components/common/Text";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import SearchBar from "../../components/common/searchbar";
-import FormatListButton from "../../components/common/formatlistbutton";
-import FilterButton from "../../components/common/filterbutton";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/common/expand-toggle";
@@ -53,11 +51,9 @@ const Index = () => {
   const { t } = useLanguage();
   const router = useRouter();
 
-  // Notification'lardan aktif StoreSelection randevusunu otomatik algıla
   const { data: notifications = [], refetch: refetchNotifications } =
     useGetAllNotificationsQuery();
   const activeStoreSelectionAppointment = useMemo(() => {
-    // Notification'ların payload'larını kontrol et
     for (const notification of notifications) {
       if (!notification.payloadJson || notification.payloadJson === "{}")
         continue;
@@ -372,8 +368,11 @@ const Index = () => {
       data?: any;
     }> = [];
 
-    // FreeBarbers section (Kendi panelim) - her zaman göster
-    if (hasFreeBarberPanel) {
+    // FreeBarbers section (Kendi panelim) - filtre uygulanır
+    const shouldShowMyPanel =
+      filterCriteria.userType === "all" ||
+      filterCriteria.userType === "freeBarber";
+    if (hasFreeBarberPanel && shouldShowMyPanel) {
       items.push({ id: "freebarber-section", type: "freebarber-section" });
     }
 
@@ -458,6 +457,12 @@ const Index = () => {
   }, [filteredStores, hasStoreBarbers, handleMarkerPress]);
 
   const myPanelMarker = useMemo(() => {
+    // Filtre kontrolü - "store" seçiliyse kendi marker'ı gizle
+    const shouldShowMyMarker =
+      filterCriteria.userType === "all" ||
+      filterCriteria.userType === "freeBarber";
+    if (!shouldShowMyMarker) return null;
+
     const c = safeCoord(freeBarber?.latitude, freeBarber?.longitude);
     if (!c) return null;
 
@@ -472,7 +477,7 @@ const Index = () => {
         onPress={() => handleOpenPanel(freeBarber?.id!)}
       />
     );
-  }, [freeBarber, handleOpenPanel]);
+  }, [freeBarber, handleOpenPanel, filterCriteria.userType]);
 
   const { isTracking, isUpdating } = useTrackFreeBarberLocation(
     true,
@@ -480,21 +485,17 @@ const Index = () => {
   );
 
   return (
-    <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
-      <View className="flex flex-row items-center gap-2 mt-4">
-        <View className=" flex flex-1">
+    <View className="flex flex-1 pl-4 pr-2">
+      <View className="flex flex-row items-center gap-2 mt-2">
+        <View className="flex flex-1">
           <SearchBar
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-          ></SearchBar>
+            isList={isList}
+            setIsList={setIsList}
+            onFilterPress={() => setFilterDrawerVisible(true)}
+          />
         </View>
-        <FormatListButton
-          isList={isList}
-          setIsList={setIsList}
-        ></FormatListButton>
-        <FilterButton
-          onPress={() => setFilterDrawerVisible(true)}
-        ></FilterButton>
       </View>
 
       {isMapMode ? (
@@ -596,7 +597,7 @@ const Index = () => {
             if (item.type === "stores-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -654,12 +655,12 @@ const Index = () => {
 
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
-        className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
+        className="absolute right-0 bottom-6 bg-[#1a1b25] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
         style={{ elevation: 8 }}
       >
         <IconButton
           icon={isMapMode ? "format-list-bulleted" : "map"}
-          iconColor="#f05e23"
+          iconColor="#ffb900"
           size={24}
           style={{ margin: 0 }}
         />
@@ -697,9 +698,9 @@ const Index = () => {
           updateFilterCriteria({ pricingType: value })
         }
         showPricingType={true}
-        statusFilter={filterCriteria.status || "all"}
+        statusFilter={(filterCriteria.status || "all") as "all" | "available" | "unavailable"}
         onChangeStatus={(value) =>
-          updateFilterCriteria({ status: value })
+          updateFilterCriteria({ status: value as "all" | "available" | "unavailable" })
         }
         selectedRating={filterCriteria.minRating || 0}
         onChangeRating={(value) => updateFilterCriteria({ minRating: value })}

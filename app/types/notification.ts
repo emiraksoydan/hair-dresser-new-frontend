@@ -32,6 +32,8 @@ export type NotificationDto = {
   payloadJson: string;
   createdAt: string;
   isRead: boolean;
+  // Frontend-only field: SignalR event'lerinde React.memo re-render'ı tetiklemek için
+  _updatedAt?: number;
 };
 
 export interface NotificationPayload {

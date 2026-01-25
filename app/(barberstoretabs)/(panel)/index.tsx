@@ -2,24 +2,19 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
-  Image,
   RefreshControl,
   TouchableOpacity,
   View,
-  ScrollView,
 } from "react-native";
 import { Text } from "../../components/common/Text";
 import MapView, { Marker } from "react-native-maps";
-import { Icon, IconButton } from "react-native-paper";
+import { IconButton } from "react-native-paper";
 import SearchBar from "../../components/common/searchbar";
-import FormatListButton from "../../components/common/formatlistbutton";
-import FilterButton from "../../components/common/filterbutton";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/common/expand-toggle";
 import { SkeletonComponent } from "../../components/common/skeleton";
-import { LottieViewComponent } from "../../components/common/lottieview";
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
 import {
   useGetAllCategoriesQuery,
@@ -40,7 +35,6 @@ import { useBackendFilters } from "../../hook/useBackendFilters";
 import { StoreMarker } from "../../components/common/storemarker";
 import { DeferredRender } from "../../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
-import { getErrorMessage } from "../../utils/errorHandler";
 import { useLanguage } from "../../hook/useLanguage";
 import { UnifiedStateWrapper } from "../../components/common/UnifiedStateManager";
 
@@ -232,9 +226,15 @@ const Index = () => {
     clearFilters();
   }, [clearFilters]);
 
-  // Kendi dükkanlarını filtrele (client-side) - sadece arama filtresi uygula
-  // userType filtresi kendi dükkanları için uygulanmaz, her zaman gösterilir
+  // Kendi dükkanlarını filtrele (client-side) - tüm filtreleri uygula
   const filteredStores = useMemo(() => {
+    // userType filtresi - "freeBarber" seçiliyse kendi dükkanları gizlenir
+    const shouldShowStores =
+      filterCriteria.userType === "all" ||
+      filterCriteria.userType === "store" ||
+      filterCriteria.userType === "Dükkan";
+    if (!shouldShowStores) return [];
+
     return displayStores.filter((store) => {
       // Basic search
       if (
@@ -243,9 +243,36 @@ const Index = () => {
       ) {
         return false;
       }
+
+      // Category filter
+      if (filterCriteria.mainCategory && filterCriteria.mainCategory !== "all") {
+        // Store type'ı kontrol et (MaleHairdresser, FemaleHairdresser, BeautySalon)
+        const storeTypeName = store.type === 0 ? "MaleHairdresser" : store.type === 1 ? "FemaleHairdresser" : "BeautySalon";
+        if (storeTypeName !== filterCriteria.mainCategory) {
+          return false;
+        }
+      }
+
+      // Rating filter
+      if (filterCriteria.minRating && filterCriteria.minRating > 0) {
+        const storeRating = store.rating ?? 0;
+        if (storeRating < filterCriteria.minRating) {
+          return false;
+        }
+      }
+
+      // Pricing type filter
+      if (filterCriteria.pricingType && filterCriteria.pricingType !== "all") {
+        // Backend'den string olarak geliyor: "Rent" veya "Percent"
+        const storePricingType = store.pricingType?.toLowerCase();
+        if (storePricingType !== filterCriteria.pricingType) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [displayStores, searchQuery]);
+  }, [displayStores, searchQuery, filterCriteria.userType, filterCriteria.mainCategory, filterCriteria.minRating, filterCriteria.pricingType]);
 
   // API'den gelen filtrelenmiş veriyi kullan, yoksa normal veriyi göster
   const filteredFreeBarbers = useMemo(() => {
@@ -340,35 +367,41 @@ const Index = () => {
       data?: any;
     }> = [];
 
-    // Stores section (Kendi dükkanlarım) - her zaman göster
-    items.push({ id: "stores-header", type: "stores-header" });
-    if (isStoresLoading) {
-      items.push({ id: "stores-loading", type: "stores-loading" });
-    } else if (isStoresError && storesError) {
-      items.push({ id: "stores-error", type: "stores-error" });
-    } else {
-      // Filtrelenmiş dükkanları kullan
-      const storesToDisplay = filteredStores;
-      const hasStoresToShow = storesToDisplay.length > 0;
-
-      if (hasStoresToShow) {
-        if (expandedStores) {
-          storesToDisplay.forEach((store) => {
-            items.push({
-              id: `store-${store.id}`,
-              type: "store",
-              data: store,
-            });
-          });
-        } else {
-          items.push({
-            id: "stores-content-horizontal",
-            type: "stores-content-horizontal",
-            data: storesToDisplay,
-          });
-        }
+    // Stores section (Kendi dükkanlarım) - filtre uygulanır
+    const shouldShowStores =
+      filterCriteria.userType === "all" ||
+      filterCriteria.userType === "store" ||
+      filterCriteria.userType === "Dükkan";
+    if (shouldShowStores) {
+      items.push({ id: "stores-header", type: "stores-header" });
+      if (isStoresLoading) {
+        items.push({ id: "stores-loading", type: "stores-loading" });
+      } else if (isStoresError && storesError) {
+        items.push({ id: "stores-error", type: "stores-error" });
       } else {
-        items.push({ id: "stores-empty", type: "stores-empty" });
+        // Filtrelenmiş dükkanları kullan
+        const storesToDisplay = filteredStores;
+        const hasStoresToShow = storesToDisplay.length > 0;
+
+        if (hasStoresToShow) {
+          if (expandedStores) {
+            storesToDisplay.forEach((store) => {
+              items.push({
+                id: `store-${store.id}`,
+                type: "store",
+                data: store,
+              });
+            });
+          } else {
+            items.push({
+              id: "stores-content-horizontal",
+              type: "stores-content-horizontal",
+              data: storesToDisplay,
+            });
+          }
+        } else {
+          items.push({ id: "stores-empty", type: "stores-empty" });
+        }
       }
     }
 
@@ -472,7 +505,7 @@ const Index = () => {
   }, [filteredStores, handlePressUpdateStore]);
 
   return (
-    <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
+    <View className="flex flex-1 pl-4 pr-2">
       <View
         className={
           isMapMode
@@ -485,10 +518,11 @@ const Index = () => {
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              isList={isList}
+              setIsList={setIsList}
+              onFilterPress={() => setFilterDrawerVisible(true)}
             />
           </View>
-          <FormatListButton isList={isList} setIsList={setIsList} />
-          <FilterButton onPress={() => setFilterDrawerVisible(true)} />
         </View>
       </View>
 
@@ -567,9 +601,8 @@ const Index = () => {
               );
             }
             if (item.type === "stores-empty") {
-              // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -617,7 +650,7 @@ const Index = () => {
             }
             if (item.type === "freebarbers-header") {
               return (
-                <View className="flex flex-row justify-between items-center mt-4">
+                <View className="flex flex-row justify-between items-center mt-12">
                   <Text className="font-century-gothic text-xl text-white">
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
@@ -664,7 +697,7 @@ const Index = () => {
             if (item.type === "freebarbers-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -719,12 +752,12 @@ const Index = () => {
 
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
-        className="absolute right-0 bottom-6 bg-[#38393b] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
+        className="absolute right-0 bottom-6 bg-[#1a1b25] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
         style={{ elevation: 8 }}
       >
         <IconButton
           icon={isMapMode ? "format-list-bulleted" : "map"}
-          iconColor="#f05e23"
+          iconColor="#ffb900"
           size={24}
           style={{ margin: 0 }}
         />

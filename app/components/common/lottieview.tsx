@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleProp, ViewStyle, TouchableOpacity } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { MotiText } from 'moti';
@@ -12,6 +12,8 @@ type EmptyStateProps = {
     animationSize?: number;
     onRetry?: () => void;
     showRetryButton?: boolean;
+    /** Stable key to prevent animation reset on re-renders */
+    animationKey?: string;
 };
 
 export const LottieViewComponent: React.FC<EmptyStateProps> = ({
@@ -21,22 +23,27 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
     animationSize = 120,
     onRetry,
     showRetryButton = false,
+    animationKey,
 }) => {
     const { t } = useLanguage();
     const defaultMessage = message || t('empty.noBarbersNearby');
-    
-    // Retry butonunu göster: showRetryButton true ise veya onRetry verilmişse ve error animasyonu ise
+
+    // Stable key for animation - prevents reset on parent re-renders
+    const stableKey = useMemo(() => animationKey || 'lottie-anim', [animationKey]);
+
     const shouldShowRetry = showRetryButton || (onRetry && animationSource?.toString?.()?.includes?.('error'));
-    
+
     return (
-        <View className="items-center justify-center py-8 px-4" style={[{ minHeight: 200, maxHeight: 400 }, style]}>
+        <View className="items-center justify-center" style={[{ minHeight: 200, maxHeight: 400 }, style]}>
             <LottieView
+                key={stableKey}
                 source={animationSource}
                 autoPlay
                 loop
                 style={{ width: animationSize, height: animationSize }}
             />
             <MotiText
+                key={`${stableKey}-text`}
                 from={{ opacity: 0.7, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
@@ -55,7 +62,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
                 <View className="mt-4">
                     <TouchableOpacity
                         onPress={onRetry}
-                        className="bg-[#c2a523] px-6 py-2 rounded-lg"
+                        className="bg-[#ffb900] px-6 py-2 rounded-lg"
                         activeOpacity={0.8}
                     >
                         <Text className="text-white font-medium">{t("common.retry")}</Text>

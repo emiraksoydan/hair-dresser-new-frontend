@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
-import { InteractionManager, View, ScrollView, RefreshControl } from 'react-native'
+import { InteractionManager, View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
 import { Text } from '../../components/common/Text'
-import { Avatar, Divider, IconButton, TextInput, HelperText, Switch } from 'react-native-paper';
+import { Avatar, Divider, IconButton, TextInput, HelperText, Switch, Icon } from 'react-native-paper';
 import { Button } from '../../components/common/Button';
 import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation, useUpdateImageBlobMutation, useGetSettingQuery, useUpdateSettingMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
 import { clearStoredTokens, saveTokens } from '../../lib/tokenStorage';
+import { resetSignalRState } from '../../store/signalrSlice';
+import { api } from '../../store/api';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +22,10 @@ import { LottieViewComponent } from '../../components/common/lottieview';
 import { MESSAGES } from '../../constants/messages';
 import { useLanguage } from '../../hook/useLanguage';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
+import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BlockedUsersSheet } from '../../components/profile/BlockedUsersSheet';
+import { ComplaintsSheet } from '../../components/profile/ComplaintsSheet';
+import { RequestsSheet } from '../../components/profile/RequestsSheet';
 
 const createProfileSchema = (t: (key: string) => string) => z.object({
     firstName: z.string({ required_error: t('auth.firstName') + ' ' + t('common.required') })
@@ -44,6 +50,7 @@ const Index = () => {
     const expoRouter = useRouter();
     const [logout, { isLoading: isLoggingOut }] = useRevokeMutation();
     const { data: userData, isLoading: isLoadingUser, refetch, isFetching, error: userError, isError: isUserError } = useGetMeQuery();
+    const [isLoggingOutState, setIsLoggingOutState] = useState(false);
     const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
     const [uploadImage] = useUploadImageMutation();
     const [updateImageBlob] = useUpdateImageBlobMutation();
@@ -53,10 +60,49 @@ const Index = () => {
     const [refreshing, setRefreshing] = useState(false);
     const isUpdatingSettingRef = useRef(false);
 
+    // Bottom sheet refs
+    const blockedSheetRef = useRef<BottomSheetModal>(null);
+    const complaintsSheetRef = useRef<BottomSheetModal>(null);
+    const requestsSheetRef = useRef<BottomSheetModal>(null);
+    const sheetSnapPoints = useMemo(() => ['50%', '85%'], []);
+
+    // Modal açma kilidi - çift tıklamayı engeller
+    const isOpeningModalRef = useRef(false);
+    const currentOpenSheetRef = useRef<React.RefObject<BottomSheetModal | null> | null>(null);
+
+    // Güvenli modal açma fonksiyonu
+    const safePresent = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
+        if (isOpeningModalRef.current) return;
+        
+        // Eğer başka bir sheet açıksa önce onu kapat
+        if (currentOpenSheetRef.current && currentOpenSheetRef.current !== ref) {
+            currentOpenSheetRef.current.current?.dismiss();
+        }
+        
+        isOpeningModalRef.current = true;
+        currentOpenSheetRef.current = ref;
+        ref.current?.present();
+        
+        // 300ms sonra kilidi kaldır
+        setTimeout(() => {
+            isOpeningModalRef.current = false;
+        }, 300);
+    }, []);
+
+    // Sheet kapatma handler'ı
+    const handleSheetClose = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
+        return () => {
+            if (currentOpenSheetRef.current === ref) {
+                currentOpenSheetRef.current = null;
+            }
+            ref.current?.dismiss();
+        };
+    }, []);
+
     // Memoize theme objects
     const textInputTheme = useMemo(() => ({
         roundness: 10,
-        colors: { onSurfaceVariant: "gray", primary: "white" }
+        colors: { onSurfaceVariant: "#FFB900", primary: "white" }
     }), []);
 
     // Memoize avatar source
@@ -202,6 +248,7 @@ const Index = () => {
     }, [refetch, dispatch]);
 
     const handleLogout = useCallback(async () => {
+        setIsLoggingOutState(true);
         try {
             const tokenLoad = tokenStore.refresh;
             if (tokenLoad !== null && tokenLoad !== undefined) {
@@ -209,16 +256,31 @@ const Index = () => {
                 if ('error' in res) {
                     // Logout hatası - kullanıcıya göster
                     dispatch(showSnack({ message: t('profile.logoutFailed'), isError: true }));
+                    setIsLoggingOutState(false);
                 } else if (res.data.success) {
-                    InteractionManager.runAfterInteractions(() => {
+                    InteractionManager.runAfterInteractions(async () => {
+                        // 1. SignalR bağlantısını kapat ve state'i temizle
+                        await resetSignalRState();
+
+                        // 2. RTK Query cache'lerini temizle
+                        dispatch(api.util.resetApiState());
+
+                        // 3. Token'ları temizle
                         tokenStore.clear();
-                        clearStoredTokens();
+                        await clearStoredTokens();
+
+                        // 4. Auth sayfasına yönlendir
                         expoRouter.replace("(auth)");
                     });
+                } else {
+                    setIsLoggingOutState(false);
                 }
+            } else {
+                setIsLoggingOutState(false);
             }
         } catch {
             // Error handled silently
+            setIsLoggingOutState(false);
         }
     }, [logout, expoRouter, dispatch, t]);
 
@@ -228,14 +290,15 @@ const Index = () => {
         return getErrorMessage(userError);
     }, [isUserError, userError]);
 
-    if (isLoadingUser) {
+    // Logout sırasında skeleton gösterme
+    if (isLoadingUser && !isLoggingOutState) {
         return <ProfileSkeleton />;
     }
 
     // Error durumu - refresh edildiğinde de göster
     if (isUserError && userError && errorMessage) {
         return (
-            <View className="flex-1 bg-[#151618]">
+            <View className="flex-1">
                 <ScrollView
                     contentContainerStyle={{ flexGrow: 1 }}
                     refreshControl={
@@ -258,7 +321,7 @@ const Index = () => {
 
     return (
         <ScrollView
-            className='flex-1 pl-0 pt-4 bg-[#151618]'
+            className='flex-1 pl-0 pt-4'
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -268,12 +331,23 @@ const Index = () => {
                 />
             }
         >
-            <View className='items-center'>
+            <View className='items-center  mx-6 py-6 rounded-xl bg-[#1a1b25]'>
                 <View className="relative h-[120px] w-[120px]">
-                    <Avatar.Image
-                        size={120}
-                        source={avatarSource}
-                    />
+                    <View style={{ 
+                        width: 120, 
+                        height: 120, 
+                        borderRadius: 60, 
+                        borderWidth: 1.5, 
+                        borderColor: '#ffb900',
+                        overflow: 'hidden',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                        <Avatar.Image
+                            size={120}
+                            source={avatarSource}
+                        />
+                    </View>
                     <IconButton
                         icon="pencil"
                         size={20}
@@ -282,26 +356,26 @@ const Index = () => {
                         onPress={handleImagePick}
                     />
                 </View>
-                <Text className='font-century-gothic-bold text-center mt-3 text-white' style={{ fontSize: 20 }}>
-                    {fullName}
-                </Text>
-                <View className='w-full px-8 pt-6'>
-                    <Divider style={{ borderWidth: 0.1, width: "100%", }}></Divider>
+                <View className="flex-row items-center justify-center mt-4">
+                    <Icon source="account" size={22} color="white" />
+                    <Text className='font-century-gothic ml-2 text-white text-2xl'>
+                        {fullName}
+                    </Text>
+                </View>
+
+                <View className="flex-row items-center justify-center mt-2">
+                    <Icon source="phone" size={20} color="white" />
+                    <Text className='font-century-gothic ml-2 text-white text-lg'>
+                        {processedPhone}
+                    </Text>
                 </View>
             </View>
 
             <View className='px-6 pt-6'>
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.title')}</Text>
 
-                {/* Language Selector */}
-                <View className='bg-[#1F2937] rounded-xl p-4 mb-4'>
-                    <View className='flex-row items-center justify-between mb-2'>
-                        <Text className='text-white text-base font-century-gothic-bold'>{t('profile.language')}</Text>
-                        <LanguageSelector showLabel={false} />
-                    </View>
-                </View>
 
-                <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
+                <View className='bg-[#1a1b25] rounded-xl p-4 mb-6'>
                     <View className='flex-row gap-3'>
                         <View className='flex-1'>
                             <Controller
@@ -319,7 +393,7 @@ const Index = () => {
                                         error={!!errors.firstName}
                                         outlineColor={errors.firstName ? "#b00020" : "#444"}
                                         theme={textInputTheme}
-                                        style={{ backgroundColor: '#2D3748', marginBottom: 0, fontFamily: 'CenturyGothic' }}
+                                        style={{ backgroundColor: '#1a1b25', marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
                                 )}
                             />
@@ -341,7 +415,7 @@ const Index = () => {
                                         error={!!errors.lastName}
                                         outlineColor={errors.lastName ? "#b00020" : "#444"}
                                         theme={textInputTheme}
-                                        style={{ backgroundColor: '#2D3748', marginBottom: 0, fontFamily: 'CenturyGothic' }}
+                                        style={{ backgroundColor: '#1a1b25', marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
                                 )}
                             />
@@ -380,9 +454,9 @@ const Index = () => {
                                     outlineColor={errors.phoneNumber ? "#b00020" : "#444"}
                                     theme={{
                                         roundness: 10,
-                                        colors: { onSurfaceVariant: "gray", primary: "white" }
+                                        colors: { onSurfaceVariant: "#FFB900", primary: "white" }
                                     }}
-                                    style={{ backgroundColor: '#2D3748', marginBottom: 0, marginTop: 8, fontFamily: 'CenturyGothic' }}
+                                    style={{ backgroundColor: '#1a1b25', marginBottom: 0, marginTop: 8, fontFamily: 'CenturyGothic' }}
                                 />
                                 {errors.phoneNumber && (
                                     <HelperText type="error" visible={true} style={{ marginTop: 0, paddingTop: 0, fontFamily: 'CenturyGothic' }}>
@@ -399,14 +473,55 @@ const Index = () => {
                         loading={isUpdating}
                         disabled={!isDirty || isUpdating}
                         className="mt-4 mb-2"
-                        buttonColor="#10B981"
+                        buttonColor="#059669"
                         textColor="white"
                     >
                         {t('profile.save')}
                     </Button>
                 </View>
 
-                {/* Ayarlar Bölümü */}
+                <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.userActions') || 'Kullanıcı İşlemleri'}</Text>
+                <View className='bg-[#1F2937] rounded-xl mb-6'>
+                    {/* Engellenen Kullanıcılar */}
+                    <TouchableOpacity
+                        onPress={() => safePresent(blockedSheetRef)}
+                        activeOpacity={0.7}
+                        className='flex-row items-center justify-between p-4 border-b border-gray-700'
+                    >
+                        <View className='flex-row items-center'>
+                            <Icon source="account-cancel" size={24} color="#ef4444" />
+                            <Text className='text-white text-base ml-3'>{t('profile.blockedUsers') || 'Engellenen Kullanıcılar'}</Text>
+                        </View>
+                        <Icon source="chevron-right" size={24} color="#6b7280" />
+                    </TouchableOpacity>
+
+                    {/* Şikayetlerim */}
+                    <TouchableOpacity
+                        onPress={() => safePresent(complaintsSheetRef)}
+                        activeOpacity={0.7}
+                        className='flex-row items-center justify-between p-4 border-b border-gray-700'
+                    >
+                        <View className='flex-row items-center'>
+                            <Icon source="alert-circle-outline" size={24} color="#f59e0b" />
+                            <Text className='text-white text-base ml-3'>{t('profile.myComplaints') || 'Şikayetlerim'}</Text>
+                        </View>
+                        <Icon source="chevron-right" size={24} color="#6b7280" />
+                    </TouchableOpacity>
+
+                    {/* İsteklerim */}
+                    <TouchableOpacity
+                        onPress={() => safePresent(requestsSheetRef)}
+                        activeOpacity={0.7}
+                        className='flex-row items-center justify-between p-4'
+                    >
+                        <View className='flex-row items-center'>
+                            <Icon source="message-text-outline" size={24} color="#10B981" />
+                            <Text className='text-white text-base ml-3'>{t('profile.myRequests') || 'İsteklerim'}</Text>
+                        </View>
+                        <Icon source="chevron-right" size={24} color="#6b7280" />
+                    </TouchableOpacity>
+                </View>
+
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.settings')}</Text>
                 <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
                     <View className='flex-row items-center justify-between'>
@@ -435,6 +550,10 @@ const Index = () => {
                             disabled={isUpdatingSetting || isLoadingSetting}
                         />
                     </View>
+                    <View className='flex-row items-center justify-between mt-4'>
+                        <Text className='text-white text-base font-century-gothic-bold'>{t('profile.language')}</Text>
+                        <LanguageSelector showLabel={false} />
+                    </View>
                 </View>
 
                 <Button
@@ -454,6 +573,46 @@ const Index = () => {
                     {t('profile.logout')}
                 </Button>
             </View>
+
+            {/* Bottom Sheet Modals */}
+            <BottomSheetModal
+                ref={blockedSheetRef}
+                snapPoints={sheetSnapPoints}
+                enablePanDownToClose
+                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
+                backgroundStyle={{ backgroundColor: '#151618' }}
+                backdropComponent={(props) => (
+                    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
+                )}
+            >
+                <BlockedUsersSheet onClose={handleSheetClose(blockedSheetRef)} />
+            </BottomSheetModal>
+
+            <BottomSheetModal
+                ref={complaintsSheetRef}
+                snapPoints={sheetSnapPoints}
+                enablePanDownToClose
+                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
+                backgroundStyle={{ backgroundColor: '#151618' }}
+                backdropComponent={(props) => (
+                    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
+                )}
+            >
+                <ComplaintsSheet onClose={handleSheetClose(complaintsSheetRef)} />
+            </BottomSheetModal>
+
+            <BottomSheetModal
+                ref={requestsSheetRef}
+                snapPoints={sheetSnapPoints}
+                enablePanDownToClose
+                handleIndicatorStyle={{ backgroundColor: '#47494e' }}
+                backgroundStyle={{ backgroundColor: '#151618' }}
+                backdropComponent={(props) => (
+                    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
+                )}
+            >
+                <RequestsSheet onClose={handleSheetClose(requestsSheetRef)} />
+            </BottomSheetModal>
         </ScrollView>
     );
 }

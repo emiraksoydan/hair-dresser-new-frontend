@@ -11,13 +11,7 @@ interface HeaderActionsProps {
   onShoppingPress?: () => void;
 }
 
-/**
- * HeaderActions - Ortak header sağ taraf aksiyonları
- *
- * Tüm layout dosyalarında tekrar eden headerRight kodunu tek bir yerde toplar:
- * - Bildirim butonu (badge ile)
- * - Dropdown menü (info, shopping vb.)
- */
+
 export const HeaderActions = React.memo<HeaderActionsProps>(({
   unreadNoti,
   onNotificationPress,
@@ -35,7 +29,7 @@ export const HeaderActions = React.memo<HeaderActionsProps>(({
     {
       icon: "shopping-outline",
       label: t("navigation.shopping"),
-      onPress: onShoppingPress || (() => {}),
+      onPress: onShoppingPress || (() => { }),
     },
   ];
 
@@ -44,12 +38,12 @@ export const HeaderActions = React.memo<HeaderActionsProps>(({
       <BadgeIconButton
         icon="bell-outline"
         iconColor="white"
-        size={20}
+        size={22}
         badgeCount={unreadNoti}
         onPress={onNotificationPress}
         animateWhenActive={true}
       />
-      <HeaderDropdownMenu items={menuItems} />
+      <HeaderDropdownMenu iconSize={22} items={menuItems} />
     </View>
   );
 });

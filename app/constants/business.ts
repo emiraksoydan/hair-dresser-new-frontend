@@ -12,6 +12,9 @@ export const BUSINESS_TYPE_KEYS = [
     { translationKey: "barberType.beautySalon", value: "BeautySalon" },
 ] as const;
 
+// Alias for backward compatibility
+export const BUSINESS_TYPES = BUSINESS_TYPE_KEYS;
+
 /**
  * Get business types with translated labels
  * @param t - Translation function from useLanguage hook

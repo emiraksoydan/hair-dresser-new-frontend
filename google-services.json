@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "963826173939",
-    "project_id": "hairdresser-6ebde",
-    "storage_bucket": "hairdresser-6ebde.firebasestorage.app"
+    "project_number": "181680585618",
+    "project_id": "gumusmakas-production",
+    "storage_bucket": "gumusmakas-production.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:963826173939:android:94208352500aed325a7486",
+        "mobilesdk_app_id": "1:181680585618:android:058fe3f46038ce9ba65f4b",
         "android_client_info": {
           "package_name": "com.hairdresser.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDSgtE62TKekJOnVsyn1zNbAuL-iZZEoBc"
+          "current_key": "AIzaSyD4Irc_91MJjOw0CE7WpENeJZHNgHjOqtM"
         }
       ],
       "services": {

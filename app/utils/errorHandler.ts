@@ -507,36 +507,3 @@ export const getMessage = (message: string | null | undefined): string => {
  */
 export const getSuccessMessage = getMessage;
 
-// ============================================================================
-// BACKWARD COMPATIBILITY EXPORTS
-// ============================================================================
-
-/**
- * @deprecated Use getErrorMessage instead
- */
-export const extractErrorMessage = getErrorMessage;
-
-/**
- * @deprecated Use getErrorMessage instead
- */
-export const getUserFriendlyErrorMessage = getErrorMessage;
-
-/**
- * @deprecated Use getErrorMessage instead
- */
-export const resolveApiErrorMessage = getErrorMessage;
-
-/**
- * @deprecated Use getMessage instead
- */
-export const mapBackendMessage = translateMessage;
-
-/**
- * @deprecated Use getErrorMessage instead
- */
-export const handleBackendError = getErrorMessage;
-
-/**
- * @deprecated Use getMessage instead
- */
-export const mapValidationMessage = translateMessage;
