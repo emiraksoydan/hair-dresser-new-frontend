@@ -90,6 +90,26 @@ export const build7Days = (): Date[] => {
     });
 };
 
+// Gün bilgilerini döndür (randevu takvimi için)
+export const getDayInfo = (d: Date): { dayName: string; dayShort: string; dayNum: number; monthShort: string; isToday: boolean } => {
+    const dayNames = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+    const dayShorts = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+    const monthShorts = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+
+    return {
+        dayName: dayNames[d.getDay()],
+        dayShort: dayShorts[d.getDay()],
+        dayNum: d.getDate(),
+        monthShort: monthShorts[d.getMonth()],
+        isToday: today.getTime() === target.getTime(),
+    };
+};
+
 // Date string'ini formatla
 export const formatDate = (dateStr: string): string => {
     try {

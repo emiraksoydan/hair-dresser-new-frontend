@@ -16,7 +16,8 @@ import {
     UpdateUserDto, UserProfileDto, SettingGetDto, SettingUpdateDto, HelpGuideGetDto,
     ComplaintGetDto, CreateComplaintDto,
     RequestGetDto, CreateRequestDto,
-    BlockedGetDto, CreateBlockedDto, UnblockDto, BlockStatusDto
+    BlockedGetDto, CreateBlockedDto, UnblockDto, BlockStatusDto,
+    CategoryHierarchyDto
 } from '../types';
 import { FilterRequestDto } from '../types/filter';
 import { transformArrayResponse, transformObjectResponse, transformBooleanResponse, transformApiResponse } from '../utils/api/transform-response';
@@ -50,9 +51,6 @@ export const api = createApi({
         verifyOtp: builder.mutation<ApiResponse<AccessTokenDto>, VerifyOtpRequest>({
             query: (body) => ({ url: 'Auth/verify-otp', method: 'POST', body }),
         }),
-        password: builder.mutation<ApiResponse<AccessTokenDto>, VerifyOtpRequest>({
-            query: (body) => ({ url: 'Auth/password', method: 'POST', body }),
-        }),
         revoke: builder.mutation<{ message: string, success: boolean }, { refreshToken: string }>({
             query: (body) => ({ url: 'Auth/revoke', method: 'POST', body }),
         }),
@@ -72,6 +70,7 @@ export const api = createApi({
                 { type: 'MineStores', id: 'LIST' },
                 { type: 'MineStores', id: arg.id },
                 { type: 'GetStoreById', id: arg.id },
+                { type: 'StoreForUsers' as const, id: arg.id },
             ],
         }),
         getNearbyStores: builder.query<BarberStoreGetDto[], NearbyRequest>({
@@ -123,7 +122,11 @@ export const api = createApi({
         }),
         updateFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberUpdateDto>({
             query: (dto) => ({ url: 'FreeBarber/update-free-barber', method: 'PUT', body: dto }),
-            invalidatesTags: ['MineFreeBarberPanel'],
+            invalidatesTags: (result, error, arg) => [
+                'MineFreeBarberPanel',
+                { type: 'MineFreeBarberPanel' as const, id: arg.id },
+                { type: 'FreeBarberForUsers' as const, id: arg.id },
+            ],
         }),
         updateFreeBarberLocation: builder.mutation<ApiResponse<string>, UpdateLocationDto>({
             query: (body) => ({
@@ -461,6 +464,50 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
+            // Optimistic update: Add message to cache immediately when sent
+            async onQueryStarted({ appointmentId, text }, { dispatch, queryFulfilled }) {
+                try {
+                    const result = await queryFulfilled;
+                    const messageDto = result.data?.data;
+                    if (messageDto) {
+                        // Update cache with the message from backend response
+                        // This ensures user sees their message immediately
+                        dispatch(
+                            api.util.updateQueryData("getChatMessages", { appointmentId }, (draft) => {
+                                if (!draft) return;
+                                if (!draft.find((m) => m.messageId === messageDto.messageId)) {
+                                    draft.push({
+                                        messageId: messageDto.messageId,
+                                        senderUserId: messageDto.senderUserId,
+                                        text: messageDto.text,
+                                        createdAt: messageDto.createdAt,
+                                    });
+                                    draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                }
+                            }),
+                        );
+                        // Also update by thread
+                        if (messageDto.threadId) {
+                            dispatch(
+                                api.util.updateQueryData("getChatMessagesByThread", { threadId: messageDto.threadId }, (draft) => {
+                                    if (!draft) return;
+                                    if (!draft.find((m) => m.messageId === messageDto.messageId)) {
+                                        draft.push({
+                                            messageId: messageDto.messageId,
+                                            senderUserId: messageDto.senderUserId,
+                                            text: messageDto.text,
+                                            createdAt: messageDto.createdAt,
+                                        });
+                                        draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                    }
+                                }),
+                            );
+                        }
+                    }
+                } catch {
+                    // Error handling - SignalR will update cache anyway
+                }
+            },
             // SignalR handles real-time updates, no need for full invalidation
             invalidatesTags: [],
         }),
@@ -470,6 +517,50 @@ export const api = createApi({
                 method: 'POST',
                 body: { text },
             }),
+            // Optimistic update: Add message to cache immediately when sent
+            async onQueryStarted({ threadId, text }, { dispatch, queryFulfilled }) {
+                try {
+                    const result = await queryFulfilled;
+                    const messageDto = result.data?.data;
+                    if (messageDto) {
+                        // Update cache with the message from backend response
+                        // This ensures user sees their message immediately
+                        dispatch(
+                            api.util.updateQueryData("getChatMessagesByThread", { threadId }, (draft) => {
+                                if (!draft) return;
+                                if (!draft.find((m) => m.messageId === messageDto.messageId)) {
+                                    draft.push({
+                                        messageId: messageDto.messageId,
+                                        senderUserId: messageDto.senderUserId,
+                                        text: messageDto.text,
+                                        createdAt: messageDto.createdAt,
+                                    });
+                                    draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                }
+                            }),
+                        );
+                        // Also update by appointment if exists
+                        if (messageDto.appointmentId) {
+                            dispatch(
+                                api.util.updateQueryData("getChatMessages", { appointmentId: messageDto.appointmentId }, (draft) => {
+                                    if (!draft) return;
+                                    if (!draft.find((m) => m.messageId === messageDto.messageId)) {
+                                        draft.push({
+                                            messageId: messageDto.messageId,
+                                            senderUserId: messageDto.senderUserId,
+                                            text: messageDto.text,
+                                            createdAt: messageDto.createdAt,
+                                        });
+                                        draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                    }
+                                }),
+                            );
+                        }
+                    }
+                } catch {
+                    // Error handling - SignalR will update cache anyway
+                }
+            },
             // SignalR handles real-time updates, no need for full invalidation
             invalidatesTags: [],
         }),
@@ -768,6 +859,11 @@ export const api = createApi({
             keepUnusedDataFor: 300, // 5 dakika cache
             transformResponse: transformArrayResponse<ChairSlotDto>,
         }),
+        getCategoryHierarchy: builder.query<CategoryHierarchyDto[], void>({
+            query: () => 'Categories/hierarchy',
+            keepUnusedDataFor: 600, // 10 dakika cache - static data
+            transformResponse: transformArrayResponse<CategoryHierarchyDto>,
+        }),
 
         // --- FILTERED API ---
         // Mutation version (for manual triggers)
@@ -889,11 +985,14 @@ export const api = createApi({
             ],
         }),
         updateImageBlob: builder.mutation<ApiResponse<void>, { imageId: string; file: FormData }>({
-            query: ({ imageId, file }) => ({
-                url: `Image/update-blob/${imageId}`,
-                method: 'PUT',
-                body: file,
-            }),
+            query: ({ imageId, file }) => {
+                file.append('ImageId', imageId);
+                return {
+                    url: `Image/update-blob`,
+                    method: 'PUT',
+                    body: file,
+                };
+            },
             invalidatesTags: [
                 { type: 'StoreForUsers', id: 'LIST' },
                 { type: 'FreeBarberForUsers', id: 'LIST' },
@@ -1071,7 +1170,6 @@ export const api = createApi({
 export const {
     useSendOtpMutation,
     useVerifyOtpMutation,
-    usePasswordMutation,
     useRevokeMutation,
     useRefreshMutation,
     useAddBarberStoreMutation,
@@ -1137,6 +1235,7 @@ export const {
     useGetAllCategoriesQuery,
     useGetParentCategoriesQuery,
     useLazyGetChildCategoriesQuery,
+    useGetCategoryHierarchyQuery,
     useGetFilteredStoresMutation,
     useGetFilteredFreeBarbersMutation,
     useLazyGetFilteredStoresQueryQuery,

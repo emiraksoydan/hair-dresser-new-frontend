@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from './Text';
+import { Icon } from 'react-native-paper';
 import { useLanguage } from '../../hook/useLanguage';
 
 interface ServiceOffering {
@@ -12,42 +13,109 @@ interface ServiceOffering {
 interface ServiceOfferingsListProps {
   offerings: ServiceOffering[];
   className?: string;
+  /** 'horizontal' = yatay kaydırmalı (varsayılan), 'vertical' = dikey liste */
+  layout?: 'horizontal' | 'vertical';
+  /** Dikey modda gösterilecek önizleme sayısı (undefined = hepsini göster) */
+  previewCount?: number;
+  /** "Tümünü Göster" butonu gösterilsin mi */
+  showExpandButton?: boolean;
 }
 
 /**
  * Reusable service offerings list component
- * Displays services in a horizontal scrollable list
+ * Supports horizontal scrollable and vertical list layouts
  */
 export const ServiceOfferingsList: React.FC<ServiceOfferingsListProps> = ({
   offerings,
   className = '',
+  layout = 'horizontal',
+  previewCount,
+  showExpandButton = false,
 }) => {
   const { t } = useLanguage();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (!offerings || offerings.length === 0) {
     return null;
   }
 
+  // Horizontal layout (eski davranış)
+  if (layout === 'horizontal') {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className={`mt-2 ${className}`}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {offerings.map((service, index) => (
+          <View
+            key={service.id ?? service.serviceName ?? index}
+            className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
+          >
+            <Text className="text-[#d1d5db] mr-1 text-sm">
+              {service.serviceName} :
+            </Text>
+            <Text className="text-[#a3e635] text-sm">
+              {service.price} {t('card.currency')}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    );
+  }
+
+  // Vertical layout
+  const displayCount = (showExpandButton && !isExpanded && previewCount)
+    ? previewCount
+    : offerings.length;
+  const displayedOfferings = offerings.slice(0, displayCount);
+  const hasMore = showExpandButton && previewCount != null && offerings.length > previewCount;
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className={`mt-2 ${className}`}
-      contentContainerStyle={{ gap: 8 }}
-    >
-      {offerings.map((service, index) => (
-        <View
-          key={service.id ?? service.serviceName ?? index}
-          className="flex-row bg-[#2a2b2f] px-3 py-2 rounded-lg items-center"
+    <View className={`mt-0 mb-2 ${className}`}>
+      {displayedOfferings.map((service, index) => {
+        // İlk ve son eleman kontrolü
+        const isFirst = index === 0;
+        const isLast = index === displayedOfferings.length - 1;
+
+        return (
+          <View
+            key={service.id ?? service.serviceName ?? index}
+            className={`flex-row justify-between items-center bg-[#1e293b] px-3 py-2.5 
+          ${isFirst ? 'rounded-t-xl' : ''} 
+          ${isLast ? 'rounded-b-xl' : ''} 
+          ${!isLast ? 'border-b border-[#334155]' : ''}`} // Elemanlar arasına ince bir çizgi (opsiyonel)
+          >
+            <View className="flex-row items-center flex-1 mr-2">
+              <View className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] mr-2" />
+              <Text className="text-[#e2e8f0] text-sm flex-1" numberOfLines={1}>
+                {service.serviceName}
+              </Text>
+            </View>
+            <Text className="text-[#a3e635] text-sm font-century-gothic-bold">
+              {service.price} {t('card.currency')}
+            </Text>
+          </View>
+        );
+      })}
+
+      {hasMore && (
+        <TouchableOpacity
+          onPress={() => setIsExpanded(!isExpanded)}
+          className="flex-row items-center justify-center py-2 mt-1"
+          activeOpacity={0.7}
         >
-          <Text className="text-[#d1d5db] mr-1 text-sm">
-            {service.serviceName} :
+          <Text className="text-[#60a5fa] text-sm mr-1">
+            {isExpanded ? t('common.showLess') : t('common.showAll')} ({offerings.length})
           </Text>
-          <Text className="text-[#a3e635] text-sm">
-            {service.price} {t('card.currency')}
-          </Text>
-        </View>
-      ))}
-    </ScrollView>
+          <Icon
+            source={isExpanded ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#60a5fa"
+          />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };

@@ -13,4 +13,5 @@ export * from './colors';
 export * from './messages';
 export * from './time';
 export * from './notification';
+export * from './legal';
 

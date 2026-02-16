@@ -8,7 +8,7 @@ export const COLORS = {
     STATUS: {
         PENDING: '#fbbf24',      // yellow
         APPROVED: '#22c55e',      // green
-        COMPLETED: '#3b82f6',     // blue
+        COMPLETED: '#22c55e',     // green
         CANCELLED: '#ef4444',     // red
         REJECTED: '#ef4444',      // red
         UNANSWERED: '#f59e0b',    // amber (timeout durumu)

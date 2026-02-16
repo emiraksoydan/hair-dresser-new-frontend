@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Image, View } from "react-native";
 import { Icon } from "react-native-paper";
 import { useGetImagesByOwnerQuery } from "../../store/api";
@@ -17,7 +17,7 @@ type Props = {
     iconContainerClassName?: string;
 };
 
-export const OwnerAvatar: React.FC<Props> = ({
+const OwnerAvatarInner: React.FC<Props> = ({
     ownerId,
     ownerType,
     fallbackUrl,
@@ -63,3 +63,4 @@ export const OwnerAvatar: React.FC<Props> = ({
     );
 };
 
+export const OwnerAvatar = memo(OwnerAvatarInner);

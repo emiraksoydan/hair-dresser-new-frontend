@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "../../components/common/Text";
-import MapView, { Marker } from "react-native-maps";
+import MapView from "react-native-maps";
 import { IconButton } from "react-native-paper";
 import SearchBar from "../../components/common/searchbar";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
@@ -17,7 +17,6 @@ import { toggleExpand } from "../../utils/common/expand-toggle";
 import { SkeletonComponent } from "../../components/common/skeleton";
 import { BarberStoreMineDto, FreeBarGetDto } from "../../types";
 import {
-  useGetAllCategoriesQuery,
   useGetMineStoresQuery,
   useGetSettingQuery,
   useGetMeQuery,
@@ -85,15 +84,6 @@ const Index = () => {
     filter: freeBarberFilterDto,
     currentUserId,
   });
-
-  const { data: allCategories = [] } = useGetAllCategoriesQuery();
-  const categoryNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    (allCategories ?? []).forEach((c: any) => {
-      if (c?.id && c?.name) map.set(String(c.id), String(c.name));
-    });
-    return map;
-  }, [allCategories]);
 
   // Ayarlar
   const { data: settingData } = useGetSettingQuery();
@@ -231,8 +221,7 @@ const Index = () => {
     // userType filtresi - "freeBarber" seçiliyse kendi dükkanları gizlenir
     const shouldShowStores =
       filterCriteria.userType === "all" ||
-      filterCriteria.userType === "store" ||
-      filterCriteria.userType === "Dükkan";
+      filterCriteria.userType === "store";
     if (!shouldShowStores) return [];
 
     return displayStores.filter((store) => {
@@ -279,8 +268,7 @@ const Index = () => {
     const shouldShowFreeBarbers =
       filterCriteria.userType === "all" ||
       filterCriteria.userType === "freeBarber";
-    if (!shouldShowFreeBarbers || filterCriteria.userType === "Dükkan")
-      return [];
+    if (!shouldShowFreeBarbers) return [];
 
     return displayFreeBarbers.filter((barber) => {
       // Basic search
@@ -370,8 +358,7 @@ const Index = () => {
     // Stores section (Kendi dükkanlarım) - filtre uygulanır
     const shouldShowStores =
       filterCriteria.userType === "all" ||
-      filterCriteria.userType === "store" ||
-      filterCriteria.userType === "Dükkan";
+      filterCriteria.userType === "store";
     if (shouldShowStores) {
       items.push({ id: "stores-header", type: "stores-header" });
       if (isStoresLoading) {
@@ -586,7 +573,7 @@ const Index = () => {
             if (item.type === "stores-error") {
               // Hata durumu - servise ulaşılamadı mesajı göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View style={{ minHeight: 300, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={storesError}
@@ -602,7 +589,7 @@ const Index = () => {
             }
             if (item.type === "stores-empty") {
               return (
-                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -680,7 +667,7 @@ const Index = () => {
             if (item.type === "freebarbers-error") {
               // Hata durumu - servise ulaşılamadı mesajı göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View style={{ minHeight: 300, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={freeBarbersError}
@@ -697,7 +684,7 @@ const Index = () => {
             if (item.type === "freebarbers-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400 }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -777,6 +764,14 @@ const Index = () => {
           updateFilterCriteria({
             mainCategory: value === "all" ? undefined : value,
           })
+        }
+        selectedMainHeadings={filterCriteria.mainHeadings || []}
+        onChangeMainHeadings={(value) =>
+          updateFilterCriteria({ mainHeadings: value })
+        }
+        selectedSubHeadings={filterCriteria.subHeadings || []}
+        onChangeSubHeadings={(value) =>
+          updateFilterCriteria({ subHeadings: value })
         }
         selectedServices={filterCriteria.serviceIds || []}
         onChangeServices={(value) =>

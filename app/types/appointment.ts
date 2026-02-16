@@ -93,8 +93,10 @@ export type AppointmentGetDto = {
 
   // Store
   barberStoreId?: string;
+  storeUserId?: string; // Dükkan sahibinin User ID'si (şikayet için)
   storeName?: string;
   storeImage?: string;
+  storeOwnerNumber?: string; // Dükkan sahibi numarası
   isStoreFavorite: boolean;
   storeType: BarberType;
   myRatingForStore?: number;
@@ -104,8 +106,10 @@ export type AppointmentGetDto = {
 
   // FreeBarber
   freeBarberId?: string;
+  freeBarberUserId?: string; // FreeBarber'ın User ID'si (şikayet için)
   freeBarberName?: string;
   freeBarberImage?: string;
+  freeBarberNumber?: string; // Serbest berber numarası
   isFreeBarberFavorite: boolean;
   myRatingForFreeBarber?: number;
   myCommentForFreeBarber?: string;

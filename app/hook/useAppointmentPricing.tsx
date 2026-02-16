@@ -26,7 +26,7 @@ export const useAppointmentPricing = ({
     isFreeBarber,
 }: UseAppointmentPricingProps) => {
     const pricingValueNum = useMemo(() => Number(pricingValue ?? 0), [pricingValue]);
-    
+
     const pricingTypeKey = useMemo(() => {
         const pt = pricingType;
         if (typeof pt === "string") return pt.toLowerCase() as "percent" | "rent";
@@ -39,26 +39,40 @@ export const useAppointmentPricing = ({
     const isHourlyFree = isFreeBarber && pricingTypeKey === "rent";
     const isPercentFree = isFreeBarber && pricingTypeKey === "percent";
 
-    const totalPrice = useMemo(() => {
+    // Hizmet fiyatı - seçilen hizmetlerin toplam fiyatı
+    const servicePriceTotal = useMemo(() => {
         const servicesTotal =
             (serviceOfferings ?? [])
                 .filter(x => selectedServices.includes(x.id))
                 .reduce((sum, x) => sum + Number(x.price ?? 0), 0);
 
-        if (isHourlyFree) {
-            return Number((pricingValueNum * selectedSlotKeys.length).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
-        }
         if (isPercentFree) {
             return Number((servicesTotal * (pricingValueNum / APPOINTMENT_CONSTANTS.PERCENTAGE_DIVISOR)).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
         }
         return Number(servicesTotal.toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
-    }, [serviceOfferings, selectedServices, isHourlyFree, isPercentFree, pricingValueNum, selectedSlotKeys.length]);
+    }, [serviceOfferings, selectedServices, isPercentFree, pricingValueNum]);
+
+    // Saat kiralama fiyatı - seçilen slot sayısı × saatlik ücret
+    const slotPriceTotal = useMemo(() => {
+        if (!isHourlyFree) return 0;
+        return Number((pricingValueNum * selectedSlotKeys.length).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
+    }, [isHourlyFree, pricingValueNum, selectedSlotKeys.length]);
+
+    // Toplam fiyat
+    const totalPrice = useMemo(() => {
+        if (isHourlyFree) {
+            return Number((servicePriceTotal + slotPriceTotal).toFixed(APPOINTMENT_CONSTANTS.DECIMAL_PLACES));
+        }
+        return servicePriceTotal;
+    }, [isHourlyFree, servicePriceTotal, slotPriceTotal]);
 
     return {
         pricingTypeKey,
         isHourlyFree,
         isPercentFree,
         totalPrice,
+        servicePriceTotal,
+        slotPriceTotal,
         pricingValue: pricingValueNum,
     };
 };

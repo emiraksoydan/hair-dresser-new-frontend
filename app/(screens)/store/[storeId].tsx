@@ -66,8 +66,9 @@ export default function StoreDetail() {
     const effectiveMode = shouldForceAddStore ? "add-store" : mode;
     const effectiveAppointmentId = appointmentId ?? activeStoreSelectionAppointment?.id;
 
-    const isFreeBarber = effectiveMode === "free-barber" || effectiveMode === "add-store";
-    const isCustomer = effectiveMode === "customer";
+    // Mode yoksa userType'a göre belirle
+    const isFreeBarber = effectiveMode === "free-barber" || effectiveMode === "add-store" || (!effectiveMode && userType === UserType.FreeBarber);
+    const isCustomer = effectiveMode === "customer" || (!effectiveMode && userType === UserType.Customer);
     const isAddStoreMode = effectiveMode === "add-store";
 
     return (

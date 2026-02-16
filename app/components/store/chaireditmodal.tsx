@@ -289,15 +289,22 @@ export const ChairEditModal: React.FC<Props> = ({
             )}
           </View>
         </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={onClose} textColor="#9CA3AF">
+        <Dialog.Actions style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+          <Button 
+            mode="text"
+            onPress={onClose} 
+            textColor="#9CA3AF"
+            style={{ marginRight: 8 }}
+          >
             Vazgeç
           </Button>
           <Button
+            mode="contained"
             loading={isAdding || isUpdating}
             disabled={isAdding || isUpdating}
             onPress={handleSubmit(submit)}
-            textColor="#10B981"
+            buttonColor="#10B981"
+            textColor="white"
           >
             Kaydet
           </Button>

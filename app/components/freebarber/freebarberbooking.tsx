@@ -462,10 +462,10 @@ const FreeBarberBookingContent = ({
 
                     // handleCallFreeBarberRequest();
                   } catch (error: any) {
-                    alertError(
-                      t("common.error"),
-                      getErrorMessage(error) || t("booking.callFailed"),
-                    );
+                    const errorMsg = getErrorMessage(error);
+                    if (errorMsg) {
+                      alertError(t("common.error"), errorMsg);
+                    }
                   }
                 }}
               >
@@ -557,41 +557,52 @@ const FreeBarberBookingContent = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Hizmetler (Seçilebilir) */}
+              {/* Hizmetler (Seçilebilir - Dikey Liste) */}
               <View>
-                <View className="flex-row items-center gap-2 mb-2">
-                  <Text className="text-white font-century-gothic text-base">
-                    Berberin Hizmetleri
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-white font-century-gothic-bold text-base">
+                    {t("common.services")}
                   </Text>
-                  <Text className="text-[#a3e635] font-century-gothic-bold text-base">
-                    {totalPrice} {t("card.currencySymbol")}
-                  </Text>
+                  <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                    <Text className="text-[#a3e635] font-century-gothic-bold text-base">
+                      {totalPrice} {t("card.currencySymbol")}
+                    </Text>
+                  </View>
                 </View>
                 <FlatList
                   data={freeBarberData?.offerings ?? []}
                   keyExtractor={(item) => item.id}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 10, paddingHorizontal: 4 }}
+                  scrollEnabled={false}
+                  contentContainerStyle={{ gap: 8 }}
                   renderItem={({ item }) => {
                     const isSelected = selectedServices.includes(item.id);
                     return (
-                      <FilterChip
-                        itemKey={item.id}
-                        selected={isSelected}
+                      <TouchableOpacity
                         onPress={() => toggleService(item.id)}
-                        className={`rounded-xl px-4 py-2 ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
+                        activeOpacity={0.7}
+                        className={`flex-row items-center justify-between px-4 py-3 rounded-xl border ${isSelected ? "bg-[#14532d] border-[#22c55e]" : "bg-[#1e293b] border-[#334155]"}`}
                       >
+                        <View className="flex-row items-center flex-1 mr-2">
+                          <Icon
+                            source={isSelected ? "check-circle" : "circle-outline"}
+                            size={22}
+                            color={isSelected ? "#22c55e" : "#6b7280"}
+                          />
+                          <Text
+                            className="ml-3 text-sm flex-1"
+                            style={{ color: isSelected ? "#e2e8f0" : "#d1d5db" }}
+                            numberOfLines={1}
+                          >
+                            {item.serviceName}
+                          </Text>
+                        </View>
                         <Text
-                          style={{
-                            color: isSelected ? "white" : "#d1d5db",
-                            fontSize: 14,
-                          }}
+                          className="text-sm font-century-gothic-bold"
+                          style={{ color: isSelected ? "#a3e635" : "#9ca3af" }}
                         >
-                          {item.serviceName} - {item.price}{" "}
-                          {t("card.currencySymbol")}
+                          {item.price} {t("card.currencySymbol")}
                         </Text>
-                      </FilterChip>
+                      </TouchableOpacity>
                     );
                   }}
                 />
@@ -629,8 +640,8 @@ const FreeBarberBookingContent = ({
               {/* Randevu Gönder Butonu */}
               <TouchableOpacity
                 disabled={isCreating}
-                className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${isCreating ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
-                style={{ opacity: isCreating ? 0.7 : 1 }}
+                className={`py-4 flex-row justify-center gap-2 rounded-2xl items-center ${isCreating ? "bg-[#4b5563]" : "bg-[#16a34a]"}`}
+                style={{ opacity: isCreating ? 0.7 : 1, elevation: 6, shadowColor: '#22c55e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 }}
                 onPress={async () => {
                   try {
                     // Error veya location denied kontrolü
@@ -695,11 +706,10 @@ const FreeBarberBookingContent = ({
                       [{ text: t("common.ok"), onPress: () => router.back() }],
                     );
                   } catch (error: any) {
-                    alertError(
-                      t("common.error"),
-                      getErrorMessage(error) ||
-                        t("booking.appointmentCreationFailed"),
-                    );
+                    const errorMsg = getErrorMessage(error);
+                    if (errorMsg) {
+                      alertError(t("common.error"), errorMsg);
+                    }
                   }
                 }}
               >
@@ -846,11 +856,10 @@ const FreeBarberBookingContent = ({
                       [{ text: t("common.ok"), onPress: () => router.back() }],
                     );
                   } catch (error: any) {
-                    alertError(
-                      t("common.error"),
-                      getErrorMessage(error) ||
-                        t("booking.appointmentCreationFailed"),
-                    );
+                    const errorMsg = getErrorMessage(error);
+                    if (errorMsg) {
+                      alertError(t("common.error"), errorMsg);
+                    }
                   }
                 }}
               >

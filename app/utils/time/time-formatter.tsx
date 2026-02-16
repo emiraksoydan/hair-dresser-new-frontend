@@ -41,33 +41,3 @@ export const useFormatTime = () => {
     }, []);
 };
 
-/**
- * Format relative time (non-hook version for use outside components)
- */
-export const formatRelativeTime = (dateStr?: string | null): string => {
-    if (!dateStr) return '';
-
-    try {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / TIME_CONSTANTS.MINUTE_MS);
-
-        if (diffMins < TIME_CONSTANTS.DISPLAY_NOW_THRESHOLD_MINUTES) {
-            return MESSAGES.TIME.NOW;
-        }
-
-        if (diffMins < TIME_CONSTANTS.DISPLAY_MINUTES_THRESHOLD) {
-            return MESSAGES.TIME.MINUTES_AGO(diffMins);
-        }
-
-        if (diffMins < TIME_CONSTANTS.DISPLAY_HOURS_THRESHOLD) {
-            return MESSAGES.TIME.HOURS_AGO(Math.floor(diffMins / TIME_CONSTANTS.MINUTES_PER_HOUR));
-        }
-
-        return formatDate(dateStr);
-    } catch {
-        return '';
-    }
-};
-

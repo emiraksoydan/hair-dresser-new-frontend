@@ -1,5 +1,5 @@
 import React, { useState, memo, useEffect, useRef } from "react";
-import { View, Image, ActivityIndicator } from "react-native";
+import { View, Image } from "react-native";
 import { Marker } from "react-native-maps";
 import { Icon } from "react-native-paper";
 
@@ -15,9 +15,7 @@ interface StoreMarkerProps {
 
 export const StoreMarker = memo(({ storeId, coordinate, title, description, imageUrl, storeType, onPress }: StoreMarkerProps) => {
     const [tracksViewChanges, setTracksViewChanges] = useState(true);
-    const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
     const imageUrlRef = useRef<string | undefined>(imageUrl);
     const mountedRef = useRef(true);
 
@@ -25,39 +23,31 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
     const iconName = storeType == 0 ? "face-man" : "face-woman";
     const hasImage = imageUrl && !imageError;
 
-    // Component mount/unmount tracking
     useEffect(() => {
         mountedRef.current = true;
-        // Her mount'ta resmi yeniden yükle
-        setTracksViewChanges(true);
-        setImageLoaded(false);
-
         return () => {
             mountedRef.current = false;
         };
     }, []);
 
-    // Image URL değiştiğinde tracksViewChanges'i true yap ve error'ı sıfırla
+    // Image URL değiştiğinde error'ı sıfırla ve tracking'i aç
     useEffect(() => {
         if (imageUrl !== imageUrlRef.current) {
             imageUrlRef.current = imageUrl;
             setImageError(false);
-            setImageLoaded(false);
             setTracksViewChanges(true);
         }
     }, [imageUrl]);
 
-    // Resim yüklendikten sonra tracking'i kapat (performans için)
+    // Resim yoksa veya hata varsa tracking'i kapat
     useEffect(() => {
-        if (imageLoaded || imageError || !hasImage) {
+        if (!hasImage) {
             const timer = setTimeout(() => {
-                if (mountedRef.current) {
-                    setTracksViewChanges(false);
-                }
-            }, 500);
+                if (mountedRef.current) setTracksViewChanges(false);
+            }, 300);
             return () => clearTimeout(timer);
         }
-    }, [imageLoaded, imageError, hasImage]);
+    }, [hasImage]);
 
     return (
         <Marker
@@ -78,38 +68,24 @@ export const StoreMarker = memo(({ storeId, coordinate, title, description, imag
                 }}
             >
                 {hasImage ? (
-                    <>
-                        <Image
-                            source={{ uri: imageUrl }}
-                            className="w-full h-full rounded-full"
-                            resizeMode="cover"
-                            onLoadStart={() => {
-                                if (mountedRef.current) {
-                                    setImageLoading(true);
-                                    setTracksViewChanges(true);
-                                }
-                            }}
-                            onLoadEnd={() => {
-                                if (mountedRef.current) {
-                                    setImageLoading(false);
-                                    setImageLoaded(true);
-                                    // Resim yüklendiğinde bir süre daha track et ki resim görünsün
-                                    setTracksViewChanges(true);
-                                }
-                            }}
-                            onError={() => {
-                                if (mountedRef.current) {
-                                    setImageLoading(false);
-                                    setImageError(true);
-                                }
-                            }}
-                        />
-                        {imageLoading && (
-                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: bg, borderRadius: 18 }}>
-                                <ActivityIndicator size="small" color="white" />
-                            </View>
-                        )}
-                    </>
+                    <Image
+                        source={{ uri: imageUrl }}
+                        className="w-full h-full rounded-full"
+                        resizeMode="cover"
+                        onLoad={() => {
+                            if (mountedRef.current) {
+                                setTracksViewChanges(true);
+                                setTimeout(() => {
+                                    if (mountedRef.current) setTracksViewChanges(false);
+                                }, 300);
+                            }
+                        }}
+                        onError={() => {
+                            if (mountedRef.current) {
+                                setImageError(true);
+                            }
+                        }}
+                    />
                 ) : (
                     <Icon source={iconName} color="white" size={20} />
                 )}

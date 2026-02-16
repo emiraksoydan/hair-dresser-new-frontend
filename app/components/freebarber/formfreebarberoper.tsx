@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   ScrollView,
   TouchableOpacity,
   View,
+  Dimensions,
 } from "react-native";
 import { Text } from "../common/Text";
 import {
@@ -19,7 +21,8 @@ import { Button } from "../common/Button";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dropdown, MultiSelect } from "react-native-element-dropdown";
+import { Dropdown } from "react-native-element-dropdown";
+import { CategoryListSelect } from "../common/CategoryListSelect";
 import {
   handlePickMultipleImages,
   handlePickImage,
@@ -49,14 +52,14 @@ import {
   useUploadMultipleImagesMutation,
   useUploadImageMutation,
   useUpdateImageBlobMutation,
-  useGetParentCategoriesQuery,
-  useLazyGetChildCategoriesQuery,
 } from "../../store/api";
+import { useCategoryHierarchy } from "../../hook/useCategoryHierarchy";
 import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 import { MESSAGES } from "../../constants/messages";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
+import { StepFormIndicator } from "../common/StepFormIndicator";
 
 // --- Schema Definitions ---
 const createLocationSchema = (t: (key: string) => string) =>
@@ -87,7 +90,8 @@ const createCertificateImageField = (t: (key: string) => string) =>
         !!v && typeof v === "object" && "uri" in (v as any) && (v as any).uri,
       { message: t("form.certificateImageRequired") },
     )
-    .pipe(ImageAssetSchema);
+    .pipe(ImageAssetSchema)
+    .optional();
 
 const createSchema = (t: (key: string) => string) =>
   z.object({
@@ -110,23 +114,118 @@ const createSchema = (t: (key: string) => string) =>
       )
       .max(3, t("form.maxImages"))
       .optional(),
-    type: z.string({ required_error: t("form.storeTypeRequired") }),
+    // Ana kategori: sadece bir tane seçilebilir
+    selectedMainCategories: z
+      .array(z.string())
+      .min(1, t("form.atLeastOneMainCategory"))
+      .max(1, t("form.onlyOneMainCategory")),
+    // Güzellik salonu belgesi opsiyonel
+    beautySalonCertificateImage: createCertificateImageField(t),
+    // Güzellik salonu ana kategorileri (belge varsa zorunlu)
+    selectedBeautySalonMainHeadings: z.array(z.string()).optional(),
+    // Güzellik salonu alt başlıkları
+    selectedBeautySalonSubHeadings: z.array(z.string()).optional(),
+    // Güzellik salonu hizmetleri (ayrı tutulmalı)
+    selectedBeautySalonCategories: z.array(z.string()).optional(),
+    // Ana başlıklar (seçilen main kategorilere göre) - Erkek/Kadın için
+    selectedMainHeadings: z.array(z.string()).optional(),
+    // Alt başlıklar (seçilen ana başlıklara göre)
+    selectedSubHeadings: z.array(z.string()).optional(),
+    // Hizmetler (seçilen alt başlıklara göre) - final seçim (sadece ana kategori hizmetleri)
     selectedCategories: z
       .array(z.string())
-      .min(1, t("form.atLeastOneCategory")),
+      .optional(),
     prices: z.record(
       z.string(),
       z
-        .string({ required_error: t("form.priceRequired") })
-        .min(1, t("form.priceRequired"))
-        .regex(trMoneyRegex, t("form.priceFormatInvalid")),
+        .string()
+        .refine(
+          (val) => {
+            if (!val || val === "") return false; // Boş olamaz
+            const num = parseFloat(val.replace(/\./g, "").replace(",", "."));
+            return !isNaN(num) && num >= 0; // 0 veya daha büyük olmalı
+          },
+          { message: t("form.priceCannotBeNegative") },
+        ),
     ),
     location: createLocationSchema(t),
     certificateImage: createCertificateImageField(t),
     isAvailable: z.boolean().default(true),
-  });
+  })
+    .superRefine((data, ctx) => {
+      // Ana kategoriler seçilip alt dropdownlar seçilmezse hata ver
+      if (data.selectedMainCategories && data.selectedMainCategories.length > 0) {
+        if (!data.selectedMainHeadings || data.selectedMainHeadings.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("form.mainHeadingsRequired"),
+            path: ["selectedMainHeadings"],
+          });
+        } else if (!data.selectedSubHeadings || data.selectedSubHeadings.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("form.subHeadingsRequired"),
+            path: ["selectedSubHeadings"],
+          });
+        }
+      }
+
+      // Güzellik salonu belgesi varsa, güzellik salonu ana başlıkları zorunlu
+      if (data.beautySalonCertificateImage) {
+        if (!data.selectedBeautySalonMainHeadings || data.selectedBeautySalonMainHeadings.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("form.beautySalonMainHeadingsRequired"),
+            path: ["selectedBeautySalonMainHeadings"],
+          });
+        } else if (!data.selectedBeautySalonSubHeadings || data.selectedBeautySalonSubHeadings.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("form.beautySalonSubHeadingsRequired"),
+            path: ["selectedBeautySalonSubHeadings"],
+          });
+        }
+      }
+
+      // En az bir kategori seçilmeli (ana kategori veya güzellik salonu)
+      const hasMainCategories = (data.selectedCategories && data.selectedCategories.length > 0);
+      const hasBeautySalonCategories = (data.selectedBeautySalonCategories && data.selectedBeautySalonCategories.length > 0);
+      if (!hasMainCategories && !hasBeautySalonCategories) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t("form.atLeastOneCategory"),
+          path: ["selectedCategories"],
+        });
+      }
+    });
 
 export type FormFreeBarberValues = z.input<ReturnType<typeof createSchema>>;
+
+// Güzellik salonu fiyat anahtarı prefix'i - aynı isimli hizmetlerin çakışmasını önler
+const BS_PRICE_PREFIX = "bs:";
+const bsPriceKey = (name: string) => `${BS_PRICE_PREFIX}${name}`;
+const isBsPriceKey = (key: string) => key.startsWith(BS_PRICE_PREFIX);
+const stripBsPrefix = (key: string) => isBsPriceKey(key) ? key.slice(BS_PRICE_PREFIX.length) : key;
+
+const Row = ({ label, value }: { label: string; value: string }) => (
+  <View className="py-1.5 border-b border-gray-700">
+    <Text className="text-gray-400 text-sm mb-0.5">{label}</Text>
+    <Text className="text-white text-sm">{value || "—"}</Text>
+  </View>
+);
+
+const RowList = ({ label, items }: { label: string; items: string[] }) => {
+  const unique = React.useMemo(() => Array.from(new Set(items)), [items]);
+  if (unique.length === 0) return null;
+  return (
+    <View className="py-1.5 border-b border-gray-700">
+      <Text className="text-gray-400 text-sm mb-1">{label}</Text>
+      {unique.map((item, i) => (
+        <Text key={`${item}-${i}`} className="text-white text-sm py-0.5">{item}</Text>
+      ))}
+    </View>
+  );
+};
 
 type Props = {
   freeBarberId: string | null;
@@ -136,13 +235,51 @@ type Props = {
   locationStatus?: "unknown" | "granted" | "denied"; // Location status
 };
 
+// Step field names for validation
+const STEP_FIELDS: Record<number, (keyof FormFreeBarberValues)[]> = {
+  0: ["images", "certificateImage", "name", "surname"],
+  1: ["selectedMainCategories"],
+  2: ["selectedMainHeadings"],
+  3: ["selectedSubHeadings"],
+  4: ["selectedCategories"],
+  5: ["beautySalonCertificateImage", "selectedBeautySalonMainHeadings", "selectedBeautySalonSubHeadings", "selectedBeautySalonCategories"],
+  6: ["prices", "location"],
+  7: [],
+  8: ["isAvailable"],
+};
+
 export const FormFreeBarberOperation = React.memo(
   ({ freeBarberId, enabled, onClose, error, locationStatus }: Props) => {
     const isEdit = freeBarberId != null;
+    const [currentStep, setCurrentStep] = React.useState(0);
+    const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set());
+    const stepSlideAnim = useRef(new Animated.Value(0)).current;
+    const prevStepRef = useRef(0);
 
     const dispatch = useAppDispatch();
     const { userId } = useAuth();
     const { t, currentLanguage } = useLanguage();
+
+    const stepLabels = React.useMemo(() => {
+      const base = [
+        t("form.stepInfo"),
+        t("form.stepMainCategories"),
+        t("form.stepMainHeadings"),
+        t("form.stepSubHeadings"),
+        t("form.stepServices"),
+        t("form.stepBeautySalon"),
+        t("form.stepPrices"),
+        t("form.stepPreview"),
+      ];
+      if (isEdit) base.push(t("form.stepAvailability"));
+      return base;
+    }, [t, isEdit, currentLanguage]);
+
+    const steps = React.useMemo(
+      () => stepLabels.map((label, i) => ({ id: `step-${i}`, label })),
+      [stepLabels],
+    );
+    const totalSteps = stepLabels.length;
     const schema = useMemo(() => createSchema(t), [t, currentLanguage]);
     const resolver = useMemo(() => zodResolver(schema), [schema]);
 
@@ -180,6 +317,12 @@ export const FormFreeBarberOperation = React.memo(
       defaultValues: {
         isAvailable: true,
         location: { latitude: 0, longitude: 0 },
+        selectedMainCategories: [],
+        selectedBeautySalonMainHeadings: [],
+        selectedBeautySalonSubHeadings: [],
+        selectedBeautySalonCategories: [],
+        selectedMainHeadings: [],
+        selectedSubHeadings: [],
         selectedCategories: [],
         prices: {},
       },
@@ -190,64 +333,77 @@ export const FormFreeBarberOperation = React.memo(
       if (Object.keys(errors).length > 0) {
         trigger();
       }
-    }, [currentLanguage, trigger, errors]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentLanguage]);
 
     const images = watch("images");
-    const selectedType = watch("type");
-    const selectedCategories = watch("selectedCategories");
+    const selectedMainCategories = watch("selectedMainCategories") ?? [];
+    const beautySalonCertificateImage = watch("beautySalonCertificateImage");
+    const selectedBeautySalonMainHeadings = watch("selectedBeautySalonMainHeadings") ?? [];
+    const selectedBeautySalonSubHeadings = watch("selectedBeautySalonSubHeadings") ?? [];
+    const selectedMainHeadings = watch("selectedMainHeadings") ?? [];
+    const selectedSubHeadings = watch("selectedSubHeadings") ?? [];
+    const selectedCategories = watch("selectedCategories") ?? [];
+    const selectedBeautySalonCategories = watch("selectedBeautySalonCategories") ?? [];
     const currentPrices = watch("prices");
 
-    // Category API hooks
-    const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
-    const [triggerGetChildCategories, { data: childCategories = [] }] =
-      useLazyGetChildCategoriesQuery();
-
-    // Duplicate kategorileri filtrele (name bazında)
-    const parentCategories = React.useMemo(() => {
-      const seen = new Set<string>();
-      return parentCategoriesRaw.filter((cat: any) => {
-        if (seen.has(cat.name)) return false;
-        seen.add(cat.name);
-        return true;
-      });
-    }, [parentCategoriesRaw]);
+    // Kategori hiyerarşisi - tek API çağrısı ile tüm kategoriler
+    const {
+      parentCategories,
+      mainHeadings,
+      subHeadings,
+      services,
+      beautySalonMainHeadings,
+      beautySalonSubHeadings,
+      beautySalonServices,
+      findParentHierarchyFromServices,
+      isLoading: isCategoryLoading,
+    } = useCategoryHierarchy({
+      selectedTypes: selectedMainCategories,
+      selectedMainHeadings,
+      selectedSubHeadings,
+      selectedBeautySalonMainHeadings,
+      selectedBeautySalonSubHeadings,
+    });
 
     // Edit ise panel detay çek - useEffect'lerden önce tanımlanmalı
     const [triggerGetFreeBarberPanel, { data, isLoading }] =
       useLazyGetFreeBarberMinePanelDetailQuery();
 
-    // FreeBarber için sadece Erkek Berber ve Bayan Kuaför kategorilerini göster (Güzellik Salonu hariç)
+    // FreeBarber için Güzellik Salonu hariç tüm kategorileri göster
+    // (Erkek Berber, Kadın Kuaför vb. tüm varyasyonlar)
     const allowedParentCategories = React.useMemo(() => {
       return parentCategories.filter(
-        (cat: any) =>
-          cat.name === "Erkek Berber" || cat.name === "Bayan Kuaför",
+        (cat: any) => cat.name !== "Güzellik Salonu",
       );
     }, [parentCategories]);
 
-    // Seçilen parent kategoriye göre child kategorileri yükle
-    // Data yüklendiğinde de child kategorileri yükle
-    useEffect(() => {
-      // selectedType varsa onu kullan, yoksa data.type'ı display name'e çevir
-      const typeToLoad =
-        selectedType ||
-        (data?.type != null ? mapTypeToDisplayName(data.type) : undefined);
-      if (typeToLoad && allowedParentCategories.length > 0) {
-        const parentCat = allowedParentCategories.find(
-          (cat: any) => cat.name === typeToLoad,
-        );
-        if (parentCat) {
-          triggerGetChildCategories(parentCat.id);
-        }
-      }
-    }, [selectedType, data?.type, allowedParentCategories]);
+    // Güzellik salonu kategorisi
+    const beautySalonCategory = useMemo(
+      () => parentCategories.find((cat: any) => cat.name === "Güzellik Salonu"),
+      [parentCategories],
+    );
 
     // Not: Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
     // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için name -> id dönüşümü yapmıyoruz.
-    
+    // Kategori hiyerarşisi artık useCategoryHierarchy hook'u tarafından otomatik yönetiliyor.
+
     useEffect(() => {
       if (!enabled) {
-        // enabled false olduğunda form'u reset et
+        // enabled false olduğunda form'u ve tüm ref'leri reset et
         reset();
+        setCurrentStep(0);
+        setCompletedSteps(new Set());
+        initialDataLoadedRef.current = false;
+        isRestoringRef.current = false;
+        prevMainCategoriesRef.current = [];
+        prevMainHeadingsRef.current = [];
+        prevSubHeadingsRef.current = [];
+        prevBsMainHeadingsRef.current = [];
+        prevBsSubHeadingsRef.current = [];
+        selectedCategoriesLengthRef.current = 0;
+        selectedBeautySalonCategoriesLengthRef.current = 0;
+        lastLoadedDataRef.current = null;
         return;
       }
       if (!isEdit) return;
@@ -315,13 +471,27 @@ export const FormFreeBarberOperation = React.memo(
       setLocationNow();
     }, [enabled, isEdit]);
 
+    // Edit modunda mevcut hizmetlerden geriye doğru ana başlık ve alt başlık bul
+    const initialDataLoadedRef = useRef(false);
+    // Hierarchy restoration sırasında reset effect'lerinin tetiklenmesini önle
+    const isRestoringRef = useRef(false);
+    // Son yüklenen data referansı - aynı data ile tekrar yükleme yapılmasını önler
+    const lastLoadedDataRef = useRef<any>(null);
+
+    // TEK BİRLEŞİK EFFECT: Veri yükleme + hiyerarşi restorasyon
+    // Hem data hem de kategori hiyerarşisi hazır olduğunda çalışır.
+    // Tüm form değerlerini tek bir reset() çağrısı ile atomik olarak set eder.
     useEffect(() => {
-      if (!isEdit) return;
-      if (!data) return;
+      if (!enabled) return;
+      if (!isEdit || !data) return;
+      // Kategori hiyerarşisi yüklenene kadar bekle
+      if (isCategoryLoading || parentCategories.length === 0) return;
+      // Aynı data ile tekrar yükleme yapma
+      if (lastLoadedDataRef.current === data) return;
 
       const imageListData = data?.imageList ?? [];
       const initialImages = imageListData.map((img: any) => ({
-        id: img.id, // Mevcut resimlerin ID'sini tut
+        id: img.id,
         uri: img.imageUrl,
         name: img.imageUrl.split("/").pop() ?? `image-${img.id}.jpg`,
         type: img.imageUrl.toLowerCase().endsWith(".png")
@@ -329,11 +499,6 @@ export const FormFreeBarberOperation = React.memo(
           : "image/jpeg",
       }));
 
-      // Certificate image - backend'den Guid gelecek ama biz UI'da göstermek için gerekli
-      // Edit modunda sertifika resmi varsa, placeholder olarak sakla
-      const certificateImageId = (data as any).barberCertificateImageId as
-        | string
-        | undefined;
       const initialCategories = (data?.offerings ?? []).map(
         (s: any) => s.serviceName,
       );
@@ -345,13 +510,72 @@ export const FormFreeBarberOperation = React.memo(
         {},
       );
 
-      const initialType =
-        data?.type != null ? mapTypeToDisplayName(data.type) : "";
+      // Backend'den gelen type'ı main categories'e çevir
+      const initialMainCategories: string[] = [];
+      if (data?.type != null) {
+        const typeName = mapTypeToDisplayName(data.type);
+        if (typeName && typeName !== "Güzellik Salonu") {
+          initialMainCategories.push(typeName);
+        }
+      }
+
+      // --- Hiyerarşi restorasyon ---
+      // Regular kategoriler için hiyerarşi bul
+      const allFoundMainHeadings = new Set<string>();
+      const allFoundSubHeadings = new Set<string>();
+      const regularServices = new Set<string>();
+
+      if (initialCategories.length > 0) {
+        initialMainCategories.forEach((typeName) => {
+          const { mainHeadings: foundMain, subHeadings: foundSub } =
+            findParentHierarchyFromServices(initialCategories, typeName);
+          foundMain.forEach((h) => allFoundMainHeadings.add(h));
+          foundSub.forEach((h) => allFoundSubHeadings.add(h));
+          initialCategories.forEach((serviceName) => {
+            const { mainHeadings: testMain } = findParentHierarchyFromServices([serviceName], typeName);
+            if (testMain.length > 0) {
+              regularServices.add(serviceName);
+            }
+          });
+        });
+      }
+
+      // Güzellik salonu için kontrol
+      const { mainHeadings: bsMain, subHeadings: bsSub } =
+        findParentHierarchyFromServices(initialCategories, "Güzellik Salonu");
+
+      const beautySalonServicesList = initialCategories.filter((serviceName) => {
+        const { mainHeadings: testMain } = findParentHierarchyFromServices([serviceName], "Güzellik Salonu");
+        return testMain.length > 0;
+      });
+
+      // Regular services (güzellik salonu hariç)
+      const regularServicesList = Array.from(regularServices);
+      const finalRegularServices = regularServicesList.length > 0
+        ? regularServicesList
+        : (beautySalonServicesList.length > 0 ? [] : initialCategories);
+
+      // Fiyatları hazırla (güzellik salonu prefix'li)
+      const finalPrices = { ...initialPrices };
+      beautySalonServicesList.forEach((serviceName) => {
+        const existingPrice = finalPrices[serviceName];
+        if (existingPrice !== undefined) {
+          finalPrices[bsPriceKey(serviceName)] = existingPrice;
+          if (!regularServices.has(serviceName)) {
+            delete finalPrices[serviceName];
+          }
+        }
+      });
+
+      // Cascade reset effect'lerinin tetiklenmesini önle
+      isRestoringRef.current = true;
+
+      // Tüm form değerlerini TEK BİR reset() ile atomik olarak set et
       reset({
         ...getValues(),
         name: data?.firstName ?? "",
         surname: data?.lastName ?? "",
-        type: initialType,
+        selectedMainCategories: initialMainCategories,
         isAvailable: data?.isAvailable ?? true,
         images: initialImages.length > 0 ? initialImages : undefined,
         certificateImage: (data as any)?.barberCertificateImage
@@ -364,29 +588,73 @@ export const FormFreeBarberOperation = React.memo(
             type: "image/jpeg",
           }
           : undefined,
+        beautySalonCertificateImage: (data as any)?.beautySalonCertificateImage
+          ? {
+            uri: (data as any).beautySalonCertificateImage.imageUrl,
+            name:
+              (data as any).beautySalonCertificateImage.imageUrl
+                .split("/")
+                .pop() ?? "beauty-certificate.jpg",
+            type: "image/jpeg",
+          }
+          : undefined,
         location: {
           latitude: (data as any)?.latitude ?? 0,
           longitude: (data as any)?.longitude ?? 0,
         },
-        selectedCategories: initialCategories,
-        prices: initialPrices,
+        // Hiyerarşi alanları - hepsi tek seferde set edilir
+        selectedMainHeadings: Array.from(allFoundMainHeadings),
+        selectedSubHeadings: Array.from(allFoundSubHeadings),
+        selectedCategories: finalRegularServices,
+        selectedBeautySalonMainHeadings: bsMain,
+        selectedBeautySalonSubHeadings: bsSub,
+        selectedBeautySalonCategories: beautySalonServicesList,
+        prices: finalPrices,
       });
+
+      // NOT: prevRef'leri burada güncellemiyoruz!
+      // reset() formu günceller ama watch() değerleri henüz eski React state'i döndürür.
+      // prevRef'ler [] olarak kaldığı sürece cascade reset'ler tetiklenmez (prevRef.length === 0 guard'ı).
+      // Cascade reset effect'leri prevRef'leri kendileri güncelleyecek (sonraki render'da).
+
       if (!data?.latitude || data.latitude === 0) setLocationNow();
-    }, [data, isEdit, reset, getValues]);
 
-    const effectiveType = selectedType
-      ? selectedType
-      : data?.type != null
-        ? mapTypeToDisplayName(data.type)
-        : undefined;
+      lastLoadedDataRef.current = data;
+      isRestoringRef.current = false;
+      initialDataLoadedRef.current = true;
+    }, [enabled, isEdit, data, parentCategories, isCategoryLoading, findParentHierarchyFromServices, reset, getValues]);
 
-    const categoryOptions = useMemo(
+    // Kategori hiyerarşisi artık useCategoryHierarchy hook'u tarafından otomatik yönetiliyor
+    // Eski useEffect'ler kaldırıldı - mainHeadings, subHeadings, services hook'tan geliyor
+
+    // Kategori seçenekleri - ana başlıklar
+    const mainHeadingOptions = useMemo(
       () =>
-        childCategories.map((cat: any) => ({
+        mainHeadings.map((cat: any) => ({
           label: cat.name,
           value: cat.name,
         })),
-      [childCategories],
+      [mainHeadings],
+    );
+
+    // Kategori seçenekleri - alt başlıklar
+    const subHeadingOptions = useMemo(
+      () =>
+        subHeadings.map((cat: any) => ({
+          label: cat.name,
+          value: cat.name,
+        })),
+      [subHeadings],
+    );
+
+    // Kategori seçenekleri - hizmetler (final seçim)
+    const categoryOptions = useMemo(
+      () =>
+        services.map((cat: any) => ({
+          label: cat.name,
+          value: cat.name,
+        })),
+      [services],
     );
     const categoryOptionsWithSelected = useMemo(() => {
       const base = [...categoryOptions];
@@ -399,6 +667,46 @@ export const FormFreeBarberOperation = React.memo(
       });
       return base;
     }, [categoryOptions, selectedCategories]);
+
+    // Güzellik salonu ana başlıkları için options
+    const beautySalonMainHeadingOptions = useMemo(() => {
+      if (!beautySalonCategory) return [];
+      return beautySalonMainHeadings.map((cat: any) => ({
+        label: cat.name,
+        value: cat.name,
+      }));
+    }, [beautySalonCategory, beautySalonMainHeadings]);
+
+    // Güzellik salonu alt başlıkları için options (ayrı tutulmalı)
+    const beautySalonSubHeadingOptions = useMemo(
+      () =>
+        beautySalonSubHeadings.map((cat: any) => ({
+          label: cat.name,
+          value: cat.name,
+        })),
+      [beautySalonSubHeadings],
+    );
+
+    // Güzellik salonu hizmetleri için options (ayrı tutulmalı)
+    const beautySalonCategoryOptions = useMemo(
+      () =>
+        beautySalonServices.map((cat: any) => ({
+          label: cat.name,
+          value: cat.name,
+        })),
+      [beautySalonServices],
+    );
+    const beautySalonCategoryOptionsWithSelected = useMemo(() => {
+      const base = [...beautySalonCategoryOptions];
+      const seen = new Set(base.map((o) => o.value));
+      (selectedBeautySalonCategories ?? []).forEach((v) => {
+        if (!seen.has(v)) {
+          base.push({ label: v, value: v });
+          seen.add(v);
+        }
+      });
+      return base;
+    }, [beautySalonCategoryOptions, selectedBeautySalonCategories]);
 
     // Memoized category label lookup map to avoid O(n²) operations
     const categoryLabelMap = useMemo(() => {
@@ -415,7 +723,7 @@ export const FormFreeBarberOperation = React.memo(
       [categoryOptionsWithSelected],
     );
 
-    // Memoized parent categories dropdown data
+    // Memoized parent categories dropdown data (çoklu seçim için)
     const parentCategoriesDropdownData = useMemo(
       () =>
         allowedParentCategories.map((cat: any) => ({
@@ -425,57 +733,156 @@ export const FormFreeBarberOperation = React.memo(
       [allowedParentCategories],
     );
 
-    // Memoized parent categories value set for validation
-    const parentCategoriesValueSet = useMemo(
-      () => new Set(allowedParentCategories.map((cat: any) => cat.name)),
-      [allowedParentCategories],
-    );
-
-    // Tip değişince category/price reset
-    const prevTypeRef = useRef<string | undefined>(undefined);
+    // Main kategoriler değişince alt seviyeleri reset et
+    const prevMainCategoriesRef = useRef<string[]>([]);
     useEffect(() => {
-      if (isEdit) {
-        if (prevTypeRef.current === undefined) {
-          prevTypeRef.current = selectedType;
-          return;
-        }
-        if (
-          selectedType &&
-          prevTypeRef.current &&
-          selectedType !== prevTypeRef.current
-        ) {
-          setValue("selectedCategories", [], {
-            shouldDirty: true,
-            shouldValidate: true,
-          });
-          setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
-        }
-        prevTypeRef.current = selectedType;
-        return;
+      if (isRestoringRef.current) return;
+      const mainCatsChanged =
+        JSON.stringify(prevMainCategoriesRef.current.sort()) !==
+        JSON.stringify([...selectedMainCategories].sort());
+
+      if (mainCatsChanged && prevMainCategoriesRef.current.length > 0) {
+        setValue("selectedMainHeadings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedSubHeadings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
+        // Sadece ana kategori fiyatlarını temizle, güzellik salonu fiyatlarını koru
+        const currentPrices = getValues("prices") ?? {};
+        const bsOnlyPrices: Record<string, string> = {};
+        Object.keys(currentPrices).forEach((k) => {
+          if (isBsPriceKey(k)) bsOnlyPrices[k] = currentPrices[k];
+        });
+        setValue("prices", bsOnlyPrices, { shouldDirty: true, shouldValidate: true });
       }
+      prevMainCategoriesRef.current = [...selectedMainCategories];
+    }, [selectedMainCategories, setValue, getValues]);
 
-      // create
-      setValue("selectedCategories", [], {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
-    }, [selectedType, setValue, isEdit]);
-
-    // prices sync
+    // Ana başlıklar değişince alt seviyeleri reset et
+    const prevMainHeadingsRef = useRef<string[]>([]);
     useEffect(() => {
+      if (isRestoringRef.current) return;
+      const mainHeadingsChanged =
+        JSON.stringify(prevMainHeadingsRef.current.sort()) !==
+        JSON.stringify([...selectedMainHeadings].sort());
+
+      if (mainHeadingsChanged && prevMainHeadingsRef.current.length > 0) {
+        setValue("selectedSubHeadings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
+        const currentPrices = getValues("prices") ?? {};
+        const bsOnlyPrices: Record<string, string> = {};
+        Object.keys(currentPrices).forEach((k) => {
+          if (isBsPriceKey(k)) bsOnlyPrices[k] = currentPrices[k];
+        });
+        setValue("prices", bsOnlyPrices, { shouldDirty: true, shouldValidate: true });
+      }
+      prevMainHeadingsRef.current = [...selectedMainHeadings];
+    }, [selectedMainHeadings, setValue, getValues]);
+
+    // Alt başlıklar değişince hizmetleri reset et
+    const prevSubHeadingsRef = useRef<string[]>([]);
+    useEffect(() => {
+      if (isRestoringRef.current) return;
+      const subHeadingsChanged =
+        JSON.stringify(prevSubHeadingsRef.current.sort()) !==
+        JSON.stringify([...selectedSubHeadings].sort());
+
+      if (subHeadingsChanged && prevSubHeadingsRef.current.length > 0) {
+        setValue("selectedCategories", [], { shouldDirty: true, shouldValidate: true });
+        const currentPrices = getValues("prices") ?? {};
+        const bsOnlyPrices: Record<string, string> = {};
+        Object.keys(currentPrices).forEach((k) => {
+          if (isBsPriceKey(k)) bsOnlyPrices[k] = currentPrices[k];
+        });
+        setValue("prices", bsOnlyPrices, { shouldDirty: true, shouldValidate: true });
+      }
+      prevSubHeadingsRef.current = [...selectedSubHeadings];
+    }, [selectedSubHeadings, setValue, getValues]);
+
+    // Güzellik salonu ana başlıkları değişince alt seviyeleri reset et
+    const prevBsMainHeadingsRef = useRef<string[]>([]);
+    useEffect(() => {
+      if (isRestoringRef.current) return;
+      const changed =
+        JSON.stringify(prevBsMainHeadingsRef.current.sort()) !==
+        JSON.stringify([...selectedBeautySalonMainHeadings].sort());
+
+      if (changed && prevBsMainHeadingsRef.current.length > 0) {
+        setValue("selectedBeautySalonSubHeadings", [], { shouldDirty: true, shouldValidate: true });
+        setValue("selectedBeautySalonCategories", [], { shouldDirty: true, shouldValidate: true });
+        // Güzellik salonu fiyatlarını temizle, ana kategori fiyatlarını koru
+        const currentPrices = getValues("prices") ?? {};
+        const mainOnlyPrices: Record<string, string> = {};
+        Object.keys(currentPrices).forEach((k) => {
+          if (!isBsPriceKey(k)) mainOnlyPrices[k] = currentPrices[k];
+        });
+        setValue("prices", mainOnlyPrices, { shouldDirty: true, shouldValidate: true });
+      }
+      prevBsMainHeadingsRef.current = [...selectedBeautySalonMainHeadings];
+    }, [selectedBeautySalonMainHeadings, setValue, getValues]);
+
+    // Güzellik salonu alt başlıkları değişince hizmetleri reset et
+    const prevBsSubHeadingsRef = useRef<string[]>([]);
+    useEffect(() => {
+      if (isRestoringRef.current) return;
+      const changed =
+        JSON.stringify(prevBsSubHeadingsRef.current.sort()) !==
+        JSON.stringify([...selectedBeautySalonSubHeadings].sort());
+
+      if (changed && prevBsSubHeadingsRef.current.length > 0) {
+        setValue("selectedBeautySalonCategories", [], { shouldDirty: true, shouldValidate: true });
+        const currentPrices = getValues("prices") ?? {};
+        const mainOnlyPrices: Record<string, string> = {};
+        Object.keys(currentPrices).forEach((k) => {
+          if (!isBsPriceKey(k)) mainOnlyPrices[k] = currentPrices[k];
+        });
+        setValue("prices", mainOnlyPrices, { shouldDirty: true, shouldValidate: true });
+      }
+      prevBsSubHeadingsRef.current = [...selectedBeautySalonSubHeadings];
+    }, [selectedBeautySalonSubHeadings, setValue, getValues]);
+
+    // prices sync - Ana kategori ve güzellik salonu hizmetleri için
+    const selectedCategoriesLengthRef = useRef<number>(0);
+    const selectedBeautySalonCategoriesLengthRef = useRef<number>(0);
+    useEffect(() => {
+      const currentLength = selectedCategories?.length || 0;
+      const currentBeautySalonLength = selectedBeautySalonCategories?.length || 0;
+      const totalLength = currentLength + currentBeautySalonLength;
+      const prevTotalLength = selectedCategoriesLengthRef.current + selectedBeautySalonCategoriesLengthRef.current;
+
+      if (totalLength === prevTotalLength &&
+        currentLength === selectedCategoriesLengthRef.current &&
+        currentBeautySalonLength === selectedBeautySalonCategoriesLengthRef.current) return;
+
+      selectedCategoriesLengthRef.current = currentLength;
+      selectedBeautySalonCategoriesLengthRef.current = currentBeautySalonLength;
+
       const currentPricesValues = getValues("prices") || {};
-      const next: Record<string, string> = { ...currentPricesValues };
+      const next: Record<string, string> = {};
       let changed = false;
 
+      // Copy existing prices, filtering out undefined values
+      Object.keys(currentPricesValues).forEach((k) => {
+        const val = currentPricesValues[k];
+        if (val !== undefined && val !== null) {
+          next[k] = val;
+        }
+      });
+
+      // Tüm seçili hizmetleri birleştir (güzellik salonu prefix'li)
+      const allPriceKeys = [
+        ...(selectedCategories ?? []),
+        ...(selectedBeautySalonCategories ?? []).map(bsPriceKey),
+      ];
+
+      // Seçilmeyen hizmetlerin fiyatlarını sil
       Object.keys(next).forEach((k) => {
-        if (!selectedCategories?.includes(k)) {
+        if (!allPriceKeys.includes(k)) {
           delete next[k];
           changed = true;
         }
       });
 
-      selectedCategories?.forEach((k) => {
+      // Yeni seçilen hizmetler için boş fiyat ekle
+      allPriceKeys.forEach((k) => {
         if (!(k in next)) {
           next[k] = "";
           changed = true;
@@ -485,7 +892,7 @@ export const FormFreeBarberOperation = React.memo(
       // Use shouldValidate: false to prevent validation cascade
       if (changed)
         setValue("prices", next, { shouldDirty: true, shouldValidate: false });
-    }, [selectedCategories, setValue, getValues]);
+    }, [selectedCategories?.length, selectedBeautySalonCategories?.length, setValue, getValues]);
 
     // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
     const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
@@ -554,10 +961,21 @@ export const FormFreeBarberOperation = React.memo(
         // 3. Yeni resimler: ID yok
         const newImages = formImages.filter((img) => !img.id);
 
-        const offeringsMapped = (form.selectedCategories ?? [])
-          .map((categoryName) => {
+        // Ana kategori ve güzellik salonu hizmetlerini birleştir
+        const normalCategories = (form.selectedCategories ?? []).map((name) => ({
+          name,
+          priceKey: name,
+        }));
+        const bsCategories = (form.selectedBeautySalonCategories ?? []).map((name) => ({
+          name,
+          priceKey: bsPriceKey(name),
+        }));
+        const allSelectedCategories = [...normalCategories, ...bsCategories];
+
+        const offeringsMapped = allSelectedCategories
+          .map(({ name: categoryName, priceKey }) => {
             // selectedCategories artık direkt category name olarak tutuluyor (ID değil)
-            const priceStr = form.prices?.[categoryName] ?? "";
+            const priceStr = form.prices?.[priceKey] ?? "";
             const priceNum = parseTR(priceStr);
             if (priceNum == null) return null;
 
@@ -651,15 +1069,78 @@ export const FormFreeBarberOperation = React.memo(
           // Eğer değişmemişse, certImageId zaten mevcut ID'ye set edildi (yukarıda)
         }
 
+        // Beauty salon certificate image upload (ayrı sertifika)
+        const existingBeautyCertImage = (data as any)?.beautySalonCertificateImage as { id?: string; imageUrl?: string } | undefined;
+        let beautyCertImageId: string | undefined = existingBeautyCertImage?.id;
+
+        if (form.beautySalonCertificateImage) {
+          const isBeautyCertChanged =
+            form.beautySalonCertificateImage.uri.startsWith('file://') ||
+            form.beautySalonCertificateImage.uri.startsWith('content://') ||
+            (existingBeautyCertImage?.imageUrl && form.beautySalonCertificateImage.uri !== existingBeautyCertImage.imageUrl);
+
+          if (isBeautyCertChanged) {
+            if (!userId) {
+              dispatch(
+                showSnack({
+                  message: MESSAGES.PROFILE.USER_NOT_FOUND,
+                  isError: true,
+                }),
+              );
+              return;
+            }
+            const beautyFormData = new FormData();
+            beautyFormData.append("file", {
+              uri: form.beautySalonCertificateImage.uri,
+              name: form.beautySalonCertificateImage.name ?? "beauty-certificate.jpg",
+              type: form.beautySalonCertificateImage.type ?? "image/jpeg",
+            } as any);
+            beautyFormData.append("ownerType", String(ImageOwnerType.User));
+            beautyFormData.append("ownerId", userId);
+
+            const beautyUploadResult = await uploadImage({
+              data: beautyFormData,
+              isProfileImage: false,
+            });
+            if ("error" in beautyUploadResult) {
+              const errorMessage = getErrorMessage(beautyUploadResult.error);
+              dispatch(
+                showSnack({
+                  message: errorMessage || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED,
+                  isError: true,
+                }),
+              );
+              return;
+            }
+            const beautyResult = beautyUploadResult.data;
+            if (!beautyResult?.success || !beautyResult.data) {
+              dispatch(
+                showSnack({
+                  message: beautyResult?.message || MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR,
+                  isError: true,
+                }),
+              );
+              return;
+            }
+            beautyCertImageId = beautyResult.data;
+          }
+        }
+
+        // selectedMainCategories'den type'ı belirle (ilk seçilen kategori)
+        // Backend'de tek bir type bekliyor, bu yüzden ilk seçilen kategoriyi kullanıyoruz
+        const mainType = form.selectedMainCategories?.[0] || "";
+        const mappedType = mainType ? mapBarberType(mainType) : undefined;
+
         const payload: any = {
           ...(isEdit ? { id: data?.id ?? freeBarberId ?? "" } : {}),
           firstName: form.name.trim(),
           lastName: form.surname.trim(),
-          type: mapBarberType(form.type),
+          type: mappedType || 0, // Default to 0 if not found
           latitude: form.location.latitude,
           longitude: form.location.longitude,
           offerings,
           barberCertificateImageId: certImageId,
+          beautySalonCertificateImageId: beautyCertImageId,
           isAvailable: isEdit ? form.isAvailable : true,
         };
         // Payload validation passed, proceed with submission
@@ -826,7 +1307,6 @@ export const FormFreeBarberOperation = React.memo(
         isEdit,
         data,
         freeBarberId,
-        childCategories,
         addFreeBarber,
         updateFreeBarber,
         dispatch,
@@ -844,12 +1324,61 @@ export const FormFreeBarberOperation = React.memo(
       // Validation errors are displayed to user via form state
     }, []);
 
+    const validateStep = React.useCallback(async (stepIndex: number): Promise<boolean> => {
+      const fields = STEP_FIELDS[stepIndex];
+      if (!fields) return true;
+      const result = await trigger(fields as any);
+      return result;
+    }, [trigger]);
+
+    const handleNextStep = React.useCallback(async () => {
+      const valid = await validateStep(currentStep);
+      if (!valid) return;
+      setCompletedSteps((prev) => new Set(prev).add(currentStep));
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep((s) => s + 1);
+      }
+    }, [currentStep, totalSteps, validateStep]);
+
+    const handlePrevStep = React.useCallback(() => {
+      if (currentStep > 0) {
+        const prevStep = currentStep - 1;
+        setCompletedSteps((prev) => {
+          const next = new Set(prev);
+          next.delete(prevStep);
+          return next;
+        });
+        setCurrentStep(prevStep);
+      }
+    }, [currentStep]);
+
+    useEffect(() => {
+      if (prevStepRef.current === currentStep) {
+        stepSlideAnim.setValue(0);
+        return;
+      }
+      const width = Dimensions.get("window").width;
+      const isForward = currentStep > prevStepRef.current;
+      stepSlideAnim.setValue(isForward ? width : -width);
+      Animated.timing(stepSlideAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }).start(() => {
+        prevStepRef.current = currentStep;
+      });
+    }, [currentStep, stepSlideAnim]);
+
+    const handleStepPress = React.useCallback((index: number) => {
+      setCurrentStep(index);
+    }, []);
+
     // Skeleton sadece edit + data gelene kadar
     const showSkeleton = isEdit && (isLoading || !data);
 
     return (
       <View className="h-full">
-        <View className="flex-row justify-between items-center px-4 py-2">
+        <View className="flex-row justify-between items-center px-2 py-2">
           <Text className="text-white flex-1 font-century-gothic text-2xl">
             {!isEdit ? t("form.createPanel") : t("form.editPanel")}
           </Text>
@@ -868,423 +1397,167 @@ export const FormFreeBarberOperation = React.memo(
           </View>
         ) : (
           <>
+            <StepFormIndicator
+              steps={steps}
+              currentStep={currentStep}
+              onStepPress={handleStepPress}
+              canNavigateFreely={isEdit}
+              completedSteps={completedSteps}
+            />
             <ScrollView
+              key={currentStep}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
+              showsVerticalScrollIndicator={false}
+              alwaysBounceVertical={false}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 24, paddingHorizontal: 16 }}
+              style={{ flex: 1 }}
             >
-              <Text className="text-white text-xl mt-2 px-4">
-                {t("form.panelImagesTitle")}
-              </Text>
+              <Animated.View style={{ flex: 1, transform: [{ translateX: stepSlideAnim }] }}>
+                {currentStep === 0 && (
+                  <>
+                    <Text className="text-white text-xl mt-2">
+                      {t("form.panelImagesTitle")}
+                    </Text>
 
-              <Controller
-                control={control}
-                name="images"
-                render={() => (
-                  <View className="mt-2">
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-                    >
-                      {(images ?? []).map((img, index) => (
-                        <View
-                          key={index}
-                          className="relative"
-                          style={{ width: 200, height: 150 }}
-                        >
-                          <Image
-                            className="w-full h-full rounded-xl"
-                            source={{ uri: img.uri }}
-                            resizeMode="cover"
-                            onLoad={() =>
-                              setLoadedImages((prev) =>
-                                new Set(prev).add(index),
-                              )
-                            }
-                          />
-                          {!loadedImages.has(index) && (
-                            <View
-                              style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                justifyContent: "center",
-                                alignItems: "center",
-                                backgroundColor: "#1F2937",
-                                borderRadius: 10,
-                              }}
-                            >
-                              <ActivityIndicator size="large" color="#888" />
+                    <Controller
+                      control={control}
+                      name="images"
+                      render={() => (
+                        <View className="mt-2">
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
+                          >
+                            {(images ?? []).map((img, index) => (
+                              <View
+                                key={index}
+                                className="relative"
+                                style={{ width: 200, height: 150 }}
+                              >
+                                <Image
+                                  className="w-full h-full rounded-xl"
+                                  source={{ uri: img.uri }}
+                                  resizeMode="cover"
+                                  onLoad={() =>
+                                    setLoadedImages((prev) =>
+                                      new Set(prev).add(index),
+                                    )
+                                  }
+                                />
+                                {!loadedImages.has(index) && (
+                                  <View
+                                    style={{
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                      backgroundColor: "#1F2937",
+                                      borderRadius: 10,
+                                    }}
+                                  >
+                                    <ActivityIndicator size="large" color="#888" />
+                                  </View>
+                                )}
+                                <TouchableOpacity
+                                  onPress={() => removeImage(index)}
+                                  className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
+                                  activeOpacity={0.85}
+                                >
+                                  <Icon source="close" size={18} color="white" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                            {(!images || images.length < 3) && (
+                              <TouchableOpacity
+                                onPress={pickMultipleImages}
+                                disabled={isImagePickerLoading}
+                                className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                                style={{ width: 200, height: 150 }}
+                                activeOpacity={0.85}
+                              >
+                                {isImagePickerLoading ? (
+                                  <ActivityIndicator size="large" color="#888" />
+                                ) : (
+                                  <>
+                                    <Icon
+                                      source="image-plus"
+                                      size={40}
+                                      color="#888"
+                                    />
+                                    <Text className="text-gray-500 mt-2">
+                                      {t("image.add")}
+                                    </Text>
+                                  </>
+                                )}
+                              </TouchableOpacity>
+                            )}
+                          </ScrollView>
+                          {errors.images && (
+                            <View className="px-2">
+                              <HelperText type="error" visible={!!errors.images} style={{ fontFamily: 'CenturyGothic' }}>
+                                {errors.images.message as string}
+                              </HelperText>
                             </View>
                           )}
-                          <TouchableOpacity
-                            onPress={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
-                            activeOpacity={0.85}
-                          >
-                            <Icon source="close" size={18} color="white" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                      {(!images || images.length < 3) && (
-                        <TouchableOpacity
-                          onPress={pickMultipleImages}
-                          disabled={isImagePickerLoading}
-                          className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                          style={{ width: 200, height: 150 }}
-                          activeOpacity={0.85}
-                        >
-                          {isImagePickerLoading ? (
-                            <ActivityIndicator size="large" color="#888" />
-                          ) : (
-                            <>
-                              <Icon
-                                source="image-plus"
-                                size={40}
-                                color="#888"
-                              />
-                              <Text className="text-gray-500 mt-2">
-                                {t("image.add")}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      )}
-                    </ScrollView>
-                    {errors.images && (
-                      <View className="px-4">
-                        <HelperText type="error" visible={!!errors.images} style={{ fontFamily: 'CenturyGothic' }}>
-                          {errors.images.message as string}
-                        </HelperText>
-                      </View>
-                    )}
-                  </View>
-                )}
-              />
-
-              <Text className="text-white text-xl mt-2 px-4">
-                {t("form.panelInformation")}
-              </Text>
-
-              {/* Certificate Image */}
-              <View className="px-4 mt-2">
-                <Controller
-                  control={control}
-                  name="certificateImage"
-                  render={({ field: { value, onChange } }) => (
-                    <>
-                      <TouchableOpacity
-                        activeOpacity={0.85}
-                        disabled={isCertificateLoading}
-                        onPress={async () => {
-                          setIsCertificateLoading(true);
-                          try {
-                            const file = await handlePickImage();
-                            if (file) onChange(file);
-                          } finally {
-                            setIsCertificateLoading(false);
-                          }
-                        }}
-                      >
-                        <TextInput
-                          label={t("form.certificateImage")}
-                          mode="outlined"
-                          value={
-                            value?.name
-                              ? truncateFileName(value.name)
-                              : t("form.imageNotSelected")
-                          }
-                          editable={false}
-                          dense
-                          pointerEvents="none"
-                          textColor="white"
-                          outlineColor={
-                            errors.certificateImage ? "#b00020" : "#444"
-                          }
-                          right={
-                            isCertificateLoading ? (
-                              <ActivityIndicator
-                                size="small"
-                                color="#888"
-                                style={{ marginRight: 12 }}
-                              />
-                            ) : (
-                              <TextInput.Icon icon="image" color="white" />
-                            )
-                          }
-                          theme={{
-                            roundness: 10,
-                            colors: {
-                              onSurfaceVariant: "gray",
-                              primary: "white",
-                            },
-                          }}
-                          style={{ backgroundColor: "#1F2937" }}
-                        />
-                      </TouchableOpacity>
-                      {value?.uri && !isCertificateLoading && (
-                        <View className="mt-2 mb-2 w-full">
-                          <Image
-                            source={{ uri: value.uri }}
-                            style={{
-                              width: "100%",
-                              height: 200,
-                              borderRadius: 10,
-                            }}
-                            resizeMode="cover"
-                          />
                         </View>
                       )}
-                      <HelperText
-                        type="error"
-                        visible={!!errors.certificateImage}
-                      >
-                        {errors?.certificateImage?.message as string}
-                      </HelperText>
-                    </>
-                  )}
-                />
-              </View>
+                    />
 
-              {/* Name / Surname */}
-              <View className="px-4 mt-0 flex-row gap-3">
-                <View className="flex-1">
-                  <Controller
-                    control={control}
-                    name="name"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <>
-                        <TextInput
-                          label="İsim"
-                          mode="outlined"
-                          dense
-                          value={value}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          textColor="white"
-                          outlineColor={errors.name ? "#b00020" : "#444"}
-                          theme={{
-                            roundness: 10,
-                            colors: {
-                              onSurfaceVariant: "gray",
-                              primary: "white",
-                            },
-                          }}
-                          style={{ backgroundColor: "#1F2937" }}
-                        />
-                        <HelperText type="error" visible={!!errors.name} style={{ fontFamily: 'CenturyGothic' }}>
-                          {errors?.name?.message as string}
-                        </HelperText>
-                      </>
-                    )}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Controller
-                    control={control}
-                    name="surname"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <>
-                        <TextInput
-                          label="Soyisim"
-                          mode="outlined"
-                          dense
-                          value={value}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          textColor="white"
-                          outlineColor={errors.surname ? "#b00020" : "#444"}
-                          theme={{
-                            roundness: 10,
-                            colors: {
-                              onSurfaceVariant: "gray",
-                              primary: "white",
-                            },
-                          }}
-                          style={{ backgroundColor: "#1F2937" }}
-                        />
-                        <HelperText type="error" visible={!!errors.surname} style={{ fontFamily: 'CenturyGothic' }}>
-                          {errors?.surname?.message as string}
-                        </HelperText>
-                      </>
-                    )}
-                  />
-                </View>
-              </View>
+                    <Text className="text-white text-xl mt-2 px-2">
+                      {t("form.panelInformation")}
+                    </Text>
 
-              {/* Type - Ana Kategori Seçimi */}
-              <View className="px-4 mt-1">
-                <Controller
-                  control={control}
-                  name="type"
-                  render={({
-                    field: { value, onChange },
-                    fieldState: { error },
-                  }) => {
-                    // Use memoized dropdown data and validation set
-                    const isValueValid =
-                      value && parentCategoriesValueSet.has(value);
-
-                    return (
-                      <>
-                        <Dropdown
-                          data={parentCategoriesDropdownData}
-                          labelField="label"
-                          valueField="value"
-                          placeholder={t("form.selectMainCategory")}
-                          value={isValueValid ? value : null}
-                          onChange={(item: any) => onChange(item.value)}
-                          style={{
-                            height: 50,
-                            borderRadius: 10,
-                            paddingHorizontal: 12,
-                            backgroundColor: "#1F2937",
-                            borderWidth: 1,
-                            borderColor: error ? "#b00020" : "#444",
-                            marginTop: 6,
-                          }}
-                          placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                          selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                          itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                          containerStyle={{
-                            backgroundColor: "#1F2937",
-                            borderWidth: 0,
-                            borderRadius: 10,
-                          }}
-                          activeColor="#374151"
-                        />
-                        <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
-                          {errors?.type?.message as string}
-                        </HelperText>
-                      </>
-                    );
-                  }}
-                />
-              </View>
-
-              {/* Kategoriler - Alt Kategori Seçimi */}
-              {selectedType && categoryOptions.length > 0 ? (
-                <View className="px-4 mt-1">
-                  <Text className="text-white text-xl mb-2">
-                    {t("form.servicesTitle")} ({selectedType})
-                  </Text>
-                  <Controller
-                    control={control}
-                    name="selectedCategories"
-                    render={({ field: { value, onChange } }) => (
-                      <>
-                        <MultiSelect
-                          data={categoryOptionsWithSelected}
-                          labelField="label"
-                          valueField="value"
-                          value={(value ?? []) as string[]}
-                          onChange={onChange}
-                          placeholder={t("filters.selectService")}
-                          dropdownPosition="top"
-                          inside
-                          alwaysRenderSelectedItem
-                          visibleSelectedItem
-                          flatListProps={{
-                            initialNumToRender: 10,
-                            maxToRenderPerBatch: 10,
-                            windowSize: 5,
-                          }}
-                          style={{
-                            backgroundColor: "#1F2937",
-                            borderColor: errors.selectedCategories
-                              ? "#b00020"
-                              : "#444",
-                            borderWidth: 1,
-                            borderRadius: 10,
-                            paddingHorizontal: 12,
-                            paddingVertical: 8,
-                          }}
-                          containerStyle={{
-                            backgroundColor: "#1F2937",
-                            borderWidth: 1,
-                            borderColor: "#444",
-                            borderRadius: 10,
-                            overflow: "hidden",
-                          }}
-                          placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                          selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                          itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                          activeColor="#0f766e"
-                          selectedStyle={{
-                            borderRadius: 10,
-                            backgroundColor: "#374151",
-                            borderColor: "#0f766e",
-                            paddingHorizontal: 10,
-                            paddingVertical: 6,
-                            margin: 0,
-                          }}
-                          selectedTextProps={{ numberOfLines: 1 }}
-                        />
-                        <HelperText
-                          type="error"
-                          visible={!!errors.selectedCategories}
-                        >
-                          {errors.selectedCategories?.message}
-                        </HelperText>
-                      </>
-                    )}
-                  />
-                </View>
-              ) : null}
-
-              {/* Prices */}
-              {(selectedCategories ?? []).length > 0 && (
-                <View className="mt-2 mx-4 rounded-xl bg-gray-800 p-4">
-                  {(selectedCategories ?? []).map((categoryId) => {
-                    const label =
-                      categoryLabelMap.get(categoryId) ?? categoryId;
-                    return (
-                      <View
-                        key={categoryId}
-                        className="flex-row items-center justify-between mb-2"
-                      >
-                        <Text className="text-white w-[40%]" numberOfLines={1}>
-                          {label}
-                        </Text>
-                        <View className="w-[55%]">
-                          <Controller
-                            control={control}
-                            name={`prices.${categoryId}` as const}
-                            render={({
-                              field: { value, onChange },
-                              fieldState: { error },
-                            }) => (
-                              <TextInput
-                                mode="outlined"
-                                dense
-                                keyboardType="numeric"
-                                label={t("form.priceLabel")}
-                                value={value ?? ""}
-                                onChangeText={(t) =>
-                                  onChange(t.replace(/[^\d.,]/g, ""))
+                    {/* Certificate Image */}
+                    <View className="px-2 mt-2">
+                      <Controller
+                        control={control}
+                        name="certificateImage"
+                        render={({ field: { value, onChange } }) => (
+                          <>
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              disabled={isCertificateLoading}
+                              onPress={async () => {
+                                setIsCertificateLoading(true);
+                                try {
+                                  const file = await handlePickImage();
+                                  if (file) onChange(file);
+                                } finally {
+                                  setIsCertificateLoading(false);
                                 }
-                                onBlur={() => {
-                                  const n = Number(
-                                    value?.replace(/\./g, "").replace(",", "."),
-                                  );
-                                  if (!Number.isNaN(n)) {
-                                    onChange(
-                                      new Intl.NumberFormat("tr-TR", {
-                                        minimumFractionDigits: 0,
-                                        maximumFractionDigits: 2,
-                                      }).format(n),
-                                    );
-                                  }
-                                }}
+                              }}
+                            >
+                              <TextInput
+                                label={t("form.certificateImage")}
+                                mode="outlined"
+                                value={
+                                  value?.name
+                                    ? truncateFileName(value.name)
+                                    : t("form.imageNotSelected")
+                                }
+                                editable={false}
+                                dense
+                                pointerEvents="none"
                                 textColor="white"
-                                outlineColor={error ? "#b00020" : "#444"}
-                                style={{
-                                  backgroundColor: "#1F2937",
-                                  height: 40,
-                                }}
+                                outlineColor={
+                                  errors.certificateImage ? "#b00020" : "#444"
+                                }
+                                right={
+                                  isCertificateLoading ? (
+                                    <ActivityIndicator
+                                      size="small"
+                                      color="#888"
+                                      style={{ marginRight: 12 }}
+                                    />
+                                  ) : (
+                                    <TextInput.Icon icon="image" color="white" />
+                                  )
+                                }
                                 theme={{
                                   roundness: 10,
                                   colors: {
@@ -1292,53 +1565,690 @@ export const FormFreeBarberOperation = React.memo(
                                     primary: "white",
                                   },
                                 }}
+                                style={{ backgroundColor: "#1F2937" }}
                               />
+                            </TouchableOpacity>
+                            {value?.uri && !isCertificateLoading && (
+                              <View className="mt-2 mb-2 w-full">
+                                <Image
+                                  source={{ uri: value.uri }}
+                                  style={{
+                                    width: "100%",
+                                    height: 200,
+                                    borderRadius: 10,
+                                  }}
+                                  resizeMode="cover"
+                                />
+                              </View>
+                            )}
+                            <HelperText
+                              type="error"
+                              visible={!!errors.certificateImage}
+                            >
+                              {errors?.certificateImage?.message as string}
+                            </HelperText>
+                          </>
+                        )}
+                      />
+                    </View>
+
+                    {/* Name / Surname */}
+                    <View className="px-2 mt-0 flex-row gap-3">
+                      <View className="flex-1">
+                        <Controller
+                          control={control}
+                          name="name"
+                          render={({ field: { onChange, onBlur, value } }) => (
+                            <>
+                              <TextInput
+                                label="İsim"
+                                mode="outlined"
+                                dense
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                textColor="white"
+                                outlineColor={errors.name ? "#b00020" : "#444"}
+                                theme={{
+                                  roundness: 10,
+                                  colors: {
+                                    onSurfaceVariant: "gray",
+                                    primary: "white",
+                                  },
+                                }}
+                                style={{ backgroundColor: "#1F2937" }}
+                              />
+                              <HelperText type="error" visible={!!errors.name} style={{ fontFamily: 'CenturyGothic' }}>
+                                {errors?.name?.message as string}
+                              </HelperText>
+                            </>
+                          )}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Controller
+                          control={control}
+                          name="surname"
+                          render={({ field: { onChange, onBlur, value } }) => (
+                            <>
+                              <TextInput
+                                label="Soyisim"
+                                mode="outlined"
+                                dense
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                textColor="white"
+                                outlineColor={errors.surname ? "#b00020" : "#444"}
+                                theme={{
+                                  roundness: 10,
+                                  colors: {
+                                    onSurfaceVariant: "gray",
+                                    primary: "white",
+                                  },
+                                }}
+                                style={{ backgroundColor: "#1F2937" }}
+                              />
+                              <HelperText type="error" visible={!!errors.surname} style={{ fontFamily: 'CenturyGothic' }}>
+                                {errors?.surname?.message as string}
+                              </HelperText>
+                            </>
+                          )}
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
+                {currentStep === 1 && (
+                  <>
+                    <View className="mt-2">
+                      <Text className="text-white text-lg mb-2">
+                        {t("form.mainCategories")} *
+                      </Text>
+                      <Controller
+                        control={control}
+                        name="selectedMainCategories"
+                        render={({ field: { value, onChange }, fieldState: { error } }) => (
+                          <>
+                            <CategoryListSelect
+                              data={parentCategoriesDropdownData}
+                              value={(value ?? []) as string[]}
+                              onChange={onChange}
+                              singleSelect
+                            />
+                            <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
+                              {errors?.selectedMainCategories?.message as string}
+                            </HelperText>
+                          </>
+                        )}
+                      />
+                    </View>
+                  </>
+                )}
+                {currentStep === 2 && (
+                  <>
+                    <View className="mt-2">
+                      {selectedMainCategories.length === 0 || mainHeadingOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepMainHeadings")} - {t("form.selectMainCategories")}
+                        </Text>
+                      ) : (
+                        <>
+                          <Text className="text-white text-lg mb-2">
+                            {t("form.mainHeadings")}
+                          </Text>
+                          <Controller
+                            control={control}
+                            name="selectedMainHeadings"
+                            render={({ field: { value, onChange } }) => (
+                              <>
+                                <CategoryListSelect
+                                  data={mainHeadingOptions}
+                                  value={(value ?? []) as string[]}
+                                  onChange={onChange}
+                                />
+                                <HelperText
+                                  type="error"
+                                  visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
+                                >
+                                  {errors.selectedMainHeadings?.message}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 3 && (
+                  <>
+                    <View className="mt-2">
+                      {selectedMainHeadings.length === 0 || subHeadingOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepSubHeadings")} - {t("form.selectMainHeadings")}
+                        </Text>
+                      ) : (
+                        <>
+                          <View>
+                            <Text className="text-white text-lg mb-2">
+                              {t("form.subHeadings")}
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedSubHeadings"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={subHeadingOptions}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedSubHeadings.length && !!errors.selectedSubHeadings}
+                                  >
+                                    {errors.selectedSubHeadings?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 4 && (
+                  <>
+                    <View className="mt-2">
+                      {selectedSubHeadings.length === 0 || categoryOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepServices")} - {t("form.selectSubHeadings")}
+                        </Text>
+                      ) : (
+                        <>
+                          <View>
+                            <Text className="text-white text-xl mb-2">
+                              {t("form.servicesTitle")}
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedCategories"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={categoryOptionsWithSelected}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedCategories.length && !!errors.selectedCategories}
+                                  >
+                                    {errors.selectedCategories?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 5 && (
+                  <>
+                    <View className="mt-2">
+                      <Divider style={{ backgroundColor: '#47494e', marginVertical: 16 }} />
+                      <Text className="text-white text-xl mb-4 font-bold">
+                        {t("form.beautySalonCategories")}
+                      </Text>
+
+                      {/* Güzellik Salonu Belgesi (Opsiyonel) */}
+                      <View className="mb-4">
+                        <Text className="text-white text-lg mb-2">
+                          {t("form.beautySalonCertificate")} ({t("common.optional")})
+                        </Text>
+                        <Controller
+                          control={control}
+                          name="beautySalonCertificateImage"
+                          render={({ field: { value, onChange } }) => (
+                            <>
+                              <TouchableOpacity
+                                activeOpacity={0.85}
+                                disabled={isCertificateLoading}
+                                onPress={async () => {
+                                  setIsCertificateLoading(true);
+                                  try {
+                                    const file = await handlePickImage();
+                                    if (file) onChange(file);
+                                  } finally {
+                                    setIsCertificateLoading(false);
+                                  }
+                                }}
+                              >
+                                <TextInput
+                                  label={t("form.beautySalonCertificate")}
+                                  mode="outlined"
+                                  value={
+                                    value?.name
+                                      ? truncateFileName(value.name)
+                                      : t("form.imageNotSelected")
+                                  }
+                                  editable={false}
+                                  dense
+                                  pointerEvents="none"
+                                  textColor="white"
+                                  outlineColor={
+                                    errors.beautySalonCertificateImage ? "#b00020" : "#444"
+                                  }
+                                  right={
+                                    isCertificateLoading ? (
+                                      <ActivityIndicator
+                                        size="small"
+                                        color="#888"
+                                        style={{ marginRight: 12 }}
+                                      />
+                                    ) : (
+                                      <TextInput.Icon icon="image" color="white" />
+                                    )
+                                  }
+                                  theme={{
+                                    roundness: 10,
+                                    colors: {
+                                      onSurfaceVariant: "gray",
+                                      primary: "white",
+                                    },
+                                  }}
+                                  style={{ backgroundColor: "#1F2937" }}
+                                />
+                              </TouchableOpacity>
+                              {value?.uri && !isCertificateLoading && (
+                                <View className="mt-2 mb-2 w-full">
+                                  <Image
+                                    source={{ uri: value.uri }}
+                                    style={{
+                                      width: "100%",
+                                      height: 200,
+                                      borderRadius: 10,
+                                    }}
+                                    resizeMode="cover"
+                                  />
+                                </View>
+                              )}
+                              <HelperText
+                                type="error"
+                                visible={!!errors.beautySalonCertificateImage}
+                              >
+                                {errors?.beautySalonCertificateImage?.message as string}
+                              </HelperText>
+                            </>
+                          )}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Güzellik Salonu Kategorileri (Belge seçildiyse veya mevcut güzellik hizmetleri varsa) */}
+                    {(beautySalonCertificateImage || (selectedBeautySalonCategories?.length ?? 0) > 0) && beautySalonMainHeadingOptions.length > 0 ? (
+                      <View>
+                        {/* Güzellik Salonu Ana Başlıklar */}
+                        <View className="mt-1">
+                          <Text className="text-white text-lg mb-2">
+                            {t("form.beautySalonMainHeadings")} *
+                          </Text>
+                          <Controller
+                            control={control}
+                            name="selectedBeautySalonMainHeadings"
+                            render={({ field: { value, onChange }, fieldState: { error } }) => (
+                              <>
+                                <CategoryListSelect
+                                  data={beautySalonMainHeadingOptions}
+                                  value={(value ?? []) as string[]}
+                                  onChange={onChange}
+                                />
+                                <HelperText type="error" visible={!(value?.length) && !!error} style={{ fontFamily: 'CenturyGothic' }}>
+                                  {error?.message as string}
+                                </HelperText>
+                              </>
                             )}
                           />
                         </View>
+
+                        {/* Güzellik Salonu Alt Başlıklar */}
+                        {selectedBeautySalonMainHeadings.length > 0 && beautySalonSubHeadingOptions.length > 0 && (
+                          <View className="mt-1">
+                            <Text className="text-white text-lg mb-2">
+                              {t("form.beautySalonSubHeadings")}
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedBeautySalonSubHeadings"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={beautySalonSubHeadingOptions}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedBeautySalonSubHeadings.length && !!errors.selectedBeautySalonSubHeadings}
+                                  >
+                                    {errors.selectedBeautySalonSubHeadings?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
+                        )}
+
+                        {/* Güzellik Salonu Hizmetleri */}
+                        {selectedBeautySalonSubHeadings.length > 0 && beautySalonCategoryOptions.length > 0 && (
+                          <View className="mt-1">
+                            <Text className="text-white text-lg mb-2">
+                              {t("form.beautySalonServices")}
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedBeautySalonCategories"
+                              render={({ field: { value, onChange }, fieldState: { error } }) => {
+                                const currentValue = value ?? [];
+                                return (
+                                  <>
+                                    <CategoryListSelect
+                                      data={beautySalonCategoryOptionsWithSelected}
+                                      value={currentValue as string[]}
+                                      onChange={onChange}
+                                    />
+                                    <HelperText
+                                      type="error"
+                                      visible={!currentValue.length && !!error}
+                                    >
+                                      {error?.message}
+                                    </HelperText>
+                                  </>
+                                );
+                              }}
+                            />
+                          </View>
+                        )}
                       </View>
-                    );
-                  })}
-                </View>
-              )}
+                    ) : null}
+                  </>
+                )}
+                {currentStep === 6 && (
+                  <>
+                    {/* Prices - Ana Kategori Hizmetleri */}
+                    {(selectedCategories ?? []).length > 0 && (
+                      <View className="mt-2 mx-0 rounded-xl bg-gray-800 p-4">
+                        <Text className="text-white text-lg mb-3 font-semibold">
+                          {t("form.servicesTitle")} - {t("form.mainCategories")}
+                        </Text>
+                        {(selectedCategories ?? []).map((categoryId) => {
+                          const label =
+                            categoryLabelMap.get(categoryId) ?? categoryId;
+                          return (
+                            <View
+                              key={categoryId}
+                              className="flex-row items-center justify-between mb-2"
+                            >
+                              <Text className="text-white w-[40%]" numberOfLines={1}>
+                                {label}
+                              </Text>
+                              <View className="w-[55%]">
+                                <Controller
+                                  control={control}
+                                  name={`prices.${categoryId}` as const}
+                                  render={({
+                                    field: { value, onChange },
+                                    fieldState: { error },
+                                  }) => (
+                                    <TextInput
+                                      mode="outlined"
+                                      dense
+                                      keyboardType="numeric"
+                                      label={t("form.priceLabel")}
+                                      value={value ?? ""}
+                                      onChangeText={(t) =>
+                                        onChange(t.replace(/[^\d.,]/g, ""))
+                                      }
+                                      onBlur={() => {
+                                        const n = Number(
+                                          value?.replace(/\./g, "").replace(",", "."),
+                                        );
+                                        if (!Number.isNaN(n)) {
+                                          onChange(
+                                            new Intl.NumberFormat("tr-TR", {
+                                              minimumFractionDigits: 0,
+                                              maximumFractionDigits: 2,
+                                            }).format(n),
+                                          );
+                                        }
+                                      }}
+                                      textColor="white"
+                                      outlineColor={error ? "#b00020" : "#444"}
+                                      style={{
+                                        backgroundColor: "#1F2937",
+                                        height: 40,
+                                      }}
+                                      theme={{
+                                        roundness: 10,
+                                        colors: {
+                                          onSurfaceVariant: "gray",
+                                          primary: "white",
+                                        },
+                                      }}
+                                    />
+                                  )}
+                                />
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
 
-              {/* Availability (sadece edit) */}
-              {isEdit && (
-                <View className="px-4 mt-2">
-                  <View className="bg-gray-800 rounded-xl p-4 flex-row items-center justify-between border border-gray-700">
-                    <Text className="text-white text-lg font-bold">
-                      {t("status.availabilityStatus")}
-                    </Text>
-                    <Controller
-                      control={control}
-                      name="isAvailable"
-                      render={({ field: { value, onChange } }) => (
-                        <Switch
-                          value={value}
-                          onValueChange={onChange}
-                          color="#0f766e"
+                    {/* Prices - Güzellik Salonu Hizmetleri */}
+                    {(selectedBeautySalonCategories ?? []).length > 0 && (
+                      <View className="mt-4 mx-0 rounded-xl bg-gray-800 p-4">
+                        <Text className="text-white text-lg mb-3 font-semibold">
+                          {t("form.servicesTitle")} - {t("form.beautySalonCategories")}
+                        </Text>
+                        {(selectedBeautySalonCategories ?? []).map((categoryId) => {
+                          const label =
+                            categoryLabelMap.get(categoryId) ?? categoryId;
+                          const priceKey = bsPriceKey(categoryId);
+                          return (
+                            <View
+                              key={`bs-${categoryId}`}
+                              className="flex-row items-center justify-between mb-2"
+                            >
+                              <Text className="text-white w-[40%]" numberOfLines={1}>
+                                {label}
+                              </Text>
+                              <View className="w-[55%]">
+                                <Controller
+                                  control={control}
+                                  name={`prices.${priceKey}` as const}
+                                  render={({
+                                    field: { value, onChange },
+                                    fieldState: { error },
+                                  }) => (
+                                    <TextInput
+                                      mode="outlined"
+                                      dense
+                                      keyboardType="numeric"
+                                      label={t("form.priceLabel")}
+                                      value={value ?? ""}
+                                      onChangeText={(t) =>
+                                        onChange(t.replace(/[^\d.,]/g, ""))
+                                      }
+                                      onBlur={() => {
+                                        const n = Number(
+                                          value?.replace(/\./g, "").replace(",", "."),
+                                        );
+                                        if (!Number.isNaN(n)) {
+                                          onChange(
+                                            new Intl.NumberFormat("tr-TR", {
+                                              minimumFractionDigits: 0,
+                                              maximumFractionDigits: 2,
+                                            }).format(n),
+                                          );
+                                        }
+                                      }}
+                                      textColor="white"
+                                      outlineColor={error ? "#b00020" : "#444"}
+                                      style={{
+                                        backgroundColor: "#1F2937",
+                                        height: 40,
+                                      }}
+                                      theme={{
+                                        roundness: 10,
+                                        colors: {
+                                          onSurfaceVariant: "gray",
+                                          primary: "white",
+                                        },
+                                      }}
+                                    />
+                                  )}
+                                />
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                  </>
+                )}
+                {currentStep === 7 && (
+                  <>
+                    <View className="px-0 py-4">
+                      <Text className="text-white text-lg font-bold mb-4">
+                        {t("form.stepPreview")}
+                      </Text>
+                      <View className="bg-gray-800 rounded-xl p-4 gap-3 border border-gray-700">
+                        {(getValues("images") ?? []).length > 0 && (
+                          <View className="mb-3">
+                            <Text className="text-gray-400 text-sm mb-2">{t("form.panelImagesTitle")}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                              {(getValues("images") ?? []).map((img: { uri: string }, idx: number) => (
+                                <Image key={idx} source={{ uri: img.uri }} style={{ width: 80, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                              ))}
+                            </ScrollView>
+                          </View>
+                        )}
+                        <Row label={t("form.panelInformation")} value={`${getValues("name") ?? ""} ${getValues("surname") ?? ""}`.trim()} />
+                        <RowList label={t("form.mainCategories")} items={(getValues("selectedMainCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
+                        <RowList label={t("form.mainHeadings")} items={(getValues("selectedMainHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
+                        <RowList label={t("form.subHeadings")} items={(getValues("selectedSubHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
+                        <RowList label={t("form.servicesTitle")} items={(getValues("selectedCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
+                        {/* Sertifika Resmi */}
+                        {getValues("certificateImage")?.uri && (
+                          <View className="py-1.5 border-b border-gray-700">
+                            <Text className="text-gray-400 text-sm mb-2">{t("form.certificateImage")}</Text>
+                            <Image source={{ uri: getValues("certificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                          </View>
+                        )}
+                        {/* Güzellik Salonu Sertifika Resmi */}
+                        {getValues("beautySalonCertificateImage")?.uri && (
+                          <View className="py-1.5 border-b border-gray-700">
+                            <Text className="text-gray-400 text-sm mb-2">{t("form.beautySalonCertificate")}</Text>
+                            <Image source={{ uri: getValues("beautySalonCertificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                          </View>
+                        )}
+                        {/* Güzellik Salonu Kategorileri */}
+                        <RowList label={t("form.beautySalonMainHeadings")} items={(getValues("selectedBeautySalonMainHeadings") ?? []).map((id: string) => id)} />
+                        <RowList label={t("form.beautySalonSubHeadings")} items={(getValues("selectedBeautySalonSubHeadings") ?? []).map((id: string) => id)} />
+                        <RowList label={t("form.beautySalonServices")} items={(getValues("selectedBeautySalonCategories") ?? []).map((id: string) => id)} />
+                        {Object.keys(getValues("prices") ?? {}).length > 0 && (
+                          <View className="mt-2">
+                            <Text className="text-gray-400 text-sm mb-1">{t("form.stepPrices")}</Text>
+                            {Object.entries(getValues("prices") ?? {}).map(([catId, price], idx) => {
+                              const displayName = stripBsPrefix(catId);
+                              const isBs = isBsPriceKey(catId);
+                              return (
+                                <View key={`price-${idx}-${catId}`} className="flex-row justify-between py-1">
+                                  <Text className="text-white flex-1">
+                                    {categoryLabelMap.get(displayName) ?? displayName}
+                                    {isBs ? ` (${t("form.beautySalonCategories")})` : ""}
+                                  </Text>
+                                  <Text className="text-[#ffb900]">{typeof price === "string" ? price : ""}</Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                        <Row label={t("form.locationRequired")} value={getValues("location")?.latitude && getValues("location")?.longitude ? `${getValues("location").latitude.toFixed(4)}, ${getValues("location").longitude.toFixed(4)}` : t("form.locationNotSet")} />
+                      </View>
+                    </View>
+                  </>
+                )}
+                {currentStep === 8 && isEdit && (
+                  <>
+                    <View className="px-4 mt-2">
+                      <View className="bg-gray-800 rounded-xl p-4 flex-row items-center justify-between border border-gray-700">
+                        <Text className="text-white text-lg font-bold">
+                          {t("status.availabilityStatus")}
+                        </Text>
+                        <Controller
+                          control={control}
+                          name="isAvailable"
+                          render={({ field: { value, onChange } }) => (
+                            <Switch
+                              value={value}
+                              onValueChange={onChange}
+                              color="#0f766e"
+                            />
+                          )}
                         />
-                      )}
-                    />
-                  </View>
-                </View>
-              )}
-            </ScrollView>
+                      </View>
+                    </View>
+                  </>
+                )}
 
-            <View className="px-4 my-4">
-              <Button
-                className="mt-2 mb-4 font-century-gothic"
-                disabled={addFreeBarberLoad || updateFreeBarberLoad}
-                loading={addFreeBarberLoad || updateFreeBarberLoad}
-                mode="contained"
-                onPress={handleSubmit(OnSubmit, onErrors)}
-                buttonColor="#1F2937"
-                textColor="white"
-                labelStyle={{ fontSize: 16 }}
-              >
-                {!isEdit ? t("common.add") : t("common.update")}
-              </Button>
-            </View>
+                <View className="px-0 my-4 flex-row gap-3 pb-6">
+                  {currentStep > 0 && (
+                    <Button
+                      className="flex-1 font-century-gothic"
+                      mode="outlined"
+                      onPress={handlePrevStep}
+                      buttonColor="#ffb900"
+                      textColor="#ffb900"
+                      labelStyle={{ fontSize: 16 }}
+                    >
+                      {t("form.stepPrev")}
+                    </Button>
+                  )}
+                  {currentStep < totalSteps - 1 ? (
+                    <Button
+                      className="font-century-gothic flex-1"
+                      mode="contained"
+                      onPress={handleNextStep}
+                      buttonColor="#ffb900"
+                      textColor="#1F2937"
+                      labelStyle={{ fontSize: 16 }}
+                    >
+                      {t("form.stepNext")}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="flex-1 font-century-gothic"
+                      disabled={addFreeBarberLoad || updateFreeBarberLoad}
+                      loading={addFreeBarberLoad || updateFreeBarberLoad}
+                      mode="contained"
+                      onPress={handleSubmit(OnSubmit, onErrors)}
+                      buttonColor="#10B981"
+                      textColor="white"
+                      labelStyle={{ fontSize: 16 }}
+                    >
+                      {!isEdit ? t("common.add") : t("common.update")}
+                    </Button>
+                  )}
+                </View>
+              </Animated.View>
+            </ScrollView>
           </>
         )}
       </View>

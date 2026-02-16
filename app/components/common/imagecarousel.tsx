@@ -14,7 +14,6 @@ interface ImageCarouselProps {
   containerStyle?: StyleProp<ViewStyle>;
   showPagination?: boolean;
   mode?: any; // Allow any mode supported by the carousel library
-  isMapMode?: boolean;
 }
 
 export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
@@ -27,7 +26,6 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   containerStyle,
   showPagination = true,
   mode = 'horizontal-stack',
-  isMapMode = false,
 }) => {
   const width = widthProp ?? Dimensions.get('window').width;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -151,14 +149,12 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   // Custom comparison to prevent unnecessary re-renders
   const sameImages = prevProps.images === nextProps.images;
   const sameAutoPlay = prevProps.autoPlay === nextProps.autoPlay;
-  const sameMapMode = prevProps.isMapMode === nextProps.isMapMode;
   const sameBorderRadius = prevProps.borderRadiusClass === nextProps.borderRadiusClass;
   const sameWidth = prevProps.width === nextProps.width;
   const sameHeight = prevProps.height === nextProps.height;
   const samePagination = prevProps.showPagination === nextProps.showPagination;
 
-  // Width/height değiştiğinde de re-render yap
-  return sameImages && sameAutoPlay && sameMapMode && sameBorderRadius && sameWidth && sameHeight && samePagination;
+  return sameImages && sameAutoPlay && sameBorderRadius && sameWidth && sameHeight && samePagination;
 });
 
 ImageCarousel.displayName = 'ImageCarousel';

@@ -517,9 +517,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                   return (
                     <View
                       key={participant.userId}
-                      className="flex-row items-center mr-4"
+                      className="flex-row items-center mr-5"
                     >
-                      <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2">
+                      <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2.5">
                         <OwnerAvatar
                           ownerId={participant.userId}
                           ownerType={ImageOwnerType.User}
@@ -538,23 +538,17 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                         />
                       </View>
                       <View>
-                        <View className="flex-row items-center gap-1 flex-wrap">
-                          <Text
-                            className="text-white text-base font-century-gothic"
-                            numberOfLines={1}
-                          >
-                            {participant.displayName} -
-                          </Text>
-                          {participantLabel && (
-                            <Text className="text-gray-400 text-xs font-century-gothic">
-                              {participantLabel}
-                            </Text>
-                          )}
-                        </View>
-
-                        {barberTypeLabel && (
-                          <Text className="text-gray-500 text-xs">
-                            {barberTypeLabel}
+                        <Text
+                          className="text-white text-base font-century-gothic"
+                          numberOfLines={1}
+                        >
+                          {participant.displayName}
+                        </Text>
+                        {(participantLabel || barberTypeLabel) && (
+                          <Text className="text-gray-400 text-xs font-century-gothic mt-0.5">
+                            {participantLabel && barberTypeLabel
+                              ? `${participantLabel} • ${barberTypeLabel}`
+                              : participantLabel || barberTypeLabel}
                           </Text>
                         )}
                       </View>
@@ -659,25 +653,19 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                   style={{ flexShrink: 1 }}
                 >
                   {!isMe && (
-                    <View className="flex-row items-center gap-1 mb-1 flex-wrap">
+                    <View className="flex-row items-center gap-1.5 mb-1.5 flex-wrap">
                       <Text className="text-gray-300 text-xs font-century-gothic">
-                        {displayInfo.displayName} -
+                        {displayInfo.displayName}
+                        {senderParticipant &&
+                          senderParticipant.userType !== currentUserType &&
+                          ` • ${senderParticipant.userType === UserType.BarberStore
+                            ? "Dükkan"
+                            : senderParticipant.userType === UserType.FreeBarber
+                              ? "Serbest Berber"
+                              : t("card.customer")}`}
                       </Text>
-                      {/* Kullanıcı türüne göre sender etiketi - sadece kendi türümüzden farklıysa göster */}
-                      {senderParticipant &&
-                        senderParticipant.userType !== currentUserType && (
-                          <Text className="text-gray-400 text-xs font-century-gothic">
-                            {senderParticipant.userType === UserType.BarberStore
-                              ? "Dükkan"
-                              : senderParticipant.userType ===
-                                UserType.FreeBarber
-                                ? "Serbest Berber"
-                                : t("card.customer")}
-                          </Text>
-                        )}
                       {!senderParticipant && (
                         <Text className="text-gray-500 text-xs">
-                          {" "}
                           (yükleniyor...)
                         </Text>
                       )}

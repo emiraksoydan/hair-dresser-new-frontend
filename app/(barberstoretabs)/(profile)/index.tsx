@@ -22,10 +22,6 @@ import { LottieViewComponent } from '../../components/common/lottieview';
 import { MESSAGES } from '../../constants/messages';
 import { useLanguage } from '../../hook/useLanguage';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
-import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import { BlockedUsersSheet } from '../../components/profile/BlockedUsersSheet';
-import { ComplaintsSheet } from '../../components/profile/ComplaintsSheet';
-import { RequestsSheet } from '../../components/profile/RequestsSheet';
 
 const createProfileSchema = (t: (key: string) => string) => z.object({
     firstName: z.string({ required_error: t('auth.firstName') + ' ' + t('common.required') })
@@ -60,44 +56,6 @@ const Index = () => {
     const [refreshing, setRefreshing] = useState(false);
     const isUpdatingSettingRef = useRef(false);
 
-    // Bottom sheet refs
-    const blockedSheetRef = useRef<BottomSheetModal>(null);
-    const complaintsSheetRef = useRef<BottomSheetModal>(null);
-    const requestsSheetRef = useRef<BottomSheetModal>(null);
-    const sheetSnapPoints = useMemo(() => ['50%', '85%'], []);
-
-    // Modal açma kilidi - çift tıklamayı engeller
-    const isOpeningModalRef = useRef(false);
-    const currentOpenSheetRef = useRef<React.RefObject<BottomSheetModal | null> | null>(null);
-
-    // Güvenli modal açma fonksiyonu
-    const safePresent = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
-        if (isOpeningModalRef.current) return;
-        
-        // Eğer başka bir sheet açıksa önce onu kapat
-        if (currentOpenSheetRef.current && currentOpenSheetRef.current !== ref) {
-            currentOpenSheetRef.current.current?.dismiss();
-        }
-        
-        isOpeningModalRef.current = true;
-        currentOpenSheetRef.current = ref;
-        ref.current?.present();
-        
-        // 300ms sonra kilidi kaldır
-        setTimeout(() => {
-            isOpeningModalRef.current = false;
-        }, 300);
-    }, []);
-
-    // Sheet kapatma handler'ı
-    const handleSheetClose = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
-        return () => {
-            if (currentOpenSheetRef.current === ref) {
-                currentOpenSheetRef.current = null;
-            }
-            ref.current?.dismiss();
-        };
-    }, []);
 
     // Memoize theme objects
     const textInputTheme = useMemo(() => ({
@@ -333,11 +291,11 @@ const Index = () => {
         >
             <View className='items-center  mx-6 py-6 rounded-xl bg-[#1a1b25]'>
                 <View className="relative h-[120px] w-[120px]">
-                    <View style={{ 
-                        width: 120, 
-                        height: 120, 
-                        borderRadius: 60, 
-                        borderWidth: 1.5, 
+                    <View style={{
+                        width: 120,
+                        height: 120,
+                        borderRadius: 60,
+                        borderWidth: 1.5,
                         borderColor: '#ffb900',
                         overflow: 'hidden',
                         justifyContent: 'center',
@@ -481,10 +439,9 @@ const Index = () => {
                 </View>
 
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.userActions') || 'Kullanıcı İşlemleri'}</Text>
-                <View className='bg-[#1F2937] rounded-xl mb-6'>
-                    {/* Engellenen Kullanıcılar */}
+                <View className='bg-[#1a1b25] rounded-xl mb-6'>
                     <TouchableOpacity
-                        onPress={() => safePresent(blockedSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/blocked-users')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4 border-b border-gray-700'
                     >
@@ -497,7 +454,7 @@ const Index = () => {
 
                     {/* Şikayetlerim */}
                     <TouchableOpacity
-                        onPress={() => safePresent(complaintsSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/complaints')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4 border-b border-gray-700'
                     >
@@ -510,7 +467,7 @@ const Index = () => {
 
                     {/* İsteklerim */}
                     <TouchableOpacity
-                        onPress={() => safePresent(requestsSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/requests')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4'
                     >
@@ -523,7 +480,7 @@ const Index = () => {
                 </View>
 
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.settings')}</Text>
-                <View className='bg-[#1F2937] rounded-xl p-4 mb-6'>
+                <View className='bg-[#1a1b25] rounded-xl p-4 mb-6'>
                     <View className='flex-row items-center justify-between'>
                         <View className='flex-1 mr-4'>
                             <Text className='text-white text-base font-medium mb-1'>{t('profile.imageAnimation')}</Text>

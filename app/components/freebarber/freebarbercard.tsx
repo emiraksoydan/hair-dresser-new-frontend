@@ -1,10 +1,11 @@
-import React, { useCallback, useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Text } from "../common/Text";
 import { FreeBarGetDto, FavoriteTargetType } from "../../types";
 import { useFavoriteToggle } from "../../hook/useFavoriteToggle";
 import { useCallFreeBarberMutation } from "../../store/api";
 import { useLanguage } from "../../hook/useLanguage";
+import { useCategoryHierarchy } from "../../hook/useCategoryHierarchy";
 import { CardImage } from "../common/CardImage";
 import { CardHeader } from "../common/CardHeader";
 import { FavoriteButton } from "../common/FavoriteButton";
@@ -28,7 +29,6 @@ type Props = {
   onCallFreeBarber?: (freeBarberId: string) => void;
   storeId?: string;
   showImageAnimation?: boolean;
-  isMapMode?: boolean;
 };
 
 const FreeBarberCard: React.FC<Props> = ({
@@ -44,11 +44,30 @@ const FreeBarberCard: React.FC<Props> = ({
   onCallFreeBarber,
   storeId,
   showImageAnimation = true,
-  isMapMode = false,
 }) => {
-  const carouselWidth = Math.max(0, cardWidthFreeBarber);
+  const carouselWidth = Math.max(0, cardWidthFreeBarber - 20);
   const { t } = useLanguage();
   const { alertSuccess, alertError, confirm } = useAlert();
+  const { getAllServicesForType } = useCategoryHierarchy({});
+
+  const hasBeautySalonCertificate = Boolean(
+    freeBarber.type === 2 || freeBarber.beautySalonCertificateImageId,
+  );
+
+  const { mainOfferings, beautyOfferings } = useMemo(() => {
+    const offerings = freeBarber.offerings || [];
+    if (offerings.length === 0) return { mainOfferings: [], beautyOfferings: [] };
+    const beautyNames = new Set(
+      getAllServicesForType("Güzellik Salonu").map((s) => s.name),
+    );
+    const main: typeof offerings = [];
+    const beauty: typeof offerings = [];
+    offerings.forEach((o) => {
+      if (beautyNames.has(o.serviceName)) beauty.push(o);
+      else main.push(o);
+    });
+    return { mainOfferings: main, beautyOfferings: beauty };
+  }, [freeBarber.offerings, getAllServicesForType]);
   const [callFreeBarber, { isLoading: isCalling }] =
     useCallFreeBarberMutation();
   const [hasCalled, setHasCalled] = useState(false);
@@ -135,11 +154,19 @@ const FreeBarberCard: React.FC<Props> = ({
   return (
     <View
       style={{ width: cardWidthFreeBarber, overflow: "hidden" }}
-      className={expanded ? "mt-4" : "mt-0"}
+      className="mt-4"
     >
-      <View className={isList ? "" : "pl-4 py-2 rounded-lg bg-[#202123]"}>
+      <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+        }`}>
         {!isList && (
-          <View className="flex-row justify-end px-2 pb-2">
+          <View className="flex-row justify-end items-center gap-1 px-2 pb-2">
+            {hasBeautySalonCertificate && (
+              <View className="bg-purple-600/90 px-2 py-0.5 rounded-full">
+                <Text className="text-white text-xs font-century-gothic-sans-semibold">
+                  {t("card.beautyExpert")}
+                </Text>
+              </View>
+            )}
             <StatusBadge
               type={isAvailable ? "available" : "busy"}
               isList={false}
@@ -155,10 +182,16 @@ const FreeBarberCard: React.FC<Props> = ({
               width={isList ? carouselWidth : 112}
               height={isList ? 250 : 112}
               autoPlay={showImageAnimation}
-              isMapMode={isMapMode}
             />
             {isList && (
               <View className="absolute top-2 right-[3] z-10 gap-2 justify-end flex-row items-center">
+                {hasBeautySalonCertificate && (
+                  <View className="bg-purple-600/90 px-2 py-0.5 rounded-full">
+                    <Text className="text-white text-sm font-century-gothic-sans-semibold">
+                      {t("card.beautyExpert")}
+                    </Text>
+                  </View>
+                )}
                 {typeLabel && (
                   <TypeLabel label={typeLabel} color={typeLabelColor} />
                 )}
@@ -187,7 +220,7 @@ const FreeBarberCard: React.FC<Props> = ({
             )}
           </View>
 
-          <View className="flex-1 flex-col gap-2">
+          <View className="flex-1 flex-col gap-1">
             <View
               className={`flex-row justify-between ${!isList ? "items-start" : "items-center"}`}
             >
@@ -235,9 +268,30 @@ const FreeBarberCard: React.FC<Props> = ({
             </View>
           </View>
         </View>
+        <View className="rounded-xl pr-2 mt-4">
+          {mainOfferings.length > 0 && (
+            <ServiceOfferingsList
+              offerings={mainOfferings}
+              layout="vertical"
+              previewCount={3}
+              showExpandButton={true}
+            />
+          )}
+          {beautyOfferings.length > 0 && (
+            <View className="mt-3">
+              <Text className="text-gray-400 text-sm mb-1.5 font-century-gothic-sans-semibold">
+                {t("form.beautySalonServices")}
+              </Text>
+              <ServiceOfferingsList
+                offerings={beautyOfferings}
+                layout="vertical"
+                previewCount={3}
+                showExpandButton={true}
+              />
+            </View>
+          )}
+        </View>
       </View>
-
-      <ServiceOfferingsList offerings={freeBarber.offerings || []} />
     </View>
   );
 };
@@ -252,7 +306,8 @@ export const FreeBarberCardInner = React.memo(FreeBarberCard, (prev, next) => {
     prev.freeBarber.reviewCount === next.freeBarber.reviewCount &&
     prev.freeBarber.favoriteCount === next.freeBarber.favoriteCount &&
     prev.freeBarber.imageList === next.freeBarber.imageList &&
-    prev.freeBarber.offerings === next.freeBarber.offerings;
+    prev.freeBarber.offerings === next.freeBarber.offerings &&
+    (prev.freeBarber.beautySalonCertificateImageId ?? null) === (next.freeBarber.beautySalonCertificateImageId ?? null);
 
   const sameProps =
     prev.isList === next.isList &&
@@ -265,8 +320,7 @@ export const FreeBarberCardInner = React.memo(FreeBarberCard, (prev, next) => {
     prev.onPressUpdate === next.onPressUpdate &&
     prev.onPressRatings === next.onPressRatings &&
     prev.onCallFreeBarber === next.onCallFreeBarber &&
-    prev.showImageAnimation === next.showImageAnimation &&
-    (prev.isMapMode ?? false) === (next.isMapMode ?? false);
+    prev.showImageAnimation === next.showImageAnimation;
 
   return sameFreeBarber && sameProps;
 });

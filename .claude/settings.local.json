@@ -4,7 +4,23 @@
       "Read(//c/Users/yazilimciemir/source/repos/HairDresser/Api/**)",
       "Bash(git checkout:*)",
       "Bash(wc:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)",
+      "Bash(netsh advfirewall firewall show rule:*)",
+      "Bash(netstat:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm ls:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet ef database update:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(dotnet build:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\yazilimciemir\\source\\repos\\HairDresser\\Business\\Concrete",
+      "C:\\Users\\yazilimciemir\\source\\repos\\HairDresser\\Business\\Resources"
     ]
   }
 }

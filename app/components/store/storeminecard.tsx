@@ -23,7 +23,7 @@ type Props = {
 };
 
 const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate, onPressRatings, showImageAnimation = true }) => {
-    const carouselWidth = Math.max(0, cardWidthStore - 8);
+    const carouselWidth = Math.max(0, cardWidthStore - 20);
 
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: store.id,
@@ -44,9 +44,10 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
     return (
         <View
             style={{ width: cardWidthStore, overflow: 'hidden' }}
-            className={expanded ? 'mt-4' : 'mt-0'}
+            className="mt-4"
         >
-            <View className={isList ? '' : 'pl-4 py-2 rounded-lg bg-[#202123]'}>
+            <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+                }`}>
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
                         <StatusBadge
@@ -129,7 +130,14 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                         </View>
                     </View>
                 </View>
-                <ServiceOfferingsList offerings={store.serviceOfferings || []} />
+                <View className="rounded-xl pr-2  mt-4">
+                    <ServiceOfferingsList
+                        offerings={store.serviceOfferings || []}
+                        layout="vertical"
+                        previewCount={3}
+                        showExpandButton={true}
+                    />
+                </View>
             </View>
         </View>
     );

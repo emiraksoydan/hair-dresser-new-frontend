@@ -19,7 +19,6 @@ export const tokenStore = {
     refreshToken = tokens.refreshToken;
     // Always notify listeners when token is set (login, refresh, re-login)
     if (accessToken && accessToken !== previousToken) {
-      console.log('[TokenStore] Token set, notifying listeners');
       tokenChangeListeners.forEach(listener => listener(true, accessToken));
     }
   },
@@ -29,7 +28,6 @@ export const tokenStore = {
     refreshToken = null;
     // Notify listeners that token is cleared
     if (hadToken) {
-      console.log('[TokenStore] Token cleared, notifying listeners');
       tokenChangeListeners.forEach(listener => listener(false, null));
     }
   },
@@ -45,7 +43,6 @@ export const tokenStore = {
   get isRefreshing() { return isRefreshing; },
   setRefreshing(value: boolean) {
     isRefreshing = value;
-    console.log('[TokenStore] Refresh state:', value);
     refreshStateListeners.forEach(listener => listener(value));
   },
   // Subscribe to refresh state changes (for SignalR)

@@ -426,6 +426,20 @@ export const getErrorMessage = (error: unknown): string => {
 
   const e = error as any;
 
+  // Abort hatalarını sessizce ignore et (component unmount, request cancel vs.)
+  const isAbortError =
+    e?.name === 'AbortError' ||
+    e?.message?.includes?.('abort') ||
+    e?.message?.includes?.('Abort') ||
+    e?.message?.includes?.('cancelled') ||
+    e?.message?.includes?.('canceled') ||
+    e?.status === 'ABORT_ERROR' ||
+    e?.error?.name === 'AbortError';
+
+  if (isAbortError) {
+    return ''; // Boş döndür, alert gösterilmez
+  }
+
   // ÖNCELİKLİ: Network/Server hatalarını kontrol et
   // RTK Query string status'ları - bunlar servise ulaşılamadı anlamına gelir
   const status = e?.status;

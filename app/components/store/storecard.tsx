@@ -24,12 +24,10 @@ type Props = {
     onPressUpdate?: (store: BarberStoreGetDto) => void;
     onPressRatings?: (storeId: string, storeName: string) => void;
     showImageAnimation?: boolean;
-    isMapMode?: boolean;
 };
 
-const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true, isMapMode = false }) => {
-    const carouselWidth = Math.max(0, cardWidthStore);
-
+const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true }) => {
+    const carouselWidth = Math.max(0, cardWidthStore - 20);
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: store.id,
         targetType: FavoriteTargetType.Store,
@@ -49,9 +47,10 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
     return (
         <View
             style={{ width: cardWidthStore, overflow: 'hidden' }}
-            className={expanded ? 'mt-4' : 'mt-0'}
+            className="mt-4"
         >
-            <View className={isList ? '' : 'pl-4 py-2 rounded-lg bg-[#202123]'}>
+            <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+                }`}>
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
                         <StatusBadge
@@ -69,7 +68,6 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                             width={isList ? carouselWidth : 112}
                             height={isList ? 250 : 112}
                             autoPlay={showImageAnimation}
-                            isMapMode={isMapMode}
                         />
                         {isList && (
                             <View className="absolute top-3 right-3 flex-row gap-2 z-10">
@@ -134,13 +132,21 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                         </View>
                     </View>
                 </View>
-                <ServiceOfferingsList offerings={store.serviceOfferings || []} />
-                {isViewerFromFreeBr && (
-                    <PricingInfo
-                        pricingType={store.pricingType}
-                        pricingValue={store.pricingValue}
+                <View className="rounded-xl pr-2  mt-4">
+                    <ServiceOfferingsList
+                        offerings={store.serviceOfferings || []}
+                        layout="vertical"
+                        previewCount={3}
+                        showExpandButton={true}
                     />
-                )}
+                    {isViewerFromFreeBr && (
+                        <PricingInfo
+
+                            pricingType={store.pricingType}
+                            pricingValue={store.pricingValue}
+                        />
+                    )}
+                </View>
             </View>
         </View>
     );
@@ -171,8 +177,7 @@ export const StoreCardInner = React.memo(
             prev.typeLabelColor === next.typeLabelColor &&
             prev.onPressUpdate === next.onPressUpdate &&
             prev.onPressRatings === next.onPressRatings &&
-            prev.showImageAnimation === next.showImageAnimation &&
-            (prev.isMapMode ?? false) === (next.isMapMode ?? false);
+            prev.showImageAnimation === next.showImageAnimation;
 
         return sameStore && sameProps;
     }

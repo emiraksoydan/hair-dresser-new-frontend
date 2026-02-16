@@ -3,7 +3,7 @@
  * Soldan açılır, hem swipe hem de buton ile kontrol edilebilir
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, ScrollView, Dimensions, Modal, StyleSheet } from 'react-native';
 import { Text } from './Text';
 import Animated, {
@@ -13,12 +13,27 @@ import Animated, {
     runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Chip, Divider, Icon, TextInput } from 'react-native-paper';
+import { Divider, Icon, TextInput } from 'react-native-paper';
 import { MultiSelect } from 'react-native-element-dropdown';
-import { useGetParentCategoriesQuery, useLazyGetChildCategoriesQuery } from '../../store/api';
+import { useCategoryHierarchy } from '../../hook/useCategoryHierarchy';
 import { useLanguage } from '../../hook/useLanguage';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
+
+// Renk sabitleri
+const COLORS = {
+    drawerBg: '#1a1b25',
+    headerBorder: '#2a2b35',
+    chipSelected: '#ffb900',
+    chipBorder: '#3a3b45',
+    chipBg: '#252630',
+    sectionTitle: '#e5e7eb',
+    divider: '#2a2b35',
+    inputBg: '#252630',
+    inputBorder: '#3a3b45',
+    accent: '#ffb900',
+    textMuted: '#9ca3af',
+};
 
 interface FilterDrawerProps {
     visible: boolean;
@@ -27,13 +42,21 @@ interface FilterDrawerProps {
     // Tür seçimi (Free Barber / Dükkan / Hepsi)
     selectedUserType: string;
     onChangeUserType: (type: string) => void;
-    showUserTypeFilter?: boolean; // Kullanıcı türü filtresini göster/gizle
+    showUserTypeFilter?: boolean;
 
-    // Ana Kategori seçimi (Saç Kesimi / Saç Boyama / Güzellik Salonu / Hepsi)
+    // Ana Kategori seçimi (Erkek Berber / Kadın Kuaför / Güzellik Salonu / Hepsi)
     selectedMainCategory: string;
     onChangeMainCategory: (category: string) => void;
 
-    // Hizmet seçimi (çoklu)
+    // Ana Başlıklar (çoklu)
+    selectedMainHeadings: string[];
+    onChangeMainHeadings: (headings: string[]) => void;
+
+    // Alt Başlıklar (çoklu)
+    selectedSubHeadings: string[];
+    onChangeSubHeadings: (headings: string[]) => void;
+
+    // Hizmet seçimi (çoklu) - ID olarak
     selectedServices: string[];
     onChangeServices: (services: string[]) => void;
 
@@ -47,16 +70,15 @@ interface FilterDrawerProps {
 
     // Free barberler için dükkan fiyatlandırma türü
     showPricingType?: boolean;
-    selectedPricingType: string; // 'Hepsi' | 'Kiralama' | 'Yüzdelik'
+    selectedPricingType: string;
     onChangePricingType: (type: string) => void;
 
-    // Durum filtresi (hem Store hem FreeBarber için ortak)
-    // Store: açık/kapalı, FreeBarber: müsait/meşgul
+    // Durum filtresi
     statusFilter: 'all' | 'available' | 'unavailable';
     onChangeStatus: (filter: 'all' | 'available' | 'unavailable') => void;
 
     // Puanlama filtresi
-    selectedRating: number; // 0 = Hepsi, 1-5 = yıldız sayısı
+    selectedRating: number;
     onChangeRating: (rating: number) => void;
 
     // Favori filtresi
@@ -67,6 +89,71 @@ interface FilterDrawerProps {
     onClearFilters: () => void;
 }
 
+// Chip bileşeni - tekrar kullanılabilir
+const FilterChipItem = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
+    <TouchableOpacity
+        onPress={onPress}
+        style={{
+            backgroundColor: selected ? COLORS.chipSelected : COLORS.chipBg,
+            borderColor: selected ? COLORS.chipSelected : COLORS.chipBorder,
+            borderWidth: 1,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 20,
+        }}
+        activeOpacity={0.7}
+    >
+        <Text style={{
+            color: selected ? '#1a1b25' : '#d1d5db',
+            fontSize: 13,
+            fontWeight: selected ? '600' : '400',
+            fontFamily: 'CenturyGothic',
+        }}>
+            {label}
+        </Text>
+    </TouchableOpacity>
+);
+
+// MultiSelect ortak stilleri
+const multiSelectStyles = {
+    style: {
+        backgroundColor: COLORS.inputBg,
+        borderColor: COLORS.inputBorder,
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 16,
+    },
+    containerStyle: {
+        backgroundColor: COLORS.inputBg,
+        borderWidth: 1,
+        borderColor: COLORS.inputBorder,
+        borderRadius: 12,
+        overflow: 'hidden' as const,
+    },
+    inputSearchStyle: {
+        backgroundColor: COLORS.inputBg,
+        borderColor: COLORS.accent,
+        borderWidth: 1,
+        borderRadius: 8,
+        color: 'white',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    placeholderStyle: { color: COLORS.textMuted, fontSize: 14, fontFamily: 'CenturyGothic' as const },
+    selectedTextStyle: { color: 'white', fontSize: 14, fontFamily: 'CenturyGothic' as const },
+    itemTextStyle: { color: 'white', fontSize: 14, fontFamily: 'CenturyGothic' as const },
+    selectedStyle: {
+        borderRadius: 8,
+        backgroundColor: '#2a2b35',
+        borderColor: COLORS.accent,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        margin: 2,
+    },
+};
+
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     visible,
     onClose,
@@ -75,6 +162,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     showUserTypeFilter = true,
     selectedMainCategory,
     onChangeMainCategory,
+    selectedMainHeadings,
+    onChangeMainHeadings,
+    selectedSubHeadings,
+    onChangeSubHeadings,
     selectedServices,
     onChangeServices,
     priceSort,
@@ -96,38 +187,71 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
 }) => {
     const { t } = useLanguage();
     const translateX = useSharedValue(-DRAWER_WIDTH);
+    const prevMainCategoryRef = useRef(selectedMainCategory);
+    const prevMainHeadingsRef = useRef(selectedMainHeadings);
+    const prevSubHeadingsRef = useRef(selectedSubHeadings);
 
-    // Category API hooks
-    const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
-    const [triggerGetChildCategories, { data: childCategories = [] }] = useLazyGetChildCategoriesQuery();
-    
-    // Duplicate kategorileri filtrele (name bazında)
-    const parentCategories = React.useMemo(() => {
-        const seen = new Set<string>();
-        return parentCategoriesRaw.filter((cat: any) => {
-            if (seen.has(cat.name)) return false;
-            seen.add(cat.name);
-            return true;
-        });
-    }, [parentCategoriesRaw]);
+    // useCategoryHierarchy hook
+    const {
+        parentCategories,
+        mainHeadings,
+        subHeadings,
+        services,
+    } = useCategoryHierarchy({
+        selectedType: selectedMainCategory !== 'all' ? selectedMainCategory : null,
+        selectedMainHeadings,
+        selectedSubHeadings,
+    });
 
-    // Ana kategori değişince alt kategorileri yükle
+    // Cascade reset: mainCategory değişince alt seçimleri sıfırla
     useEffect(() => {
-        if (selectedMainCategory && selectedMainCategory !== t('filters.all')) {
-            const parentCat = parentCategories.find((cat: any) => cat.name === selectedMainCategory);
-            if (parentCat) {
-                triggerGetChildCategories(parentCat.id);
-            }
+        if (prevMainCategoryRef.current !== selectedMainCategory) {
+            prevMainCategoryRef.current = selectedMainCategory;
+            onChangeMainHeadings([]);
+            onChangeSubHeadings([]);
+            onChangeServices([]);
         }
-    }, [selectedMainCategory, parentCategories, triggerGetChildCategories, t]);
+    }, [selectedMainCategory]);
 
-    // Hizmet seçenekleri
-    const serviceOptions = React.useMemo(() => {
-        if (!selectedMainCategory || selectedMainCategory === t('filters.all')) return [];
-        return childCategories.map((cat: any) => ({ label: cat.name, value: cat.id }));
-    }, [childCategories, selectedMainCategory, t]);
+    // Cascade reset: mainHeadings değişince alt seçimleri sıfırla
+    useEffect(() => {
+        const prev = prevMainHeadingsRef.current;
+        const curr = selectedMainHeadings;
+        if (prev.length !== curr.length || prev.some((v, i) => v !== curr[i])) {
+            prevMainHeadingsRef.current = curr;
+            onChangeSubHeadings([]);
+            onChangeServices([]);
+        }
+    }, [selectedMainHeadings]);
 
-    // Drawer açma/kapama animasyonu
+    // Cascade reset: subHeadings değişince hizmetleri sıfırla
+    useEffect(() => {
+        const prev = prevSubHeadingsRef.current;
+        const curr = selectedSubHeadings;
+        if (prev.length !== curr.length || prev.some((v, i) => v !== curr[i])) {
+            prevSubHeadingsRef.current = curr;
+            onChangeServices([]);
+        }
+    }, [selectedSubHeadings]);
+
+    // Dropdown options
+    const mainHeadingsOptions = useMemo(() =>
+        mainHeadings.map((cat) => ({ label: cat.name, value: cat.name })),
+        [mainHeadings]
+    );
+
+    const subHeadingsOptions = useMemo(() =>
+        subHeadings.map((cat) => ({ label: cat.name, value: cat.name })),
+        [subHeadings]
+    );
+
+    // Hizmetler: value = id (backend'e GUID gönderilmeli)
+    const servicesOptions = useMemo(() =>
+        services.map((cat) => ({ label: cat.name, value: cat.id })),
+        [services]
+    );
+
+    // Drawer animasyonu
     useEffect(() => {
         if (visible) {
             translateX.value = withTiming(0, { duration: 300 });
@@ -159,53 +283,47 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             }
         });
 
-    // User types with language-independent keys and translated labels
+    // Options
     const userTypeOptions = [
         { key: 'all', label: t('filters.all') },
         { key: 'freeBarber', label: t('labels.freeBarber') },
         { key: 'store', label: t('labels.store') },
     ];
-    
-    const mainCategories = React.useMemo(() => {
-        // Kullanıcı türü "freeBarber" ise Güzellik Salonu'nu gizle
+
+    const mainCategories = useMemo(() => {
         let categories = parentCategories.map((cat: any) => cat.name);
-        
         if (selectedUserType === 'freeBarber') {
-            // Güzellik Salonu kategorisini filtrele (kategori adı dinamik olabilir)
             categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
         }
-        
-        // "all" ve filtrelenmiş kategorileri birleştir, duplicate'leri kaldır
-        const allCategories = ['all', ...categories];
-        return Array.from(new Set(allCategories)); // Duplicate'leri kaldır
+        return Array.from(new Set(['all', ...categories]));
     }, [parentCategories, selectedUserType]);
-    
-    // Get translated label for main category
+
     const getMainCategoryLabel = (category: string) => {
         if (category === 'all') return t('filters.all');
-        return category; // Category names come from backend, already in correct language
+        return category;
     };
-    
-    // Pricing types with language-independent keys and translated labels
+
     const pricingTypeOptions = [
         { key: 'all', label: t('filters.all') },
         { key: 'rent', label: t('filters.rental') },
         { key: 'percent', label: t('filters.percentage') },
     ];
-    // Unified status options - works for both Store (open/closed) and FreeBarber (available/unavailable)
+
     const statusOptions = [
         { label: t('filters.all'), value: 'all' },
         { label: t('filters.availableOpen'), value: 'available' },
         { label: t('filters.unavailableClosed'), value: 'unavailable' },
     ];
+
     const ratingOptions = [
         { label: t('filters.all'), value: 0 },
-        { label: '⭐ 1+', value: 1 },
-        { label: '⭐ 2+', value: 2 },
-        { label: '⭐ 3+', value: 3 },
-        { label: '⭐ 4+', value: 4 },
-        { label: '⭐ 5', value: 5 },
+        { label: '1+', value: 1 },
+        { label: '2+', value: 2 },
+        { label: '3+', value: 3 },
+        { label: '4+', value: 4 },
+        { label: '5', value: 5 },
     ];
+
     const favoriteOptions = [
         { label: t('filters.all'), value: false },
         { label: t('filters.onlyFavorites'), value: true },
@@ -233,10 +351,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 <GestureDetector gesture={panGesture}>
                     <Animated.View style={[styles.drawer, drawerStyle]}>
                         {/* Header */}
-                        <View className="flex-row items-center justify-between p-4 border-b border-gray-700">
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.headerBorder }}>
                             <Text className="text-white text-xl font-century-gothic-bold">{t('filters.title')}</Text>
-                            <TouchableOpacity onPress={onClose}>
-                                <Icon source="close" size={24} color="#fff" />
+                            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+                                <Icon source="close" size={22} color="#9ca3af" />
                             </TouchableOpacity>
                         </View>
 
@@ -246,83 +364,116 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }}
                         >
-                            {/* Kullanıcı Türü - Horizontal ScrollView */}
+                            {/* Kullanıcı Türü */}
                             {showUserTypeFilter && (
                                 <>
-                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.userType')}
                                     </Text>
-                                    <ScrollView
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        className="mb-4"
-                                        contentContainerStyle={{ gap: 8 }}
-                                    >
-                                        {userTypeOptions.map((option) => {
-                                            const isSelected = selectedUserType === option.key;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option.key}
-                                                    onPress={() => onChangeUserType(option.key)}
-                                                    className={`px-4 py-2 rounded-full border ${
-                                                        isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                                    }`}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                        {option.label}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                        {userTypeOptions.map((option) => (
+                                            <FilterChipItem
+                                                key={option.key}
+                                                label={option.label}
+                                                selected={selectedUserType === option.key}
+                                                onPress={() => onChangeUserType(option.key)}
+                                            />
+                                        ))}
                                     </ScrollView>
-
-                                    <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
                                 </>
                             )}
 
-                            {/* Ana Kategori - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            {/* Ana Kategori */}
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.mainCategory')}
                             </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                className="mb-4"
-                                contentContainerStyle={{ gap: 8 }}
-                            >
-                                    {mainCategories.map((category, index) => {
-                                    const isSelected = selectedMainCategory === category;
-                                    // "all" için özel key, diğerleri için index kullan (unique garantisi için)
-                                    const uniqueKey = category === 'all' ? 'category-all' : `category-${index}-${category}`;
-                                    
-                                    return (
-                                        <TouchableOpacity
-                                            key={uniqueKey}
-                                            onPress={() => onChangeMainCategory(category)}
-                                            className={`px-4 py-2 rounded-full border ${
-                                                isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                            }`}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                {getMainCategoryLabel(category)}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                {mainCategories.map((category, index) => (
+                                    <FilterChipItem
+                                        key={category === 'all' ? 'category-all' : `category-${index}-${category}`}
+                                        label={getMainCategoryLabel(category)}
+                                        selected={selectedMainCategory === category}
+                                        onPress={() => onChangeMainCategory(category)}
+                                    />
+                                ))}
                             </ScrollView>
+                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
 
-                            <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
-
-                            {/* Hizmetler - MultiSelect Dropdown */}
-                            {serviceOptions.length > 0 && (
+                            {/* Ana Başlıklar */}
+                            {mainHeadingsOptions.length > 0 && (
                                 <>
-                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                        {t('form.mainHeadings')}
+                                    </Text>
+                                    <MultiSelect
+                                        data={mainHeadingsOptions}
+                                        labelField="label"
+                                        valueField="value"
+                                        value={selectedMainHeadings}
+                                        onChange={onChangeMainHeadings}
+                                        placeholder={t('form.selectMainHeadings')}
+                                        search
+                                        searchPlaceholder={t('common.search')}
+                                        dropdownPosition="auto"
+                                        inside
+                                        alwaysRenderSelectedItem
+                                        visibleSelectedItem
+                                        style={multiSelectStyles.style}
+                                        containerStyle={multiSelectStyles.containerStyle}
+                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
+                                        placeholderStyle={multiSelectStyles.placeholderStyle}
+                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
+                                        itemTextStyle={multiSelectStyles.itemTextStyle}
+                                        activeColor={COLORS.accent}
+                                        selectedStyle={multiSelectStyles.selectedStyle}
+                                        selectedTextProps={{ numberOfLines: 1 }}
+                                    />
+                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                </>
+                            )}
+
+                            {/* Alt Başlıklar */}
+                            {subHeadingsOptions.length > 0 && (
+                                <>
+                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                        {t('form.subHeadings')}
+                                    </Text>
+                                    <MultiSelect
+                                        data={subHeadingsOptions}
+                                        labelField="label"
+                                        valueField="value"
+                                        value={selectedSubHeadings}
+                                        onChange={onChangeSubHeadings}
+                                        placeholder={t('form.selectSubHeadings')}
+                                        search
+                                        searchPlaceholder={t('common.search')}
+                                        dropdownPosition="auto"
+                                        inside
+                                        alwaysRenderSelectedItem
+                                        visibleSelectedItem
+                                        style={multiSelectStyles.style}
+                                        containerStyle={multiSelectStyles.containerStyle}
+                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
+                                        placeholderStyle={multiSelectStyles.placeholderStyle}
+                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
+                                        itemTextStyle={multiSelectStyles.itemTextStyle}
+                                        activeColor={COLORS.accent}
+                                        selectedStyle={multiSelectStyles.selectedStyle}
+                                        selectedTextProps={{ numberOfLines: 1 }}
+                                    />
+                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                </>
+                            )}
+
+                            {/* Hizmetler */}
+                            {servicesOptions.length > 0 && (
+                                <>
+                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.services')}
                                     </Text>
                                     <MultiSelect
-                                        data={serviceOptions}
+                                        data={servicesOptions}
                                         labelField="label"
                                         valueField="value"
                                         value={selectedServices}
@@ -334,110 +485,92 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         inside
                                         alwaysRenderSelectedItem
                                         visibleSelectedItem
-                                        style={{
-                                            backgroundColor: "#1F2937",
-                                            borderColor: "#444",
-                                            borderWidth: 1,
-                                            borderRadius: 10,
-                                            paddingHorizontal: 12,
-                                            paddingVertical: 8,
-                                            marginBottom: 16,
-                                        }}
-                                        containerStyle={{
-                                            backgroundColor: "#1F2937",
-                                            borderWidth: 1,
-                                            borderColor: '#444',
-                                            borderRadius: 10,
-                                            overflow: 'hidden',
-                                        }}
-                                        placeholderStyle={{ color: "gray", fontSize: 14, fontFamily: 'CenturyGothic' }}
-                                        selectedTextStyle={{ color: "white", fontSize: 14, fontFamily: 'CenturyGothic' }}
-                                        itemTextStyle={{ color: "white", fontSize: 14, fontFamily: 'CenturyGothic' }}
-                                        inputSearchStyle={{ color: "white", fontSize: 14 }}
-                                        activeColor="#0f766e"
-                                        selectedStyle={{
-                                            borderRadius: 8,
-                                            backgroundColor: "#374151",
-                                            borderColor: "#0f766e",
-                                            paddingHorizontal: 8,
-                                            paddingVertical: 4,
-                                            margin: 2,
-                                        }}
+                                        style={multiSelectStyles.style}
+                                        containerStyle={multiSelectStyles.containerStyle}
+                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
+                                        placeholderStyle={multiSelectStyles.placeholderStyle}
+                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
+                                        itemTextStyle={multiSelectStyles.itemTextStyle}
+                                        activeColor={COLORS.accent}
+                                        selectedStyle={multiSelectStyles.selectedStyle}
                                         selectedTextProps={{ numberOfLines: 1 }}
                                     />
-                                    <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
                                 </>
                             )}
 
-                            {/* Fiyatlandırma Türü (FreeBarber/Dükkan için) */}
+                            {/* Fiyatlandırma Türü */}
                             {showPricingType && (
                                 <>
-                                    <Text className="text-white text-base font-century-gothic-bold mb-2">
+                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.pricingType')}
                                     </Text>
-                                    <ScrollView
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        className="mb-4"
-                                        contentContainerStyle={{ gap: 8 }}
-                                    >
-                                        {pricingTypeOptions.map((option) => {
-                                            const isSelected = selectedPricingType === option.key;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option.key}
-                                                    onPress={() => onChangePricingType(option.key)}
-                                                    className={`px-4 py-2 rounded-full border ${
-                                                        isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                                    }`}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                        {option.label}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                        {pricingTypeOptions.map((option) => (
+                                            <FilterChipItem
+                                                key={option.key}
+                                                label={option.label}
+                                                selected={selectedPricingType === option.key}
+                                                onPress={() => onChangePricingType(option.key)}
+                                            />
+                                        ))}
                                     </ScrollView>
-                                    <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Fiyat Sıralaması */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.priceSort')}
                             </Text>
                             <View className="flex-row gap-2 mb-4">
                                 <TouchableOpacity
-                                    onPress={() => onChangePriceSort('asc')}
-                                    className={`flex-1 flex-row items-center justify-center px-3 py-2 rounded-lg border ${
-                                        priceSort === 'asc' ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                    }`}
+                                    onPress={() => onChangePriceSort(priceSort === 'asc' ? 'none' : 'asc')}
+                                    style={{
+                                        flex: 1,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 10,
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        backgroundColor: priceSort === 'asc' ? COLORS.chipSelected : COLORS.chipBg,
+                                        borderColor: priceSort === 'asc' ? COLORS.chipSelected : COLORS.chipBorder,
+                                    }}
                                     activeOpacity={0.7}
                                 >
-                                    <Icon source="arrow-up" size={16} color={priceSort === 'asc' ? 'white' : '#d1d5db'} />
-                                    <Text className={`text-sm ml-1 ${priceSort === 'asc' ? 'text-white font-semibold' : 'text-gray-300'}`}>
+                                    <Icon source="arrow-up" size={16} color={priceSort === 'asc' ? '#1a1b25' : '#d1d5db'} />
+                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'asc' ? '#1a1b25' : '#d1d5db', fontWeight: priceSort === 'asc' ? '600' : '400' }}>
                                         {t('filters.lowest')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    onPress={() => onChangePriceSort('desc')}
-                                    className={`flex-1 flex-row items-center justify-center px-3 py-2 rounded-lg border ${
-                                        priceSort === 'desc' ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                    }`}
+                                    onPress={() => onChangePriceSort(priceSort === 'desc' ? 'none' : 'desc')}
+                                    style={{
+                                        flex: 1,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 10,
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        backgroundColor: priceSort === 'desc' ? COLORS.chipSelected : COLORS.chipBg,
+                                        borderColor: priceSort === 'desc' ? COLORS.chipSelected : COLORS.chipBorder,
+                                    }}
                                     activeOpacity={0.7}
                                 >
-                                    <Icon source="arrow-down" size={16} color={priceSort === 'desc' ? 'white' : '#d1d5db'} />
-                                    <Text className={`text-sm ml-1 ${priceSort === 'desc' ? 'text-white font-semibold' : 'text-gray-300'}`}>
+                                    <Icon source="arrow-down" size={16} color={priceSort === 'desc' ? '#1a1b25' : '#d1d5db'} />
+                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'desc' ? '#1a1b25' : '#d1d5db', fontWeight: priceSort === 'desc' ? '600' : '400' }}>
                                         {t('filters.highest')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
-
-                            <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
 
                             {/* Fiyat Aralığı */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.priceRange')}
                             </Text>
                             <View className="flex-row items-center gap-3 mb-4">
@@ -448,21 +581,15 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         dense
                                         keyboardType="numeric"
                                         value={minPrice}
-                                        onChangeText={(text) => {
-                                            const cleaned = text.replace(/[^\d]/g, '');
-                                            onChangeMinPrice(cleaned);
-                                        }}
+                                        onChangeText={(text) => onChangeMinPrice(text.replace(/[^\d]/g, ''))}
                                         placeholder="0"
                                         textColor="white"
-                                        outlineColor="#444"
-                                        theme={{
-                                            roundness: 10,
-                                            colors: { onSurfaceVariant: "gray", primary: "white" }
-                                        }}
-                                        style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
+                                        outlineColor={COLORS.inputBorder}
+                                        theme={{ roundness: 12, colors: { onSurfaceVariant: COLORS.textMuted, primary: COLORS.accent } }}
+                                        style={{ backgroundColor: COLORS.inputBg, borderWidth: 0 }}
                                     />
                                 </View>
-                                <Text className="text-gray-500 mt-2">-</Text>
+                                <Text style={{ color: COLORS.textMuted, marginTop: 8 }}>-</Text>
                                 <View className="flex-1">
                                     <TextInput
                                         label={t('filters.maxPrice')}
@@ -470,124 +597,83 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         dense
                                         keyboardType="numeric"
                                         value={maxPrice}
-                                        onChangeText={(text) => {
-                                            const cleaned = text.replace(/[^\d]/g, '');
-                                            onChangeMaxPrice(cleaned);
-                                        }}
+                                        onChangeText={(text) => onChangeMaxPrice(text.replace(/[^\d]/g, ''))}
                                         placeholder="∞"
                                         textColor="white"
-                                        outlineColor="#444"
-                                        theme={{
-                                            roundness: 10,
-                                            colors: { onSurfaceVariant: "gray", primary: "white" }
-                                        }}
-                                        style={{ backgroundColor: '#1F2937', borderWidth: 0 }}
+                                        outlineColor={COLORS.inputBorder}
+                                        theme={{ roundness: 12, colors: { onSurfaceVariant: COLORS.textMuted, primary: COLORS.accent } }}
+                                        style={{ backgroundColor: COLORS.inputBg, borderWidth: 0 }}
                                     />
                                 </View>
                             </View>
+                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
 
-                            <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
-
-                            {/* Durum Filtresi - Hem Store (açık/kapalı) hem FreeBarber (müsait/meşgul) için ortak */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            {/* Durum Filtresi */}
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.status')}
                             </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                className="mb-4"
-                                contentContainerStyle={{ gap: 8 }}
-                            >
-                                {statusOptions.map((option) => {
-                                    const isSelected = statusFilter === option.value;
-                                    return (
-                                        <TouchableOpacity
-                                            key={option.value}
-                                            onPress={() => onChangeStatus(option.value as any)}
-                                            className={`px-4 py-2 rounded-full border ${
-                                                isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                            }`}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                {option.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                {statusOptions.map((option) => (
+                                    <FilterChipItem
+                                        key={option.value}
+                                        label={option.label}
+                                        selected={statusFilter === option.value}
+                                        onPress={() => onChangeStatus(option.value as any)}
+                                    />
+                                ))}
                             </ScrollView>
+                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
 
-                            <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
-
-                            {/* Puanlama Filtresi - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            {/* Puanlama Filtresi */}
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.minimumRating')}
                             </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                className="mb-4"
-                                contentContainerStyle={{ gap: 8 }}
-                            >
-                                {ratingOptions.map((option) => {
-                                    const isSelected = selectedRating === option.value;
-                                    return (
-                                        <TouchableOpacity
-                                            key={option.value}
-                                            onPress={() => onChangeRating(option.value)}
-                                            className={`px-4 py-2 rounded-full border ${
-                                                isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                            }`}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                {option.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                {ratingOptions.map((option) => (
+                                    <FilterChipItem
+                                        key={option.value}
+                                        label={option.value === 0 ? option.label : `⭐ ${option.label}`}
+                                        selected={selectedRating === option.value}
+                                        onPress={() => onChangeRating(option.value)}
+                                    />
+                                ))}
                             </ScrollView>
+                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
 
-                            <Divider style={{ backgroundColor: '#47494e', marginBottom: 16 }} />
-
-                            {/* Favori Filtresi - Horizontal ScrollView */}
-                            <Text className="text-white text-base font-century-gothic-bold mb-2">
+                            {/* Favori Filtresi */}
+                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.favoriteFilter')}
                             </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                className="mb-4"
-                                contentContainerStyle={{ gap: 8 }}
-                            >
-                                {favoriteOptions.map((option) => {
-                                    const isSelected = showFavoritesOnly === option.value;
-                                    return (
-                                        <TouchableOpacity
-                                            key={String(option.value)}
-                                            onPress={() => onChangeFavoritesOnly(option.value)}
-                                            className={`px-4 py-2 rounded-full border ${
-                                                isSelected ? 'bg-[#f05e23] border-[#f05e23]' : 'border-gray-600'
-                                            }`}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text className={`text-sm ${isSelected ? 'text-white font-semibold' : 'text-gray-300'}`}>
-                                                {option.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+                                {favoriteOptions.map((option) => (
+                                    <FilterChipItem
+                                        key={String(option.value)}
+                                        label={option.label}
+                                        selected={showFavoritesOnly === option.value}
+                                        onPress={() => onChangeFavoritesOnly(option.value)}
+                                    />
+                                ))}
                             </ScrollView>
                         </ScrollView>
 
-                        {/* Footer Button - Only Clear */}
-                        <View className="px-4 py-3 border-t border-gray-700">
+                        {/* Footer - Temizle Butonu */}
+                        <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.headerBorder }}>
                             <TouchableOpacity
                                 onPress={onClearFilters}
-                                className="w-full border border-[#f05e23] rounded-lg py-2.5 items-center justify-center"
+                                style={{
+                                    width: '100%',
+                                    borderWidth: 1.5,
+                                    borderColor: COLORS.accent,
+                                    borderRadius: 12,
+                                    paddingVertical: 12,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
                                 activeOpacity={0.8}
                             >
-                                <Text className="text-[#f05e23] text-sm font-semibold">{t('filters.clear')}</Text>
+                                <Text style={{ color: COLORS.accent, fontSize: 14, fontWeight: '600', fontFamily: 'CenturyGothic' }}>
+                                    {t('filters.clear')}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>
@@ -615,11 +701,11 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         width: DRAWER_WIDTH,
-        backgroundColor: '#202123',
+        backgroundColor: COLORS.drawerBg,
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 16,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 20,
     },
 });

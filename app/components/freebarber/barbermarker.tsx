@@ -1,6 +1,5 @@
-// Index.tsx dosyasının en altına veya ayrı bir dosyaya ekleyebilirsin
 import React, { useEffect, useRef, useState, memo } from "react";
-import { View, Image, ActivityIndicator } from "react-native";
+import { View, Image } from "react-native";
 import { Marker } from "react-native-maps";
 import { Icon } from "react-native-paper";
 import { FreeBarGetDto } from "../../types";
@@ -11,22 +10,16 @@ interface BarberMarkerProps {
     onPress: (item: FreeBarGetDto) => void;
 }
 
-// MEMO kullanarak gereksiz renderları önlüyoruz
 export const BarberMarker = memo(({ barber, onPress }: BarberMarkerProps) => {
-    // Marker her mount olduğunda (listeye girdiğinde) TRUE başlar
     const [tracksViewChanges, setTracksViewChanges] = useState(true);
-    const [imageLoading, setImageLoading] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const id = (barber as any).id;
+    const mountedRef = useRef(true);
 
     useEffect(() => {
-        // Marker ekrana geldikten 500ms sonra takibi bırak (Performans için)
-        // Bu süre, marker'ın "görünmez" gelmesini engeller.
-        const timer = setTimeout(() => {
-            setTracksViewChanges(false);
-        }, 500);
-
-        return () => clearTimeout(timer);
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
     }, []);
 
     const c = safeCoord((barber as any).latitude, (barber as any).longitude);
@@ -37,13 +30,22 @@ export const BarberMarker = memo(({ barber, onPress }: BarberMarkerProps) => {
     const iconName = (barber as any).type == 0 ? "face-man" : "face-woman";
     const hasImage = avatarUrl && !imageError;
 
+    // Resim yoksa ilk renderdan sonra tracking'i kapat
+    useEffect(() => {
+        if (!hasImage) {
+            const timer = setTimeout(() => {
+                if (mountedRef.current) setTracksViewChanges(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [hasImage]);
+
     return (
         <Marker
             coordinate={{ latitude: c.lat, longitude: c.lon }}
             title={(barber as any).fullName}
-            tracksViewChanges={tracksViewChanges} // State'ten geliyor
+            tracksViewChanges={tracksViewChanges}
             onPress={() => onPress(barber)}
-            // Z-Index ile markerların üst üste binme sırasını düzeltebilirsin
             zIndex={tracksViewChanges ? 2 : 1}
         >
             <View
@@ -56,29 +58,25 @@ export const BarberMarker = memo(({ barber, onPress }: BarberMarkerProps) => {
                 }}
             >
                 {hasImage ? (
-                    <>
-                        <Image
-                            source={{ uri: avatarUrl }}
-                            className="w-full h-full rounded-full"
-                            resizeMode="cover"
-                            onLoadStart={() => setImageLoading(true)}
-                            onLoadEnd={() => {
-                                setImageLoading(false);
-                                // Resim yüklenince bir anlık tekrar track et, sonra kapat
+                    <Image
+                        source={{ uri: avatarUrl }}
+                        className="w-full h-full rounded-full"
+                        resizeMode="cover"
+                        onLoad={() => {
+                            if (mountedRef.current) {
+                                // Resim yüklendi, kısa süre track et ki görünsün sonra kapat
                                 setTracksViewChanges(true);
-                                setTimeout(() => setTracksViewChanges(false), 200);
-                            }}
-                            onError={() => {
-                                setImageLoading(false);
+                                setTimeout(() => {
+                                    if (mountedRef.current) setTracksViewChanges(false);
+                                }, 300);
+                            }
+                        }}
+                        onError={() => {
+                            if (mountedRef.current) {
                                 setImageError(true);
-                            }}
-                        />
-                        {imageLoading && (
-                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: bg, borderRadius: 16 }}>
-                                <ActivityIndicator size="small" color="white" />
-                            </View>
-                        )}
-                    </>
+                            }
+                        }}
+                    />
                 ) : (
                     <Icon source={iconName} color="white" size={20} />
                 )}

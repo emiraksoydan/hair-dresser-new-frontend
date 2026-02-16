@@ -85,10 +85,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   };
 
   const config = getBadgeConfig();
-  const textSize = isList ? 'text-base' : 'text-xs';
+  const textSize = isList ? 'text-sm' : 'text-xs';
 
   return (
-    <View className={`${config.bgColor} px-2 py-1 rounded-xl flex-row items-center justify-center ${className}`}>
+    <View className={`${config.bgColor} px-2 py-0.5 rounded-xl flex-row items-center justify-center ${className}`}>
       {config.icon && (
         <Icon
           source={config.icon}
@@ -97,7 +97,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         />
       )}
       {config.text && (
-        <Text className={`text-white font-century-gothic-sans-medium ${isList ? 'text-base' : textSize} ${config.icon ? 'ml-1' : ''}`}>
+        <Text className={`text-white font-century-gothic-sans-medium ${textSize} ${config.icon ? 'ml-0.5' : ''}`}>
           {config.text}
         </Text>
       )}

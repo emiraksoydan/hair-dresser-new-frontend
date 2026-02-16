@@ -28,7 +28,7 @@ export const PricingInfo: React.FC<PricingInfoProps> = ({
       // Enum: 0 = Percent, 1 = Rent
       type = pricingType === 0 ? 'percent' : 'rent';
     }
-    
+
     if (type === 'percent') {
       return t('card.pricingPercent', { value: pricingValue });
     } else if (type === 'rent') {
@@ -41,7 +41,7 @@ export const PricingInfo: React.FC<PricingInfoProps> = ({
   if (!text) return null;
 
   return (
-    <View className={`bg-[#2a2b2f] mt-2 px-3 py-2 rounded-lg ${className}`}>
+    <View className={`bg-[#1e293b] mt-2 px-3 py-2 rounded-lg ${className}`}>
       <Text className='text-[#d1d5db] mr-1 text-sm'>
         {text}
       </Text>

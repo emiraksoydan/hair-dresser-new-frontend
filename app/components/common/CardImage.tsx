@@ -13,7 +13,6 @@ interface CardImageProps {
   borderRadiusClass?: string;
   showPagination?: boolean;
   autoPlay?: boolean;
-  isMapMode?: boolean;
   className?: string;
 }
 
@@ -31,7 +30,6 @@ export const CardImage: React.FC<CardImageProps> = ({
   borderRadiusClass = 'rounded-lg',
   showPagination = true,
   autoPlay = true,
-  isMapMode = false,
   className = '',
 }) => {
   const imageHeight = height || (isList ? 250 : 112);
@@ -50,7 +48,6 @@ export const CardImage: React.FC<CardImageProps> = ({
             mode="default"
             borderRadiusClass={borderRadiusClass}
             showPagination={showPagination}
-            isMapMode={isMapMode}
           />
         </TouchableOpacity>
       </View>

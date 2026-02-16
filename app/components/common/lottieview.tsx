@@ -50,6 +50,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
                     type: 'timing',
                     duration: 1200,
                     loop: true,
+                    repeat: Infinity,
                     repeatReverse: true,
                 }}
                 className="mt-2 text-white text-base text-center px-4"

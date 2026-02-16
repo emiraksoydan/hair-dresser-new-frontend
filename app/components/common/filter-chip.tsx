@@ -21,7 +21,7 @@ const FilterChip: React.FC<FilterChipProps> = ({ itemKey, selected, className = 
             disabled={isDisabled}
             onPress={onPress}
             style={{
-                backgroundColor: selected ? '#ffb900' : 'transparent',
+                backgroundColor: selected ? '#ffb900' : '#1f2937',
                 borderColor: selected ? '#ffb900' : '#fb9400'
             }}
             className={`items-center justify-center   ${className}`}

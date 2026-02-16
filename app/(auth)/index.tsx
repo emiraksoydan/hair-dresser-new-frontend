@@ -15,7 +15,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { userTypeItems } from "../constants";
 import {
-  usePasswordMutation,
   useSendOtpMutation,
   useVerifyOtpMutation,
   api,
@@ -31,6 +30,7 @@ import { getUserTypeFromToken } from "../utils/auth/auth";
 import { useTheme } from "../hook/useTheme";
 import { useLanguage } from "../hook/useLanguage";
 import { LanguageSelector } from "../components/common/LanguageSelector";
+import { LegalAgreementCheckbox } from "../components/auth/LegalAgreementCheckbox";
 
 // Schema'yı dinamik olarak oluşturmak için fonksiyon
 const createSchemas = (t: (key: string) => string) => {
@@ -94,6 +94,9 @@ const createSchemas = (t: (key: string) => string) => {
         message: t("auth.userType") + " " + t("common.required"),
       }),
     }),
+    legalAgreed: z.literal(true, {
+      errorMap: () => ({ message: t("legal.mustAgree") }),
+    }),
   });
   const loginSchema = z.object({
     mode: z.literal("login"),
@@ -115,6 +118,7 @@ const createSchemas = (t: (key: string) => string) => {
         message: t("auth.userType") + " " + t("common.required"),
       }),
     }),
+    legalAgreed: z.boolean().optional(),
   });
   return z.discriminatedUnion("mode", [loginSchema, registerSchema]);
 };
@@ -163,10 +167,6 @@ const Index = () => {
   const toggleMode = () =>
     setValue("mode", isRegister === true ? "login" : "register");
   const [sendOtp, { isLoading, isError, data, error }] = useSendOtpMutation();
-  const [
-    sendPassword,
-    { isLoading: isPerr, isError: iE, data: id, error: ie },
-  ] = usePasswordMutation();
   const [verifyOtp] = useVerifyOtpMutation();
 
   useEffect(() => {
@@ -174,6 +174,15 @@ const Index = () => {
     const t = setInterval(() => setLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [modalVisible, left]);
+
+  // Reset timer when modal opens
+  // Twilio OTP kodları 10 dakika (600 saniye) geçerlidir
+  // Bu süre boyunca resend butonu devre dışı olmalı
+  useEffect(() => {
+    if (modalVisible) {
+      setLeft(600); // 10 minutes (600 seconds) - Twilio OTP validity period
+    }
+  }, [modalVisible]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -184,6 +193,7 @@ const Index = () => {
       if (!normalizedPhone.startsWith("+90")) {
         normalizedPhone = `+90${normalizedPhone}`;
       }
+
       const payloadForSendOtp: {
         phoneNumber: string;
         userType?: UserType;
@@ -193,10 +203,53 @@ const Index = () => {
         otpPurpose: isRegister ? OtpPurpose.Register : OtpPurpose.Login,
         ...(isRegister ? { userType: mapUserTypeToNumber(data.userType) } : {}),
       };
+
       setPhone(normalizedPhone);
-      doVerify("123456", normalizedPhone);
+      const result = await sendOtp(payloadForSendOtp);
+
+      if ("error" in result) {
+        let errorMessage = t("common.error");
+        if (result.error && 'data' in result.error) {
+          const errorData = result.error.data as any;
+          errorMessage = errorData?.message || errorMessage;
+        } else if (result.error && 'message' in result.error) {
+          errorMessage = (result.error as any).message || errorMessage;
+        } else if (result.error && 'error' in result.error) {
+          errorMessage = (result.error as any).error || errorMessage;
+        }
+        dispatch(
+          showSnack({
+            message: errorMessage,
+            isError: true,
+          }),
+        );
+        return;
+      }
+
+      if (result.data?.success) {
+        setModalVisible(true);
+        setLeft(600); // Start 10 minute countdown (Twilio OTP validity period)
+        dispatch(
+          showSnack({
+            message: result.data.message || t("auth.codeSent") || "Doğrulama kodu gönderildi",
+            isError: false,
+          }),
+        );
+      } else {
+        dispatch(
+          showSnack({
+            message: result.data?.message || t("common.error"),
+            isError: true,
+          }),
+        );
+      }
     } catch (err: any) {
-      dispatch(showSnack({ message: err.data.message, isError: true }));
+      dispatch(
+        showSnack({
+          message: err?.data?.message || t("common.error"),
+          isError: true,
+        }),
+      );
     }
   };
 
@@ -225,7 +278,7 @@ const Index = () => {
         return;
       }
 
-      const result = await sendPassword({
+      const result = await verifyOtp({
         firstName: f.firstName ?? "",
         lastName: f.surname ?? "",
         phoneNumber: phoneToSend,
@@ -233,12 +286,12 @@ const Index = () => {
         device: null,
         userType: userTypeToSend,
         mode: isRegister ? "register" : "login",
-        password: "1234",
       });
+
       if ("error" in result) {
         throw new Error("Login failed");
       }
-      // Unwrap kaldırıldığı için result direkt response değil, { data: response } wrap'li geliyor
+
       const response = result.data;
       if (response?.success === true && response.data) {
         tokenStore.set({
@@ -257,6 +310,8 @@ const Index = () => {
             isError: false,
           }),
         );
+
+        setModalVisible(false);
         reset(); // Formu temizle
 
         // Kullanıcı türüne göre doğru sayfaya yönlendir
@@ -294,9 +349,70 @@ const Index = () => {
     }
   };
 
+  // Resend butonu sadece OTP kodunun geçerlilik süresi dolduktan sonra aktif olmalı
+  // left > 0 ise kod hala geçerli, resend devre dışı
+  // left === 0 ise kod süresi doldu, resend aktif
   const canResend = left === 0;
   const onResend = async () => {
-    // OTP resend functionality can be implemented here if needed
+    if (!phone) return;
+
+    try {
+      const f = getValues();
+      const payloadForSendOtp: {
+        phoneNumber: string;
+        userType?: UserType;
+        otpPurpose: OtpPurpose;
+      } = {
+        phoneNumber: phone,
+        otpPurpose: isRegister ? OtpPurpose.Register : OtpPurpose.Login,
+        ...(isRegister ? { userType: mapUserTypeToNumber(f.userType) } : {}),
+      };
+
+      const result = await sendOtp(payloadForSendOtp);
+
+      if ("error" in result) {
+        let errorMessage = t("common.error");
+        if (result.error && 'data' in result.error) {
+          const errorData = result.error.data as any;
+          errorMessage = errorData?.message || errorMessage;
+        } else if (result.error && 'message' in result.error) {
+          errorMessage = (result.error as any).message || errorMessage;
+        } else if (result.error && 'error' in result.error) {
+          errorMessage = (result.error as any).error || errorMessage;
+        }
+        dispatch(
+          showSnack({
+            message: errorMessage,
+            isError: true,
+          }),
+        );
+        return;
+      }
+
+      if (result.data?.success) {
+        setLeft(600); // Reset countdown to 10 minutes (Twilio OTP validity period)
+        dispatch(
+          showSnack({
+            message: result.data.message || t("auth.codeSent") || "Yeni doğrulama kodu gönderildi",
+            isError: false,
+          }),
+        );
+      } else {
+        dispatch(
+          showSnack({
+            message: result.data?.message || t("common.error"),
+            isError: true,
+          }),
+        );
+      }
+    } catch (err: any) {
+      dispatch(
+        showSnack({
+          message: err?.data?.message || t("common.error"),
+          isError: true,
+        }),
+      );
+    }
   };
 
   return (
@@ -581,18 +697,35 @@ const Index = () => {
               />
             </View>
 
+            {/* Legal Agreement Checkbox - Only for Register */}
+            {isRegister && (
+              <View style={{ marginTop: 4, marginBottom: 8 }}>
+                <Controller
+                  control={control}
+                  name="legalAgreed"
+                  render={({ field: { value, onChange } }) => (
+                    <LegalAgreementCheckbox
+                      checked={value === true}
+                      onToggle={onChange}
+                      error={errors.legalAgreed?.message as string}
+                    />
+                  )}
+                />
+              </View>
+            )}
+
             {/* Submit Button */}
             <TouchableOpacity
               className="w-full rounded-lg py-3  items-center justify-center"
               style={{
                 backgroundColor: "#1a1a1a",
-                opacity: isPerr ? 0.6 : 1,
+                opacity: isLoading ? 0.6 : 1,
               }}
               onPress={handleSubmit(onSubmit)}
-              disabled={isPerr}
+              disabled={isLoading}
               activeOpacity={0.8}
             >
-              {isPerr ? (
+              {isLoading ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <Text
@@ -689,17 +822,21 @@ const Index = () => {
                 </Text>
                 <TouchableOpacity
                   onPress={onResend}
-                  disabled={!canResend}
-                  style={{ opacity: canResend ? 1 : 0.5 }}
+                  disabled={!canResend || isLoading}
+                  style={{ opacity: canResend && !isLoading ? 1 : 0.5 }}
                 >
-                  <Text
-                    style={{
-                      color: colors.primary,
-                      textDecorationLine: "underline",
-                    }}
-                  >
-                    {t("auth.resendCode")}
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={colors.primary} size="small" />
+                  ) : (
+                    <Text
+                      style={{
+                        color: colors.primary,
+                        textDecorationLine: "underline",
+                      }}
+                    >
+                      {t("auth.resendCode")}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </Modal>

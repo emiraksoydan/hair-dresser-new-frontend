@@ -38,7 +38,7 @@ export const EmptyStateFunc = ({ loading, hasData, hasLocation, locationStatus, 
     </View>
 );
 
-export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false, onRetry }: any) => {
+export const StoresSection = React.memo(({ stores, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressStore, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, onRetry }: any) => {
     const { t } = useLanguage();
     const [expanded, setExpanded] = useState(true);
     const screenWidth = Dimensions.get('window').width;
@@ -116,7 +116,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
             {expanded ? (
                 <View style={{ paddingTop: 8 }}>
                     {stores.map((s: any) => (
-                        <StoreCardInner key={s.id} store={s} isList={isList} expanded={expanded} cardWidthStore={cardWidth} onPressUpdate={onPressStore} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} isMapMode={isMapMode} />
+                        <StoreCardInner key={s.id} store={s} isList={isList} expanded={expanded} cardWidthStore={cardWidth} onPressUpdate={onPressStore} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} />
                     ))}
                 </View>
             ) : (
@@ -126,7 +126,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     renderItem={({ item }) => (
-                        <StoreCardInner store={item} isList={isList} expanded={false} cardWidthStore={cardWidth} onPressUpdate={onPressStore} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} isMapMode={isMapMode} />
+                        <StoreCardInner store={item} isList={isList} expanded={false} cardWidthStore={cardWidth} onPressUpdate={onPressStore} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} />
                     )}
                     contentContainerStyle={{ paddingTop: 8 }}
                     ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
@@ -141,7 +141,7 @@ export const StoresSection = React.memo(({ stores, loading, hasLocation, locatio
     );
 });
 
-export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, isMapMode = false, onRetry }: any) => {
+export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocation, locationStatus, fetchedOnce, isList, onPressFreeBarber, onPressRatings, searchQuery, appliedFilters, error, showImageAnimation = true, onRetry }: any) => {
     const { t } = useLanguage();
     const [expanded, setExpanded] = useState(false);
     const screenWidth = Dimensions.get('window').width;
@@ -219,7 +219,7 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
             {expanded ? (
                 <View style={{ paddingTop: 8 }}>
                     {freeBarbers.map((fb: any) => (
-                        <FreeBarberCardInner key={fb.id} freeBarber={fb} isList={isList} expanded={expanded} cardWidthFreeBarber={cardWidth} onPressUpdate={onPressFreeBarber} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} isMapMode={isMapMode} />
+                        <FreeBarberCardInner key={fb.id} freeBarber={fb} isList={isList} expanded={expanded} cardWidthFreeBarber={cardWidth} onPressUpdate={onPressFreeBarber} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} />
                     ))}
                 </View>
             ) : (
@@ -229,7 +229,7 @@ export const FreeBarbersSection = React.memo(({ freeBarbers, loading, hasLocatio
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     renderItem={({ item }) => (
-                        <FreeBarberCardInner freeBarber={item} isList={isList} expanded={false} cardWidthFreeBarber={cardWidth} onPressUpdate={onPressFreeBarber} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} isMapMode={isMapMode} />
+                        <FreeBarberCardInner freeBarber={item} isList={isList} expanded={false} cardWidthFreeBarber={cardWidth} onPressUpdate={onPressFreeBarber} onPressRatings={onPressRatings} showImageAnimation={showImageAnimation} />
                     )}
                     contentContainerStyle={{ paddingTop: 8 }}
                     ItemSeparatorComponent={() => <View style={{ width: 12 }} />}

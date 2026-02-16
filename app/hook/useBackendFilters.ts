@@ -34,6 +34,8 @@ export interface BackendFilterCriteria {
   searchQuery?: string;
   userType?: string; // "all", "freeBarber", "store" - language independent keys
   mainCategory?: string; // BarberType as string or "all"
+  mainHeadings?: string[]; // Ana başlıklar (çoklu)
+  subHeadings?: string[]; // Alt başlıklar (çoklu)
   serviceIds?: string[];
   priceSort?: PriceSortType;
   minPrice?: string;
@@ -54,6 +56,8 @@ export const useBackendFilters = (options: UseBackendFiltersOptions = {}) => {
     searchQuery: '',
     userType: USER_TYPE_KEYS.ALL, // Language-independent key
     mainCategory: MAIN_CATEGORY_KEYS.ALL, // Language-independent key
+    mainHeadings: [],
+    subHeadings: [],
     serviceIds: [],
     priceSort: 'none',
     minPrice: '',
@@ -150,6 +154,8 @@ export const useBackendFilters = (options: UseBackendFiltersOptions = {}) => {
       searchQuery: '',
       userType: USER_TYPE_KEYS.ALL,
       mainCategory: MAIN_CATEGORY_KEYS.ALL,
+      mainHeadings: [],
+      subHeadings: [],
       serviceIds: [],
       priceSort: 'none',
       minPrice: '',
@@ -175,6 +181,8 @@ export const useBackendFilters = (options: UseBackendFiltersOptions = {}) => {
 
     if (criteria.userType && criteria.userType !== USER_TYPE_KEYS.ALL) count++;
     if (criteria.mainCategory && criteria.mainCategory !== MAIN_CATEGORY_KEYS.ALL) count++;
+    if (criteria.mainHeadings && criteria.mainHeadings.length > 0) count++;
+    if (criteria.subHeadings && criteria.subHeadings.length > 0) count++;
     if (criteria.serviceIds && criteria.serviceIds.length > 0) count++;
     if (criteria.minPrice && criteria.minPrice !== '') count++;
     if (criteria.maxPrice && criteria.maxPrice !== '') count++;

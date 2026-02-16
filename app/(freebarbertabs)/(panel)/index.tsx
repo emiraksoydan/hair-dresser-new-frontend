@@ -1,11 +1,9 @@
 import {
   Dimensions,
   FlatList,
-  Image,
   RefreshControl,
   TouchableOpacity,
   View,
-  ScrollView,
 } from "react-native";
 import { Text } from "../../components/common/Text";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -29,7 +27,7 @@ import {
 import { FreeBarberPanelSection } from "../../components/freebarber/freebarberpanelsection";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Icon, IconButton } from "react-native-paper";
-import MapView, { Marker } from "react-native-maps";
+import MapView from "react-native-maps";
 import { safeCoord } from "../../utils/location/geo";
 import StoreBookingContent from "../../components/store/storebooking";
 import {
@@ -580,7 +578,7 @@ const Index = () => {
             if (item.type === "stores-error") {
               // Hata durumu - servise ulaşılamadı mesajı göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 300, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={storeError}
@@ -597,7 +595,7 @@ const Index = () => {
             if (item.type === "stores-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 350, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -680,6 +678,14 @@ const Index = () => {
           updateFilterCriteria({
             mainCategory: value === "all" ? undefined : value,
           })
+        }
+        selectedMainHeadings={filterCriteria.mainHeadings || []}
+        onChangeMainHeadings={(value) =>
+          updateFilterCriteria({ mainHeadings: value })
+        }
+        selectedSubHeadings={filterCriteria.subHeadings || []}
+        onChangeSubHeadings={(value) =>
+          updateFilterCriteria({ subHeadings: value })
         }
         selectedServices={filterCriteria.serviceIds || []}
         onChangeServices={(value) =>

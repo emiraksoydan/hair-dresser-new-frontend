@@ -74,30 +74,3 @@ export function useOptimizedChairOptions(
         barberOptionsMap
     };
 }
-
-/**
- * Get stable reference for barber/chair IDs to prevent unnecessary re-renders
- */
-export function useStableIds<T extends { id: string }>(items: T[]): string[] {
-    return useMemo(
-        () => (items ?? []).map(item => item.id),
-        [items]
-    );
-}
-
-/**
- * Debounced watch for performance-critical fields
- */
-export function useDebouncedWatch(
-    control: Control<any>,
-    name: string,
-    delay: number = 300
-) {
-    const value = useWatch({ control, name });
-
-    // Note: For full debounce implementation, you'd need to use useState + useEffect
-    // This is a simplified version that just returns the value
-    // For production, consider using a library like use-debounce
-
-    return value;
-}

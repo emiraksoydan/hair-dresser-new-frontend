@@ -1,5 +1,5 @@
 // app/components/FreeBarberMineCard.tsx
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View } from "react-native";
 import { Text } from "../common/Text";
 import { FreeBarberPanelDto, FavoriteTargetType } from "../../types";
@@ -15,6 +15,8 @@ import { useUpdateFreeBarberAvailabilityMutation } from "../../store/api";
 import { useAppDispatch } from "../../store/hook";
 import { showSnack } from "../../store/snackbarSlice";
 import { TouchableOpacity, ActivityIndicator } from "react-native";
+import { useLanguage } from "../../hook/useLanguage";
+import { useCategoryHierarchy } from "../../hook/useCategoryHierarchy";
 
 type Props = {
   freeBarber: FreeBarberPanelDto;
@@ -35,7 +37,29 @@ const FreeBarberMineCard: React.FC<Props> = ({
   onPressRatings,
   showImageAnimation = true,
 }) => {
-  const carouselWidth = Math.max(0, cardWidthFreeBarber - 8);
+  const carouselWidth = Math.max(0, cardWidthFreeBarber - 20);
+  const { t } = useLanguage();
+  const { getAllServicesForType } = useCategoryHierarchy({});
+
+  const hasBeautySalonCertificate = Boolean(
+    freeBarber.type === 2 || freeBarber.beautySalonCertificateImageId,
+  );
+
+  const { mainOfferings, beautyOfferings } = useMemo(() => {
+    const offerings = freeBarber.offerings || [];
+    if (offerings.length === 0) return { mainOfferings: [], beautyOfferings: [] };
+    const beautyNames = new Set(
+      getAllServicesForType("Güzellik Salonu").map((s) => s.name),
+    );
+    const main: typeof offerings = [];
+    const beauty: typeof offerings = [];
+    offerings.forEach((o) => {
+      if (beautyNames.has(o.serviceName)) beauty.push(o);
+      else main.push(o);
+    });
+    return { mainOfferings: main, beautyOfferings: beauty };
+  }, [freeBarber.offerings, getAllServicesForType]);
+
   const { isFavorite, favoriteCount, isLoading, toggleFavorite } =
     useFavoriteToggle({
       targetId: freeBarber.id,
@@ -77,12 +101,18 @@ const FreeBarberMineCard: React.FC<Props> = ({
   return (
     <View
       style={{ width: cardWidthFreeBarber }}
-      className={`${!expanded ? "mt-0" : "mt-4"} ${
-        !isList ? "pl-4 py-2 rounded-lg bg-[#202123]" : "pl-0"
-      }`}
+      className={`mt-4 ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+        }`}
     >
       {!isList && (
-        <View className="flex-row justify-end px-2 pb-1">
+        <View className="flex-row justify-end items-center gap-1 px-2 pb-1">
+          {hasBeautySalonCertificate && (
+            <View className="bg-purple-600/90 px-2 py-0.5 rounded-full">
+              <Text className="text-white text-xs font-century-gothic-sans-semibold">
+                {t("card.beautyExpert")}
+              </Text>
+            </View>
+          )}
           <StatusBadge
             type={freeBarber.isAvailable ? "available" : "busy"}
             isList={false}
@@ -102,6 +132,13 @@ const FreeBarberMineCard: React.FC<Props> = ({
           />
           {isList && (
             <View className="absolute top-3 right-3 flex-row gap-2 z-10">
+              {hasBeautySalonCertificate && (
+                <View className="bg-purple-600/90 px-2 py-0.5 rounded-full">
+                  <Text className="text-white text-sm font-century-gothic-sans-semibold">
+                    {t("card.beautyExpert")}
+                  </Text>
+                </View>
+              )}
               <StatusBadge
                 type="barber-type"
                 barberType={freeBarber.type}
@@ -182,7 +219,29 @@ const FreeBarberMineCard: React.FC<Props> = ({
           </View>
         </View>
       </View>
-      <ServiceOfferingsList offerings={freeBarber.offerings || []} />
+      <View className="rounded-xl pr-2 mt-4">
+        {mainOfferings.length > 0 && (
+          <ServiceOfferingsList
+            offerings={mainOfferings}
+            layout="vertical"
+            previewCount={3}
+            showExpandButton={true}
+          />
+        )}
+        {beautyOfferings.length > 0 && (
+          <View className="mt-3">
+            <Text className="text-gray-400 text-sm mb-1.5 font-century-gothic-sans-semibold">
+              {t("form.beautySalonServices")}
+            </Text>
+            <ServiceOfferingsList
+              offerings={beautyOfferings}
+              layout="vertical"
+              previewCount={3}
+              showExpandButton={true}
+            />
+          </View>
+        )}
+      </View>
     </View>
   );
 };

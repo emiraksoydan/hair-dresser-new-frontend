@@ -17,10 +17,6 @@ import { useAppDispatch } from '../../store/hook';
 import { showSnack } from '../../store/snackbarSlice';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
-import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import { BlockedUsersSheet } from '../../components/profile/BlockedUsersSheet';
-import { ComplaintsSheet } from '../../components/profile/ComplaintsSheet';
-import { RequestsSheet } from '../../components/profile/RequestsSheet';
 import { getErrorMessage } from '../../utils/errorHandler';
 import { LottieViewComponent } from '../../components/common/lottieview';
 import { MESSAGES } from '../../constants/messages';
@@ -57,44 +53,6 @@ const Index = () => {
     const dispatch = useAppDispatch();
     const [refreshing, setRefreshing] = useState(false);
 
-    // Bottom sheet refs
-    const blockedSheetRef = useRef<BottomSheetModal>(null);
-    const complaintsSheetRef = useRef<BottomSheetModal>(null);
-    const requestsSheetRef = useRef<BottomSheetModal>(null);
-    const sheetSnapPoints = useMemo(() => ['50%', '85%'], []);
-
-    // Modal açma kilidi - çift tıklamayı engeller
-    const isOpeningModalRef = useRef(false);
-    const currentOpenSheetRef = useRef<React.RefObject<BottomSheetModal | null> | null>(null);
-
-    // Güvenli modal açma fonksiyonu
-    const safePresent = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
-        if (isOpeningModalRef.current) return;
-        
-        // Eğer başka bir sheet açıksa önce onu kapat
-        if (currentOpenSheetRef.current && currentOpenSheetRef.current !== ref) {
-            currentOpenSheetRef.current.current?.dismiss();
-        }
-        
-        isOpeningModalRef.current = true;
-        currentOpenSheetRef.current = ref;
-        ref.current?.present();
-        
-        // 300ms sonra kilidi kaldır
-        setTimeout(() => {
-            isOpeningModalRef.current = false;
-        }, 300);
-    }, []);
-
-    // Sheet kapatma handler'ı
-    const handleSheetClose = useCallback((ref: React.RefObject<BottomSheetModal | null>) => {
-        return () => {
-            if (currentOpenSheetRef.current === ref) {
-                currentOpenSheetRef.current = null;
-            }
-            ref.current?.dismiss();
-        };
-    }, []);
 
     // Memoize theme objects
 
@@ -478,7 +436,7 @@ const Index = () => {
                 <Text className='text-white text-lg mb-4 font-century-gothic-bold'>{t('profile.userActions')}</Text>
                 <View className='bg-[#1a1b25] rounded-xl mb-6'>
                     <TouchableOpacity
-                        onPress={() => safePresent(blockedSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/blocked-users')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4 border-b border-gray-700'
                     >
@@ -491,7 +449,7 @@ const Index = () => {
 
                     {/* Şikayetlerim */}
                     <TouchableOpacity
-                        onPress={() => safePresent(complaintsSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/complaints')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4 border-b border-gray-700'
                     >
@@ -504,7 +462,7 @@ const Index = () => {
 
                     {/* İsteklerim */}
                     <TouchableOpacity
-                        onPress={() => safePresent(requestsSheetRef)}
+                        onPress={() => expoRouter.push('/(screens)/profile/requests')}
                         activeOpacity={0.7}
                         className='flex-row items-center justify-between p-4'
                     >

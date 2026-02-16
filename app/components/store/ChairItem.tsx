@@ -174,11 +174,19 @@ export const ChairItem = React.memo<ChairItemProps>(
     // Custom comparison for optimal re-render prevention
     const prevChairError = (prev.errors as any)?.chairs?.[prev.index];
     const nextChairError = (next.errors as any)?.chairs?.[next.index];
+    // Compare barber options content (not just length) so name changes propagate
+    const optionsSame =
+      prev.barberOptions.length === next.barberOptions.length &&
+      prev.barberOptions.every(
+        (opt, i) =>
+          opt.value === next.barberOptions[i]?.value &&
+          opt.label === next.barberOptions[i]?.label,
+      );
     return (
       prev.index === next.index &&
       prev.chairId === next.chairId &&
       prev.mode === next.mode &&
-      prev.barberOptions.length === next.barberOptions.length &&
+      optionsSame &&
       JSON.stringify(prevChairError) === JSON.stringify(nextChairError)
     );
   },

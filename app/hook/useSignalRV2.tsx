@@ -48,7 +48,6 @@ export const useSignalRV2 = () => {
   // Setup event handlers
   const setupEventHandlers = useCallback((conn: SignalR.HubConnection) => {
     conn.on("notification.received", (dto: NotificationDto) => {
-      console.log("[SignalR] notification.received:", dto.id);
       dispatch(
         api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
           if (!draft) return;
@@ -60,7 +59,6 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("notification.updated", (dto: NotificationDto) => {
-      console.log("[SignalR] notification.updated:", dto.id);
       const wasNewNotification = !dto.isRead;
       dispatch(
         api.util.updateQueryData("getAllNotifications", undefined, (draft) => {
@@ -86,7 +84,6 @@ export const useSignalRV2 = () => {
       const isOwnMessage = dto.senderUserId === userIdRef.current;
       const isUnreadMessage = !isViewingThread && !isOwnMessage;
 
-      console.log("[SignalR] chat.message:", dto.threadId, "isUnread:", isUnreadMessage);
 
       dispatch(
         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
@@ -132,7 +129,6 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
-      console.log("[SignalR] chat.threadCreated:", dto.threadId);
       dispatch(
         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
           if (!draft) return;
@@ -144,7 +140,6 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("chat.threadUpdated", (dto: ChatThreadListItemDto) => {
-      console.log("[SignalR] chat.threadUpdated:", dto.threadId);
       dispatch(
         api.util.updateQueryData("getChatThreads", undefined, (draft) => {
           if (!draft) return;
@@ -175,7 +170,6 @@ export const useSignalRV2 = () => {
     conn.on("chat.typing", () => {});
 
     conn.on("appointment.updated", (appointment: AppointmentGetDto) => {
-      console.log("[SignalR] appointment.updated:", appointment.id, "status:", appointment.status);
 
       const filters = [AppointmentFilter.Active, AppointmentFilter.Completed, AppointmentFilter.Cancelled];
 
@@ -249,7 +243,6 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("badge.updated", (counts?: { notificationUnreadCount?: number; chatUnreadCount?: number; threadUnreadCounts?: Record<string, number> }) => {
-      console.log("[SignalR] badge.updated:", counts);
       if (counts && (counts.notificationUnreadCount !== undefined || counts.chatUnreadCount !== undefined || counts.threadUnreadCounts !== undefined)) {
         dispatch(
           api.util.updateQueryData("getBadgeCounts", undefined, (draft) => {
@@ -275,26 +268,21 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("group.joined", (data: { userId?: string; success: boolean; error?: string }) => {
-      if (data.success) console.log("[SignalR] Successfully joined group for user:", data.userId);
-      else console.log("[SignalR] Failed to join group:", data.error);
     });
   }, [dispatch]);
 
   // Create connection
   const createConnection = useCallback(async (currentUserId: string) => {
     if (isConnectingRef.current) {
-      console.log("[SignalR] Already connecting, skipping...");
       return;
     }
 
     const currentToken = tokenStore.access;
     if (!currentToken) {
-      console.log("[SignalR] No token available");
       return;
     }
 
     isConnectingRef.current = true;
-    console.log("[SignalR] Creating connection for user:", currentUserId);
 
     try {
       const connection = new SignalR.HubConnectionBuilder()
@@ -310,7 +298,6 @@ export const useSignalRV2 = () => {
       setupEventHandlers(connection);
 
       connection.onclose(() => {
-        console.log("[SignalR] Connection closed");
         dispatch(setConnected({ connected: false }));
         // Bağlantı koparsa badge count'u invalidate et (yeniden çekilsin)
         dispatch(api.util.invalidateTags([{ type: "Notification", id: "LIST" }, { type: "Chat", id: "LIST" }]));
@@ -320,7 +307,6 @@ export const useSignalRV2 = () => {
       });
 
       connection.onreconnecting(() => {
-        console.log("[SignalR] Reconnecting...");
         dispatch(setConnected({ connected: false }));
         // Reconnecting sırasında invalidate etme - performans için
         // Sadece reconnected veya close durumlarında invalidate et
@@ -334,16 +320,13 @@ export const useSignalRV2 = () => {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
-          console.log("[SignalR] Polling stopped after reconnect");
         }
 
         dispatch(setConnected({ connected: true, userId: currentUserId }));
-        console.log("[SignalR] Reconnected - rejoining group...");
         try {
           await connection.invoke("JoinUserGroup");
-          console.log("[SignalR] JoinUserGroup after reconnect successful");
         } catch (e) {
-          console.log("[SignalR] JoinUserGroup after reconnect failed:", e);
+          // Silent fail
         }
         dispatch(api.util.invalidateTags([{ type: "Notification", id: "LIST" }, { type: "Chat", id: "LIST" }]));
       });
@@ -359,19 +342,16 @@ export const useSignalRV2 = () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
-        console.log("[SignalR] Polling stopped - connection successful");
       }
 
       dispatch(setConnected({ connected: true, userId: currentUserId }));
 
-      console.log("[SignalR] Connected successfully for user:", currentUserId);
 
       // Join group
       try {
         await connection.invoke("JoinUserGroup");
-        console.log("[SignalR] JoinUserGroup successful");
       } catch (e) {
-        console.log("[SignalR] JoinUserGroup failed:", e);
+        // Silent fail
       }
 
       // Invalidate tags to refetch notifications and badge counts
@@ -382,7 +362,6 @@ export const useSignalRV2 = () => {
       dispatch(api.util.invalidateTags([{ type: "Notification", id: "LIST" }, { type: "Chat", id: "LIST" }]));
 
     } catch (e) {
-      console.log("[SignalR] Connection failed:", e);
       dispatch(setConnected({ connected: false }));
       attemptReconnect(currentUserId);
     } finally {
@@ -394,7 +373,6 @@ export const useSignalRV2 = () => {
   const attemptReconnect = useCallback((expectedUserId: string) => {
     // Token refresh sırasında reconnect yapma
     if (isTokenRefreshingRef.current) {
-      console.log("[SignalR] Token refresh in progress, delaying reconnect...");
       reconnectTimeoutRef.current = setTimeout(() => {
         attemptReconnect(expectedUserId);
       }, 2000);
@@ -402,7 +380,6 @@ export const useSignalRV2 = () => {
     }
 
     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      console.log("[SignalR] Max reconnect attempts reached - starting polling fallback");
 
       // Mevcut polling interval'ı temizle
       if (pollingIntervalRef.current) {
@@ -412,10 +389,8 @@ export const useSignalRV2 = () => {
 
       // Max polling retry'a ulaştıysa sadece polling yap, reconnect deneme
       if (pollingRetryCountRef.current >= maxPollingRetries) {
-        console.log("[SignalR] Max polling retries reached, only polling for data");
         pollingIntervalRef.current = setInterval(() => {
           if (userIdRef.current === expectedUserId && tokenStore.access) {
-            console.log("[SignalR] Polling only mode - invalidating badge count");
             dispatch(api.util.invalidateTags([{ type: "Notification", id: "LIST" }, { type: "Chat", id: "LIST" }]));
           } else {
             if (pollingIntervalRef.current) {
@@ -429,11 +404,9 @@ export const useSignalRV2 = () => {
 
       // Polling fallback modunda: her 60 saniyede bir kez reconnect dene
       pollingRetryCountRef.current++;
-      console.log("[SignalR] Polling retry attempt", pollingRetryCountRef.current, "of", maxPollingRetries);
 
       pollingIntervalRef.current = setInterval(() => {
         if (userIdRef.current === expectedUserId && tokenStore.access) {
-          console.log("[SignalR] Polling fallback - invalidating badge count");
           dispatch(api.util.invalidateTags([{ type: "Notification", id: "LIST" }, { type: "Chat", id: "LIST" }]));
         } else {
           if (pollingIntervalRef.current) {
@@ -446,7 +419,6 @@ export const useSignalRV2 = () => {
       // 30 saniye sonra bir kez reconnect dene (polling interval'dan bağımsız)
       reconnectTimeoutRef.current = setTimeout(async () => {
         if (userIdRef.current === expectedUserId && tokenStore.access && !isTokenRefreshingRef.current) {
-          console.log("[SignalR] Attempting reconnect from polling fallback...");
           reconnectAttemptsRef.current = 0;
           await createConnection(expectedUserId);
         }
@@ -456,14 +428,12 @@ export const useSignalRV2 = () => {
     }
 
     if (userIdRef.current !== expectedUserId) {
-      console.log("[SignalR] User changed, skipping reconnect");
       return;
     }
 
     reconnectAttemptsRef.current++;
     const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
 
-    console.log("[SignalR] Reconnecting in", delay, "ms (attempt", reconnectAttemptsRef.current, ")");
 
     reconnectTimeoutRef.current = setTimeout(async () => {
       if (!tokenStore.access || userIdRef.current !== expectedUserId) {
@@ -472,7 +442,6 @@ export const useSignalRV2 = () => {
       }
       // Token refresh kontrolü
       if (isTokenRefreshingRef.current) {
-        console.log("[SignalR] Token still refreshing, retrying later...");
         attemptReconnect(expectedUserId);
         return;
       }
@@ -482,7 +451,6 @@ export const useSignalRV2 = () => {
 
   // Stop connection
   const stopConnection = useCallback(async () => {
-    console.log("[SignalR] Stopping connection...");
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -512,7 +480,7 @@ export const useSignalRV2 = () => {
         conn.off("group.joined");
         await conn.stop();
       } catch (e) {
-        console.log("[SignalR] Error stopping connection:", e);
+        // Silent fail
       }
     }
 
@@ -522,14 +490,12 @@ export const useSignalRV2 = () => {
     pollingRetryCountRef.current = 0; // Reset polling retry count
     dispatch(setConnected({ connected: false }));
 
-    console.log("[SignalR] Connection stopped");
   }, [dispatch]);
 
   // Token refresh durumunu dinle
   useEffect(() => {
     const unsubscribe = tokenStore.onRefreshStateChange((refreshing) => {
       isTokenRefreshingRef.current = refreshing;
-      console.log("[SignalR] Token refresh state changed:", refreshing);
     });
     return unsubscribe;
   }, []);
@@ -537,7 +503,6 @@ export const useSignalRV2 = () => {
   useEffect(() => {
     // No token or userId - stop connection
     if (!token || !userId) {
-      console.log("[SignalR] No token/userId - stopping connection");
       stopConnection();
       return;
     }
@@ -545,11 +510,9 @@ export const useSignalRV2 = () => {
     const globalConn = getGlobalConnection();
     const connectedUserId = getConnectionUserId();
 
-    console.log("[SignalR] useEffect - userId:", userId, "globalConn:", !!globalConn, "connectedUserId:", connectedUserId);
 
     // Different user - stop old connection and create new
     if (globalConn && connectedUserId && connectedUserId !== userId) {
-      console.log("[SignalR] Different user, recreating connection...");
       const targetUserId = userId; // Capture current userId
       (async () => {
         await stopConnection();
@@ -565,11 +528,9 @@ export const useSignalRV2 = () => {
     if (globalConn && connectedUserId === userId) {
       connectionRef.current = globalConn;
       if (globalConn.state === SignalR.HubConnectionState.Connected) {
-        console.log("[SignalR] Already connected for user:", userId);
         dispatch(setConnected({ connected: true, userId }));
         return;
       } else if (globalConn.state === SignalR.HubConnectionState.Disconnected) {
-        console.log("[SignalR] Connection disconnected, recreating...");
         stopConnection().then(() => createConnection(userId));
         return;
       }
@@ -579,7 +540,6 @@ export const useSignalRV2 = () => {
 
     // No connection - create new
     if (!isConnectingRef.current) {
-      console.log("[SignalR] No connection, creating new one for user:", userId);
       createConnection(userId);
     }
 

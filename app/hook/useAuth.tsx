@@ -30,7 +30,6 @@ export const useAuth = (): AuthResult => {
 
         // Listen for token changes (login, logout, refresh)
         const unsubscribe = tokenStore.onTokenChange((hasToken, newToken) => {
-            console.log('[useAuth] Token change detected:', hasToken, newToken ? 'token exists' : 'no token');
             // Update local state when token changes
             setToken(hasToken ? (newToken ?? tokenStore.access) : null);
         });

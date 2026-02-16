@@ -37,21 +37,19 @@ export const BARBER_TYPE_TO_ENUM: Record<string, number> = {
 };
 
 /**
- * Backend'den gelen Türkçe kategori adlarını enum değerlerine map'ler
- * Bu mapping backend'deki kategori adlarına göre güncellenmeli
+ * Backend'den gelen kategori adlarını enum değerlerine map'ler
+ * DB hiyerarşisindeki gerçek isimler: "Erkek Berber", "Kadın Kuaför", "Güzellik Salonu"
  */
 export const CATEGORY_NAME_TO_ENUM: Record<string, number> = {
-    // Türkçe kategori adları
-    'Erkek Kuaförü': 0,
-    'Kadın Kuaförü': 1,
+    // DB hiyerarşisindeki gerçek isimler
+    'Erkek Berber': 0,
+    'Kadın Kuaför': 1,
     'Güzellik Salonu': 2,
     // İngilizce enum değerleri
     'MaleHairdresser': 0,
     'FemaleHairdresser': 1,
     'BeautySalon': 2,
-    // Alternatif isimler
-    'Erkek Berberi': 0,
-    'Kadın Berberi': 1,
+    // İngilizce okunabilir isimler
     'Male Hairdresser': 0,
     'Female Hairdresser': 1,
     'Beauty Salon': 2,
@@ -95,24 +93,3 @@ export function categoryNameToEnum(categoryName: string | undefined, t?: (key: s
 
     return undefined;
 }
-
-export const SERVICE_BY_TYPE: Record<string, { label: string; value: string }[]> = {
-    MaleHairdresser: [
-        { label: "Saç Tıraşı", value: "haircut" },
-        { label: "Sakal Tıraşı", value: "beard" },
-        { label: "Saç+Sakal", value: "combo" },
-    ],
-    FemaleHairdresser: [
-        { label: "Fön", value: "blowdry" },
-        { label: "Boya", value: "color" },
-        { label: "Kesim", value: "cut" },
-        { label: "Kasdasesim", value: "asdacut" },
-        { label: "asdasdasdasd", value: "asdasdasdasdacut" },
-    ],
-    BeautySalon: [
-        { label: "Manikür", value: "manicure" },
-        { label: "Pedikür", value: "pedicure" },
-        { label: "Cilt Bakımı", value: "skincare" },
-    ],
-};
-

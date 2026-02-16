@@ -41,3 +41,9 @@ export interface CategoryDto {
   name: string;
   parentId?: string | null;
 }
+
+export interface CategoryHierarchyDto {
+  id: string;
+  name: string;
+  children: CategoryHierarchyDto[];
+}

@@ -75,12 +75,12 @@ export const mapTypeToDisplayName = (type: number | string): string => {
     const lower = raw.toLowerCase();
 
     if (lower === "erkek berber") return "Erkek Berber";
-    if (lower === "bayan kuaför" || lower === "bayan kuafor") return "Bayan Kuaför";
+    if (lower === "bayan kuaför" || lower === "bayan kuafor" || lower === "kadın kuaför" || lower === "kadin kuafor") return "Kadın Kuaför";
     if (lower === "güzellik salonu" || lower === "guzellik salonu") return "Güzellik Salonu";
 
     // If it's enum label, map it
     if (raw === "MaleHairdresser") return "Erkek Berber";
-    if (raw === "FemaleHairdresser") return "Bayan Kuaför";
+    if (raw === "FemaleHairdresser") return "Kadın Kuaför";
     if (raw === "BeautySalon") return "Güzellik Salonu";
 
     // Numeric string support
@@ -96,7 +96,7 @@ export const mapTypeToDisplayName = (type: number | string): string => {
     case 0:
       return "Erkek Berber";
     case 1:
-      return "Bayan Kuaför";
+      return "Kadın Kuaför";
     case 2:
       return "Güzellik Salonu";
     default:

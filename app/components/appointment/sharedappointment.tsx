@@ -8,7 +8,7 @@ import { StarRatingDisplay } from "react-native-star-rating-widget";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import {
   useGetAllAppointmentByFilterQuery, useCancelAppointmentMutation, useCompleteAppointmentMutation, useToggleFavoriteMutation,
-  useDeleteAppointmentMutation, useDeleteAllAppointmentsMutation,
+  useDeleteAppointmentMutation, useDeleteAllAppointmentsMutation, useBlockUserMutation,
 } from "../../store/api";
 import { AppointmentStatus, AppointmentFilter, AppointmentGetDto, AppointmentRequester, } from "../../types/appointment";
 import { useAuth } from "../../hook/useAuth";
@@ -16,6 +16,7 @@ import { BarberType, UserType, PricingType, ImageOwnerType } from "../../types";
 import FilterChip from "../common/filter-chip";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import { RatingBottomSheet } from "./ratingbottomsheet";
+import { ComplaintBottomSheet } from "./ComplaintBottomSheet";
 import { getAppointmentStatusColor, getAppointmentStatusText, } from "../../utils/appointment/appointment-helpers";
 import { OwnerAvatar } from "../common/owneravatar";
 import { SkeletonComponent } from "../common/skeleton";
@@ -42,6 +43,29 @@ export default function SharedAppointmentScreen() {
     targetName: string;
     targetType: "store" | "freeBarber" | "manuelBarber" | "customer";
     targetImage?: string;
+  } | null>(null);
+
+  // Complaint Sheet
+  const complaintSheet = useBottomSheet({
+    snapPoints: ["50%", "80%"],
+    enablePanDownToClose: true,
+  });
+  const [selectedComplaintTarget, setSelectedComplaintTarget] = useState<{
+    appointmentId: string;
+    targetUserId: string;
+    targetName: string;
+    targetImage?: string;
+  } | null>(null);
+
+  // User Selection Sheet (birden fazla hedef olduğunda)
+  const userSelectionSheet = useBottomSheet({
+    snapPoints: ["40%"],
+    enablePanDownToClose: true,
+  });
+  const [userSelectionData, setUserSelectionData] = useState<{
+    appointmentId: string;
+    targets: Array<{ userId: string; name: string; image?: string; type: string }>;
+    actionType: "complaint" | "block";
   } | null>(null);
 
   // --- API ---
@@ -89,6 +113,7 @@ export default function SharedAppointmentScreen() {
     useDeleteAppointmentMutation();
   const [deleteAllAppointments, { isLoading: isDeletingAllAppointments }] =
     useDeleteAllAppointmentsMutation();
+  const [blockUser, { isLoading: isBlockingUser }] = useBlockUserMutation();
 
   // --- Helper Functions ---
   const formatPricingPolicy = useCallback(
@@ -196,6 +221,167 @@ export default function SharedAppointmentScreen() {
       }, 100);
     },
     [ratingSheet],
+  );
+
+  // Complaint bottom sheet aç
+  const openComplaintSheet = useCallback(
+    (
+      appointmentId: string,
+      targetUserId: string,
+      targetName: string,
+      targetImage?: string,
+    ) => {
+      setSelectedComplaintTarget({
+        appointmentId,
+        targetUserId,
+        targetName,
+        targetImage,
+      });
+      setTimeout(() => {
+        complaintSheet.present();
+      }, 100);
+    },
+    [complaintSheet],
+  );
+
+  // Şikayet/engelleme yapılabilecek TÜM hedef kullanıcıları bul
+  const getAllComplaintTargets = useCallback(
+    (item: AppointmentGetDto): Array<{ userId: string; name: string; image?: string; type: string }> => {
+      const targets: Array<{ userId: string; name: string; image?: string; type: string }> = [];
+
+      // Customer: store ve freeBarber'a şikayet edebilir
+      if (userType === UserType.Customer) {
+        if (item.barberStoreId && item.storeUserId) {
+          targets.push({
+            userId: item.storeUserId,
+            name: item.storeName || t("labels.storeDefaultName"),
+            image: item.storeImage,
+            type: t("appointment.labels.storeName")
+          });
+        }
+        if (item.freeBarberId && item.freeBarberUserId) {
+          targets.push({
+            userId: item.freeBarberUserId,
+            name: item.freeBarberName || t("labels.freeBarberDefaultName"),
+            image: item.freeBarberImage,
+            type: t("labels.freeBarberDefaultName")
+          });
+        }
+      }
+      // BarberStore: customer ve freeBarber'a şikayet edebilir
+      if (userType === UserType.BarberStore) {
+        if (item.customerUserId) {
+          targets.push({
+            userId: item.customerUserId,
+            name: item.customerName || t("labels.customerDefaultName"),
+            image: item.customerImage,
+            type: t("appointment.labels.customer")
+          });
+        }
+        if (item.freeBarberId && item.freeBarberUserId) {
+          targets.push({
+            userId: item.freeBarberUserId,
+            name: item.freeBarberName || t("labels.freeBarberDefaultName"),
+            image: item.freeBarberImage,
+            type: t("labels.freeBarberDefaultName")
+          });
+        }
+      }
+      // FreeBarber: customer ve store'a şikayet edebilir
+      if (userType === UserType.FreeBarber) {
+        if (item.customerUserId) {
+          targets.push({
+            userId: item.customerUserId,
+            name: item.customerName || t("labels.customerDefaultName"),
+            image: item.customerImage,
+            type: t("appointment.labels.customer")
+          });
+        }
+        if (item.barberStoreId && item.storeUserId) {
+          targets.push({
+            userId: item.storeUserId,
+            name: item.storeName || t("labels.storeDefaultName"),
+            image: item.storeImage,
+            type: t("appointment.labels.storeName")
+          });
+        }
+      }
+      return targets;
+    },
+    [userType, t],
+  );
+
+  // Kullanıcıyı engelle
+  const handleBlockUser = useCallback(
+    async (targetUserId: string, targetName: string) => {
+      confirm(
+        t("block.confirmTitle"),
+        t("block.confirmMessage", { name: targetName }),
+        async () => {
+          const blockResult = await blockUser({ blockedToUserId: targetUserId });
+          if ("error" in blockResult) {
+            const errorMessage =
+              (blockResult.error as any)?.data?.message ||
+              t("block.createError");
+            alertError(t("common.error"), errorMessage);
+            return;
+          }
+          alertSuccess(t("common.success"), t("block.createSuccess"));
+        },
+        undefined,
+        t("block.submit"),
+        t("common.cancel"),
+      );
+    },
+    [blockUser, t, confirm, alertError, alertSuccess],
+  );
+
+  // Şikayet veya Engelleme işlemini başlat (tek veya çoklu hedef kontrolü)
+  const handleComplaintOrBlockAction = useCallback(
+    (item: AppointmentGetDto, actionType: "complaint" | "block") => {
+      const targets = getAllComplaintTargets(item);
+      if (targets.length === 0) return;
+
+      if (targets.length === 1) {
+        // Tek hedef varsa direkt işlem yap
+        const target = targets[0];
+        if (actionType === "complaint") {
+          openComplaintSheet(item.id, target.userId, target.name, target.image);
+        } else {
+          handleBlockUser(target.userId, target.name);
+        }
+      } else {
+        // Birden fazla hedef varsa seçim sheet'ini aç
+        setUserSelectionData({
+          appointmentId: item.id,
+          targets,
+          actionType,
+        });
+        setTimeout(() => {
+          userSelectionSheet.present();
+        }, 100);
+      }
+    },
+    [getAllComplaintTargets, openComplaintSheet, handleBlockUser, userSelectionSheet],
+  );
+
+  // Kullanıcı seçimi yapıldığında
+  const handleUserSelected = useCallback(
+    (target: { userId: string; name: string; image?: string }) => {
+      if (!userSelectionData) return;
+
+      userSelectionSheet.dismiss();
+
+      setTimeout(() => {
+        if (userSelectionData.actionType === "complaint") {
+          openComplaintSheet(userSelectionData.appointmentId, target.userId, target.name, target.image);
+        } else {
+          handleBlockUser(target.userId, target.name);
+        }
+        setUserSelectionData(null);
+      }, 300);
+    },
+    [userSelectionData, userSelectionSheet, openComplaintSheet, handleBlockUser],
   );
 
   // Favori toggle
@@ -370,10 +556,10 @@ export default function SharedAppointmentScreen() {
           (myRating === null || myRating === undefined || myRating === 0) && (
             <TouchableOpacity
               onPress={onRatePress}
-              className="flex-row items-center justify-center bg-[#1f2023] border border-[#f05e23]/30 rounded-lg px-3 py-2.5 mt-1"
+              className="flex-row items-center justify-center bg-[#1f2023] border border-[#ffb900]/30 rounded-lg px-3 py-2.5 mt-1"
             >
-              <Icon source="star-outline" size={16} color="#f05e23" />
-              <Text className="text-[#f05e23] text-xs font-semibold ml-2">
+              <Icon source="star-outline" size={16} color="#ffb900" />
+              <Text className="text-[#ffb900] text-xs font-semibold ml-2">
                 {t("appointment.labels.makeComment")}
               </Text>
             </TouchableOpacity>
@@ -445,7 +631,7 @@ export default function SharedAppointmentScreen() {
 
     return (
       <View
-        className={`bg-[#151618] rounded-xl p-4 mb-4 border ${isCompletedOrCancelled ? "border-[#2a2c30]" : "border-[#1f2023]"}`}
+        className={`bg-[#1a1b25] rounded-xl p-4 mb-4 border ${isCompletedOrCancelled ? "border-[#2a2c30]" : "border-[#1f2023]"}`}
       >
         {/* Durum Badge'i - Active tab'ında ve tamamlanan/iptal durumlarında göster */}
         {(activeFilter === AppointmentFilter.Active ||
@@ -481,8 +667,8 @@ export default function SharedAppointmentScreen() {
                   {/* Zaman geçmişse uyarı göster - Active tab'ında sadece Approved randevular var */}
                   {passed && isApproved && (
                     <View className="flex-row items-center ml-2">
-                      <Icon source="alert-circle" size={14} color="#f59e0b" />
-                      <Text className="text-[#f59e0b] text-xs ml-1">
+                      <Icon source="alert-circle" size={14} color="#ffb900" />
+                      <Text className="text-[#ffb900] text-xs ml-1">
                         {t("appointment.labels.timePassed")}
                       </Text>
                     </View>
@@ -511,74 +697,111 @@ export default function SharedAppointmentScreen() {
               </View>
             </View>
           )}
-        <View className="mb-4">
-          <View className="flex-row gap-2 items-center justify-end flex-wrap">
-            {showCompleteButton && (
-              <TouchableOpacity
-                onPress={() => handleComplete(item.id)}
-                disabled={isCompleting}
-                className="bg-green-600 px-3 py-2 rounded-xl flex-row items-center justify-center"
-              >
-                {isCompleting ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
+        <View className="mb-4 gap-2.5">
+          {/* Birincil aksiyonlar */}
+          {(showCompleteButton || showCancelButton) && (
+            <View className="flex-row gap-3 justify-end">
+              {showCompleteButton && (
+                <TouchableOpacity
+                  onPress={() => handleComplete(item.id)}
+                  disabled={isCompleting}
+                  className="bg-green-600 flex-1 py-2.5 rounded-xl flex-row items-center justify-center"
+                >
+                  {isCompleting ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <Icon source="check-all" size={16} color="white" />
+                      <Text className="text-white text-sm font-semibold ml-2">
+                        {t("appointment.actions.complete")}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+              {showCancelButton && (
+                <TouchableOpacity
+                  onPress={() => handleCancel(item.id)}
+                  disabled={isCancelling}
+                  className="bg-red-500 border border-red-900/40 flex-1 py-2.5 rounded-xl flex-row items-center justify-center"
+                >
+                  {isCancelling ? (
+                    <ActivityIndicator color="#ef4444" size="small" />
+                  ) : (
+                    <>
+                      <Icon source="close-circle-outline" size={16} color="#fff" />
+                      <Text className="text-white text-sm font-semibold ml-2">
+                        {t("appointment.actions.cancel")}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {/* İkincil aksiyonlar (Şikayet, Engelle, Sil) */}
+          {((activeFilter === AppointmentFilter.Completed ||
+            activeFilter === AppointmentFilter.Cancelled) &&
+            getAllComplaintTargets(item).length > 0 || showDeleteButton) && (
+            <View className="flex-row gap-3 justify-end">
+              {(activeFilter === AppointmentFilter.Completed ||
+                activeFilter === AppointmentFilter.Cancelled) &&
+                getAllComplaintTargets(item).length > 0 && (
                   <>
-                    <Icon source="check-all" size={15} color="white" />
-                    <Text className="text-white text-sm ml-2">
-                      {t("appointment.actions.complete")}
-                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleComplaintOrBlockAction(item, "complaint")}
+                      className="bg-[#1f2023] border border-[#f59e0b]/40 px-4 py-2 rounded-xl flex-row items-center justify-center"
+                    >
+                      <Icon source="alert-circle-outline" size={15} color="#f59e0b" />
+                      <Text className="text-[#f59e0b] text-sm ml-2">
+                        {t("complaint.title")}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleComplaintOrBlockAction(item, "block")}
+                      disabled={isBlockingUser}
+                      className={`bg-[#1f2023] border border-[#9ca3af]/40 px-4 py-2 rounded-xl flex-row items-center justify-center ${isBlockingUser ? "opacity-60" : ""}`}
+                    >
+                      {isBlockingUser ? (
+                        <ActivityIndicator color="#9ca3af" size="small" />
+                      ) : (
+                        <>
+                          <Icon source="block-helper" size={15} color="#9ca3af" />
+                          <Text className="text-[#9ca3af] text-sm ml-2">
+                            {t("block.submit")}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                   </>
                 )}
-              </TouchableOpacity>
-            )}
-            {showCancelButton && (
-              <TouchableOpacity
-                onPress={() => handleCancel(item.id)}
-                disabled={isCancelling}
-                className="bg-[#2a2c30] border border-red-900/40 px-3 py-2 rounded-xl flex-row items-center justify-center"
-              >
-                {isCancelling ? (
-                  <ActivityIndicator color="#ef4444" size="small" />
-                ) : (
-                  <>
-                    <Icon
-                      source="close-circle-outline"
-                      size={15}
-                      color="#ef4444"
-                    />
-                    <Text className="text-[#ef4444] text-sm ml-2">
-                      {t("appointment.actions.cancel")}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-            {showDeleteButton && (
-              <TouchableOpacity
-                onPress={() => handleDelete(item.id)}
-                disabled={isDeletingAppointment}
-                className={`bg-[#2a2c30] border border-red-900/40 px-3 py-2 rounded-xl flex-row items-center justify-center ${isDeletingAppointment ? "opacity-60" : ""}`}
-              >
-                {isDeletingAppointment ? (
-                  <ActivityIndicator color="#ef4444" size="small" />
-                ) : (
-                  <>
-                    <Icon source="delete-outline" size={15} color="#ef4444" />
-                    <Text className="text-[#ef4444] text-sm ml-2">
-                      {t("appointment.actions.delete")}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
+              {showDeleteButton && (
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  disabled={isDeletingAppointment}
+                  className={`bg-red-500 border border-red-900/40 px-4 py-2 rounded-xl flex-row items-center justify-center ${isDeletingAppointment ? "opacity-60" : ""}`}
+                >
+                  {isDeletingAppointment ? (
+                    <ActivityIndicator color="#ef4444" size="small" />
+                  ) : (
+                    <>
+                      <Icon source="delete-outline" size={15} color="#fff" />
+                      <Text className="text-white text-sm ml-2">
+                        {t("appointment.actions.delete")}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         <View className="mb-0">
           {userType === UserType.BarberStore && (
-            <View className="flex-row gap-4">
+            <View className="gap-3">
               {item.customerUserId && (
-                <View className="flex-1">
+                <View className="bg-[#1a1c1e] rounded-xl p-3">
                   <View className="flex-row items-start mb-2">
                     <OwnerAvatar
                       ownerId={item.customerUserId}
@@ -609,7 +832,7 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
+                      <View className="mb-1">
                         <TouchableOpacity
                           onPress={() =>
                             item.customerUserId &&
@@ -655,7 +878,7 @@ export default function SharedAppointmentScreen() {
                   />
                 </View>
               )}
-              <View className="flex-1">
+              <View className="bg-[#1a1c1e] rounded-xl p-3">
                 {item.freeBarberId ? (
                   <View>
                     <View className="flex-row items-start mb-2">
@@ -680,11 +903,16 @@ export default function SharedAppointmentScreen() {
                           {item.freeBarberName ||
                             t("labels.freeBarberDefaultName")}
                         </Text>
+                        {item.freeBarberNumber && (
+                          <Text className="text-[#6b7280] text-xs">
+                            {t("card.freeBarberNumber")}: {item.freeBarberNumber}
+                          </Text>
+                        )}
                       </View>
                     </View>
                     {(activeFilter === AppointmentFilter.Cancelled ||
                       activeFilter === AppointmentFilter.Completed) && (
-                        <View className="mb-3">
+                        <View className="mb-1">
                           <TouchableOpacity
                             onPress={() =>
                               item.freeBarberId &&
@@ -825,11 +1053,16 @@ export default function SharedAppointmentScreen() {
                           {getBarberTypeName(item.storeType as BarberType)}
                         </Text>
                       )}
+                      {item.storeOwnerNumber && (
+                        <Text className="text-[#6b7280] text-xs">
+                          {t("card.storeOwnerNumber")}: {item.storeOwnerNumber}
+                        </Text>
+                      )}
                     </View>
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
+                      <View className="mb-1">
                         <TouchableOpacity
                           onPress={() =>
                             item.barberStoreId &&
@@ -914,7 +1147,7 @@ export default function SharedAppointmentScreen() {
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
+                      <View className="mb-1">
                         <TouchableOpacity
                           onPress={() =>
                             item.customerUserId &&
@@ -993,11 +1226,16 @@ export default function SharedAppointmentScreen() {
                           {getBarberTypeName(item.storeType as BarberType)}
                         </Text>
                       )}
+                      {item.storeOwnerNumber && (
+                        <Text className="text-[#6b7280] text-xs">
+                          {t("card.storeOwnerNumber")}: {item.storeOwnerNumber}
+                        </Text>
+                      )}
                     </View>
                   </View>
                   {(activeFilter === AppointmentFilter.Cancelled ||
                     activeFilter === AppointmentFilter.Completed) && (
-                      <View className="mb-3">
+                      <View className="mb-1">
                         <TouchableOpacity
                           onPress={() =>
                             item.barberStoreId &&
@@ -1070,11 +1308,16 @@ export default function SharedAppointmentScreen() {
                         <Text className="text-[#9ca3af] text-xs">
                           {t("labels.freeBarberDefaultName")}
                         </Text>
+                        {item.freeBarberNumber && (
+                          <Text className="text-[#6b7280] text-xs">
+                            {t("card.freeBarberNumber")}: {item.freeBarberNumber}
+                          </Text>
+                        )}
                       </View>
                     </View>
                     {(activeFilter === AppointmentFilter.Cancelled ||
                       activeFilter === AppointmentFilter.Completed) && (
-                        <View className="mb-3">
+                        <View className="mb-1">
                           <TouchableOpacity
                             onPress={() =>
                               item.freeBarberId &&
@@ -1207,7 +1450,7 @@ export default function SharedAppointmentScreen() {
           )}
 
         {item.storeAddressDescription && (
-          <View className="mt-0 mb-3">
+          <View className="mt-2 mb-3">
             <View className="flex-row items-center mb-1">
               <Icon source="map-marker" size={14} color="#6b7280" />
               <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
@@ -1224,37 +1467,53 @@ export default function SharedAppointmentScreen() {
           </View>
         )}
 
+        {/* Koltuk Adı - Sadece manuel berber veya free barber yoksa göster */}
+        {item.chairName && !item.manuelBarberId && !item.freeBarberId && (
+          <View className="mt-2 mb-3">
+            <View className="flex-row items-center">
+              <Icon source="seat" size={14} color="#6b7280" />
+              <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
+                {t("appointment.labels.chair")}:
+              </Text>
+              <Text className="text-white text-xs ml-1.5 font-medium">
+                {item.chairName}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Hizmetler */}
         {item.services.length > 0 && (
           <View className="mt-3 mb-2">
-            <View className="flex-row items-center mb-2">
+            <View className="flex-row items-center mb-2.5">
               <Icon source="scissors-cutting" size={14} color="#6b7280" />
               <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
                 {userType === UserType.Customer
                   ? `${t("appointment.labels.myServices")}:`
                   : `${t("appointment.labels.services")}:`}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row gap-2.5">
                 {item.services.map((service) => (
                   <View
                     key={service.serviceId}
-                    className="bg-[#2a2c30] rounded-lg px-3 py-2 ml-2 flex-row items-center"
+                    className="bg-[#2a2c30] rounded-lg px-3.5 py-2 flex-row items-center gap-1.5"
                   >
                     <Text
                       className="text-white text-xs font-medium"
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {service.serviceName} :
+                      {service.serviceName}
                     </Text>
                     <Text className="text-[#22c55e] text-xs font-semibold">
-                      {t("card.currencySymbol")}
-                      {Number(service.price).toFixed(0)}
+                      {Number(service.price).toFixed(0)} {t("card.currencySymbol")}
                     </Text>
                   </View>
                 ))}
-              </ScrollView>
-            </View>
+              </View>
+            </ScrollView>
           </View>
         )}
       </View>
@@ -1291,11 +1550,11 @@ export default function SharedAppointmentScreen() {
           activeFilter === AppointmentFilter.Cancelled) &&
           filteredAppointments &&
           filteredAppointments.length > 0 && (
-            <View className="px-4 mb-2">
+            <View className="px-4 mb-2 flex-row justify-end">
               <TouchableOpacity
                 onPress={handleDeleteAll}
                 disabled={isDeletingAllAppointments}
-                className={`bg-red-600 rounded-lg px-3 py-2 flex-row items-center gap-1.5 self-start ${isDeletingAllAppointments ? "opacity-60" : ""}`}
+                className={`bg-red-600 rounded-3xl px-3 py-2 flex-row items-center gap-1.5 ${isDeletingAllAppointments ? "opacity-60" : ""}`}
               >
                 {isDeletingAllAppointments ? (
                   <ActivityIndicator size="small" color="white" />
@@ -1394,6 +1653,91 @@ export default function SharedAppointmentScreen() {
                 ratingSheet.dismiss();
               }}
             />
+          )}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* Complaint Bottom Sheet */}
+      <BottomSheetModal
+        ref={complaintSheet.ref}
+        snapPoints={complaintSheet.snapPoints}
+        enablePanDownToClose={complaintSheet.enablePanDownToClose}
+        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+        backgroundStyle={{ backgroundColor: "#151618" }}
+        backdropComponent={complaintSheet.makeBackdrop()}
+        onChange={(index) => {
+          complaintSheet.handleChange(index);
+          if (index < 0) {
+            setSelectedComplaintTarget(null);
+          }
+        }}
+      >
+        <BottomSheetView className="h-full pt-2">
+          {selectedComplaintTarget && (
+            <ComplaintBottomSheet
+              appointmentId={selectedComplaintTarget.appointmentId}
+              targetUserId={selectedComplaintTarget.targetUserId}
+              targetName={selectedComplaintTarget.targetName}
+              targetImage={selectedComplaintTarget.targetImage}
+              onClose={() => {
+                setSelectedComplaintTarget(null);
+                complaintSheet.dismiss();
+              }}
+            />
+          )}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* User Selection Bottom Sheet - Birden fazla hedef olduğunda */}
+      <BottomSheetModal
+        ref={userSelectionSheet.ref}
+        snapPoints={userSelectionSheet.snapPoints}
+        enablePanDownToClose={userSelectionSheet.enablePanDownToClose}
+        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
+        backgroundStyle={{ backgroundColor: "#151618" }}
+        backdropComponent={userSelectionSheet.makeBackdrop()}
+        onChange={(index) => {
+          userSelectionSheet.handleChange(index);
+          if (index < 0) {
+            setUserSelectionData(null);
+          }
+        }}
+      >
+        <BottomSheetView className="h-full pt-2 px-4">
+          {userSelectionData && (
+            <View>
+              <Text className="text-white text-lg font-bold mb-4 text-center">
+                {userSelectionData.actionType === "complaint"
+                  ? t("complaint.selectUser")
+                  : t("block.selectUser")}
+              </Text>
+              {userSelectionData.targets.map((target, index) => (
+                <TouchableOpacity
+                  key={target.userId}
+                  onPress={() => handleUserSelected(target)}
+                  className={`flex-row items-center p-4 bg-[#1f2023] rounded-xl ${index < userSelectionData.targets.length - 1 ? "mb-3" : ""}`}
+                >
+                  <OwnerAvatar
+                    ownerId={target.userId}
+                    ownerType={ImageOwnerType.User}
+                    fallbackUrl={target.image}
+                    imageClassName="w-12 h-12 rounded-full mr-3"
+                    iconSource="account"
+                    iconSize={24}
+                    iconColor="#6b7280"
+                  />
+                  <View className="flex-1">
+                    <Text className="text-white text-sm font-semibold">
+                      {target.name}
+                    </Text>
+                    <Text className="text-[#9ca3af] text-xs">
+                      {target.type}
+                    </Text>
+                  </View>
+                  <Icon source="chevron-right" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
         </BottomSheetView>
       </BottomSheetModal>

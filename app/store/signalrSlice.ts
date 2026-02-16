@@ -18,7 +18,6 @@ let globalConnectionUserId: string | null = null;
 export const setGlobalConnection = (connection: SignalR.HubConnection | null, userId?: string | null) => {
   globalConnection = connection;
   globalConnectionUserId = userId ?? null;
-  console.log('[SignalR] Global connection set:', !!connection, 'userId:', userId);
 };
 
 export const getGlobalConnection = () => globalConnection;
@@ -27,7 +26,6 @@ export const getConnectionUserId = () => globalConnectionUserId;
 
 // Reset SignalR state (called on logout)
 export const resetSignalRState = async () => {
-  console.log('[SignalR] Resetting SignalR state...');
 
   if (globalConnection) {
     try {
@@ -44,16 +42,14 @@ export const resetSignalRState = async () => {
       globalConnection.off('group.joined');
 
       await globalConnection.stop();
-      console.log('[SignalR] Connection stopped');
     } catch (e) {
-      console.log('[SignalR] Error stopping connection:', e);
+      // Silent fail
     }
   }
 
   globalConnection = null;
   globalConnectionUserId = null;
 
-  console.log('[SignalR] State reset complete');
 };
 
 const signalrSlice = createSlice({

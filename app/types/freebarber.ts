@@ -14,6 +14,7 @@ export type FreeBarberCreateDto = {
   longitude: number;
   isAvailable: boolean;
   barberCertificateImageId?: string;
+  beautySalonCertificateImageId?: string;
   offerings: ServiceOfferingCreateDto[];
 };
 
@@ -27,6 +28,7 @@ export type FreeBarberUpdateDto = {
   longitude: number;
   isAvailable: boolean;
   barberCertificateImageId?: string;
+  beautySalonCertificateImageId?: string;
   offerings: ServiceOfferingUpdateDto[];
 };
 
@@ -46,6 +48,8 @@ export type FreeBarGetDto = {
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
   isOwnPanel?: boolean; // Kullanıcının kendi paneli mi (filtrelerden etkilenmez)
+  /** Güzellik salonu sertifikası varsa dolu; kartta "Güzellik Uzmanı" chip gösterilir */
+  beautySalonCertificateImageId?: string | null;
 };
 
 export type FreeBarberPanelDto = {
@@ -61,6 +65,8 @@ export type FreeBarberPanelDto = {
   longitude: number;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
+  /** Güzellik salonu sertifikası varsa dolu; kartta "Güzellik Uzmanı" chip gösterilir */
+  beautySalonCertificateImageId?: string | null;
 };
 
 export type FreeBarberMinePanelDetailDto = {
@@ -71,6 +77,8 @@ export type FreeBarberMinePanelDetailDto = {
   isAvailable: boolean;
   barberCertificateImageId?: string;
   barberCertificateImage?: ImageGetDto;
+  beautySalonCertificateImageId?: string;
+  beautySalonCertificateImage?: ImageGetDto;
   offerings: ServiceOfferingGetDto[];
   imageList: ImageGetDto[];
   latitude?: number;

@@ -1,14 +1,16 @@
 import {
   ActivityIndicator,
+  Animated,
   Image,
   ScrollView,
   TouchableOpacity,
   View,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from "react-native";
 import { Text } from "../common/Text";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { z } from "zod";
 import {
   DAYS_TR,
@@ -35,20 +37,20 @@ import {
   TextInput,
 } from "react-native-paper";
 import { Button } from "../common/Button";
-import { Dropdown, MultiSelect } from "react-native-element-dropdown";
+import { Dropdown } from "react-native-element-dropdown";
+import { CategoryListSelect } from "../common/CategoryListSelect";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
 import {
   useDeleteImageMutation,
   useDeleteManuelBarberMutation,
   useDeleteStoreChairMutation,
-  useGetParentCategoriesQuery,
-  useLazyGetChildCategoriesQuery,
   useLazyGetStoreByIdQuery,
   useUpdateBarberStoreMutation,
   useUploadMultipleImagesMutation,
   useUploadImageMutation,
   useUpdateImageBlobMutation,
 } from "../../store/api";
+import { useCategoryHierarchy } from "../../hook/useCategoryHierarchy";
 import { CrudSkeletonComponent } from "../common/crudskeleton";
 import {
   pickImageAndSet,
@@ -85,6 +87,7 @@ import {
 import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
+import { StepFormIndicator } from "../common/StepFormIndicator";
 
 const createChairPricingSchema = (t: (key: string) => string) =>
   z
@@ -297,15 +300,26 @@ const createSchema = (t: (key: string) => string) =>
         .string({ required_error: t("form.storeNameRequired") })
         .trim(),
       type: z.string({ required_error: t("form.storeTypeRequired") }),
+      // Ana başlıklar (seçilen main kategorilere göre)
+      selectedMainHeadings: z.array(z.string()).optional(),
+      // Alt başlıklar (seçilen ana başlıklara göre)
+      selectedSubHeadings: z.array(z.string()).optional(),
+      // Hizmetler (seçilen alt başlıklara göre) - final seçim
       selectedCategories: z
         .array(z.string())
         .min(1, t("form.atLeastOneService")),
       prices: z.record(
         z.string(),
         z
-          .string({ required_error: t("form.priceRequired") })
-          .min(1, t("form.priceRequired"))
-          .regex(trMoneyRegex, t("form.priceFormatInvalid")),
+          .string()
+          .refine(
+            (val) => {
+              if (!val || val === "") return false; // Boş olamaz
+              const num = parseFloat(val.replace(/\./g, "").replace(",", "."));
+              return !isNaN(num) && num >= 0; // 0 veya daha büyük olmalı
+            },
+            { message: t("form.priceCannotBeNegative") },
+          ),
       ),
       pricingType: createChairPricingSchema(t),
       workingHours: z
@@ -321,6 +335,17 @@ const createSchema = (t: (key: string) => string) =>
         .default([]),
     })
     .superRefine((data, ctx) => {
+      // Ana başlıklar seçilip alt başlıklar seçilmezse hata ver
+      if (data.selectedMainHeadings && data.selectedMainHeadings.length > 0) {
+        if (!data.selectedSubHeadings || data.selectedSubHeadings.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("form.subHeadingsRequired"),
+            path: ["selectedSubHeadings"],
+          });
+        }
+      }
+
       const barbers = (data.barbers ?? []) as Array<
         z.infer<ReturnType<typeof createBarberSchema>>
       >;
@@ -353,7 +378,82 @@ const createSchema = (t: (key: string) => string) =>
 
 export type FormUpdateValues = z.input<ReturnType<typeof createSchema>>;
 
-const FormStoreUpdate = ({
+// MultiSelect stil objeleri - component dışında tanımlanarak her render'da yeni referans oluşturulması engellenir
+const MULTI_SELECT_STYLE = {
+  backgroundColor: "#1F2937",
+  borderColor: "#444",
+  borderWidth: 1,
+  borderRadius: 10,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+} as const;
+
+const MULTI_SELECT_STYLE_ERROR = {
+  ...MULTI_SELECT_STYLE,
+  borderColor: "#b00020",
+} as const;
+
+const MULTI_SELECT_CONTAINER_STYLE = {
+  backgroundColor: "#1F2937",
+  borderWidth: 1,
+  borderColor: "#444",
+  borderRadius: 10,
+  overflow: "hidden" as const,
+};
+
+const MULTI_SELECT_INPUT_SEARCH_STYLE = {
+  backgroundColor: "#1F2937",
+  borderColor: "#ffb900",
+  borderWidth: 1,
+  borderRadius: 8,
+  color: "white",
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  fontSize: 14,
+  fontFamily: 'CenturyGothic',
+};
+
+const MULTI_SELECT_PLACEHOLDER_STYLE = { color: "gray", fontFamily: 'CenturyGothic' };
+const MULTI_SELECT_SELECTED_TEXT_STYLE = { color: "white", fontFamily: 'CenturyGothic' };
+const MULTI_SELECT_ITEM_TEXT_STYLE = { color: "white", fontFamily: 'CenturyGothic' };
+const MULTI_SELECT_SELECTED_STYLE = {
+  borderRadius: 10,
+  backgroundColor: "#374151",
+  borderColor: "#ffb900",
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  margin: 0,
+};
+const MULTI_SELECT_SELECTED_TEXT_PROPS = { numberOfLines: 1 };
+const MULTI_SELECT_FLAT_LIST_PROPS = {
+  initialNumToRender: 10,
+  maxToRenderPerBatch: 10,
+  windowSize: 5,
+};
+const MULTI_SELECT_FLAT_LIST_PROPS_LARGE = {
+  initialNumToRender: 15,
+  maxToRenderPerBatch: 15,
+  windowSize: 10,
+  removeClippedSubviews: true,
+  updateCellsBatchingPeriod: 50,
+};
+
+const PRICE_INPUT_STYLE = {
+  backgroundColor: "#1F2937",
+  borderWidth: 0,
+  marginTop: 20,
+  height: 35,
+};
+
+const PRICE_INPUT_THEME = {
+  roundness: 10,
+  colors: {
+    onSurfaceVariant: "gray",
+    primary: "white",
+  },
+};
+
+const FormStoreUpdate = React.memo(({
   storeId,
   enabled,
   onClose,
@@ -385,6 +485,40 @@ const FormStoreUpdate = ({
     new Set(),
   );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [currentStep, setCurrentStep] = React.useState(0);
+  const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set());
+  const stepSlideAnim = React.useRef(new Animated.Value(0)).current;
+  const prevStepRef = React.useRef(0);
+
+  const stepLabels = React.useMemo(() => [
+    t("form.stepStoreInfo"),
+    t("form.stepMainHeadings"),
+    t("form.stepSubHeadings"),
+    t("form.stepStoreServices"),
+    t("form.stepStorePrices"),
+    t("form.stepStoreStaff"),
+    t("form.stepStorePricing"),
+    t("form.stepStoreHours"),
+    t("form.stepStoreAddress"),
+  ], [t, currentLanguage]);
+
+  const steps = React.useMemo(
+    () => stepLabels.map((label, i) => ({ id: `step-${i}`, label })),
+    [stepLabels],
+  );
+  const totalSteps = stepLabels.length;
+
+  const stepFields: Record<number, (keyof FormUpdateValues)[]> = React.useMemo(() => ({
+    0: ["storeImages", "taxDocumentImage", "storeName", "type"],
+    1: ["selectedMainHeadings"],
+    2: ["selectedSubHeadings"],
+    3: ["selectedCategories"],
+    4: ["prices"],
+    5: ["barbers", "chairs"],
+    6: ["pricingType"],
+    7: ["workingHours", "holidayDays"],
+    8: ["location"],
+  }), []);
 
   const {
     control,
@@ -402,6 +536,52 @@ const FormStoreUpdate = ({
     defaultValues: { storeName: data?.storeName },
   });
 
+  const validateStep = React.useCallback(async (stepIndex: number): Promise<boolean> => {
+    const fields = stepFields[stepIndex];
+    if (!fields) return true;
+    return trigger(fields as any);
+  }, [trigger, stepFields]);
+
+  const handleNextStep = React.useCallback(async () => {
+    const valid = await validateStep(currentStep);
+    if (!valid) return;
+    setCompletedSteps((prev) => new Set(prev).add(currentStep));
+    if (currentStep < totalSteps - 1) setCurrentStep((s) => s + 1);
+  }, [currentStep, totalSteps, validateStep]);
+
+  const handlePrevStep = React.useCallback(() => {
+    if (currentStep > 0) {
+      const prevStep = currentStep - 1;
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        next.delete(prevStep);
+        return next;
+      });
+      setCurrentStep(prevStep);
+    }
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (prevStepRef.current === currentStep) {
+      stepSlideAnim.setValue(0);
+      return;
+    }
+    const width = Dimensions.get("window").width;
+    const isForward = currentStep > prevStepRef.current;
+    stepSlideAnim.setValue(isForward ? width : -width);
+    Animated.timing(stepSlideAnim, {
+      toValue: 0,
+      duration: 260,
+      useNativeDriver: true,
+    }).start(() => {
+      prevStepRef.current = currentStep;
+    });
+  }, [currentStep, stepSlideAnim]);
+
+  const handleStepPress = React.useCallback((index: number) => {
+    setCurrentStep(index);
+  }, []);
+
   useEffect(() => {
     if (enabled && storeId) {
       triggerGetStore(storeId);
@@ -410,6 +590,8 @@ const FormStoreUpdate = ({
     if (!enabled) {
       // Form'u reset et
       reset();
+      setCurrentStep(0);
+      setCompletedSteps(new Set());
     }
   }, [enabled, storeId, triggerGetStore, reset]);
 
@@ -497,7 +679,8 @@ const FormStoreUpdate = ({
     if (Object.keys(errors).length > 0) {
       trigger();
     }
-  }, [currentLanguage, trigger, errors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLanguage]);
 
   useEffect(() => {
     if (!data) return;
@@ -610,7 +793,10 @@ const FormStoreUpdate = ({
       pricingType: initialPricing,
       holidayDays: initialHolidayDays,
       workingHours: initialWorkingHours,
+      selectedMainHeadings: [],
+      selectedSubHeadings: [],
     });
+    // Hook otomatik olarak services'ı günceller
   }, [data, reset]);
 
   const location = watch("location");
@@ -684,50 +870,99 @@ const FormStoreUpdate = ({
     fromHHmm(working[0]?.endTime ?? "18:00"),
   );
   const selectedType = watch("type");
-  const currentPrices = watch("prices");
+  const selectedMainHeadings = watch("selectedMainHeadings") ?? [];
+  const selectedSubHeadings = watch("selectedSubHeadings") ?? [];
   const selectedCategories = watch("selectedCategories") ?? [];
   const effectiveType = selectedType || (data?.type ?? undefined);
 
-  // Category API hooks
-  const { data: parentCategoriesRaw = [] } = useGetParentCategoriesQuery();
+  // Kategori hiyerarşisi - tek API çağrısı ile tüm kategoriler
+  const {
+    parentCategories,
+    mainHeadings,
+    subHeadings,
+    services,
+    findParentHierarchyFromServices,
+    isLoading: isCategoryLoading,
+  } = useCategoryHierarchy({
+    selectedType: effectiveType,
+    selectedMainHeadings,
+    selectedSubHeadings,
+  });
 
-  // Duplicate kategorileri filtrele (name bazında)
-  const parentCategories = React.useMemo(() => {
-    if (!parentCategoriesRaw || parentCategoriesRaw.length === 0) return [];
-    const seen = new Set<string>();
-    return parentCategoriesRaw.filter((cat: any) => {
-      if (seen.has(cat.name)) return false;
-      seen.add(cat.name);
-      return true;
-    });
-  }, [parentCategoriesRaw]);
-  const [triggerGetChildCategories, { data: childCategories = [] }] =
-    useLazyGetChildCategoriesQuery();
-
-  // Store tüm kategorileri seçebilir
-  // Data yüklendiğinde de child kategorileri yükle
+  // Data yüklendiğinde mevcut hizmetlerden geriye doğru ana başlık ve alt başlık bul
+  const initialDataLoadedRef = useRef(false);
   React.useEffect(() => {
-    // selectedType varsa onu kullan, yoksa data.type'ı display name'e çevir
-    const dataTypeName =
-      data?.type != null ? mapTypeToDisplayName(data.type as any) : undefined;
-    const typeToLoad = selectedType || dataTypeName;
+    if (!data || isCategoryLoading) return;
+    if (parentCategories.length === 0) return;
 
-    if (typeToLoad && parentCategories.length > 0) {
-      const parentCat = parentCategories.find(
-        (cat: any) => cat.name === typeToLoad,
-      );
-      if (parentCat) {
-        triggerGetChildCategories(parentCat.id);
-      }
+    const initialCategories = (data.serviceOfferings ?? []).map(
+      (s) => s.serviceName,
+    );
+    if (initialCategories.length === 0) return;
+
+    const dataTypeName = data?.type != null ? mapTypeToDisplayName(data.type as any) : undefined;
+    if (!dataTypeName) return;
+
+    // Hizmet isimlerinden geriye doğru ana başlık ve alt başlık bul
+    const { mainHeadings: foundMainHeadings, subHeadings: foundSubHeadings } =
+      findParentHierarchyFromServices(initialCategories, dataTypeName);
+
+    // Hiyerarşi henüz eşleşmedi ise tekrar dene (kategoriler henüz yüklenmemiş olabilir)
+    if (foundMainHeadings.length === 0 && foundSubHeadings.length === 0) return;
+
+    // Zaten yüklendiyse tekrar çalıştırma
+    if (initialDataLoadedRef.current) return;
+
+    // Seçili hizmetleri ve hiyerarşiyi set et
+    setValue("selectedCategories", initialCategories, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+
+    if (foundMainHeadings.length > 0) {
+      setValue("selectedMainHeadings", foundMainHeadings, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
     }
-  }, [selectedType, data?.type, parentCategories]);
 
+    if (foundSubHeadings.length > 0) {
+      setValue("selectedSubHeadings", foundSubHeadings, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+
+    initialDataLoadedRef.current = true;
+  }, [data, parentCategories, isCategoryLoading, findParentHierarchyFromServices, setValue]);
+
+  // Kategori seçenekleri - ana başlıklar
+  const mainHeadingOptions = useMemo(
+    () =>
+      mainHeadings.map((cat: any) => ({
+        label: cat.name,
+        value: cat.name,
+      })),
+    [mainHeadings],
+  );
+
+  // Kategori seçenekleri - alt başlıklar
+  const subHeadingOptions = useMemo(
+    () =>
+      subHeadings.map((cat: any) => ({
+        label: cat.name,
+        value: cat.name,
+      })),
+    [subHeadings],
+  );
+
+  // Kategori seçenekleri - hizmetler (final seçim)
   const categoryOptions = useMemo(
     // Form state'te selectedCategories + prices anahtarları serviceName (Category.Name) olarak tutulur.
     // Backend de ServiceOffering.ServiceName üzerinden çalıştığı için en stabil yaklaşım.
     () =>
-      childCategories.map((cat: any) => ({ label: cat.name, value: cat.name })),
-    [childCategories],
+      services.map((cat: any) => ({ label: cat.name, value: cat.name })),
+    [services],
   );
   const categoryOptionsWithSelected = useMemo(() => {
     const base = [...categoryOptions];
@@ -772,14 +1007,27 @@ const FormStoreUpdate = ({
     [parentCategories],
   );
 
+  // FIX: Use working length instead of working array to avoid infinite loop
+  const workingLengthRef = useRef<number>(0);
+  const lastActiveDayRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    const idx = (working ?? []).findIndex((w) => w.dayOfWeek === activeDay);
-    if (idx < 0) return;
-    const row = working[idx];
-    if (!row) return;
-    setActiveStart(fromHHmm(row.startTime));
-    setActiveEnd(fromHHmm(row.endTime));
-  }, [activeDay, working]);
+    const currentLength = working?.length || 0;
+    const lengthChanged = currentLength !== workingLengthRef.current;
+    const dayChanged = activeDay !== lastActiveDayRef.current;
+
+    if (lengthChanged || dayChanged) {
+      const idx = (working ?? []).findIndex((w) => w.dayOfWeek === activeDay);
+      if (idx >= 0) {
+        const row = working[idx];
+        if (row) {
+          setActiveStart(fromHHmm(row.startTime));
+          setActiveEnd(fromHHmm(row.endTime));
+        }
+      }
+    }
+    workingLengthRef.current = currentLength;
+    lastActiveDayRef.current = activeDay;
+  }, [activeDay, working?.length]);
 
   const { updateLocation, reverseAndSetAddress } =
     createStoreLocationHelpers<FormUpdateValues>(setValue, getValues);
@@ -933,6 +1181,7 @@ const FormStoreUpdate = ({
     );
   };
 
+  // Type değişince alt seviyeleri reset et
   const prevTypeRef = React.useRef<string | undefined>(undefined);
   useEffect(() => {
     if (prevTypeRef.current === undefined) {
@@ -944,30 +1193,88 @@ const FormStoreUpdate = ({
       prevTypeRef.current &&
       selectedType !== prevTypeRef.current
     ) {
+      setValue("selectedMainHeadings", [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+      setValue("selectedSubHeadings", [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
       setValue("selectedCategories", [], {
         shouldDirty: true,
-        shouldValidate: true,
+        shouldValidate: false,
       });
-      setValue("prices", {}, { shouldDirty: true, shouldValidate: true });
+      setValue("prices", {}, { shouldDirty: true, shouldValidate: false });
     }
     prevTypeRef.current = selectedType;
   }, [selectedType, setValue]);
 
+  // Ana başlıklar değişince alt seviyeleri reset et
+  const prevMainHeadingsRef = useRef<string[]>([]);
   useEffect(() => {
+    const prevKey = prevMainHeadingsRef.current.slice().sort().join(",");
+    const currKey = selectedMainHeadings.slice().sort().join(",");
+
+    if (prevKey !== currKey && prevMainHeadingsRef.current.length > 0) {
+      setValue("selectedSubHeadings", [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+      setValue("selectedCategories", [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+      setValue("prices", {}, { shouldDirty: true, shouldValidate: false });
+    }
+    prevMainHeadingsRef.current = [...selectedMainHeadings];
+  }, [selectedMainHeadings, setValue]);
+
+  // Alt başlıklar değişince hizmetleri reset et
+  const prevSubHeadingsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const prevKey = prevSubHeadingsRef.current.slice().sort().join(",");
+    const currKey = selectedSubHeadings.slice().sort().join(",");
+
+    if (prevKey !== currKey && prevSubHeadingsRef.current.length > 0) {
+      setValue("selectedCategories", [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+      setValue("prices", {}, { shouldDirty: true, shouldValidate: false });
+    }
+    prevSubHeadingsRef.current = [...selectedSubHeadings];
+  }, [selectedSubHeadings, setValue]);
+
+  // FIX: Use selectedCategories.length instead of selectedCategories array to avoid infinite loop
+  const selectedCategoriesLengthRef = useRef<number>(0);
+  useEffect(() => {
+    const currentLength = selectedCategories?.length || 0;
+    if (currentLength === selectedCategoriesLengthRef.current) return;
+    selectedCategoriesLengthRef.current = currentLength;
+
     const currentPricesValues = getValues("prices") || {};
-    const next: Record<string, string> = { ...currentPricesValues };
+    const next: Record<string, string> = {};
     let changed = false;
+
+    // Copy existing prices, filtering out undefined values
+    Object.keys(currentPricesValues).forEach((k) => {
+      const val = currentPricesValues[k];
+      if (val !== undefined && val !== null) {
+        next[k] = val;
+      }
+    });
 
     // Remove keys not in selectedCategories
     Object.keys(next).forEach((k) => {
-      if (!selectedCategories.includes(k)) {
+      if (!selectedCategories?.includes(k)) {
         delete next[k];
         changed = true;
       }
     });
 
     // Add keys for new selectedCategories
-    selectedCategories.forEach((k) => {
+    selectedCategories?.forEach((k) => {
       if (!(k in next)) {
         next[k] = "";
         changed = true;
@@ -981,7 +1288,7 @@ const FormStoreUpdate = ({
         shouldValidate: false,
       });
     }
-  }, [selectedCategories, setValue, getValues]);
+  }, [selectedCategories?.length, setValue, getValues]);
 
   // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
   const { checkAndAlert: checkCanPerformAction } = useCanPerformAction(
@@ -1119,9 +1426,9 @@ const FormStoreUpdate = ({
           const priceNum = parseTR(priceStr);
           if (priceNum == null) return null;
 
-          // Category name'i bul
+          // Category name'i bul (services hook'tan geliyor)
           const categoryName =
-            childCategories.find((cat: any) => cat.id === categoryId)?.name ??
+            services.find((cat) => cat.id === categoryId)?.name ??
             categoryId;
 
           const existingId = data?.serviceOfferings?.find(
@@ -1276,7 +1583,7 @@ const FormStoreUpdate = ({
       style={{ flex: 1 }}
     >
       <View className="h-full">
-        <View className="flex-row justify-between items-center px-4">
+        <View className="flex-row justify-between items-center px-2">
           <Text className="text-white flex-1 font-century-gothic text-2xl">
             {t("form.updateStore")}
           </Text>
@@ -1295,979 +1602,1053 @@ const FormStoreUpdate = ({
           </View>
         ) : (
           <>
+            <StepFormIndicator
+              steps={steps}
+              currentStep={currentStep}
+              onStepPress={handleStepPress}
+              canNavigateFreely={true}
+              completedSteps={completedSteps}
+            />
             <ScrollView
+              key={currentStep}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled
-              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+              alwaysBounceVertical={false}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
+              style={{ flex: 1 }}
             >
-              <Text className="text-white text-xl mt-4 px-4">
-                {t("form.storeImagesTitle")}
-              </Text>
-              <View className="mt-4">
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-                >
-                  {(images ?? []).map((img, index) => (
-                    <View
-                      key={index}
-                      className="relative"
-                      style={{ width: 200, height: 150 }}
-                    >
-                      <Image
-                        className="w-full h-full rounded-xl"
-                        source={{ uri: img.uri }}
-                        resizeMode="cover"
-                        onLoad={() =>
-                          setLoadedStoreImages((prev) =>
-                            new Set(prev).add(index),
-                          )
-                        }
-                      />
-                      {!loadedStoreImages.has(index) && (
-                        <View
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            backgroundColor: "#1F2937",
-                            borderRadius: 10,
-                          }}
-                        >
-                          <ActivityIndicator size="large" color="#888" />
-                        </View>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
-                        activeOpacity={0.85}
-                      >
-                        <Icon source="close" size={18} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {(!images || images.length < 3) && (
-                    <TouchableOpacity
-                      onPress={pickMultipleImages}
-                      disabled={isImagePickerLoading}
-                      className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                      style={{ width: 200, height: 150 }}
-                      activeOpacity={0.85}
-                    >
-                      {isImagePickerLoading ? (
-                        <ActivityIndicator size="large" color="#888" />
-                      ) : (
-                        <>
-                          <Icon source="image-plus" size={40} color="#888" />
-                          <Text className="text-gray-500 mt-2">{t("form.addImage")}</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </ScrollView>
-              </View>
-              <Text className="text-white text-xl mt-6 px-4">
-                {t("form.storeInformation")}
-              </Text>
-              <View className="mt-2 px-4">
-                <Controller
-                  control={control}
-                  name="taxDocumentImage"
-                  render={({ field: { value, onChange } }) => (
-                    <>
-                      <TouchableOpacity
-                        activeOpacity={0.85}
-                        disabled={isTaxDocumentLoading}
-                        onPress={async () => {
-                          setIsTaxDocumentLoading(true);
-                          try {
-                            const file = await handlePickImage();
-                            if (file) onChange(file);
-                          } finally {
-                            setIsTaxDocumentLoading(false);
-                          }
-                        }}
-                      >
-                        <TextInput
-                          label="Vergi Levhası Resmi"
-                          mode="outlined"
-                          value={
-                            value?.name
-                              ? truncateFileName(value.name)
-                              : t("form.imageNotSelected")
-                          }
-                          editable={false}
-                          dense
-                          pointerEvents="none"
-                          textColor="white"
-                          outlineColor={
-                            errors.taxDocumentImage ? "#b00020" : "#444"
-                          }
-                          right={
-                            isTaxDocumentLoading ? (
-                              <ActivityIndicator
-                                size="small"
-                                color="#888"
-                                style={{ marginRight: 12 }}
-                              />
-                            ) : (
-                              <TextInput.Icon icon="image" color="white" />
-                            )
-                          }
-                          theme={{
-                            roundness: 10,
-                            colors: {
-                              onSurfaceVariant: "gray",
-                              primary: "white",
-                            },
-                          }}
-                          style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
-                        />
-                      </TouchableOpacity>
-                      {value?.uri && !isTaxDocumentLoading && (
-                        <View className="mt-2 mb-2 w-full">
-                          <Image
-                            source={{ uri: value.uri }}
-                            style={{
-                              width: "100%",
-                              height: 200,
-                              borderRadius: 10,
-                            }}
-                            resizeMode="stretch"
-                          />
-                        </View>
-                      )}
-                      <HelperText
-                        type="error"
-                        visible={!!errors.taxDocumentImage}
-                      >
-                        {taxDocErrorText}
-                      </HelperText>
-                    </>
-                  )}
-                />
-                <View className="flex-row gap-3">
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="storeName"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <>
-                          <TextInput
-                            label={t("form.storeNameLabel")}
-                            mode="outlined"
-                            dense
-                            value={value}
-                            onChangeText={onChange}
-                            onBlur={onBlur}
-                            textColor="white"
-                            outlineColor={errors.storeName ? "#b00020" : "#444"}
-                            theme={{
-                              roundness: 10,
-                              colors: {
-                                onSurfaceVariant: "gray",
-                                primary: "white",
-                              },
-                            }}
-                            style={{
-                              backgroundColor: "#1F2937",
-                              borderWidth: 0,
-                              marginTop: -6,
-                            }}
-                          />
-                          <HelperText type="error" visible={!!errors.storeName} style={{ fontFamily: 'CenturyGothic' }}>
-                            {errors.storeName?.message}
-                          </HelperText>
-                        </>
-                      )}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="type"
-                      render={({ field: { value, onChange } }) => {
-                        // Use memoized dropdown data and validation set
-                        const isValueValid =
-                          value && parentCategoriesValueSet.has(value);
-
-                        return (
-                          <>
-                            <Dropdown
-                              data={parentCategoriesDropdownData}
-                              labelField="label"
-                              valueField="value"
-                              placeholder={t("form.selectMainCategory")}
-                              value={isValueValid ? value : null}
-                              onChange={(item: {
-                                label: string;
-                                value: string;
-                              }) => {
-                                onChange(item.value);
-                              }}
-                              style={{
-                                height: 42,
-                                borderRadius: 10,
-                                paddingHorizontal: 12,
-                                backgroundColor: "#1F2937",
-                                borderWidth: 1,
-                                borderColor: errors.type ? "#b00020" : "#444",
-                                justifyContent: "center",
-                                marginTop: 0,
-                              }}
-                              placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                              selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                              itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                              containerStyle={{
-                                backgroundColor: "#1F2937",
-                                borderWidth: 0,
-                                borderRadius: 10,
-                                overflow: "hidden",
-                              }}
-                              activeColor="#3a3b3d"
-                            />
-                            <HelperText
-                              className="text-4xl"
-                              type="error"
-                              visible={!!errors.type}
-                            >
-                              {errors.type?.message}
-                            </HelperText>
-                          </>
-                        );
-                      }}
-                    />
-                  </View>
-                </View>
-                {selectedType && categoryOptions.length > 0 ? (
-                  <View className="mt-[-10x]">
-                    <Text className="text-white text-xl mb-2">
-                      {t("form.servicesTitle")} ({selectedType})
+              <Animated.View style={{ flex: 1, transform: [{ translateX: stepSlideAnim }] }}>
+                {currentStep === 0 && (
+                  <>
+                    <Text className="text-white text-xl mt-4 px-2">
+                      {t("form.storeImagesTitle")}
                     </Text>
-                    <Controller
-                      control={control}
-                      name="selectedCategories"
-                      render={({ field: { value, onChange } }) => {
-                        return (
-                          <>
-                            <MultiSelect
-                              key={`cats-${selectedType ?? "x"}-${categoryOptions.length}`}
-                              data={categoryOptionsWithSelected}
-                              labelField="label"
-                              valueField="value"
-                              value={(value ?? []).filter((v) =>
-                                categoryValueSet.has(v),
-                              )}
-                              onChange={onChange}
-                              placeholder={t("form.selectService")}
-                              dropdownPosition="top"
-                              inside
-                              alwaysRenderSelectedItem
-                              visibleSelectedItem
-                              flatListProps={{
-                                initialNumToRender: 10,
-                                maxToRenderPerBatch: 10,
-                                windowSize: 5,
-                              }}
-                              style={{
-                                backgroundColor: "#1F2937",
-                                borderColor: errors.selectedCategories
-                                  ? "#b00020"
-                                  : "#444",
-                                borderWidth: 1,
-                                borderRadius: 10,
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                              }}
-                              containerStyle={{
-                                backgroundColor: "#1F2937",
-                                borderWidth: 1,
-                                borderColor: "#444",
-                                borderRadius: 10,
-                                overflow: "hidden",
-                              }}
-                              placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                              selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                              itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                              activeColor="#0f766e"
-                              selectedStyle={{
-                                borderRadius: 10,
-                                backgroundColor: "#374151",
-                                borderColor: "#0f766e",
-                                paddingHorizontal: 10,
-                                paddingVertical: 6,
-                                margin: 0,
-                              }}
-                              selectedTextProps={{ numberOfLines: 1 }}
-                            />
-
-                            <HelperText
-                              type="error"
-                              visible={!!errors.selectedCategories}
-                            >
-                              {errors.selectedCategories?.message}
-                            </HelperText>
-                          </>
-                        );
-                      }}
-                    />
-                  </View>
-                ) : null}
-                {selectedCategories.length > 0 && (
-                  <View
-                    className="mt-0 mx-0  rounded-xl"
-                    style={{
-                      backgroundColor: "#1F2937",
-                      paddingVertical: 6,
-                      paddingHorizontal: 16,
-                    }}
-                  >
-                    {selectedCategories.map((categoryId) => {
-                      const label =
-                        categoryLabelMap.get(categoryId) ?? categoryId;
-                      return (
-                        <View key={categoryId}>
-                          <View className="flex-row items-center gap-2 mb-0">
-                            <Text className="text-white w-[35%]">
-                              {label} :
-                            </Text>
-                            <View className="w-[65%]">
-                              <Controller
-                                control={control}
-                                name={`prices.${categoryId}` as const}
-                                render={({
-                                  field: { value, onChange, onBlur },
-                                  fieldState: { error },
-                                }) => (
-                                  <TextInput
-                                    mode="outlined"
-                                    dense
-                                    keyboardType="numeric"
-                                    label={t("form.priceLabel")}
-                                    value={value ?? ""}
-                                    onChangeText={(t) => {
-                                      const raw = t.replace(/[^\d.,]/g, "");
-                                      onChange(raw);
-                                    }}
-                                    onBlur={() => {
-                                      const toTR = (s: string) => {
-                                        const n = Number(
-                                          s
-                                            .replace(/\./g, "")
-                                            .replace(",", "."),
-                                        );
-                                        if (Number.isNaN(n)) return s;
-                                        return new Intl.NumberFormat("tr-TR", {
-                                          minimumFractionDigits: 0,
-                                          maximumFractionDigits: 2,
-                                        }).format(n);
-                                      };
-                                      onChange(toTR(value ?? ""));
-                                    }}
-                                    textColor="white"
-                                    outlineColor={error ? "#b00020" : "#444"}
-                                    style={{
-                                      backgroundColor: "#1F2937",
-                                      borderWidth: 0,
-                                      marginTop: 20,
-                                      height: 35,
-                                    }}
-                                    theme={{
-                                      roundness: 10,
-                                      colors: {
-                                        onSurfaceVariant: "gray",
-                                        primary: "white",
-                                      },
-                                    }}
-                                  />
-                                )}
-                              />
-                              <HelperText
-                                type="error"
-                                visible={!!errors.prices?.[categoryId]}
-                              >
-                                {errors.prices?.[categoryId]?.message as string}
-                              </HelperText>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-                <View className="mt-2 mx-0 flex-row items-center">
-                  <Text className="text-white text-xl flex-1">
-                    {t("form.workingBarbersCount")} : {barberFields.length}{" "}
-                  </Text>
-                  <Button
-                    mode="text"
-                    textColor="#c2a523"
-                    onPress={openCreateBarberModal}
-                  >
-                    {t("form.addBarber")}
-                  </Button>
-                </View>
-                {barberFields.length > 0 && (
-                  <View className="bg-[#1F2937] rounded-xl px-3 pt-4 pb-2">
-                    {barberFields.map((item, index) => (
-                      <View
-                        key={item._key}
-                        className="flex-row items-center mb-3 gap-3"
+                    <View className="mt-4">
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
                       >
-                        {barbers[index]?.avatar?.uri ? (
-                          <Avatar.Image
-                            size={40}
-                            source={{ uri: barbers[index]?.avatar?.uri }}
-                          />
-                        ) : (
-                          <Avatar.Icon size={40} icon="account-circle" />
-                        )}
-
-                        <Controller
-                          control={control}
-                          name={`barbers.${index}.name`}
-                          render={({ field: { value } }) => (
-                            <TextInput
-                              label={t("form.barberName")}
-                              mode="outlined"
-                              dense
-                              value={value ?? ""}
-                              readOnly
-                              textColor="white"
-                              outlineColor="#444"
-                              theme={{
-                                roundness: 10,
-                                colors: {
-                                  onSurfaceVariant: "gray",
-                                  primary: "white",
-                                },
-                              }}
-                              style={{
-                                backgroundColor: "#1F2937",
-                                borderWidth: 0,
-                                flex: 1,
-                              }}
-                            />
-                          )}
-                        />
-                        <TouchableOpacity
-                          onPress={() => openEditBarberModal(index)}
-                        >
-                          <Icon size={22} source="update" color="#c2a523" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteBarber(index)}
-                        >
-                          <Icon size={22} source="delete" color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    <HelperText type="error" visible={!!barberErrorText} style={{ fontFamily: 'CenturyGothic' }}>
-                      {barberErrorText}
-                    </HelperText>
-                  </View>
-                )}
-                <View className="mt-4 mx-0 flex-row items-center">
-                  <Text className="text-white text-xl flex-1">
-                    {t("form.chairCount")} : {chairFields.length}
-                  </Text>
-                  <Button
-                    mode="text"
-                    textColor="#c2a523"
-                    onPress={openCreateChairModal}
-                  >
-                    {t("form.addChair")}
-                  </Button>
-                </View>
-                {chairFields.length > 0 && (
-                  <View className="bg-[#1F2937] rounded-xl px-3 pt-4">
-                    {chairFields.map((item, index) => {
-                      const chair = chairs[index];
-                      if (!chair) return null;
-                      const isBarberChair = !!chair.barberId;
-                      const modeLabel = isBarberChair
-                        ? t("form.barberChair")
-                        : t("form.namedChair");
-                      const barberName = isBarberChair
-                        ? (barberMap.get(chair.barberId!) ?? t("form.unassigned"))
-                        : "-";
-                      return (
-                        <View
-                          key={item._key}
-                          className="flex-row items-center gap-3 mt-2  mb-3"
-                        >
-                          <Icon
-                            size={24}
-                            source={"chair-rolling"}
-                            color="#c2a523"
-                          ></Icon>
-                          <View className="flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border">
-                            <Text className="text-gray-500 text-xs mb-1">
-                              {modeLabel}
-                            </Text>
-                          </View>
-                          <View className="flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border">
-                            {!isBarberChair ? (
-                              <Text className="text-white text-xs mb-1">
-                                {chair.name}
-                              </Text>
-                            ) : (
-                              <Text className="text-white text-xs mb-1">
-                                {barberName}
-                              </Text>
-                            )}
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => openEditChairModal(index)}
+                        {(images ?? []).map((img, index) => (
+                          <View
+                            key={index}
+                            className="relative"
+                            style={{ width: 200, height: 150 }}
                           >
-                            <Icon size={22} source="update" color="#c2a523" />
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleChair(index)}>
-                            <Icon size={22} source="delete" color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                    <HelperText type="error" visible={!!chairsErrorText} style={{ fontFamily: 'CenturyGothic' }}>
-                      {chairsErrorText}
-                    </HelperText>
-                  </View>
-                )}
-
-                <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">
-                  {t("form.chairPricing")}
-                </Text>
-                <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
-                  <Controller
-                    control={control}
-                    name="pricingType.mode"
-                    render={({ field: { value, onChange } }) => (
-                      <View className="flex-row justify-center gap-16 ">
-                        {PRICING_OPTIONS.map((opt) => (
+                            <Image
+                              className="w-full h-full rounded-xl"
+                              source={{ uri: img.uri }}
+                              resizeMode="cover"
+                              onLoad={() =>
+                                setLoadedStoreImages((prev) =>
+                                  new Set(prev).add(index),
+                                )
+                              }
+                            />
+                            {!loadedStoreImages.has(index) && (
+                              <View
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  backgroundColor: "#1F2937",
+                                  borderRadius: 10,
+                                }}
+                              >
+                                <ActivityIndicator size="large" color="#888" />
+                              </View>
+                            )}
+                            <TouchableOpacity
+                              onPress={() => removeImage(index)}
+                              className="absolute top-2 right-2 bg-red-500 rounded-full p-1.5"
+                              activeOpacity={0.85}
+                            >
+                              <Icon source="close" size={18} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        {(!images || images.length < 3) && (
                           <TouchableOpacity
-                            key={opt.value}
-                            onPress={() => onChange(opt.value)}
-                            className="flex-row items-center gap-2"
+                            onPress={pickMultipleImages}
+                            disabled={isImagePickerLoading}
+                            className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
+                            style={{ width: 200, height: 150 }}
                             activeOpacity={0.85}
                           >
-                            <View
-                              className={`w-4 h-4 rounded-full border ${value === opt.value
-                                ? "bg-green-500 border-green-500"
-                                : "border-gray-400"
-                                }`}
-                            />
-                            <Text className="text-white">{opt.label}</Text>
+                            {isImagePickerLoading ? (
+                              <ActivityIndicator size="large" color="#888" />
+                            ) : (
+                              <>
+                                <Icon source="image-plus" size={40} color="#888" />
+                                <Text className="text-gray-500 mt-2">{t("form.addImage")}</Text>
+                              </>
+                            )}
                           </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  />
-                  {pricingMode === "rent" && (
-                    <Controller
-                      control={control}
-                      name="pricingType.rent"
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <>
-                          <TextInput
-                            dense
-                            value={value?.toString() ?? ""}
-                            onChangeText={(t) => {
-                              const raw = t.replace(/[^\d.,]/g, "");
-                              onChange(raw);
-                            }}
-                            onBlur={() => {
-                              const toTR = (s: string) => {
-                                const n = Number(
-                                  s.replace(/\./g, "").replace(",", "."),
-                                );
-                                if (Number.isNaN(n)) return s;
-                                return new Intl.NumberFormat("tr-TR", {
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 2,
-                                }).format(n);
-                              };
-                              onChange(toTR(value ?? ""));
-                            }}
-                            mode="outlined"
-                            label={t("form.rentPriceHourly")}
-                            textColor="white"
-                            outlineColor={
-                              errors.pricingType?.rent ? "#b00020" : "#444"
-                            }
-                            theme={{
-                              roundness: 10,
-                              colors: {
-                                onSurfaceVariant: "gray",
-                                primary: "white",
-                              },
-                            }}
-                            style={{
-                              backgroundColor: "#1F2937",
-                              borderWidth: 0,
-                              marginTop: 8,
-                            }}
-                            keyboardType="numeric"
-                          />
-                          <HelperText
-                            type="error"
-                            visible={!!errors.pricingType?.rent}
-                          >
-                            {errors.pricingType?.rent?.message as string}
-                          </HelperText>
-                        </>
-                      )}
-                    />
-                  )}
-                  {pricingMode === "percent" && (
-                    <Controller
-                      control={control}
-                      name="pricingType.percent"
-                      render={({ field: { value, onChange } }) => (
-                        <>
-                          <Dropdown
-                            dropdownPosition="top"
-                            data={[
-                              { label: "10%", value: "10" },
-                              { label: "20%", value: "20" },
-                              { label: "30%", value: "30" },
-                              { label: "40%", value: "40" },
-                              { label: "50%", value: "50" },
-                              { label: "60%", value: "60" },
-                              { label: "70%", value: "70" },
-                              { label: "80%", value: "80" },
-                              { label: "90%", value: "90" },
-                            ]}
-                            labelField="label"
-                            valueField="value"
-                            value={value ? String(value) : undefined}
-                            placeholder={t("form.selectPercent")}
-                            onChange={(item: {
-                              label: string;
-                              value: string;
-                            }) => onChange(item.value)}
-                            style={{
-                              paddingHorizontal: 12,
-                              paddingVertical: 8,
-                              borderRadius: 10,
-                              backgroundColor: "#1F2937",
-                              borderWidth: 1,
-                              borderColor: errors.pricingType?.percent
-                                ? "#b00020"
-                                : "#444",
-                              marginTop: 12,
-                              height: 42,
-                            }}
-                            placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                            selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                            itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                            containerStyle={{
-                              backgroundColor: "#1F2937",
-                              borderWidth: 1,
-                              borderColor: "#444",
-                              borderRadius: 10,
-                              overflow: "hidden",
-                            }}
-                            activeColor="#0f766e"
-                          />
-                          <HelperText
-                            type="error"
-                            visible={!!errors.pricingType?.percent}
-                          >
-                            {errors.pricingType?.percent?.message as string}
-                          </HelperText>
-                        </>
-                      )}
-                    />
-                  )}
-                </View>
-                <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
-                  {t("form.workingHours")}
-                </Text>
-                <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
-                  <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
-                    - {t("form.workingHoursInfo")}
-                  </Text>
-                  <View className="mt-2 px-0">
-                    <View className="flex-row  gap-2">
-                      {DAYS_TR.map((d) => {
-                        const isHoliday = (holidayDays ?? []).includes(d.day);
-                        const isActive = activeDay === d.day;
-                        return (
-                          <TouchableOpacity
-                            key={d.day}
-                            disabled={isHoliday}
-                            onPress={() => setActiveDay(d.day)}
-                            className={`px-3 py-2 rounded-full border ${isHoliday
-                              ? "opacity-40 border-gray-600"
-                              : isActive
-                                ? "bg-emerald-500"
-                                : "border-gray-500"
-                              }`}
-                            activeOpacity={0.8}
-                          >
-                            <Text className="text-white text-xs">
-                              {d.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                        )}
+                      </ScrollView>
                     </View>
-                    {(() => {
-                      const idx = (working ?? []).findIndex(
-                        (w) => w.dayOfWeek === activeDay,
-                      );
-                      if (idx < 0) return null;
-                      const dayRow = working[idx];
-                      const isDisabled =
-                        dayRow?.isClosed ||
-                        (holidayDays ?? []).includes(activeDay);
-                      const dayErr = errors.workingHours?.[idx];
-                      return (
-                        <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
-                          <View className="flex-row items-center mt-6">
-                            <Text className="text-white text-sm">
-                              Başlangıç saati:
-                            </Text>
-                            <DateTimePicker
-                              value={activeStart}
-                              mode="time"
-                              is24Hour
-                              locale="tr-TR"
-                              disabled={isDisabled}
-                              onChange={(_, d) => {
-                                if (!d || isDisabled) return;
-                                setActiveStart(d);
-                                setValue(
-                                  `workingHours.${idx}.startTime`,
-                                  fmtHHmm(d),
-                                  {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  },
-                                );
-                                trigger([
-                                  `workingHours.${idx}.startTime`,
-                                  `workingHours.${idx}.endTime`,
-                                ]);
+                    <Text className="text-white text-xl mt-6 px-2">
+                      {t("form.storeInformation")}
+                    </Text>
+                    <View className="mt-2 px-2">
+                      <Controller
+                        control={control}
+                        name="taxDocumentImage"
+                        render={({ field: { value, onChange } }) => (
+                          <>
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              disabled={isTaxDocumentLoading}
+                              onPress={async () => {
+                                setIsTaxDocumentLoading(true);
+                                try {
+                                  const file = await handlePickImage();
+                                  if (file) onChange(file);
+                                } finally {
+                                  setIsTaxDocumentLoading(false);
+                                }
                               }}
-                            />
-                            <Text className="text-white text-sm ml-5">
-                              Bitiş saati:
-                            </Text>
-                            <DateTimePicker
-                              value={activeEnd}
-                              mode="time"
-                              is24Hour
-                              locale="tr-TR"
-                              disabled={isDisabled}
-                              onChange={(_, d) => {
-                                if (!d || isDisabled) return;
-                                setActiveEnd(d);
-                                setValue(
-                                  `workingHours.${idx}.endTime`,
-                                  fmtHHmm(d),
-                                  {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
+                            >
+                              <TextInput
+                                label="Vergi Levhası Resmi"
+                                mode="outlined"
+                                value={
+                                  value?.name
+                                    ? truncateFileName(value.name)
+                                    : t("form.imageNotSelected")
+                                }
+                                editable={false}
+                                dense
+                                pointerEvents="none"
+                                textColor="white"
+                                outlineColor={
+                                  errors.taxDocumentImage ? "#b00020" : "#444"
+                                }
+                                right={
+                                  isTaxDocumentLoading ? (
+                                    <ActivityIndicator
+                                      size="small"
+                                      color="#888"
+                                      style={{ marginRight: 12 }}
+                                    />
+                                  ) : (
+                                    <TextInput.Icon icon="image" color="white" />
+                                  )
+                                }
+                                theme={{
+                                  roundness: 10,
+                                  colors: {
+                                    onSurfaceVariant: "gray",
+                                    primary: "white",
                                   },
+                                }}
+                                style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
+                              />
+                            </TouchableOpacity>
+                            {value?.uri && !isTaxDocumentLoading && (
+                              <View className="mt-2 mb-2 w-full">
+                                <Image
+                                  source={{ uri: value.uri }}
+                                  style={{
+                                    width: "100%",
+                                    height: 200,
+                                    borderRadius: 10,
+                                  }}
+                                  resizeMode="stretch"
+                                />
+                              </View>
+                            )}
+                            <HelperText
+                              type="error"
+                              visible={!!errors.taxDocumentImage}
+                            >
+                              {taxDocErrorText}
+                            </HelperText>
+                          </>
+                        )}
+                      />
+                      <View className="flex-row gap-3">
+                        <View className="flex-1">
+                          <Controller
+                            control={control}
+                            name="storeName"
+                            render={({ field: { onChange, onBlur, value } }) => (
+                              <>
+                                <TextInput
+                                  label={t("form.storeNameLabel")}
+                                  mode="outlined"
+                                  dense
+                                  value={value}
+                                  onChangeText={onChange}
+                                  onBlur={onBlur}
+                                  textColor="white"
+                                  outlineColor={errors.storeName ? "#b00020" : "#444"}
+                                  theme={{
+                                    roundness: 10,
+                                    colors: {
+                                      onSurfaceVariant: "gray",
+                                      primary: "white",
+                                    },
+                                  }}
+                                  style={{
+                                    backgroundColor: "#1F2937",
+                                    borderWidth: 0,
+                                    marginTop: -6,
+                                  }}
+                                />
+                                <HelperText type="error" visible={!!errors.storeName} style={{ fontFamily: 'CenturyGothic' }}>
+                                  {errors.storeName?.message}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Controller
+                            control={control}
+                            name="type"
+                            render={({ field: { value, onChange } }) => {
+                              // Use memoized dropdown data and validation set
+                              const isValueValid =
+                                value && parentCategoriesValueSet.has(value);
+
+                              return (
+                                <>
+                                  <Dropdown
+                                    data={parentCategoriesDropdownData}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder={t("form.selectMainCategory")}
+                                    value={isValueValid ? value : null}
+                                    onChange={(item: {
+                                      label: string;
+                                      value: string;
+                                    }) => {
+                                      onChange(item.value);
+                                    }}
+                                    style={{
+                                      height: 42,
+                                      borderRadius: 10,
+                                      paddingHorizontal: 12,
+                                      backgroundColor: "#1F2937",
+                                      borderWidth: 1,
+                                      borderColor: errors.type ? "#b00020" : "#444",
+                                      justifyContent: "center",
+                                      marginTop: 0,
+                                    }}
+                                    placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
+                                    selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                    itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                    containerStyle={{
+                                      backgroundColor: "#1F2937",
+                                      borderWidth: 0,
+                                      borderRadius: 10,
+                                      overflow: "hidden",
+                                    }}
+                                    activeColor="#3a3b3d"
+                                  />
+                                  <HelperText
+                                    className="text-4xl"
+                                    type="error"
+                                    visible={!!errors.type}
+                                  >
+                                    {errors.type?.message}
+                                  </HelperText>
+                                </>
+                              );
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  </>
+                )}
+                {currentStep === 1 && (
+                  <>
+                    <View className="mt-2 px-2">
+                      {!selectedType || mainHeadingOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepMainHeadings")} - {t("form.selectMainCategory")}
+                        </Text>
+                      ) : (
+                        <>
+                          <Text className="text-white text-xl mb-2">
+                            {t("form.mainHeadings")}
+                          </Text>
+                          <Controller
+                            control={control}
+                            name="selectedMainHeadings"
+                            render={({ field: { value, onChange } }) => (
+                              <>
+                                <CategoryListSelect
+                                  data={mainHeadingOptions}
+                                  value={(value ?? []) as string[]}
+                                  onChange={onChange}
+                                />
+                                <HelperText
+                                  type="error"
+                                  visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
+                                >
+                                  {errors.selectedMainHeadings?.message}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 2 && (
+                  <>
+                    <View className="mt-2 px-2">
+                      {selectedMainHeadings.length === 0 || subHeadingOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepSubHeadings")} - {t("form.selectMainHeadings")}
+                        </Text>
+                      ) : (
+                        <>
+                          <View>
+                            <Text className="text-white text-xl mb-2">
+                              {t("form.subHeadings")}
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedSubHeadings"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={subHeadingOptions}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedSubHeadings.length && !!errors.selectedSubHeadings}
+                                  >
+                                    {errors.selectedSubHeadings?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 3 && (
+                  <>
+                    <View className="mt-2 px-2">
+                      {selectedSubHeadings.length === 0 || categoryOptions.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepStoreServices")} - {t("form.selectSubHeadings")}
+                        </Text>
+                      ) : (
+                        <>
+                          <View>
+                            <Text className="text-white text-xl mb-2">
+                              {t("form.servicesTitle")} ({selectedType})
+                            </Text>
+                            <Controller
+                              control={control}
+                              name="selectedCategories"
+                              render={({ field: { value, onChange } }) => {
+                                return (
+                                  <>
+                                    <CategoryListSelect
+                                      data={categoryOptionsWithSelected}
+                                      value={(value ?? []).filter((v) =>
+                                        categoryValueSet.has(v),
+                                      )}
+                                      onChange={onChange}
+                                    />
+
+                                    <HelperText
+                                      type="error"
+                                      visible={!selectedCategories.length && !!errors.selectedCategories}
+                                    >
+                                      {errors.selectedCategories?.message}
+                                    </HelperText>
+                                  </>
                                 );
-                                trigger([
-                                  `workingHours.${idx}.startTime`,
-                                  `workingHours.${idx}.endTime`,
-                                ]);
                               }}
                             />
                           </View>
-                          <HelperText
-                            type="error"
-                            visible={!!(dayErr?.startTime || dayErr?.endTime)}
-                          >
-                            {((dayErr?.startTime?.message as string) ||
-                              (dayErr?.endTime?.message as string)) ??
-                              ""}
-                          </HelperText>
-                        </View>
-                      );
-                    })()}
-                    <Text className="text-white text-xl mt-2">
-                      Tatil Günleri
-                    </Text>
-                    <Controller
-                      control={control}
-                      name="holidayDays"
-                      render={({
-                        field: { value, onChange },
-                        fieldState: { error },
-                      }) => (
-                        <>
-                          <MultiSelect
-                            data={HOLIDAY_OPTIONS}
-                            labelField="label"
-                            valueField="value"
-                            value={(value ?? []).map(String)}
-                            onChange={(vals: string[]) => {
-                              const numeric = vals.map((v) => Number(v));
-                              onChange(numeric);
-                              const current = getValues("workingHours") ?? [];
-                              const updated = current.map((w) => ({
-                                ...w,
-                                isClosed: numeric.includes(w.dayOfWeek),
-                              }));
-                              setValue("workingHours", updated, {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              });
-                            }}
-                            placeholder={t("form.selectHolidays")}
-                            dropdownPosition="top"
-                            inside
-                            alwaysRenderSelectedItem
-                            visibleSelectedItem
-                            style={{
-                              backgroundColor: "#1F2937",
-                              borderColor: error ? "#b00020" : "#444",
-                              borderWidth: 1,
-                              borderRadius: 10,
-                              paddingHorizontal: 12,
-                              paddingVertical: 8,
-                              marginTop: 8,
-                            }}
-                            containerStyle={{
-                              backgroundColor: "#1F2937",
-                              borderWidth: 1,
-                              borderColor: "#444",
-                              borderRadius: 10,
-                              overflow: "hidden",
-                            }}
-                            placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                            selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                            itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                            activeColor="#0f766e"
-                            selectedStyle={{
-                              borderRadius: 10,
-                              backgroundColor: "#374151",
-                              borderColor: "#0f766e",
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                            }}
-                          />
-                          <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
-                            {error?.message as string}
-                          </HelperText>
                         </>
                       )}
-                    />
-                  </View>
-                </View>
-                <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
-                  {t("form.setAddress")}
-                </Text>
-                <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
-                  <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
-                    - Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın
-                    konumunu ala tıklayınız ama değilseniz haritadan konumunuza
-                    tıklayınız.
-                  </Text>
-                  <Button
-                    loading={locBusy}
-                    disabled={locBusy}
-                    mode="contained-tonal"
-                    icon={"store"}
-                    className="my-2.5"
-                    onPress={pickMyCurrentLocation}
-                    buttonColor="#10B981"
-                    textColor="white"
-                  >
-                    {t("form.getStoreLocation")}
-                  </Button>
-                  <MapPicker
-                    lat={c ? c.lat : undefined}
-                    lng={c ? c.lon : undefined}
-                    address={address}
-                    onChange={async (la, ln) => {
-                      updateLocation(la, ln);
-                      await reverseAndSetAddress(la, ln);
-                    }}
-                  />
-                  <HelperText
-                    type="error"
-                    visible={
-                      !!(
-                        errors.location?.latitude || errors.location?.longitude
-                      )
-                    }
-                  >
-                    {(errors.location?.latitude?.message as string) ||
-                      (errors.location?.longitude?.message as string) ||
-                      ""}
-                  </HelperText>
-                  <Controller
-                    control={control}
-                    name="location.addressDescription"
-                    render={({ field: { value, onChange, onBlur } }) => (
-                      <>
-                        <TextInput
-                          label={t("form.addressDescription")}
-                          mode="outlined"
-                          dense
-                          value={value}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          multiline
-                          readOnly
+                    </View>
+                  </>
+                )}
+                {currentStep === 4 && (
+                  <>
+                    <View className="mt-2 px-2">
+                      {!selectedCategories || selectedCategories.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">
+                          {t("form.stepStorePrices")} - {t("form.selectService")}
+                        </Text>
+                      ) : (
+                        <>
+                          {selectedCategories.length > 0 && (
+                            <View
+                              className="mt-0 mx-0  rounded-xl"
+                              style={{
+                                backgroundColor: "#1F2937",
+                                paddingVertical: 6,
+                                paddingHorizontal: 16,
+                              }}
+                            >
+                              {selectedCategories.map((categoryId) => {
+                                const label =
+                                  categoryLabelMap.get(categoryId) ?? categoryId;
+                                return (
+                                  <View key={categoryId}>
+                                    <View className="flex-row items-center gap-2 mb-0">
+                                      <Text className="text-white w-[35%]">
+                                        {label} :
+                                      </Text>
+                                      <View className="w-[65%]">
+                                        <Controller
+                                          control={control}
+                                          name={`prices.${categoryId}` as const}
+                                          render={({
+                                            field: { value, onChange, onBlur },
+                                            fieldState: { error },
+                                          }) => (
+                                            <TextInput
+                                              mode="outlined"
+                                              dense
+                                              keyboardType="numeric"
+                                              label={t("form.priceLabel")}
+                                              value={value ?? ""}
+                                              onChangeText={(t) => {
+                                                const raw = t.replace(/[^\d.,]/g, "");
+                                                onChange(raw);
+                                              }}
+                                              onBlur={() => {
+                                                const toTR = (s: string) => {
+                                                  const n = Number(
+                                                    s
+                                                      .replace(/\./g, "")
+                                                      .replace(",", "."),
+                                                  );
+                                                  if (Number.isNaN(n)) return s;
+                                                  return new Intl.NumberFormat("tr-TR", {
+                                                    minimumFractionDigits: 0,
+                                                    maximumFractionDigits: 2,
+                                                  }).format(n);
+                                                };
+                                                onChange(toTR(value ?? ""));
+                                              }}
+                                              textColor="white"
+                                              outlineColor={error ? "#b00020" : "#444"}
+                                              style={PRICE_INPUT_STYLE}
+                                              theme={PRICE_INPUT_THEME}
+                                            />
+                                          )}
+                                        />
+                                        <HelperText
+                                          type="error"
+                                          visible={!!errors.prices?.[categoryId]}
+                                        >
+                                          {errors.prices?.[categoryId]?.message as string}
+                                        </HelperText>
+                                      </View>
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {currentStep === 5 && (
+                  <>
+                    <View className="mt-2 mx-0 flex-row items-center px-2">
+                      <Text className="text-white text-xl flex-1">
+                        {t("form.workingBarbersCount")} : {barberFields.length}{" "}
+                      </Text>
+                      <Button
+                        mode="text"
+                        textColor="#c2a523"
+                        onPress={openCreateBarberModal}
+                      >
+                        {t("form.addBarber")}
+                      </Button>
+                    </View>
+                    {barberFields.length > 0 && (
+                      <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4 pb-2">
+                        {barberFields.map((item, index) => (
+                          <View
+                            key={item._key}
+                            className="flex-row items-center mb-3 gap-3"
+                          >
+                            {barbers[index]?.avatar?.uri ? (
+                              <Avatar.Image
+                                size={40}
+                                source={{ uri: barbers[index]?.avatar?.uri }}
+                              />
+                            ) : (
+                              <Avatar.Icon size={40} icon="account-circle" />
+                            )}
+
+                            <Controller
+                              control={control}
+                              name={`barbers.${index}.name`}
+                              render={({ field: { value } }) => (
+                                <TextInput
+                                  label={t("form.barberName")}
+                                  mode="outlined"
+                                  dense
+                                  value={value ?? ""}
+                                  readOnly
+                                  textColor="white"
+                                  outlineColor="#444"
+                                  theme={{
+                                    roundness: 10,
+                                    colors: {
+                                      onSurfaceVariant: "gray",
+                                      primary: "white",
+                                    },
+                                  }}
+                                  style={{
+                                    backgroundColor: "#1F2937",
+                                    borderWidth: 0,
+                                    flex: 1,
+                                  }}
+                                />
+                              )}
+                            />
+                            <TouchableOpacity
+                              onPress={() => openEditBarberModal(index)}
+                            >
+                              <Icon size={22} source="update" color="#c2a523" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteBarber(index)}
+                            >
+                              <Icon size={22} source="delete" color="#ef4444" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        <HelperText type="error" visible={!!barberErrorText} style={{ fontFamily: 'CenturyGothic' }}>
+                          {barberErrorText}
+                        </HelperText>
+                      </View>
+                    )}
+                    <View className="mt-4 mx-0 px-2 flex-row items-center">
+                      <Text className="text-white text-xl flex-1">
+                        {t("form.chairCount")} : {chairFields.length}
+                      </Text>
+                      <Button
+                        mode="text"
+                        textColor="#c2a523"
+                        onPress={openCreateChairModal}
+                      >
+                        {t("form.addChair")}
+                      </Button>
+                    </View>
+                    {chairFields.length > 0 && (
+                      <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4">
+                        {chairFields.map((item, index) => {
+                          const chair = chairs[index];
+                          if (!chair) return null;
+                          const isBarberChair = !!chair.barberId;
+                          const modeLabel = isBarberChair
+                            ? t("form.barberChair")
+                            : t("form.namedChair");
+                          // barberMap'i her render'da güncel kullan (barbers watch ediliyor)
+                          const barberName = isBarberChair
+                            ? (barberMap.get(chair.barberId!) ?? t("form.unassigned"))
+                            : "-";
+                          return (
+                            <View
+                              key={`chair-${item.id || index}-${barberName}`}
+                              className="flex-row items-center gap-3 mt-2  mb-3"
+                            >
+                              <Icon
+                                size={24}
+                                source={"chair-rolling"}
+                                color="#c2a523"
+                              ></Icon>
+                              <View className="flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border">
+                                <Text className="text-gray-500 text-xs mb-1">
+                                  {modeLabel}
+                                </Text>
+                              </View>
+                              <View className="flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border">
+                                {!isBarberChair ? (
+                                  <Text className="text-white text-xs mb-1">
+                                    {chair.name}
+                                  </Text>
+                                ) : (
+                                  <Text className="text-white text-xs mb-1">
+                                    {barberName}
+                                  </Text>
+                                )}
+                              </View>
+                              <TouchableOpacity
+                                onPress={() => openEditChairModal(index)}
+                              >
+                                <Icon size={22} source="update" color="#c2a523" />
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => handleChair(index)}>
+                                <Icon size={22} source="delete" color="#ef4444" />
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })}
+                        <HelperText type="error" visible={!!chairsErrorText} style={{ fontFamily: 'CenturyGothic' }}>
+                          {chairsErrorText}
+                        </HelperText>
+                      </View>
+                    )}
+                  </>
+                )}
+                {currentStep === 6 && (
+                  <>
+                    <View className="px-2">
+                      <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">
+                        {t("form.chairPricing")}
+                      </Text>
+                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
+                        <Controller
+                          control={control}
+                          name="pricingType.mode"
+                          render={({ field: { value, onChange } }) => (
+                            <View className="flex-row justify-center gap-16 ">
+                              {PRICING_OPTIONS.map((opt) => (
+                                <TouchableOpacity
+                                  key={opt.value}
+                                  onPress={() => onChange(opt.value)}
+                                  className="flex-row items-center gap-2"
+                                  activeOpacity={0.85}
+                                >
+                                  <View
+                                    className={`w-4 h-4 rounded-full border ${value === opt.value
+                                      ? "bg-green-500 border-green-500"
+                                      : "border-gray-400"
+                                      }`}
+                                  />
+                                  <Text className="text-white">{opt.label}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          )}
+                        />
+                        {pricingMode === "rent" && (
+                          <Controller
+                            control={control}
+                            name="pricingType.rent"
+                            render={({ field: { value, onChange, onBlur } }) => (
+                              <>
+                                <TextInput
+                                  dense
+                                  value={value?.toString() ?? ""}
+                                  onChangeText={(t) => {
+                                    const raw = t.replace(/[^\d.,]/g, "");
+                                    onChange(raw);
+                                  }}
+                                  onBlur={() => {
+                                    const toTR = (s: string) => {
+                                      const n = Number(
+                                        s.replace(/\./g, "").replace(",", "."),
+                                      );
+                                      if (Number.isNaN(n)) return s;
+                                      return new Intl.NumberFormat("tr-TR", {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 2,
+                                      }).format(n);
+                                    };
+                                    onChange(toTR(value ?? ""));
+                                  }}
+                                  mode="outlined"
+                                  label={t("form.rentPriceHourly")}
+                                  textColor="white"
+                                  outlineColor={
+                                    errors.pricingType?.rent ? "#b00020" : "#444"
+                                  }
+                                  theme={{
+                                    roundness: 10,
+                                    colors: {
+                                      onSurfaceVariant: "gray",
+                                      primary: "white",
+                                    },
+                                  }}
+                                  style={{
+                                    backgroundColor: "#1F2937",
+                                    borderWidth: 0,
+                                    marginTop: 8,
+                                  }}
+                                  keyboardType="numeric"
+                                />
+                                <HelperText
+                                  type="error"
+                                  visible={!!errors.pricingType?.rent}
+                                >
+                                  {errors.pricingType?.rent?.message as string}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        )}
+                        {pricingMode === "percent" && (
+                          <Controller
+                            control={control}
+                            name="pricingType.percent"
+                            render={({ field: { value, onChange } }) => (
+                              <>
+                                <Dropdown
+                                  dropdownPosition="top"
+                                  data={[
+                                    { label: "10%", value: "10" },
+                                    { label: "20%", value: "20" },
+                                    { label: "30%", value: "30" },
+                                    { label: "40%", value: "40" },
+                                    { label: "50%", value: "50" },
+                                    { label: "60%", value: "60" },
+                                    { label: "70%", value: "70" },
+                                    { label: "80%", value: "80" },
+                                    { label: "90%", value: "90" },
+                                  ]}
+                                  labelField="label"
+                                  valueField="value"
+                                  value={value ? String(value) : undefined}
+                                  placeholder={t("form.selectPercent")}
+                                  onChange={(item: {
+                                    label: string;
+                                    value: string;
+                                  }) => onChange(item.value)}
+                                  style={{
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: 10,
+                                    backgroundColor: "#1F2937",
+                                    borderWidth: 1,
+                                    borderColor: errors.pricingType?.percent
+                                      ? "#b00020"
+                                      : "#444",
+                                    marginTop: 12,
+                                    height: 42,
+                                  }}
+                                  placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
+                                  selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                  itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                  containerStyle={{
+                                    backgroundColor: "#1F2937",
+                                    borderWidth: 1,
+                                    borderColor: "#444",
+                                    borderRadius: 10,
+                                    overflow: "hidden",
+                                  }}
+                                  activeColor="#ffb900"
+                                />
+                                <HelperText
+                                  type="error"
+                                  visible={!!errors.pricingType?.percent}
+                                >
+                                  {errors.pricingType?.percent?.message as string}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </>
+                )}
+                {currentStep === 7 && (
+                  <>
+                    <View className="px-2">
+                      <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                        {t("form.workingHours")}
+                      </Text>
+                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                        <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
+                          - {t("form.workingHoursInfo")}
+                        </Text>
+                        <View className="mt-2 px-0">
+                          <View className="flex-row  gap-2">
+                            {DAYS_TR.map((d) => {
+                              const isHoliday = (holidayDays ?? []).includes(d.day);
+                              const isActive = activeDay === d.day;
+                              return (
+                                <TouchableOpacity
+                                  key={d.day}
+                                  disabled={isHoliday}
+                                  onPress={() => setActiveDay(d.day)}
+                                  className={`px-3 py-2 rounded-full border ${isHoliday
+                                    ? "opacity-40 border-gray-600"
+                                    : isActive
+                                      ? "bg-emerald-500"
+                                      : "border-gray-500"
+                                    }`}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text className="text-white text-xs">
+                                    {d.label}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          {(() => {
+                            const idx = (working ?? []).findIndex(
+                              (w) => w.dayOfWeek === activeDay,
+                            );
+                            if (idx < 0) return null;
+                            const dayRow = working[idx];
+                            const isDisabled =
+                              dayRow?.isClosed ||
+                              (holidayDays ?? []).includes(activeDay);
+                            const dayErr = errors.workingHours?.[idx];
+                            return (
+                              <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
+                                <View className="flex-row items-center mt-6">
+                                  <Text className="text-white text-sm">
+                                    Başlangıç saati:
+                                  </Text>
+                                  <DateTimePicker
+                                    value={activeStart}
+                                    mode="time"
+                                    is24Hour
+                                    locale="tr-TR"
+                                    disabled={isDisabled}
+                                    onChange={(_, d) => {
+                                      if (!d || isDisabled) return;
+                                      setActiveStart(d);
+                                      setValue(
+                                        `workingHours.${idx}.startTime`,
+                                        fmtHHmm(d),
+                                        {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        },
+                                      );
+                                      trigger([
+                                        `workingHours.${idx}.startTime`,
+                                        `workingHours.${idx}.endTime`,
+                                      ]);
+                                    }}
+                                  />
+                                  <Text className="text-white text-sm ml-5">
+                                    Bitiş saati:
+                                  </Text>
+                                  <DateTimePicker
+                                    value={activeEnd}
+                                    mode="time"
+                                    is24Hour
+                                    locale="tr-TR"
+                                    disabled={isDisabled}
+                                    onChange={(_, d) => {
+                                      if (!d || isDisabled) return;
+                                      setActiveEnd(d);
+                                      setValue(
+                                        `workingHours.${idx}.endTime`,
+                                        fmtHHmm(d),
+                                        {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        },
+                                      );
+                                      trigger([
+                                        `workingHours.${idx}.startTime`,
+                                        `workingHours.${idx}.endTime`,
+                                      ]);
+                                    }}
+                                  />
+                                </View>
+                                <HelperText
+                                  type="error"
+                                  visible={!!(dayErr?.startTime || dayErr?.endTime)}
+                                >
+                                  {((dayErr?.startTime?.message as string) ||
+                                    (dayErr?.endTime?.message as string)) ??
+                                    ""}
+                                </HelperText>
+                              </View>
+                            );
+                          })()}
+                          <Text className="text-white text-xl mt-2">
+                            Tatil Günleri
+                          </Text>
+                          <Controller
+                            control={control}
+                            name="holidayDays"
+                            render={({
+                              field: { value, onChange },
+                              fieldState: { error },
+                            }) => (
+                              <>
+                                <CategoryListSelect
+                                  data={HOLIDAY_OPTIONS}
+                                  value={(value ?? []).map(String)}
+                                  onChange={(vals: string[]) => {
+                                    const numeric = vals.map((v) => Number(v));
+                                    onChange(numeric);
+                                    const current = getValues("workingHours") ?? [];
+                                    const updated = current.map((w) => ({
+                                      ...w,
+                                      isClosed: numeric.includes(w.dayOfWeek),
+                                    }));
+                                    setValue("workingHours", updated, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    });
+                                  }}
+                                />
+                                <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
+                                  {error?.message as string}
+                                </HelperText>
+                              </>
+                            )}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  </>
+                )}
+                {currentStep === 8 && (
+                  <>
+                    <View className="px-2">
+                      <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                        {t("form.setAddress")}
+                      </Text>
+                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                        <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
+                          - Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın
+                          konumunu ala tıklayınız ama değilseniz haritadan konumunuza
+                          tıklayınız.
+                        </Text>
+                        <Button
+                          loading={locBusy}
+                          disabled={locBusy}
+                          mode="contained-tonal"
+                          icon={"store"}
+                          className="my-2.5"
+                          onPress={pickMyCurrentLocation}
+                          buttonColor="#10B981"
                           textColor="white"
-                          outlineColor={
-                            errors.location?.addressDescription
-                              ? "#b00020"
-                              : "#444"
-                          }
-                          theme={{
-                            roundness: 10,
-                            colors: {
-                              onSurfaceVariant: "gray",
-                              primary: "white",
-                            },
+                        >
+                          {t("form.getStoreLocation")}
+                        </Button>
+                        <MapPicker
+                          lat={c ? c.lat : undefined}
+                          lng={c ? c.lon : undefined}
+                          address={address}
+                          onChange={async (la, ln) => {
+                            updateLocation(la, ln);
+                            await reverseAndSetAddress(la, ln);
                           }}
-                          style={{
-                            backgroundColor: "#1F2937",
-                            borderWidth: 0,
-                            marginTop: 0,
-                          }}
-                          placeholder={t("form.addressPlaceholder")}
                         />
                         <HelperText
                           type="error"
-                          visible={!!errors.location?.addressDescription}
-                        >
-                          {
-                            errors.location?.addressDescription
-                              ?.message as string
+                          visible={
+                            !!(
+                              errors.location?.latitude || errors.location?.longitude
+                            )
                           }
+                        >
+                          {(errors.location?.latitude?.message as string) ||
+                            (errors.location?.longitude?.message as string) ||
+                            ""}
                         </HelperText>
-                      </>
-                    )}
-                  />
-                </View>
-              </View>
+                        <Controller
+                          control={control}
+                          name="location.addressDescription"
+                          render={({ field: { value, onChange, onBlur } }) => (
+                            <>
+                              <TextInput
+                                label={t("form.addressDescription")}
+                                mode="outlined"
+                                dense
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                multiline
+                                readOnly
+                                textColor="white"
+                                outlineColor={
+                                  errors.location?.addressDescription
+                                    ? "#b00020"
+                                    : "#444"
+                                }
+                                theme={{
+                                  roundness: 10,
+                                  colors: {
+                                    onSurfaceVariant: "gray",
+                                    primary: "white",
+                                  },
+                                }}
+                                style={{
+                                  backgroundColor: "#1F2937",
+                                  borderWidth: 0,
+                                  marginTop: 0,
+                                }}
+                                placeholder={t("form.addressPlaceholder")}
+                              />
+                              <HelperText
+                                type="error"
+                                visible={!!errors.location?.addressDescription}
+                              >
+                                {
+                                  errors.location?.addressDescription
+                                    ?.message as string
+                                }
+                              </HelperText>
+                            </>
+                          )}
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
+              </Animated.View>
             </ScrollView>
-            <View className="px-4 my-3">
-              <Button
-                className="mt-2 mb-4"
-                disabled={updateLoading || isSubmitting}
-                loading={updateLoading || isSubmitting}
-                mode="contained"
-                onPress={handleSubmit(OnSubmit)}
-                buttonColor="#1F2937"
-                textColor="white"
-                labelStyle={{ fontSize: 16 }}
-              >
-                Güncelle
-              </Button>
+            <View className="px-0 my-3 flex-row gap-3">
+              {currentStep > 0 && (
+                <Button
+                  className="flex-1"
+                  mode="outlined"
+                  onPress={handlePrevStep}
+                  buttonColor="#ffb900"
+                  textColor="#ffb900"
+                >
+                  {t("form.stepPrev")}
+                </Button>
+              )}
+              {currentStep < totalSteps - 1 ? (
+                <Button
+                  className="flex-1"
+                  mode="contained"
+                  onPress={handleNextStep}
+                  buttonColor="#ffb900"
+                  textColor="#1F2937"
+                >
+                  {t("form.stepNext")}
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1"
+                  disabled={updateLoading || isSubmitting}
+                  loading={updateLoading || isSubmitting}
+                  mode="contained"
+                  onPress={handleSubmit(OnSubmit)}
+                  buttonColor="#10B981"
+                  textColor="white"
+                  labelStyle={{ fontSize: 16 }}
+                >
+                  Güncelle
+                </Button>
+              )}
             </View>
             <BarberEditModal
               visible={barberModalVisible}
@@ -2289,6 +2670,6 @@ const FormStoreUpdate = ({
       </View>
     </KeyboardAvoidingView>
   );
-};
+});
 
 export default FormStoreUpdate;

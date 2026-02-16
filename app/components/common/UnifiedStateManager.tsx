@@ -120,23 +120,25 @@ export const UnifiedStateManager: React.FC<UnifiedStateProps> = ({
   const shouldShowRetry = showRetryButton && config.showRetry && onRetry;
 
   return (
-    <View className="flex-1 items-center justify-center py-8">
-      <LottieViewComponent
-        animationSource={animationSource}
-        message={displayMessage}
-        animationSize={120}
-      />
-      {shouldShowRetry && (
-        <View className="mt-4">
-          <TouchableOpacity
-            onPress={onRetry}
-            className="bg-[#c2a523] px-6 py-2 rounded-lg"
-            activeOpacity={0.8}
-          >
-            <Text className="text-white font-medium">{t("common.retry")}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+    <View className="flex-1 items-center justify-start py-4 px-2">
+      <View className="bg-[#1a1b25]  rounded-2xl p-6 items-center w-full">
+        <LottieViewComponent
+          animationSource={animationSource}
+          message={displayMessage}
+          animationSize={120}
+        />
+        {shouldShowRetry && (
+          <View className="mt-4">
+            <TouchableOpacity
+              onPress={onRetry}
+              className="bg-[#c2a523] px-6 py-2 rounded-lg"
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-medium">{t("common.retry")}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 };

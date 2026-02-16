@@ -34,6 +34,7 @@ import {
   build7Days,
   normalizeTime,
   addMinutesToHHmm,
+  getDayInfo,
 } from "../../utils/time/time-helper";
 import { useAuth } from "../../hook/useAuth";
 import { getCurrentLocationSafe } from "../../utils/location/location-helper";
@@ -195,6 +196,8 @@ const StoreBookingContent = ({
     isHourlyFree,
     isPercentFree,
     totalPrice,
+    servicePriceTotal,
+    slotPriceTotal,
     pricingValue,
   } = useAppointmentPricing({
     pricingType: storeData?.pricingType,
@@ -204,12 +207,13 @@ const StoreBookingContent = ({
     selectedSlotKeys,
     isFreeBarber: isFreeBarber || isAddStoreMode,
   });
+  console.log(isCustomer);
 
   const { alert, alertSuccess, alertError } = useAlert();
 
   const canSubmit = useMemo(() => {
     const baseReady = !!selectedChairId && selectedSlotKeys.length > 0;
-    
+
     // Servis seçimi zorunlu olduğu durumlar:
     // 1. isAddStoreMode=true (FreeBarber dükkan ekliyor)
     // 2. isFreeBarber=true VE pricingType=percent (yüzdelik sistem, servis fiyatına göre hesaplanır)
@@ -310,30 +314,55 @@ const StoreBookingContent = ({
             showsHorizontalScrollIndicator={false}
             nestedScrollEnabled
           >
-            <View className="flex-row gap-3">
+            <View className="flex-row gap-2 items-center">
+              <View className="items-center justify-center rounded-2xl px-2 py-2.5 min-w-[52px] bg-[#0f172a] border border-[#334155]">
+                <Icon source="calendar-month" size={24} color="#60a5fa" />
+              </View>
               {days.map((d) => {
                 const key = fmtDateOnly(d);
                 const active = key === selectedDateOnly;
                 const disabled = isDayClosed(d);
+                const info = getDayInfo(d);
                 return (
                   <TouchableOpacity
                     key={key}
                     disabled={disabled}
                     onPress={() => onChangeDay(key)}
-                    className={`px-3 py-2 rounded-xl ${disabled ? "bg-gray-800 opacity-40" : active ? "bg-green-500" : "bg-gray-800"}`}
+                    activeOpacity={0.7}
+                    className={`items-center rounded-2xl px-3 py-2.5 min-w-[68px] border ${
+                      disabled
+                        ? "bg-[#1e1e1e] border-[#2a2a2a] opacity-40"
+                        : active
+                          ? "bg-[#16a34a] border-[#22c55e]"
+                          : "bg-[#1e293b] border-[#334155]"
+                    }`}
                   >
-                    <View className="flex-row gap-2">
-                      <Text
-                        className={`text-sm ${disabled ? "text-gray-500" : active ? "text-white" : "text-gray-300"}`}
-                      >
-                        {key}
-                      </Text>
-                      {disabled ? (
-                        <Text className="text-xs text-gray-500 mt-1">
-                          Kapalı
-                        </Text>
-                      ) : null}
-                    </View>
+                    <Text
+                      className={`text-xs font-century-gothic ${
+                        disabled ? "text-gray-600" : active ? "text-green-100" : "text-gray-400"
+                      }`}
+                    >
+                      {info.isToday ? "Bugün" : info.dayShort}
+                    </Text>
+                    <Text
+                      className={`text-2xl font-century-gothic-bold my-0.5 ${
+                        disabled ? "text-gray-600" : active ? "text-white" : "text-white"
+                      }`}
+                    >
+                      {info.dayNum}
+                    </Text>
+                    <Text
+                      className={`text-xs font-century-gothic ${
+                        disabled ? "text-gray-600" : active ? "text-green-100" : "text-gray-400"
+                      }`}
+                    >
+                      {info.monthShort}
+                    </Text>
+                    {disabled && (
+                      <View className="mt-1 bg-red-900/50 px-1.5 py-0.5 rounded">
+                        <Text className="text-red-400 text-[10px]">Kapalı</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -345,143 +374,173 @@ const StoreBookingContent = ({
             </View>
           )}
           {chairs.length === 0 ? (
-            <Text className="text-gray-400">
-              Bu gün için koltuk/slot bulunamadı.
-            </Text>
+            <View className="bg-[#1e293b] rounded-xl p-4 items-center">
+              <Icon source="seat-outline" size={28} color="#6b7280" />
+              <Text className="text-gray-400 mt-2">
+                Bu gün için koltuk/slot bulunamadı.
+              </Text>
+            </View>
           ) : (
-            <FlatList
-              horizontal
-              data={chairs}
-              keyExtractor={(c) => c.chairId}
-              showsHorizontalScrollIndicator={false}
-              nestedScrollEnabled
-              contentContainerStyle={{ gap: 10 }}
-              renderItem={({ item: c }) => {
-                const isSelected = c.chairId === selectedChairId;
-                const hasBarber = c.barberId != null && c.barberName != null;
-                const chairName = c.chairName ?? "Koltuk";
-                const barberName = c.barberName ?? "";
-                const rating =
-                  c.barberRating != null
-                    ? Number(c.barberRating).toFixed(1)
-                    : null;
+            <View>
+              <Text className="text-gray-400 text-xs font-century-gothic mb-2">
+                Koltuk Seçin
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                <View className="flex-row gap-2">
+                  {chairs.map((c) => {
+                    const isSelected = c.chairId === selectedChairId;
+                    const hasBarber = c.barberId != null && c.barberName != null;
+                    const chairName = c.chairName ?? "Koltuk";
+                    const barberName = c.barberName ?? "";
+                    const rating =
+                      c.barberRating != null
+                        ? Number(c.barberRating).toFixed(1)
+                        : null;
 
-                return (
-                  <FilterChip
-                    itemKey={c.chairId}
-                    selected={isSelected}
-                    onPress={() => setSelectedChairId(c.chairId)}
-                    className={`items-center w-[140px] px-2 py-3 rounded-xl ${isSelected ? "bg-green-500" : "bg-gray-800"}`}
-                    icon={<Icon source="seat" size={24} color="white" />}
-                  >
-                    <View className="items-center gap-1">
-                      <Text
-                        className="text-white font-century-gothic text-sm"
-                        numberOfLines={1}
+                    return (
+                      <TouchableOpacity
+                        key={c.chairId}
+                        onPress={() => setSelectedChairId(c.chairId)}
+                        activeOpacity={0.7}
+                        className={`items-center min-w-[110px] px-3 py-3 rounded-2xl border ${
+                          isSelected
+                            ? "bg-[#16a34a] border-[#22c55e]"
+                            : "bg-[#1e293b] border-[#334155]"
+                        }`}
                       >
-                        {chairName}
-                      </Text>
-                      {hasBarber && (
-                        <>
+                        <View className={`rounded-full p-2 mb-1.5 ${isSelected ? "bg-white/20" : "bg-[#334155]"}`}>
+                          <Icon source="seat" size={22} color={isSelected ? "white" : "#94a3b8"} />
+                        </View>
+                        <Text
+                          className={`font-century-gothic-bold text-sm ${isSelected ? "text-white" : "text-gray-200"}`}
+                          numberOfLines={1}
+                        >
+                          {chairName}
+                        </Text>
+                        {hasBarber && (
                           <Text
-                            className="text-white font-century-gothic text-xs"
+                            className={`font-century-gothic text-xs mt-0.5 ${isSelected ? "text-green-100" : "text-gray-400"}`}
                             numberOfLines={1}
                           >
                             {barberName}
                           </Text>
-                          {rating != null && (
-                            <View className="flex-row items-center gap-1">
-                              <Icon
-                                size={12}
-                                source="star"
-                                color={isSelected ? "white" : "#FFA500"}
-                              />
-                              <Text className="text-white text-xs">
-                                {rating}
-                              </Text>
-                            </View>
-                          )}
-                        </>
-                      )}
-                      {!hasBarber && rating != null && (
-                        <View className="flex-row items-center gap-1">
-                          <Icon
-                            size={12}
-                            source="star"
-                            color={isSelected ? "white" : "#FFA500"}
-                          />
-                          <Text className="text-white text-xs">{rating}</Text>
-                        </View>
-                      )}
-                    </View>
-                  </FilterChip>
-                );
-              }}
-            />
+                        )}
+                        {rating != null && (
+                          <View className="flex-row items-center gap-1 mt-1">
+                            <Icon
+                              size={12}
+                              source="star"
+                              color={isSelected ? "#fde047" : "#FFA500"}
+                            />
+                            <Text className={`text-xs ${isSelected ? "text-white" : "text-gray-300"}`}>
+                              {rating}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
           )}
 
           {!selectedChair ? (
-            <Text className="text-gray-400">{t("form.selectChairFirst")}</Text>
+            <View className="bg-[#1e293b] rounded-xl p-4 items-center">
+              <Icon source="clock-outline" size={28} color="#6b7280" />
+              <Text className="text-gray-400 mt-2">{t("form.selectChairFirst")}</Text>
+            </View>
           ) : (
-            <FlatList
-              horizontal
-              data={selectedChair.slots}
-              keyExtractor={(s) => String(s.slotId)}
-              showsHorizontalScrollIndicator={false}
-              nestedScrollEnabled
-              contentContainerStyle={{ gap: 10 }}
-              renderItem={({ item: s }) => {
-                const isBooked = s.isBooked;
-                const isPast = s.isPast;
-                const key = normalizeTime(s.start);
-                const isSelected = selectedSlotKeys.includes(key);
-                return (
-                  <FilterChip
-                    itemKey={String(s.slotId)}
-                    selected={isSelected}
-                    isDisabled={isBooked || isPast}
-                    onPress={() => onToggleSlot(s, isBooked, isPast)}
-                    className={`flex-row items-center gap-2 px-3 py-2 rounded-xl ${
-                      isBooked
-                        ? "bg-red-500 opacity-60"
-                        : isPast
-                          ? "bg-gray-800 opacity-50"
-                          : isSelected
-                            ? "bg-green-500"
-                            : "bg-gray-800"
-                    }`}
-                    icon={
-                      <Icon source="clock-outline" size={18} color="white" />
-                    }
-                  >
-                    <View>
-                      <Text className="text-white">
-                        {normalizeTime(s.start)} - {normalizeTime(s.end)}
-                      </Text>
-                      {isBooked ? (
-                        <Text className="text-white text-xs">
-                          {t("form.full")}
-                        </Text>
-                      ) : isPast ? (
-                        <Text className="text-white text-xs">
-                          {t("form.timePassed")}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </FilterChip>
-                );
-              }}
-            />
-          )}
-          {!!startHHmm && !!endHHmm && (
-            <View className="bg-gray-800 rounded-xl p-3">
-              <Text className="text-white">
-                Seçilen Saat: {startHHmm} - {endHHmm} ({selectedSlotKeys.length}{" "}
-                saat)
+            <View>
+              <Text className="text-gray-400 text-xs font-century-gothic mb-2">
+                Saat Seçin
               </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {selectedChair.slots.map((s) => {
+                  const isBooked = s.isBooked;
+                  const isPast = s.isPast;
+                  const key = normalizeTime(s.start);
+                  const isSelected = selectedSlotKeys.includes(key);
+                  const isDisabled = isBooked || isPast;
+                  return (
+                    <TouchableOpacity
+                      key={String(s.slotId)}
+                      disabled={isDisabled}
+                      onPress={() => onToggleSlot(s, isBooked, isPast)}
+                      activeOpacity={0.7}
+                      className={`items-center px-3 py-2.5 rounded-xl border ${
+                        isBooked
+                          ? "bg-red-900/40 border-red-800/50 opacity-60"
+                          : isPast
+                            ? "bg-[#1e1e1e] border-[#2a2a2a] opacity-40"
+                            : isSelected
+                              ? "bg-[#16a34a] border-[#22c55e]"
+                              : "bg-[#1e293b] border-[#334155]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-sm font-century-gothic-bold ${
+                          isBooked || isPast ? "text-gray-500" : isSelected ? "text-white" : "text-gray-200"
+                        }`}
+                      >
+                        {normalizeTime(s.start)}
+                      </Text>
+                      <Text
+                        className={`text-[10px] font-century-gothic ${
+                          isBooked || isPast ? "text-gray-600" : isSelected ? "text-green-200" : "text-gray-500"
+                        }`}
+                      >
+                        {normalizeTime(s.end)}
+                      </Text>
+                      {isBooked && (
+                        <View className="mt-0.5">
+                          <Icon source="close-circle" size={12} color="#ef4444" />
+                        </View>
+                      )}
+                      {isPast && (
+                        <View className="mt-0.5">
+                          <Icon source="clock-alert" size={12} color="#6b7280" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           )}
-          <View className="mt-1">
+          {!!startHHmm && !!endHHmm && (
+            <View className="bg-[#0f1b2d] border border-[#1e3a5f] rounded-2xl p-4 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="bg-[#16a34a] rounded-full p-2">
+                  <Icon source="clock-check" size={20} color="white" />
+                </View>
+                <View>
+                  <Text className="text-gray-400 text-xs font-century-gothic">Seçilen Saat</Text>
+                  <Text className="text-white font-century-gothic-bold text-base">
+                    {startHHmm} - {endHHmm}
+                  </Text>
+                </View>
+              </View>
+              <View className="items-end gap-1">
+                <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                  <Text className="text-[#60a5fa] font-century-gothic-bold text-sm">
+                    {selectedSlotKeys.length} saat
+                  </Text>
+                </View>
+                {isHourlyFree && slotPriceTotal > 0 && (
+                  <Text className="text-[#a3e635] font-century-gothic-bold text-sm">
+                    {slotPriceTotal} {t("card.currencySymbol")}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+          <View className="h-px bg-[#334155] my-3" />
+          <View>
             {isFreeBarber && (
               <View className="bg-gray-800 px-3 py-2 rounded-lg mb-2">
                 <Text className="text-white text-base font-century-gothic">
@@ -493,66 +552,53 @@ const StoreBookingContent = ({
                 </Text>
               </View>
             )}
-            {isHourlyFree && (
-              <View className="flex-row items-center  px-3 pb-0 pt-2 rounded-lg mb-0">
-                <Text className="text-white font-century-gothic">
-                  Saatlik Kiralama :{" "}
-                </Text>
-                <Text className="text-[#a3e635] font-century-gothic-bold text-lg">
-                  ({totalPrice} {t("card.currencySymbol")})
-                </Text>
-              </View>
-            )}
-            {(isAddStoreMode ||
-              (!isHourlyFree && (isFreeBarber || isCustomer))) && (
+            {(isAddStoreMode || isFreeBarber || isCustomer) && (
               <View>
-                <View className="flex-row  items-center mb-2 mt-2 px-1">
-                  <Text className="text-white font-century-gothic text-xl">
-                    Hizmetler :
+                <View className="flex-row items-center justify-between mb-3 mt-2 px-1">
+                  <Text className="text-white font-century-gothic-bold text-lg">
+                    {t("common.services")}
                   </Text>
-                  <View className="flex-row items-center  px-2 py-0">
-                    <Text className="text-[#a3e635] font-century-gothic-bold text-xl">
-                      {totalPrice} {t("card.currencySymbol")}
+                  <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                    <Text className="text-[#a3e635] font-century-gothic-bold text-lg">
+                      {servicePriceTotal} {t("card.currencySymbol")}
                     </Text>
                   </View>
                 </View>
                 <FlatList
                   data={storeData?.serviceOfferings ?? []}
                   keyExtractor={(item) => item.id}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
+                  scrollEnabled={false}
                   nestedScrollEnabled
-                  removeClippedSubviews
                   contentContainerStyle={{ gap: 8 }}
                   renderItem={({ item }) => {
                     const isSelected = selectedServices.includes(item.id);
                     return (
-                      <FilterChip
-                        itemKey={item.id}
-                        selected={isSelected}
+                      <TouchableOpacity
                         onPress={() => toggleService(item.id)}
-                        className={`rounded-xl px-3 py-2  ${isSelected ? "bg-green-600 border-green-500" : "bg-gray-800"}`}
+                        activeOpacity={0.7}
+                        className={`flex-row items-center justify-between px-4 py-3 rounded-xl border ${isSelected ? "bg-[#14532d] border-[#22c55e]" : "bg-[#1e293b] border-[#334155]"}`}
                       >
-                        <View className="flex-row items-center gap-2">
+                        <View className="flex-row items-center flex-1 mr-2">
+                          <Icon
+                            source={isSelected ? "check-circle" : "circle-outline"}
+                            size={22}
+                            color={isSelected ? "#22c55e" : "#6b7280"}
+                          />
                           <Text
-                            style={{
-                              color: isSelected ? "white" : "#d1d5db",
-                              fontSize: 14,
-                              fontWeight: isSelected ? "600" : "400",
-                            }}
+                            className="ml-3 text-sm flex-1"
+                            style={{ color: isSelected ? "#e2e8f0" : "#d1d5db" }}
+                            numberOfLines={1}
                           >
                             {item.serviceName}
                           </Text>
-                          <Text
-                            style={{
-                              color: isSelected ? "white" : "#d1d5db",
-                              fontSize: 14,
-                            }}
-                          >
-                            {item.price} {t("card.currencySymbol")}
-                          </Text>
                         </View>
-                      </FilterChip>
+                        <Text
+                          className="text-sm font-century-gothic-bold"
+                          style={{ color: isSelected ? "#a3e635" : "#9ca3af" }}
+                        >
+                          {item.price} {t("card.currencySymbol")}
+                        </Text>
+                      </TouchableOpacity>
                     );
                   }}
                 />
@@ -568,7 +614,8 @@ const StoreBookingContent = ({
               isCreatingStore ||
               isAddingStore
             }
-            className={`py-3 flex-row justify-center gap-2 rounded-xl mt-0 items-center ${!canSubmit ? "bg-[#4b5563] opacity-60" : "bg-[#22c55e] opacity-100"}`}
+            className={`py-4 flex-row justify-center gap-2 rounded-2xl mt-2 items-center ${!canSubmit ? "bg-[#4b5563] opacity-60" : "bg-[#16a34a] opacity-100"}`}
+            style={canSubmit ? { elevation: 6, shadowColor: '#22c55e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 } : undefined}
             onPress={async () => {
               try {
                 // Error kontrolü: Sunucu çalışmıyorsa işlem yapılamaz
@@ -685,7 +732,7 @@ const StoreBookingContent = ({
                     alertError(
                       t("booking.locationRequired"),
                       locationResult.message ??
-                        t("booking.locationPermissionRequired"),
+                      t("booking.locationPermissionRequired"),
                     );
                     return;
                   }
@@ -760,16 +807,17 @@ const StoreBookingContent = ({
                 }
               } catch (error: unknown) {
                 const errorMessage = getErrorMessage(error);
-                // Duplicate slot hatası getErrorMessage içinde zaten handle ediliyor
-                // ve errors.duplicateSlot key'ine çevriliyor
-                alertError(t("common.error"), errorMessage);
+                // Abort hatası veya boş mesaj durumunda alert gösterme
+                if (errorMessage) {
+                  alertError(t("common.error"), errorMessage);
+                }
               }
             }}
           >
             {isCreatingCustomer ||
-            isCreatingFreeBarber ||
-            isCreatingStore ||
-            isAddingStore ? (
+              isCreatingFreeBarber ||
+              isCreatingStore ||
+              isAddingStore ? (
               <ActivityIndicator color="white" />
             ) : (
               <Icon source="location-enter" size={18} color="white" />

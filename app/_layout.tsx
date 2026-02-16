@@ -48,7 +48,6 @@ const RootLayout = () => {
         // Ignore token errors
       }
 
-      // Fontlar yüklendikten sonra hazır ol
       if (fontsLoaded) {
         setReady(true);
         try {

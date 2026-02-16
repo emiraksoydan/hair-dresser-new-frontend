@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { AppState, AppStateStatus } from 'react-native';
-import { API_CONFIG } from '../constants/api';
-import { NOTIFICATION_SOUND_DURATION_MS, NOTIFICATION_SOUND_FILENAME } from '../constants/notification';
 import { useAuth } from './useAuth';
+
+// Local notification sound - no network dependency
+const NOTIFICATION_SOUND = require('../../assets/sounds/notification.mp3');
 
 /**
  * Hook to play notification sound when badge count changes
@@ -17,19 +18,18 @@ import { useAuth } from './useAuth';
  * - Cooldown süresi (3 saniye) içinde yeni bildirimler için ses çalmaz
  * - CRITICAL FIX: Manuel refresh sonrası da ses çalar (eğer yeni bildirim varsa)
  * 
- * Sound duration: NOTIFICATION_SOUND_DURATION_MS (ayarlanabilir - constants/notification.ts)
- * Sound source: Backend'deki varsayılan bildirim sesi dosyası (wwwroot/sounds/notification.mp3)
+ * Sound source: Local asset (assets/sounds/notification.mp3) - network bağımsız, anında çalar
+ * Ses dosyasının kendi süresi var (3 saniye), otomatik biter - döngüye gerek yok
  */
 export const useNotificationSound = (badgeCount: number) => {
     const { isAuthenticated } = useAuth();
-    
+
     // CRITICAL FIX: Initialize with -1 to detect first real value
     // This ensures sound plays on manual refresh if there are new notifications
     const previousBadgeCountRef = useRef<number>(-1);
     const soundRef = useRef<Audio.Sound | null>(null);
     const hasPlayedOnMountRef = useRef<boolean>(false);
     const appStateRef = useRef<AppStateStatus>('active');
-    const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSoundPlayTimeRef = useRef<number>(0);
     const SOUND_COOLDOWN_MS = 3000; // 3 saniye cooldown - çoklu bildirimlerde her biri için ses çalmasın
     const isPlayingRef = useRef<boolean>(false); // Şu anda bir ses çalıyor mu kontrolü
@@ -76,38 +76,30 @@ export const useNotificationSound = (badgeCount: number) => {
     // CRITICAL FIX: Reset refs when authentication state changes (logout/login)
     useEffect(() => {
         const authChanged = previousAuthStateRef.current !== isAuthenticated;
-        
+
         if (authChanged) {
-            console.log("[NotificationSound] Auth state changed:", previousAuthStateRef.current, "->", isAuthenticated);
-            
             if (!isAuthenticated) {
                 // Logout: Reset all refs
-                console.log("[NotificationSound] Logout detected - resetting refs");
                 previousBadgeCountRef.current = -1;
                 hasPlayedOnMountRef.current = false;
                 isInitializedRef.current = false;
                 lastSoundPlayTimeRef.current = 0;
-                
+
                 // Stop any playing sound
                 if (soundRef.current) {
-                    soundRef.current.stopAsync().catch(() => {});
-                    soundRef.current.unloadAsync().catch(() => {});
+                    soundRef.current.stopAsync().catch(() => { });
+                    soundRef.current.unloadAsync().catch(() => { });
                     soundRef.current = null;
-                }
-                if (stopTimeoutRef.current) {
-                    clearTimeout(stopTimeoutRef.current);
-                    stopTimeoutRef.current = null;
                 }
                 isPlayingRef.current = false;
             } else {
                 // Login: Reset initialization state to detect new badge count
-                console.log("[NotificationSound] Login detected - resetting initialization state");
                 previousBadgeCountRef.current = -1;
                 isInitializedRef.current = false;
                 hasPlayedOnMountRef.current = false;
                 // Don't reset lastSoundPlayTimeRef - allow immediate sound on first notification
             }
-            
+
             previousAuthStateRef.current = isAuthenticated;
         }
     }, [isAuthenticated]);
@@ -132,13 +124,10 @@ export const useNotificationSound = (badgeCount: number) => {
         if (!isInitializedRef.current) {
             isInitializedRef.current = true;
             previousBadgeCountRef.current = badgeCount;
-            console.log("[NotificationSound] Initial badge count:", badgeCount);
-            
             // But if app was opened with notifications, play once
             if (badgeCount > 0 && appStateRef.current === 'active') {
                 if (soundRef.current === null && !isPlayingRef.current) {
                     hasPlayedOnMountRef.current = true;
-                    console.log("[NotificationSound] Playing sound for initial unread notifications");
                     playNotificationSound();
                 }
             }
@@ -154,8 +143,6 @@ export const useNotificationSound = (badgeCount: number) => {
             const timeSinceLastSound = now - lastSoundPlayTimeRef.current;
             const isSoundCurrentlyPlaying = soundRef.current !== null || isPlayingRef.current;
 
-            console.log("[NotificationSound] Badge count increased:", previousCount, "->", badgeCount, 
-                "cooldown:", timeSinceLastSound, "ms, playing:", isSoundCurrentlyPlaying);
 
             // Eğer bir ses zaten çalıyorsa veya cooldown süresi geçmediyse, yeni ses çalma
             if (!isSoundCurrentlyPlaying && timeSinceLastSound >= SOUND_COOLDOWN_MS) {
@@ -166,7 +153,6 @@ export const useNotificationSound = (badgeCount: number) => {
             // Sadece şu anda çalan bir ses yoksa çal
             if (soundRef.current === null && !isPlayingRef.current) {
                 hasPlayedOnMountRef.current = true;
-                console.log("[NotificationSound] Playing sound for existing unread notifications");
                 playNotificationSound();
             }
         }
@@ -177,73 +163,56 @@ export const useNotificationSound = (badgeCount: number) => {
     const playNotificationSound = async () => {
         // Only play if app is active
         if (appStateRef.current !== 'active') {
-            console.log("[NotificationSound] App not active, skipping sound");
             return;
         }
 
         // ÖNEMLİ: Okunmayan bildirim yoksa ses çalmamalı
         if (badgeCount === 0) {
-            console.log("[NotificationSound] Badge count is 0, skipping sound");
             return;
         }
 
         // ÖNEMLİ: Eğer bir ses zaten çalıyorsa, yeni ses çalma (aynı anda birden fazla bildirim gelirse)
         if (soundRef.current !== null || isPlayingRef.current) {
-            console.log("[NotificationSound] Sound already playing, skipping");
+            return;
+        }
+
+        // Cooldown kontrolü - son ses çalınmasından bu yana 3 saniye geçti mi?
+        const now = Date.now();
+        const timeSinceLastSound = now - lastSoundPlayTimeRef.current;
+        if (timeSinceLastSound < SOUND_COOLDOWN_MS) {
             return;
         }
 
         // Ses çalmaya başladığını işaretle
         isPlayingRef.current = true;
-        console.log("[NotificationSound] Playing notification sound...");
-
-        // Clear any existing timeout
-        if (stopTimeoutRef.current) {
-            clearTimeout(stopTimeoutRef.current);
-            stopTimeoutRef.current = null;
-        }
 
         try {
-            // Backend'deki varsayılan bildirim sesi dosyası (wwwroot/sounds/notification.mp3)
-            // API base URL'ini kullanarak backend'deki ses dosyasına erişim
-            const apiBaseUrl = API_CONFIG.BASE_URL.replace('/api/', ''); // /api/ kısmını kaldır
-            const soundUri = `${apiBaseUrl}/sounds/${NOTIFICATION_SOUND_FILENAME}`;
-
-            // Backend'deki varsayılan ses dosyasını çal
-            // Ses dosyasını döngüye alarak 3 saniye boyunca çal
+            // Local notification sound - anında çalar, network bağımsız
             const { sound } = await Audio.Sound.createAsync(
-                { uri: soundUri },
+                NOTIFICATION_SOUND,
                 {
                     shouldPlay: true,
-                    volume: 0.6, // Clear volume for notification
-                    isLooping: true, // Loop to play for full duration
+                    volume: 0.6,
+                    isLooping: false,
                     shouldCorrectPitch: true,
-                    rate: 1.0 // Normal playback speed
+                    rate: 1.0
                 }
             );
 
             soundRef.current = sound;
             lastSoundPlayTimeRef.current = Date.now(); // Ses çalma zamanını kaydet
 
-            // Stop sound after NOTIFICATION_SOUND_DURATION_MS (ayarlanabilir süre)
-            // constants/notification.ts dosyasından süreyi değiştirebilirsiniz
-            stopTimeoutRef.current = setTimeout(async () => {
-                try {
+            // Ses dosyası bittiğinde otomatik olarak durdur (ses dosyasının kendi süresi var, döngüye gerek yok)
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    // Ses dosyası bitti, temizle
                     if (soundRef.current) {
-                        await soundRef.current.stopAsync();
-                        await soundRef.current.unloadAsync();
+                        soundRef.current.unloadAsync().catch(() => { });
                         soundRef.current = null;
                     }
-                } catch (e) {
-                    // Ignore errors
+                    isPlayingRef.current = false;
                 }
-                // Ses çalma durumunu sıfırla
-                isPlayingRef.current = false;
-                if (stopTimeoutRef.current) {
-                    clearTimeout(stopTimeoutRef.current);
-                    stopTimeoutRef.current = null;
-                }
-            }, NOTIFICATION_SOUND_DURATION_MS); // Ayarlanabilir süre - constants/notification.ts
+            });
         } catch (error) {
             // Hata durumunda ses çalma durumunu sıfırla
             isPlayingRef.current = false;
@@ -256,9 +225,6 @@ export const useNotificationSound = (badgeCount: number) => {
     useEffect(() => {
         return () => {
             // Cleanup on unmount
-            if (stopTimeoutRef.current) {
-                clearTimeout(stopTimeoutRef.current);
-            }
             if (soundRef.current) {
                 soundRef.current.unloadAsync().catch(() => { });
             }

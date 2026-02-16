@@ -16,7 +16,7 @@ import { useBottomSheet } from "../../hook/useBottomSheet";
 import MotiViewExpand from "../../components/common/motiviewexpand";
 import { toggleExpand } from "../../utils/common/expand-toggle";
 import { BarberStoreGetDto, FreeBarGetDto } from "../../types";
-import { useGetAllCategoriesQuery, useGetSettingQuery, useGetMeQuery } from "../../store/api";
+import { useGetSettingQuery, useGetMeQuery } from "../../store/api";
 import { FilterDrawer } from "../../components/common/filterdrawer";
 import { StoreCardInner } from "../../components/store/storecard";
 import StoreBookingContent from "../../components/store/storebooking";
@@ -54,11 +54,7 @@ const Index = () => {
   } = useBackendFilters();
 
   // Create filter DTO for backend - includes all filter criteria
-  const storeFilterDto = useMemo(() => {
-    return createFilterRequestDto(undefined, currentUserId, t);
-  }, [createFilterRequestDto, currentUserId, t, filterCriteria]);
-
-  const freeBarberFilterDto = useMemo(() => {
+  const filterDto = useMemo(() => {
     return createFilterRequestDto(undefined, currentUserId, t);
   }, [createFilterRequestDto, currentUserId, t, filterCriteria]);
 
@@ -74,7 +70,7 @@ const Index = () => {
     manualFetch: manualFetchStores,
   } = useNearbyStores({
     enabled: true,
-    filter: storeFilterDto,
+    filter: filterDto,
     useFilteredEndpoint: true, // Her zaman filtered endpoint kullan
   });
 
@@ -89,19 +85,9 @@ const Index = () => {
     manualFetch: manualFetchFreeBarbers,
   } = useNearbyFreeBarber({
     enabled: true,
-    filter: freeBarberFilterDto,
+    filter: filterDto,
     useFilteredEndpoint: true, // Her zaman filtered endpoint kullan
   });
-
-  // Categories and settings
-  const { data: allCategories = [] } = useGetAllCategoriesQuery();
-  const categoryNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    (allCategories ?? []).forEach((c: any) => {
-      if (c?.id && c?.name) map.set(String(c.id), String(c.name));
-    });
-    return map;
-  }, [allCategories]);
 
   const { data: settingData } = useGetSettingQuery();
 
@@ -237,11 +223,9 @@ const Index = () => {
     const shouldShowFreeBarbers =
       filterCriteria.userType === "all" ||
       filterCriteria.userType === "freeBarber";
-    if (!shouldShowFreeBarbers || filterCriteria.userType === "store")
-      return [];
+    if (!shouldShowFreeBarbers) return [];
 
     return (freeBarbers || []).filter((barber) => {
-      // Basic search
       if (
         searchQuery &&
         !barber.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -385,18 +369,41 @@ const Index = () => {
       | "freebarbers-empty"
       | "freebarbers-loading"
       | "freebarbers-error"
-      | "freebarbers-content-horizontal";
+      | "freebarbers-content-horizontal"
+      | "nearby-empty";
       data?: any;
     }> = [];
 
-    // Stores section - using language-independent keys
     const shouldShowStores =
       filterCriteria.userType === "all" ||
       filterCriteria.userType === "store";
+    const shouldShowFreeBarbers =
+      filterCriteria.userType === "all" ||
+      filterCriteria.userType === "freeBarber";
+
+    const storesEmpty =
+      shouldShowStores &&
+      storesFetchedOnce &&
+      !storesLoading &&
+      !storesError &&
+      filteredStores.length === 0;
+    const freeBarbersEmpty =
+      shouldShowFreeBarbers &&
+      freeBarbersFetchedOnce &&
+      !freeBarbersLoading &&
+      !freeBarbersError &&
+      filteredFreeBarbers.length === 0;
+    const bothEmpty =
+      filterCriteria.userType === "all" && storesEmpty && freeBarbersEmpty;
+
+    if (bothEmpty) {
+      items.push({ id: "stores-header", type: "stores-header" });
+      items.push({ id: "nearby-empty", type: "nearby-empty" });
+      return items;
+    }
+
     if (shouldShowStores) {
       items.push({ id: "stores-header", type: "stores-header" });
-
-      // İlk yüklemede skeleton göster (fetchedOnce false ise veya loading true ise)
       if (!storesFetchedOnce || (storesLoading && filteredStores.length === 0)) {
         items.push({ id: "stores-loading", type: "stores-loading" });
       } else if (storesError) {
@@ -404,11 +411,7 @@ const Index = () => {
       } else if (filteredStores.length > 0) {
         if (expandedStores) {
           filteredStores.forEach((store) => {
-            items.push({
-              id: `store-${store.id}`,
-              type: "store",
-              data: store,
-            });
+            items.push({ id: `store-${store.id}`, type: "store", data: store });
           });
         } else {
           items.push({
@@ -422,14 +425,8 @@ const Index = () => {
       }
     }
 
-    // FreeBarbers section - using language-independent keys
-    const shouldShowFreeBarbers =
-      filterCriteria.userType === "all" ||
-      filterCriteria.userType === "freeBarber";
     if (shouldShowFreeBarbers) {
       items.push({ id: "freebarbers-header", type: "freebarbers-header" });
-
-      // İlk yüklemede skeleton göster (fetchedOnce false ise veya loading true ise)
       if (!freeBarbersFetchedOnce || (freeBarbersLoading && filteredFreeBarbers.length === 0)) {
         items.push({ id: "freebarbers-loading", type: "freebarbers-loading" });
       } else if (freeBarbersError) {
@@ -548,7 +545,7 @@ const Index = () => {
             if (item.type === "stores-error") {
               // Hata durumu - servise ulaşılamadı mesajı göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 300, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={storesError}
@@ -563,9 +560,8 @@ const Index = () => {
               );
             }
             if (item.type === "stores-empty") {
-              // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -575,6 +571,28 @@ const Index = () => {
                     onRetry={manualFetchStores}
                     customMessages={{
                       empty: t("empty.noNearbyStores"),
+                    }}
+                  >
+                    <View />
+                  </UnifiedStateWrapper>
+                </View>
+              );
+            }
+            if (item.type === "nearby-empty") {
+              return (
+                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400, overflow: 'hidden' }}>
+                  <UnifiedStateWrapper
+                    loading={false}
+                    error={undefined}
+                    data={[]}
+                    locationStatus={storesLocationStatus}
+                    fetchedOnce={true}
+                    onRetry={() => {
+                      manualFetchStores();
+                      manualFetchFreeBarbers();
+                    }}
+                    customMessages={{
+                      empty: t("empty.noNearbyStoresOrFreeBarbers"),
                     }}
                   >
                     <View />
@@ -636,7 +654,7 @@ const Index = () => {
             if (item.type === "freebarbers-error") {
               // Hata durumu - servise ulaşılamadı mesajı göster
               return (
-                <View style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 300, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={freeBarbersError}
@@ -653,7 +671,7 @@ const Index = () => {
             if (item.type === "freebarbers-empty") {
               // Veri yok durumu - uygun boş mesaj göster
               return (
-                <View className="bg-[#1a1b25] rounded-2xl mt-2" style={{ minHeight: 200, maxHeight: 400 }}>
+                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400, overflow: 'hidden' }}>
                   <UnifiedStateWrapper
                     loading={false}
                     error={undefined}
@@ -724,6 +742,14 @@ const Index = () => {
           updateFilterCriteria({
             mainCategory: value === "all" ? undefined : value,
           })
+        }
+        selectedMainHeadings={filterCriteria.mainHeadings || []}
+        onChangeMainHeadings={(value) =>
+          updateFilterCriteria({ mainHeadings: value })
+        }
+        selectedSubHeadings={filterCriteria.subHeadings || []}
+        onChangeSubHeadings={(value) =>
+          updateFilterCriteria({ subHeadings: value })
         }
         selectedServices={filterCriteria.serviceIds || []}
         onChangeServices={(value) =>
