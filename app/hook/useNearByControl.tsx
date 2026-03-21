@@ -27,9 +27,10 @@ export function useNearbyControl({
     enabled,
     moveThresholdM = 150,
     staleMs = 15_000,
-    hardRefreshMs = 15_000, // Default değeri useNearby.ts ile tutarlı hale getir
+    hardRefreshMs = 15_000,
     onFetch,
-    error, // API error durumu - hard refresh'i durdurmak için
+    error,
+    enableBackgroundTracking = false, // Sadece useTrackFreeBarberLocation'da true
 }: UseNearbyControlParams & { error?: any }) {
     const [locationStatus, setLocationStatus] = useState<LocationStatus>("unknown");
     const [locationMessage, setLocationMessage] = useState<string>("");
@@ -173,16 +174,17 @@ export function useNearbyControl({
         setLocationStatus("granted");
         await startWatching();
 
-        // Background location'ı da başlat
-        await startBackgroundLocation();
+        // Background location'ı sadece açıkça istenirse başlat (FreeBarber konum takibi)
+        if (enableBackgroundTracking) {
+            await startBackgroundLocation();
+        }
 
         return true;
     }
 
     useEffect(() => {
         if (!enabled) {
-            // Enabled false ise background location'ı durdur
-            stopBackgroundLocation();
+            if (enableBackgroundTracking) stopBackgroundLocation();
             return;
         }
 
@@ -190,7 +192,7 @@ export function useNearbyControl({
         return () => {
             watchRef.current?.remove();
             watchRef.current = null;
-            stopBackgroundLocation();
+            if (enableBackgroundTracking) stopBackgroundLocation();
         };
     }, [enabled]);
 
@@ -235,8 +237,8 @@ export function useNearbyControl({
                         await startWatching();
                     }
 
-                    // Background location'ı da başlat (eğer başlatılmamışsa)
-                    if (enabled && !backgroundTaskStarted.current) {
+                    // Background location'ı sadece açıkça istenirse başlat
+                    if (enabled && enableBackgroundTracking && !backgroundTaskStarted.current) {
                         await startBackgroundLocation();
                     }
 
@@ -257,8 +259,8 @@ export function useNearbyControl({
                     stopBackgroundLocation();
                 }
             } else if (nextAppState === "background" || nextAppState === "inactive") {
-                // Uygulama background'a gittiğinde background location'ı başlat
-                if (enabled && locationStatus === "granted" && !backgroundTaskStarted.current) {
+                // Uygulama background'a gittiğinde background location'ı başlat (sadece açıkça istenirse)
+                if (enabled && enableBackgroundTracking && locationStatus === "granted" && !backgroundTaskStarted.current) {
                     await startBackgroundLocation();
                 }
             }

@@ -14,6 +14,7 @@ import { RatingGetDto, UserType, BarberType } from "../../types";
 import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { getBarberTypeName } from "../../utils/store/barber-type";
+import { useTheme } from "../../hook/useTheme";
 
 type RatingsBottomSheetProps = {
   targetId: string;
@@ -28,6 +29,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
 }) => {
   const { userId } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   // Query'yi normal şekilde çalıştır - sheet açıldığında component mount olur ve query otomatik tetiklenir
   const {
@@ -105,7 +107,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
             />
             {/* "Sizin yorumunuz" badge */}
             {isMyComment && (
-              <View className="absolute -top-1 -right-1 bg-[#f05e23] rounded-full px-1.5 py-0.5">
+              <View className="absolute -top-1 -right-1 bg-[#ffb900] rounded-full px-1.5 py-0.5">
                 <Text className="text-white text-[8px] font-bold">
                   {t("rating.yourBadge")}
                 </Text>
@@ -117,7 +119,8 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
           <View className="flex-1 mr-2">
             <View className="flex-row items-center gap-2 flex-wrap mb-1">
               <Text
-                className="text-white font-century-gothic-bold text-base"
+                className="font-century-gothic-bold text-base"
+                style={{ color: colors.sectionHeaderText }}
                 numberOfLines={1}
               >
                 {displayName}
@@ -125,7 +128,10 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
               {/* UserType badge - backend'den gelen veri */}
               {item.ratedFromUserType !== null &&
                 item.ratedFromUserType !== undefined && (
-                  <View className="bg-[#374151] rounded-full px-2 py-0.5">
+                  <View
+                    className="rounded-full px-2 py-0.5"
+                    style={{ backgroundColor: colors.cardBg2 }}
+                  >
                     <Text className="text-[#9ca3af] text-[10px]">
                       {item.ratedFromUserType === UserType.Customer
                         ? t("card.customer")
@@ -140,7 +146,10 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
               {/* BarberType badge - FreeBarber veya Store için */}
               {item.ratedFromBarberType !== null &&
                 item.ratedFromBarberType !== undefined && (
-                  <View className="bg-[#1f2937] rounded-full px-2 py-0.5">
+                  <View
+                    className="rounded-full px-2 py-0.5"
+                    style={{ backgroundColor: colors.cardBg3 }}
+                  >
                     <Text className="text-[#d1d5db] text-[10px]">
                       {getBarberTypeName(item.ratedFromBarberType)}
                     </Text>
@@ -154,7 +163,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
 
             {item.comment && (
               <View className="mt-2">
-                <Text className="text-white text-sm font-century-gothic leading-5">
+                <Text className="text-sm font-century-gothic leading-5" style={{ color: colors.sectionHeaderText }}>
                   {item.comment}
                 </Text>
               </View>
@@ -162,7 +171,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
           </View>
 
           {/* Rating badge - sağ tarafta */}
-          <View className="bg-[#f05e23] rounded-full w-10 h-10 items-center justify-center">
+          <View className="bg-[#ffb900] rounded-full w-10 h-10 items-center justify-center">
             <Text className="text-white font-bold text-sm">
               ★ {roundedScore}
             </Text>
@@ -182,10 +191,10 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
   ];
 
   return (
-    <BottomSheetView className="flex-1 bg-[#151618]">
+    <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       {/* Header */}
       <View className="px-4 pt-4 pb-3">
-        <Text className="text-white font-century-gothic-bold text-xl mb-4">
+        <Text className="font-century-gothic-bold text-xl mb-4" style={{ color: colors.sectionHeaderText }}>
           {t("card.reviews")}
         </Text>
 
@@ -205,13 +214,13 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                     onPress={() => setSelectedRatingFilter(filter.value)}
                     className={`rounded-full px-4 py-2 ${
                       isSelected
-                        ? "bg-[#f05e23]"
-                        : "bg-transparent border border-[#f05e23]"
+                        ? "bg-[#ffb900]"
+                        : "bg-transparent border border-[#ffb900]"
                     }`}
                   >
                     <Text
                       className={`text-sm font-medium ${
-                        isSelected ? "text-white" : "text-[#f05e23]"
+                        isSelected ? "text-white" : "text-[#ffb900]"
                       }`}
                     >
                       {filter.label}
@@ -227,7 +236,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
       {/* Yorumlar listesi */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#f05e23" />
+          <ActivityIndicator size="large" color="#ffb900" />
         </View>
       ) : safeRatings.length === 0 ? (
         <View className="flex-1 items-center justify-center px-4">

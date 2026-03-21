@@ -7,7 +7,7 @@ const FreeBarberLayout = () => {
     return (
         <Stack screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#0d0d12' },
+            contentStyle: { backgroundColor: '#f5f7fa' },
         }}>
             <Stack.Screen name="index" />
         </Stack>

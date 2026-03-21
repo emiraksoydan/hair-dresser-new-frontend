@@ -30,6 +30,8 @@ export type UseNearbyControlParams = {
   staleMs?: number;
   hardRefreshMs?: number;
   onFetch: (lat: number, lon: number) => Promise<void>;
+  /** Arka plan konum takibini başlatır. Sadece useTrackFreeBarberLocation'da true olmalı. */
+  enableBackgroundTracking?: boolean;
 };
 
 export type NearbyRequest = {

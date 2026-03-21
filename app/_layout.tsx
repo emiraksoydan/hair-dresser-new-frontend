@@ -28,9 +28,41 @@ import { GlobalAlert } from './components/common/GlobalAlert';
 import './tasks/backgroundLocation';
 // i18n initialization
 import './i18n/config';
+import { ThemeProvider } from './context/ThemeContext';
+import { useTheme } from './hook/useTheme';
 
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return (
+    <StatusBar
+      barStyle={isDark ? 'light-content' : 'dark-content'}
+      backgroundColor="transparent"
+      translucent
+    />
+  );
+}
+
+function ThemedStack() {
+  const { colors } = useTheme();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.screenBg },
+      }}
+    >
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(barberstoretabs)" />
+      <Stack.Screen name="(freebarbertabs)" />
+      <Stack.Screen name="(customertabs)" />
+      <Stack.Screen name="(screens)" />
+    </Stack>
+  );
+}
+
 const RootLayout = () => {
   const [ready, setReady] = useState(false);
 
@@ -90,31 +122,22 @@ const RootLayout = () => {
 
   return (
     <ErrorBoundary>
+      <ThemeProvider>
       <ReduxProvider store={store}>
         <GestureHandlerRootView className="flex flex-1">
           <PaperProvider theme={paperTheme}>
             <BottomSheetModalProvider>
               <SignalRBootstrap />
               <FcmTokenBootstrap />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: '#151618' },
-                }}
-              >
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(barberstoretabs)" />
-                <Stack.Screen name="(freebarbertabs)" />
-                <Stack.Screen name="(customertabs)" />
-                <Stack.Screen name="(screens)" />
-              </Stack>
-              <StatusBar />
+              <ThemedStack />
+              <ThemedStatusBar />
               <GlobalSnackbar />
               <GlobalAlert />
             </BottomSheetModalProvider>
           </PaperProvider>
         </GestureHandlerRootView>
       </ReduxProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

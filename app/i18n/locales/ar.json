@@ -69,7 +69,32 @@
     "messagePlaceholder": "اكتب رسالة...",
     "submit": "إرسال الطلب",
     "requestEmpty": "لا توجد طلبات بعد",
-    "requestCreateNew": "إنشاء طلب جديد"
+    "requestCreateNew": "إنشاء طلب جديد",
+    "phoneChange": "تغيير الهاتف",
+    "phoneChangeOtpTitle": "التحقق من الهاتف",
+    "phoneChangeOtpDesc": "أدخل الرمز المرسل إلى {{phone}}.",
+    "phoneChangeOtpSend": "إرسال الرمز",
+    "phoneChangeOtpVerify": "تحقق وتحديث",
+    "phoneChangeSuccess": "تم تحديث رقم هاتفك.",
+    "phoneFormat": "أدخل بتنسيق 5XX XXX XX XX",
+    "phoneOtpSent": "تم إرسال رمز التحقق.",
+    "phoneOtpResend": "إعادة إرسال الرمز",
+    "otpCode": "رمز التحقق"
+  },
+  "subscription": {
+    "title": "الاشتراك",
+    "statusTrial": "تجريبي",
+    "statusActive": "اشتراك نشط",
+    "statusExpired": "منتهي الصلاحية",
+    "statusBanned": "الحساب معلق",
+    "trialDaysLeft": "{{days}} أيام متبقية",
+    "subscriptionDaysLeft": "{{days}} أيام متبقية",
+    "trialEnds": "نهاية التجربة: {{date}}",
+    "subscriptionEnds": "نهاية الاشتراك: {{date}}",
+    "upgradeButton": "اشترك",
+    "trialInfo": "يمكنك إضافة لوحة واحدة فقط خلال فترة التجربة.",
+    "expiredInfo": "انتهت فترة تجربتك. يرجى الاشتراك لمواصلة استخدام التطبيق.",
+    "bannedInfo": "تم تعليق حسابك. يرجى التواصل مع الدعم لمزيد من المعلومات."
   },
   "navigation": {
     "welcome": "مرحباً",
@@ -256,7 +281,12 @@
     "searchOnMap": "البحث على الخريطة",
     "showAll": "عرض الكل",
     "showLess": "عرض أقل",
-    "services": "الخدمات"
+    "services": "الخدمات",
+    "goBack": "رجوع",
+    "note": "ملاحظة",
+    "customer": "عميل",
+    "freeBarber": "حلاق متنقل",
+    "barberStore": "متجر الحلاقة"
   },
   "labels": {
     "freeBarber": "حلاق مستقل",
@@ -366,7 +396,13 @@
     "targetLocationNotSet": "موقع الهدف غير محدد.",
     "freeBarberLocationNotSet": "موقع الحلاق المستقل غير محدد.",
     "freeBarberLocationInvalid": "موقع الحلاق المستقل غير صالح.",
-    "distanceExceeded": "تم تجاوز حد المسافة."
+    "distanceExceeded": "تم تجاوز حد المسافة.",
+    "freebarberHasActiveAppointmentUpdate": "لديك موعد نشط. يرجى التحديث بعد اكتمال الموعد.",
+    "userBlockedCannotCreateAppointment": "لا يمكنك حجز موعد من مستخدم محظور.",
+    "userBanned": "تم تعليق حسابك من قبل المسؤول.",
+    "trialExpired": "انتهت فترة التجربة. يرجى الاشتراك للمتابعة.",
+    "trialPanelLimitReached": "يمكنك إضافة لوحة واحدة فقط خلال فترة التجربة. يرجى الاشتراك للمزيد.",
+    "barberStorePanelAlreadyExists": "لديك بالفعل لوحة صالون حلاقة."
   },
   "form": {
     "rentPriceRequired": "سعر الإيجار مطلوب",
@@ -603,7 +639,12 @@
     "messagePlaceholder": "اكتب رسالة...",
     "messageCannotBeSentPlaceholder": "لا يمكن إرسال الرسالة",
     "noMessagesYet": "لا توجد رسائل بعد",
-    "sendFirstMessage": "أرسل الرسالة الأولى"
+    "sendFirstMessage": "أرسل الرسالة الأولى",
+    "participants": "المشاركون",
+    "someone": "أحدهم",
+    "typing": "يكتب...",
+    "serverConnectionError": "لا يمكن الاتصال بالخادم. لا يمكنك إرسال الرسائل.",
+    "threadNotFound": "المحادثة غير موجودة"
   },
   "rating": {
     "selectRating": "يرجى اختيار التقييم.",
@@ -619,7 +660,11 @@
     "ratingAlreadyExists": "قمت بتقييم هذا الهدف لهذا الموعد بالفعل. لا يمكن تحديث التقييم.",
     "all": "الكل",
     "commentPlaceholder": "اكتب تعليقك...",
-    "yourBadge": "لك"
+    "yourBadge": "لك",
+    "title": "التقييم",
+    "rateFor": "قيّم",
+    "commentOptional": "التعليق (اختياري)",
+    "submit": "إرسال التقييم"
   },
   "notification": {
     "redirectFailed": "فشل إعادة التوجيه.",
@@ -694,7 +739,8 @@
     "pricingRent": "التسعير: إيجار المقعد ({{value}} ليرة تركية في الساعة)",
     "currency": "ل.ت",
     "currencySymbol": "₺",
-    "beautyExpert": "خبير تجميل"
+    "beautyExpert": "خبير تجميل",
+    "services": "الخدمات"
   },
   "status": {
     "open": "مفتوح",
@@ -805,6 +851,10 @@
     "myStores": "متاجري",
     "nearbyStores": "المتاجر القريبة",
     "nearbyFreeBarbers": "الحلاقون المستقلون القريبون"
+  },
+  "moderation": {
+    "inappropriateText": "رسالتك تحتوي على محتوى غير لائق. يرجى عدم استخدام الألفاظ النابية أو الإهانات.",
+    "inappropriateImage": "الصورة التي قمت بتحميلها تحتوي على محتوى غير لائق. يرجى تحميل صورة مناسبة."
   },
   "legal": {
     "agreementPrefix": "بالتسجيل، أقر بأنني قرأت وأوافق على ",

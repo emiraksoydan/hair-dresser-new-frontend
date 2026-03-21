@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { Text } from './Text';
 import { BarberType } from '../../types';
+import { useTheme } from '../../hook/useTheme';
 
 interface CardHeaderProps {
   title: string;
@@ -22,6 +23,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   icon,
   className = '',
 }) => {
+  const { colors } = useTheme();
   const getIcon = () => {
     if (icon) return icon;
     if (barberType === BarberType.MaleHairdresser) return 'face-man';
@@ -34,13 +36,13 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
       <Text
         numberOfLines={1}
         ellipsizeMode="tail"
-        style={{ fontSize: 20 }}
-        className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
+        style={{ fontSize: 20, color: colors.sectionHeaderText }}
+        className="font-century-gothic-sans-semibold text-xl flex-shrink"
       >
         {title}
       </Text>
       <IconButton
-        iconColor="gray"
+        iconColor={colors.textSecondary}
         size={20}
         style={{
           marginTop: 0,

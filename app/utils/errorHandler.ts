@@ -75,8 +75,11 @@ const messageToKeyMap: Record<string, string> = {
   // STORE MESSAGES
   // ============================================================================
   'Dükkan bulunamadı': 'errors.storeNotFound',
+  'Dükkan bulunamadı veya sahibi değilsiniz': 'errors.storeNotFound',
   'Store not found': 'errors.storeNotFound',
   'Store not found or not owner': 'errors.storeNotFound',
+  'Dükkanın zaten aktif bir randevusu var.': 'errors.storeHasActiveAppointments',
+  'Bu dükkanınızın bu serbest berber ile aktif bir randevusu var. Önce onu sonuçlandırın.': 'errors.storeHasActiveAppointments',
   'Dükkan bu saat aralığında açık değil': 'errors.storeNotOpen',
   'Dükkan bu gün kapalı (tatil)': 'errors.storeClosed',
   'Dükkan bu gün için çalışma saati tanımlamamış (kapalı)': 'errors.storeNoWorkingHours',
@@ -110,6 +113,9 @@ const messageToKeyMap: Record<string, string> = {
   'Serbest berber ID\'si request body\'de gönderilmemelidir.': 'errors.freebarberNotAllowedForStoreAppointment',
   'Bu serbest berberi güncelleme yetkiniz yok': 'errors.freebarberUpdateUnauthorized',
   'Zaten bir serbest berber paneliniz bulunmaktadır. Her kullanıcının sadece bir paneli olabilir.': 'errors.freebarberPanelAlreadyExists',
+  'Serbest berberin aktif (Bekleyen/Onaylanmış) randevusu var.': 'errors.freebarberHasActiveAppointment',
+  'Serbest berberin zaten aktif bir randevusu var.': 'errors.freebarberHasActiveAppointment',
+  'Randevu işleminiz bulunmaktadır. Lütfen işlemden sonra güncelleyiniz': 'errors.freebarberHasActiveAppointmentUpdate',
   'Serbest berber portalı başarıyla oluşturuldu.': 'form.freebarberCreateSuccess',
   'Serbest berber güncellendi.': 'form.freebarberUpdateSuccess',
   'Serbest berber silindi.': 'errors.freebarberDeleted',
@@ -117,6 +123,7 @@ const messageToKeyMap: Record<string, string> = {
   // ============================================================================
   // CUSTOMER MESSAGES
   // ============================================================================
+  'Müşterinin aktif (Bekleyen/Onaylanmış) randevusu var.': 'errors.customerHasActiveAppointment',
   'Müşterinin aktif (Pending/Approved) randevusu var.': 'errors.customerHasActiveAppointment',
   'Zaten aktif bir randevunuz var. Önce onu tamamlayın.': 'errors.customerHasActiveAppointment',
   'Dükkan 1 km dışında. Yakın değilken randevu oluşturamazsın.': 'errors.customerDistanceExceeded',
@@ -197,15 +204,23 @@ const messageToKeyMap: Record<string, string> = {
   // ============================================================================
   'Kullanıcı bulunamadı.': 'errors.userNotFound',
   'Sadece müşteriler randevu oluşturabilir.': 'errors.onlyCustomersCanCreateAppointment',
+  'Engellenen bir kullanıcıdan randevu alamazsınız.': 'errors.userBlockedCannotCreateAppointment',
 
   // ============================================================================
   // CHAT MESSAGES
   // ============================================================================
+  'Sohbet sadece Bekleyen/Onaylanmış randevular için aktiftir.': 'errors.chatOnlyForActiveAppointments',
   'Chat is only allowed for Pending/Approved appointments': 'errors.chatOnlyForActiveAppointments',
+  'Boş mesaj gönderilemez': 'errors.emptyMessage',
   'Empty message': 'errors.emptyMessage',
+  'Sohbet kaydı bulunamadı': 'errors.chatThreadNotFound',
   'Chat thread bulunamadı': 'errors.chatThreadNotFound',
   'Sohbet bulunamadı': 'errors.chatNotFound',
   'Katılımcı bulunamadı': 'errors.participantNotFound',
+  'Mesaj göndermek için randevu aktif olmalı veya karşılıklı favori olmalısınız.': 'chatMessages.messageRequiresActiveAppointmentOrFavorite',
+  'Bu metod sadece favori thread\'ler için kullanılabilir': 'chatMessages.methodOnlyForFavoriteThreads',
+  'Favori aktif değil, mesaj gönderilemez': 'chatMessages.favoriteNotActive',
+  'Favori aktif değil': 'chatMessages.favoriteNotActiveForMessages',
 
   // ============================================================================
   // AUTHORIZATION MESSAGES
@@ -279,6 +294,53 @@ const messageToKeyMap: Record<string, string> = {
   'İşlem başarılı': 'common.operationSuccess',
   'İşlem başarısız': 'common.operationFailed',
   'Kayıt bulunamadı': 'errors.entityNotFound',
+
+  // ============================================================================
+  // LOCATION MESSAGES
+  // ============================================================================
+  'Konumu ayarlı değil': 'errors.locationNotSet',
+  'Konumu geçersiz': 'errors.locationInvalid',
+  'İstek konumu ayarlı değil': 'errors.requestLocationNotSet',
+  'Hedef konumu ayarlı değil': 'errors.targetLocationNotSet',
+  'Serbest berber konumu ayarlı değil': 'errors.freeBarberLocationNotSet',
+  'Serbest berber konumu geçersiz': 'errors.freeBarberLocationInvalid',
+  'Mesafe limiti aşıldı': 'errors.distanceExceeded',
+  'Konum başarıyla güncellendi': 'common.locationUpdatedSuccess',
+
+  // ============================================================================
+  // BARBER / CHAIR MESSAGES
+  // ============================================================================
+  'Bir berber birden fazla koltuğa atanamaz.': 'general.barberAssignedToMultipleChairs',
+  'Bu berberiniz bir koltuğa atanmış. Önce koltuk ayarını değiştiriniz.': 'general.barberAssignedToChair',
+
+  // ============================================================================
+  // PANEL MESSAGES
+  // ============================================================================
+  'Panel getirilemedi': 'general.panelGetFailed',
+  'Panel detayı getirilemedi': 'general.panelDetailGetFailed',
+
+  // ============================================================================
+  // MISC MISSING MESSAGES
+  // ============================================================================
+  'Hedef bulunamadı.': 'additionalSuccess.targetNotFound',
+
+  // ============================================================================
+  // CONTENT MODERATION MESSAGES
+  // ============================================================================
+  'Mesajınız uygunsuz içerik barındırmaktadır. Lütfen küfür, hakaret veya uygunsuz ifadeler kullanmayınız.': 'moderation.inappropriateText',
+  'Yüklediğiniz görsel uygunsuz içerik barındırmaktadır. Lütfen uygun bir görsel yükleyiniz.': 'moderation.inappropriateImage',
+
+  // ============================================================================
+  // BAN MESSAGES
+  // ============================================================================
+  'Hesabınız yönetici tarafından askıya alınmıştır.': 'errors.userBanned',
+
+  // ============================================================================
+  // SUBSCRIPTION / TRIAL MESSAGES
+  // ============================================================================
+  'Deneme süreniz sona ermiştir. Devam etmek için lütfen abone olunuz.': 'errors.trialExpired',
+  'Deneme süresinde yalnızca 1 panel ekleyebilirsiniz. Birden fazla panel için lütfen abone olunuz.': 'errors.trialPanelLimitReached',
+  'Zaten bir berber dükkanı paneliniz bulunmaktadır.': 'errors.barberStorePanelAlreadyExists',
 };
 
 // ============================================================================

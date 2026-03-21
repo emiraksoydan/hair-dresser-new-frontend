@@ -3,6 +3,7 @@ import { View, TextInput } from 'react-native';
 import { IconButton, Icon } from 'react-native-paper';
 import { SearchBarProps } from '../../types';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 // Tip tanımına buton fonksiyonlarını da eklediğini varsayıyorum
 interface ExtendedSearchBarProps extends SearchBarProps {
@@ -21,6 +22,7 @@ const SearchBar: React.FC<ExtendedSearchBarProps> = ({
     showButtons = true,
 }) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const [isFocused, setIsFocused] = useState(false);
 
     // Butonları gösterip göstermeyeceğimizi belirle
@@ -28,10 +30,11 @@ const SearchBar: React.FC<ExtendedSearchBarProps> = ({
 
     return (
         <View
-            className={`flex-row items-center px-3 rounded-xl bg-[#1a1b25] h-14`}
+            className={`flex-row items-center px-3 rounded-xl h-14`}
             style={{
+                backgroundColor: colors.cardBg,
                 borderWidth: 1.5,
-                borderColor: isFocused ? "#ffb900" : "#1a1b25",
+                borderColor: isFocused ? "#ffb900" : colors.cardBg,
             }}
         >
             <Icon source="magnify" size={22} color="#9aa1ae" />
@@ -43,8 +46,7 @@ const SearchBar: React.FC<ExtendedSearchBarProps> = ({
                 value={searchQuery}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                className="flex-1 ml-2 text-white text-[15px]"
-                style={{ fontFamily: 'CenturyGothic' }}
+                style={{ flex: 1, marginLeft: 8, fontSize: 15, color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }}
             />
 
             {shouldShowButtons && (

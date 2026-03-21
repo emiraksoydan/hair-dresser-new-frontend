@@ -56,6 +56,7 @@ import { ImageCarousel } from "../common/imagecarousel";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
 import { getErrorMessage } from "../../utils/errorHandler";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 interface Props {
   barberId: string;
@@ -122,6 +123,7 @@ const FreeBarberBookingContent = ({
   } | null>(null);
   const [isMapMode, setIsMapMode] = useState(false);
   const { alert, alertSuccess, alertError } = useAlert();
+  const { colors } = useTheme();
 
   // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
   const { error: freeBarberDataError } = useGetFreeBarberForUsersQuery(
@@ -295,7 +297,7 @@ const FreeBarberBookingContent = ({
   const borderRadiusClass = isBottomSheet ? "rounded-t-sm" : "";
 
   return (
-    <View className="flex-1 bg-[#151618] w-full">
+    <View style={{ flex: 1, backgroundColor: colors.screenBg }} className="w-full">
       {!isAddStoreMode && (
         <View className={`relative w-full h-[250px]`}>
           <ImageCarousel
@@ -348,7 +350,7 @@ const FreeBarberBookingContent = ({
       )}
       {isAddStoreMode && (
         <View className="px-4 pt-4 pb-2">
-          <Text className="text-white font-century-gothic-bold text-lg">
+          <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
             Dükkan Seçin
           </Text>
           <Text className="text-gray-400 text-sm mt-1">
@@ -366,12 +368,12 @@ const FreeBarberBookingContent = ({
         </View>
       )}
 
-      <ScrollView nestedScrollEnabled className="p-4 gap-3">
+      <ScrollView nestedScrollEnabled className="p-4 gap-3" contentContainerStyle={{ paddingBottom: 140 }}>
         {currentUserType === UserType.BarberStore &&
           isBarberMode &&
           !isAddStoreMode && (
             <View className="gap-3 mt-4">
-              <Text className="text-white font-century-gothic-bold text-lg">
+              <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
                 Serbest Berber Çağır
               </Text>
               <Text className="text-gray-300 text-sm">
@@ -492,7 +494,7 @@ const FreeBarberBookingContent = ({
           !isAddStoreMode &&
           !storeSelectionType && (
             <View className="gap-3 mt-4">
-              <Text className="text-white font-century-gothic-bold text-lg">
+              <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
                 Randevu Tipi Seçin
               </Text>
               <TouchableOpacity
@@ -549,21 +551,21 @@ const FreeBarberBookingContent = ({
           storeSelectionType === StoreSelectionType.CustomRequest && (
             <View className="gap-4 mt-4">
               <View className="flex-row justify-between items-center">
-                <Text className="text-white font-century-gothic-bold text-lg">
+                <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
                   Randevu Detayları
                 </Text>
                 <TouchableOpacity onPress={() => setStoreSelectionType(null)}>
-                  <Icon source="close" size={20} color="white" />
+                  <Icon source="close" size={20} color={colors.sectionHeaderText} />
                 </TouchableOpacity>
               </View>
 
               {/* Hizmetler (Seçilebilir - Dikey Liste) */}
               <View>
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-white font-century-gothic-bold text-base">
+                  <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-base">
                     {t("common.services")}
                   </Text>
-                  <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                  <View style={{ backgroundColor: colors.cardBg2 }} className="px-3 py-1.5 rounded-lg">
                     <Text className="text-[#a3e635] font-century-gothic-bold text-base">
                       {totalPrice} {t("card.currencySymbol")}
                     </Text>
@@ -580,7 +582,8 @@ const FreeBarberBookingContent = ({
                       <TouchableOpacity
                         onPress={() => toggleService(item.id)}
                         activeOpacity={0.7}
-                        className={`flex-row items-center justify-between px-4 py-3 rounded-xl border ${isSelected ? "bg-[#14532d] border-[#22c55e]" : "bg-[#1e293b] border-[#334155]"}`}
+                        style={isSelected ? { backgroundColor: '#14532d', borderColor: '#22c55e', borderWidth: 1 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
+                        className={`flex-row items-center justify-between px-4 py-3 rounded-xl`}
                       >
                         <View className="flex-row items-center flex-1 mr-2">
                           <Icon
@@ -732,16 +735,16 @@ const FreeBarberBookingContent = ({
           storeSelectionType === StoreSelectionType.StoreSelection && (
             <View className="gap-4 mt-4">
               <View className="flex-row justify-between items-center">
-                <Text className="text-white font-century-gothic-bold text-lg">
+                <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
                   Randevu Detayları
                 </Text>
                 <TouchableOpacity onPress={() => setStoreSelectionType(null)}>
-                  <Icon source="close" size={20} color="white" />
+                  <Icon source="close" size={20} color={colors.sectionHeaderText} />
                 </TouchableOpacity>
               </View>
 
               <View>
-                <Text className="text-white font-century-gothic text-base mb-2">
+                <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic text-base mb-2">
                   Berberin Hizmetleri
                 </Text>
                 <FlatList
@@ -766,7 +769,7 @@ const FreeBarberBookingContent = ({
               </View>
 
               <View>
-                <Text className="text-white font-century-gothic mb-2">
+                <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic mb-2">
                   Randevu Notu
                 </Text>
                 <TextInput
@@ -776,12 +779,15 @@ const FreeBarberBookingContent = ({
                   placeholderTextColor="#9ca3af"
                   multiline
                   numberOfLines={3}
-                  className="bg-gray-800 rounded-xl px-4 py-3 text-white font-century-gothic"
                   style={{
                     textAlignVertical: "top",
                     minHeight: 80,
-                    fontFamily:
-                      Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
+                    fontFamily: Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
+                    backgroundColor: colors.cardBg2,
+                    color: colors.sectionHeaderText,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
                   }}
                 />
               </View>
@@ -886,8 +892,8 @@ const FreeBarberBookingContent = ({
           snapPoints={storeSelectionSheet.snapPoints}
           enableOverDrag={storeSelectionSheet.enableOverDrag}
           enablePanDownToClose={storeSelectionSheet.enablePanDownToClose}
-          handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-          backgroundStyle={{ backgroundColor: "#151618" }}
+          handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+          backgroundStyle={{ backgroundColor: colors.sheetBg }}
           backdropComponent={storeSelectionSheet.makeBackdrop()}
           onChange={(index) => {
             storeSelectionSheet.handleChange(index);
@@ -897,14 +903,14 @@ const FreeBarberBookingContent = ({
           }}
         >
           <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
-            <View className="flex flex-1 pl-4 pr-2 bg-[#151618]">
-              <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-700">
-                <Text className="text-white font-century-gothic-bold text-xl">
+            <View style={{ flex: 1, backgroundColor: colors.sheetBg }} className="pl-4 pr-2">
+              <View style={{ borderBottomColor: colors.borderColor }} className="flex-row justify-between items-center px-4 py-3 border-b">
+                <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-xl">
                   Dükkan Seçin
                 </Text>
                 <IconButton
                   icon="close"
-                  iconColor="white"
+                  iconColor={colors.sectionHeaderText}
                   size={24}
                   onPress={() => {
                     storeSelectionSheet.dismiss();
@@ -918,7 +924,7 @@ const FreeBarberBookingContent = ({
                 </Text>
                 {/* Randevu Notu */}
                 <View style={isAddStoreMode ? { display: "none" } : undefined}>
-                  <Text className="text-white font-century-gothic mb-2">
+                  <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic mb-2">
                     Randevu Notu
                   </Text>
                   <TextInput
@@ -928,14 +934,15 @@ const FreeBarberBookingContent = ({
                     placeholderTextColor="#9ca3af"
                     multiline
                     numberOfLines={3}
-                    className="bg-gray-800 rounded-xl px-4 py-3 text-white font-century-gothic"
                     style={{
                       textAlignVertical: "top",
                       minHeight: 80,
-                      fontFamily:
-                        Platform.OS === "ios"
-                          ? "CenturyGothic"
-                          : "CenturyGothic",
+                      fontFamily: Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
+                      backgroundColor: colors.cardBg2,
+                      color: colors.sectionHeaderText,
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
                     }}
                   />
                 </View>
@@ -966,7 +973,7 @@ const FreeBarberBookingContent = ({
               ) : (
                 <>
                   <View className="flex flex-row justify-between items-center mt-4 px-4">
-                    <Text className="font-century-gothic text-xl text-white">
+                    <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic text-xl">
                       İşletmeler
                     </Text>
                     {hasStores && (
@@ -1034,7 +1041,7 @@ const FreeBarberBookingContent = ({
           ref={storeBookingSheet.ref}
           index={0}
           snapPoints={storeBookingSheet.snapPoints}
-          backgroundStyle={{ backgroundColor: "#151618" }}
+          backgroundStyle={{ backgroundColor: colors.sheetBg }}
           enablePanDownToClose={storeBookingSheet.enablePanDownToClose}
           onChange={storeBookingSheet.handleChange}
         >
@@ -1054,8 +1061,8 @@ const FreeBarberBookingContent = ({
         ref={ratingsSheet.ref}
         snapPoints={ratingsSheet.snapPoints}
         enablePanDownToClose={ratingsSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={ratingsSheet.makeBackdrop()}
         onChange={(index) => {
           ratingsSheet.handleChange(index);

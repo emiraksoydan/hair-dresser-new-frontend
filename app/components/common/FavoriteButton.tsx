@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Icon, IconButton } from 'react-native-paper';
 import { Text } from './Text';
+import { useTheme } from '../../hook/useTheme';
 
 interface FavoriteButtonProps {
   isFavorite: boolean;
@@ -28,6 +29,7 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
   showCount = true,
   className = '',
 }) => {
+  const { colors } = useTheme();
   if (variant === 'icon') {
     return (
       <View className="flex-row items-center">
@@ -39,7 +41,7 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
           disabled={isLoading}
         />
         {showCount && (
-          <Text className={`text-white font-century-gothic-sans-regular text-xs ${className}`}>
+          <Text style={{ color: colors.sectionHeaderText }} className={`font-century-gothic-sans-regular text-xs ${className}`}>
             ({favoriteCount})
           </Text>
         )}
@@ -55,11 +57,11 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
     >
       <Icon
         size={size}
-        color={isFavorite ? "red" : "gray"}
+        color={isFavorite ? "red" : colors.textSecondary}
         source={isFavorite ? "heart" : "heart-outline"}
       />
       {showCount && (
-        <Text className={`text-white font-century-gothic-sans-regular text-xs ${className}`}>
+        <Text style={{ color: colors.sectionHeaderText }} className={`font-century-gothic-sans-regular text-xs ${className}`}>
           ({favoriteCount})
         </Text>
       )}

@@ -24,12 +24,14 @@ import { UnifiedStateWrapper } from "../common/UnifiedStateManager";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 export default function SharedAppointmentScreen() {
   const { t } = useLanguage();
   const { userId, userType } = useAuth();
   const insets = useSafeAreaInsets();
   const { alert, alertSuccess, alertError, confirm } = useAlert();
+  const { colors } = useTheme();
   const [activeFilter, setActiveFilter] = useState<AppointmentFilter>(
     AppointmentFilter.Active,
   );
@@ -538,7 +540,14 @@ export default function SharedAppointmentScreen() {
               </Text>
             </View>
             {myComment && (
-              <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-1">
+              <View
+                className="rounded-lg p-3 mt-1"
+                style={{
+                  backgroundColor: colors.cardBg3,
+                  borderColor: colors.borderColor,
+                  borderWidth: 1,
+                }}
+              >
                 <Text
                   className="text-[#d1d5db] text-xs leading-4"
                   numberOfLines={3}
@@ -556,7 +565,12 @@ export default function SharedAppointmentScreen() {
           (myRating === null || myRating === undefined || myRating === 0) && (
             <TouchableOpacity
               onPress={onRatePress}
-              className="flex-row items-center justify-center bg-[#1f2023] border border-[#ffb900]/30 rounded-lg px-3 py-2.5 mt-1"
+              className="flex-row items-center justify-center rounded-lg px-3 py-2.5 mt-1"
+              style={{
+                backgroundColor: colors.cardBg3,
+                borderColor: "rgba(255,185,0,0.3)",
+                borderWidth: 1,
+              }}
             >
               <Icon source="star-outline" size={16} color="#ffb900" />
               <Text className="text-[#ffb900] text-xs font-semibold ml-2">
@@ -631,12 +645,20 @@ export default function SharedAppointmentScreen() {
 
     return (
       <View
-        className={`bg-[#1a1b25] rounded-xl p-4 mb-4 border ${isCompletedOrCancelled ? "border-[#2a2c30]" : "border-[#1f2023]"}`}
+        className="rounded-xl p-4 mb-4"
+        style={{
+          backgroundColor: colors.cardBg,
+          borderColor: isCompletedOrCancelled ? colors.borderColor : colors.borderColor2,
+          borderWidth: 1,
+        }}
       >
         {/* Durum Badge'i - Active tab'ında ve tamamlanan/iptal durumlarında göster */}
         {(activeFilter === AppointmentFilter.Active ||
           isCompletedOrCancelled) && (
-            <View className="mb-3 pb-3 border-b border-[#2a2c30]">
+            <View
+              className="mb-3 pb-3"
+              style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}
+            >
               <View className="flex-row items-center gap-2 justify-between">
                 <View className="flex-row items-center gap-2">
                   <Icon
@@ -750,7 +772,12 @@ export default function SharedAppointmentScreen() {
                   <>
                     <TouchableOpacity
                       onPress={() => handleComplaintOrBlockAction(item, "complaint")}
-                      className="bg-[#1f2023] border border-[#f59e0b]/40 px-4 py-2 rounded-xl flex-row items-center justify-center"
+                      className="px-4 py-2 rounded-xl flex-row items-center justify-center"
+                      style={{
+                        backgroundColor: colors.cardBg3,
+                        borderColor: "rgba(245,158,11,0.4)",
+                        borderWidth: 1,
+                      }}
                     >
                       <Icon source="alert-circle-outline" size={15} color="#f59e0b" />
                       <Text className="text-[#f59e0b] text-sm ml-2">
@@ -760,7 +787,12 @@ export default function SharedAppointmentScreen() {
                     <TouchableOpacity
                       onPress={() => handleComplaintOrBlockAction(item, "block")}
                       disabled={isBlockingUser}
-                      className={`bg-[#1f2023] border border-[#9ca3af]/40 px-4 py-2 rounded-xl flex-row items-center justify-center ${isBlockingUser ? "opacity-60" : ""}`}
+                      className={`px-4 py-2 rounded-xl flex-row items-center justify-center ${isBlockingUser ? "opacity-60" : ""}`}
+                      style={{
+                        backgroundColor: colors.cardBg3,
+                        borderColor: "rgba(156,163,175,0.4)",
+                        borderWidth: 1,
+                      }}
                     >
                       {isBlockingUser ? (
                         <ActivityIndicator color="#9ca3af" size="small" />
@@ -801,7 +833,7 @@ export default function SharedAppointmentScreen() {
           {userType === UserType.BarberStore && (
             <View className="gap-3">
               {item.customerUserId && (
-                <View className="bg-[#1a1c1e] rounded-xl p-3">
+                <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                   <View className="flex-row items-start mb-2">
                     <OwnerAvatar
                       ownerId={item.customerUserId}
@@ -817,7 +849,8 @@ export default function SharedAppointmentScreen() {
                         {t("appointment.labels.customer")}
                       </Text>
                       <Text
-                        className="text-white text-sm font-semibold mb-1"
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -839,24 +872,14 @@ export default function SharedAppointmentScreen() {
                             handleToggleFavorite(item.customerUserId, item.id)
                           }
                           disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                          className="p-1.5 rounded-full"
+                          style={{ backgroundColor: colors.cardBg3 }}
                         >
                           <Icon
-                            source={
-                              item.isCustomerFavorite ? "heart" : "heart-outline"
-                            }
-                            size={14}
-                            color={
-                              item.isCustomerFavorite ? "#ef4444" : "#6b7280"
-                            }
+                            source={item.isCustomerFavorite ? "heart" : "heart-outline"}
+                            size={18}
+                            color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"}
                           />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                          >
-                            {item.isCustomerFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -878,7 +901,7 @@ export default function SharedAppointmentScreen() {
                   />
                 </View>
               )}
-              <View className="bg-[#1a1c1e] rounded-xl p-3">
+              <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                 {item.freeBarberId ? (
                   <View>
                     <View className="flex-row items-start mb-2">
@@ -896,7 +919,8 @@ export default function SharedAppointmentScreen() {
                           {t("appointment.labels.rentingBarber")}
                         </Text>
                         <Text
-                          className="text-white text-sm font-semibold mb-1"
+                          className="text-sm font-semibold mb-1"
+                          style={{ color: colors.sectionHeaderText }}
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -919,26 +943,14 @@ export default function SharedAppointmentScreen() {
                               handleToggleFavorite(item.freeBarberId, item.id)
                             }
                             disabled={isTogglingFavorite}
-                            className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                            className="p-1.5 rounded-full"
+                            style={{ backgroundColor: colors.cardBg3 }}
                           >
                             <Icon
-                              source={
-                                item.isFreeBarberFavorite
-                                  ? "heart"
-                                  : "heart-outline"
-                              }
-                              size={14}
-                              color={
-                                item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
-                              }
+                              source={item.isFreeBarberFavorite ? "heart" : "heart-outline"}
+                              size={18}
+                              color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"}
                             />
-                            <Text
-                              className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                            >
-                              {item.isFreeBarberFavorite
-                                ? t("appointment.actions.inFavorites")
-                                : t("appointment.actions.addToFavorites")}
-                            </Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -977,7 +989,8 @@ export default function SharedAppointmentScreen() {
                           {t("appointment.labels.storeBarber")}
                         </Text>
                         <Text
-                          className="text-white text-sm font-semibold mb-1"
+                          className="text-sm font-semibold mb-1"
+                          style={{ color: colors.sectionHeaderText }}
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -1005,12 +1018,16 @@ export default function SharedAppointmentScreen() {
                   </View>
                 ) : (
                   <View className="flex-row items-center">
-                    <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
+                    <View
+                      className="w-12 h-12 rounded-full mr-3 items-center justify-center"
+                      style={{ backgroundColor: colors.cardBg3 }}
+                    >
                       <Icon source="seat" size={24} color="#6b7280" />
                     </View>
                     <View className="flex-1">
                       <Text
-                        className="text-white text-sm font-semibold"
+                        className="text-sm font-semibold"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -1024,9 +1041,9 @@ export default function SharedAppointmentScreen() {
           )}
 
           {userType === UserType.FreeBarber && (
-            <View>
+            <View className="gap-3">
               {item.barberStoreId && (
-                <View className="mb-4">
+                <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                   <View className="flex-row items-start mb-2">
                     <OwnerAvatar
                       ownerId={item.barberStoreId}
@@ -1042,7 +1059,8 @@ export default function SharedAppointmentScreen() {
                         {t("appointment.labels.storeName")}
                       </Text>
                       <Text
-                        className="text-white text-sm font-semibold mb-1"
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -1069,22 +1087,14 @@ export default function SharedAppointmentScreen() {
                             handleToggleFavorite(item.barberStoreId, item.id)
                           }
                           disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                          className="p-1.5 rounded-full"
+                          style={{ backgroundColor: colors.cardBg3 }}
                         >
                           <Icon
-                            source={
-                              item.isStoreFavorite ? "heart" : "heart-outline"
-                            }
-                            size={14}
+                            source={item.isStoreFavorite ? "heart" : "heart-outline"}
+                            size={18}
                             color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
                           />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                          >
-                            {item.isStoreFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1106,17 +1116,8 @@ export default function SharedAppointmentScreen() {
                   />
                 </View>
               )}
-              {item.freeBarberId &&
-                item.barberStoreId &&
-                formatPricingPolicy(item.pricingType, item.pricingValue) && (
-                  <View className="bg-[#2a2c30] rounded-lg p-3 mb-4">
-                    <Text className="text-[#9ca3af] text-xs leading-4">
-                      {formatPricingPolicy(item.pricingType, item.pricingValue)}
-                    </Text>
-                  </View>
-                )}
               {item.customerUserId && (
-                <View className="mb-4">
+                <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                   <View className="flex-row items-start mb-2">
                     <OwnerAvatar
                       ownerId={item.customerUserId}
@@ -1132,7 +1133,8 @@ export default function SharedAppointmentScreen() {
                         {t("card.customerOf")}
                       </Text>
                       <Text
-                        className="text-white text-sm font-semibold mb-1"
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -1154,24 +1156,14 @@ export default function SharedAppointmentScreen() {
                             handleToggleFavorite(item.customerUserId, item.id)
                           }
                           disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                          className="p-1.5 rounded-full"
+                          style={{ backgroundColor: colors.cardBg3 }}
                         >
                           <Icon
-                            source={
-                              item.isCustomerFavorite ? "heart" : "heart-outline"
-                            }
-                            size={14}
-                            color={
-                              item.isCustomerFavorite ? "#ef4444" : "#6b7280"
-                            }
+                            source={item.isCustomerFavorite ? "heart" : "heart-outline"}
+                            size={18}
+                            color={item.isCustomerFavorite ? "#ef4444" : "#6b7280"}
                           />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isCustomerFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                          >
-                            {item.isCustomerFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1197,9 +1189,9 @@ export default function SharedAppointmentScreen() {
           )}
 
           {userType === UserType.Customer && (
-            <View className="flex-row gap-4">
+            <View className="gap-3">
               {item.barberStoreId && (
-                <View className="flex-1">
+                <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                   <View className="flex-row items-start mb-2">
                     <OwnerAvatar
                       ownerId={item.barberStoreId}
@@ -1215,7 +1207,8 @@ export default function SharedAppointmentScreen() {
                         {t("appointment.labels.storeName")}
                       </Text>
                       <Text
-                        className="text-white text-sm font-semibold mb-1"
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -1242,22 +1235,14 @@ export default function SharedAppointmentScreen() {
                             handleToggleFavorite(item.barberStoreId, item.id)
                           }
                           disabled={isTogglingFavorite}
-                          className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                          className="p-1.5 rounded-full"
+                          style={{ backgroundColor: colors.cardBg3 }}
                         >
                           <Icon
-                            source={
-                              item.isStoreFavorite ? "heart" : "heart-outline"
-                            }
-                            size={14}
+                            source={item.isStoreFavorite ? "heart" : "heart-outline"}
+                            size={18}
                             color={item.isStoreFavorite ? "#ef4444" : "#6b7280"}
                           />
-                          <Text
-                            className={`text-xs ml-1.5 ${item.isStoreFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                          >
-                            {item.isStoreFavorite
-                              ? t("appointment.actions.inFavorites")
-                              : t("appointment.actions.addToFavorites")}
-                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1280,7 +1265,7 @@ export default function SharedAppointmentScreen() {
                 </View>
               )}
 
-              <View className="flex-1">
+              <View className="rounded-xl p-3" style={{ backgroundColor: colors.cardBg2 }}>
                 {item.freeBarberId ? (
                   <View>
                     <View className="flex-row items-start mb-2">
@@ -1298,7 +1283,8 @@ export default function SharedAppointmentScreen() {
                           {t("appointment.labels.serviceProvider")}
                         </Text>
                         <Text
-                          className="text-white text-sm font-semibold mb-1"
+                          className="text-sm font-semibold mb-1"
+                          style={{ color: colors.sectionHeaderText }}
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -1324,26 +1310,14 @@ export default function SharedAppointmentScreen() {
                               handleToggleFavorite(item.freeBarberId, item.id)
                             }
                             disabled={isTogglingFavorite}
-                            className="flex-row items-center self-start bg-[#1f2023] border border-[#2a2c30] rounded-lg px-3 py-1.5"
+                            className="p-1.5 rounded-full"
+                            style={{ backgroundColor: colors.cardBg3 }}
                           >
                             <Icon
-                              source={
-                                item.isFreeBarberFavorite
-                                  ? "heart"
-                                  : "heart-outline"
-                              }
-                              size={14}
-                              color={
-                                item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"
-                              }
+                              source={item.isFreeBarberFavorite ? "heart" : "heart-outline"}
+                              size={18}
+                              color={item.isFreeBarberFavorite ? "#ef4444" : "#6b7280"}
                             />
-                            <Text
-                              className={`text-xs ml-1.5 ${item.isFreeBarberFavorite ? "text-[#ef4444]" : "text-[#6b7280]"}`}
-                            >
-                              {item.isFreeBarberFavorite
-                                ? t("appointment.actions.inFavorites")
-                                : t("appointment.actions.addToFavorites")}
-                            </Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -1382,7 +1356,8 @@ export default function SharedAppointmentScreen() {
                           {t("appointment.labels.serviceProvider")}
                         </Text>
                         <Text
-                          className="text-white text-sm font-semibold mb-1"
+                          className="text-sm font-semibold mb-1"
+                          style={{ color: colors.sectionHeaderText }}
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -1413,12 +1388,16 @@ export default function SharedAppointmentScreen() {
                   </View>
                 ) : (
                   <View className="flex-row items-center">
-                    <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-3 items-center justify-center">
+                    <View
+                      className="w-12 h-12 rounded-full mr-3 items-center justify-center"
+                      style={{ backgroundColor: colors.cardBg3 }}
+                    >
                       <Icon source="seat" size={24} color="#6b7280" />
                     </View>
                     <View className="flex-1">
                       <Text
-                        className="text-white text-sm font-semibold"
+                        className="text-sm font-semibold"
+                        style={{ color: colors.sectionHeaderText }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -1436,7 +1415,14 @@ export default function SharedAppointmentScreen() {
         {item.freeBarberId &&
           item.barberStoreId &&
           formatPricingPolicy(item.pricingType, item.pricingValue) && (
-            <View className="bg-[#1f2023] border border-[#2a2c30] rounded-lg p-3 mt-3 mb-3">
+            <View
+              className="rounded-lg p-3 mt-3 mb-3"
+              style={{
+                backgroundColor: colors.cardBg3,
+                borderColor: colors.borderColor,
+                borderWidth: 1,
+              }}
+            >
               <View className="flex-row items-center mb-1">
                 <Icon source="cash" size={14} color="#f05e23" />
                 <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
@@ -1475,7 +1461,7 @@ export default function SharedAppointmentScreen() {
               <Text className="text-[#9ca3af] text-xs ml-1.5 font-semibold">
                 {t("appointment.labels.chair")}:
               </Text>
-              <Text className="text-white text-xs ml-1.5 font-medium">
+              <Text className="text-xs ml-1.5 font-medium" style={{ color: colors.sectionHeaderText }}>
                 {item.chairName}
               </Text>
             </View>
@@ -1498,10 +1484,12 @@ export default function SharedAppointmentScreen() {
                 {item.services.map((service) => (
                   <View
                     key={service.serviceId}
-                    className="bg-[#2a2c30] rounded-lg px-3.5 py-2 flex-row items-center gap-1.5"
+                    className="rounded-lg px-3.5 py-2 flex-row items-center gap-1.5"
+                    style={{ backgroundColor: colors.cardBg3 }}
                   >
                     <Text
-                      className="text-white text-xs font-medium"
+                      className="text-xs font-medium"
+                      style={{ color: colors.sectionHeaderText }}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
@@ -1521,7 +1509,7 @@ export default function SharedAppointmentScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0d0d12]" style={{ paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: colors.panelBg, paddingTop: insets.top }}>
       <View className="pt-0 pb-2">
         <View className="px-4 mb-2 flex-row gap-2">
           <FilterChip
@@ -1630,8 +1618,8 @@ export default function SharedAppointmentScreen() {
         ref={ratingSheet.ref}
         snapPoints={ratingSheet.snapPoints}
         enablePanDownToClose={ratingSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={ratingSheet.makeBackdrop()}
         onChange={(index) => {
           ratingSheet.handleChange(index);
@@ -1662,8 +1650,8 @@ export default function SharedAppointmentScreen() {
         ref={complaintSheet.ref}
         snapPoints={complaintSheet.snapPoints}
         enablePanDownToClose={complaintSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={complaintSheet.makeBackdrop()}
         onChange={(index) => {
           complaintSheet.handleChange(index);
@@ -1693,8 +1681,8 @@ export default function SharedAppointmentScreen() {
         ref={userSelectionSheet.ref}
         snapPoints={userSelectionSheet.snapPoints}
         enablePanDownToClose={userSelectionSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={userSelectionSheet.makeBackdrop()}
         onChange={(index) => {
           userSelectionSheet.handleChange(index);
@@ -1706,7 +1694,7 @@ export default function SharedAppointmentScreen() {
         <BottomSheetView className="h-full pt-2 px-4">
           {userSelectionData && (
             <View>
-              <Text className="text-white text-lg font-bold mb-4 text-center">
+              <Text className="text-lg font-bold mb-4 text-center" style={{ color: colors.sectionHeaderText }}>
                 {userSelectionData.actionType === "complaint"
                   ? t("complaint.selectUser")
                   : t("block.selectUser")}
@@ -1715,7 +1703,8 @@ export default function SharedAppointmentScreen() {
                 <TouchableOpacity
                   key={target.userId}
                   onPress={() => handleUserSelected(target)}
-                  className={`flex-row items-center p-4 bg-[#1f2023] rounded-xl ${index < userSelectionData.targets.length - 1 ? "mb-3" : ""}`}
+                  className={`flex-row items-center p-4 rounded-xl ${index < userSelectionData.targets.length - 1 ? "mb-3" : ""}`}
+                  style={{ backgroundColor: colors.cardBg3 }}
                 >
                   <OwnerAvatar
                     ownerId={target.userId}
@@ -1727,7 +1716,7 @@ export default function SharedAppointmentScreen() {
                     iconColor="#6b7280"
                   />
                   <View className="flex-1">
-                    <Text className="text-white text-sm font-semibold">
+                    <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                       {target.name}
                     </Text>
                     <Text className="text-[#9ca3af] text-xs">

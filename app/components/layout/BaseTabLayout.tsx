@@ -15,6 +15,7 @@ import { useAuth } from "../../hook/useAuth";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import { useNotificationSound } from "../../hook/useNotificationSound";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 import {
   useGetBadgeCountsQuery,
   useGetHelpGuideByUserTypeQuery,
@@ -52,6 +53,7 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
   dropdownMenuItems,
   renderAdditionalBottomSheets,
 }) => {
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const dispatch = useAppDispatch();
@@ -108,7 +110,7 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
           <View className="flex-row items-center justify-center mr-2 h-full">
             <BadgeIconButton
               icon="bell-outline"
-              iconColor="white"
+              iconColor={colors.headerText}
               size={22}
               badgeCount={unreadNoti}
               onPress={handleNotificationPress}
@@ -135,6 +137,18 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
       handleNotificationPress,
       handleInfoPress,
     ],
+  );
+
+  // Memoize tab screen options to prevent React Navigation from processing option changes on every render
+  const tabScreenOptions = useMemo(() =>
+    tabs.map((tab) => ({
+      name: tab.name,
+      headerStyle: { backgroundColor: colors.headerBg, height: 80 },
+      headerTitleAlign: (tab.headerTitleAlign || "center") as "left" | "center",
+      showHeaderLeft: tab.showHeaderLeft,
+      headerTitle: tab.headerTitle,
+    })),
+    [tabs, colors.headerBg]
   );
 
   // Custom Curved Tab Bar renderer
@@ -176,21 +190,29 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
       };
 
       return (
-        <View style={{ backgroundColor: "#0d0d12" }}>
+        <View style={{
+          // screenBg kullan: notch (oval oyuk) alanı görünsün - dark/light her ikisinde kontrast sağlar
+          backgroundColor: colors.screenBg,
+          // shadowColor: '#000',
+          // shadowOffset: { width: 0, height: -2 },
+          // shadowOpacity: isDark ? 0 : 0.1,
+          // shadowRadius: 8,
+          // elevation: isDark ? 0 : 10,
+        }}>
           <CustomCurvedTabBar
             tabs={customTabs}
             activeIndex={activeIndex}
             onTabPress={handleTabPress}
             accentColor={accentColor}
-            backgroundColor="#1a1b25"
+            backgroundColor={colors.tabBarBg}
             activeIconColor="#FFFFFF"
-            inactiveIconColor="#9CA3AF"
+            inactiveIconColor={isDark ? "#9CA3AF" : "#6b7280"}
             height={60}
           />
         </View>
       );
     },
-    [tabs, unreadMsg, accentColor],
+    [tabs, unreadMsg, accentColor, colors, isDark],
   );
 
   return (
@@ -207,26 +229,23 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
       >
         <Tabs.Screen name="index" options={{ href: null }} />
 
-        {tabs.map((tab) => (
+        {tabScreenOptions.map((tabOpt) => (
           <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
+            key={tabOpt.name}
+            name={tabOpt.name}
             options={{
-              headerStyle: {
-                backgroundColor: "#0d0d12",
-                height: 80,
-              },
+              headerStyle: tabOpt.headerStyle,
               headerShown: true,
               headerTitle: () => (
                 <View className="flex-1 justify-center">
-                  <Text className="text-2xl  text-white mr-0">
-                    {tab.showHeaderLeft && userName
+                  <Text className="text-2xl mr-0" style={{ color: colors.headerText }}>
+                    {tabOpt.showHeaderLeft && userName
                       ? t("navigation.welcomeWithName", { name: userName })
-                      : tab.headerTitle}
+                      : tabOpt.headerTitle}
                   </Text>
                 </View>
               ),
-              headerTitleAlign: tab.headerTitleAlign || "center",
+              headerTitleAlign: tabOpt.headerTitleAlign,
               headerRight: renderHeaderRight,
             }}
           />
@@ -237,8 +256,8 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
       <BottomSheetModal
         ref={notificationsSheet.ref}
         backdropComponent={notificationsSheet.makeBackdrop()}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         snapPoints={notificationsSheet.snapPoints}
         enableOverDrag={notificationsSheet.enableOverDrag}
         enablePanDownToClose={notificationsSheet.enablePanDownToClose}

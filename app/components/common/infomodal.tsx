@@ -5,6 +5,7 @@ import { Icon } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
 import SearchBar from './searchbar';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 interface InfoModalProps {
     visible: boolean;
@@ -18,6 +19,7 @@ interface InfoModalProps {
 
 export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title, items }) => {
     const { t } = useLanguage();
+    const { colors, isDark } = useTheme();
     const defaultTitle = title || t('navigation.usageInfo');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -37,11 +39,11 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title, i
             animationType="fade"
             onRequestClose={onClose}
         >
-            <BlurView intensity={20} tint="dark" className="flex-1 justify-center items-center px-4">
-                <View className="bg-[#151618] rounded-2xl w-full max-w-lg max-h-[75%] border border-[#2a2c30]">
+            <BlurView intensity={20} tint={isDark ? "dark" : "light"} className="flex-1 justify-center items-center px-4">
+                <View className="rounded-2xl w-full max-w-lg max-h-[75%]" style={{ backgroundColor: colors.sheetBg, borderWidth: 1, borderColor: colors.borderColor }}>
                     {/* Header */}
-                    <View className="flex-row justify-between items-center p-4 border-b border-[#2a2c30]">
-                        <Text className="text-lg font-semibold text-white flex-1">{defaultTitle}</Text>
+                    <View className="flex-row justify-between items-center p-4" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                        <Text className="text-lg font-semibold flex-1" style={{ color: colors.sectionHeaderText }}>{defaultTitle}</Text>
                         <TouchableOpacity onPress={onClose} className="p-1 ml-2">
                             <Icon source="close" size={22} color="#9ca3af" />
                         </TouchableOpacity>
@@ -63,7 +65,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ visible, onClose, title, i
                                 <View key={index} className="mb-5">
                                     <View className="flex-row items-center mb-2">
                                         <View className="w-2 h-2 rounded-full bg-[#f05e23] mr-3" />
-                                        <Text className="text-base font-medium text-white flex-1">{item.title}</Text>
+                                        <Text className="text-base font-medium flex-1" style={{ color: colors.sectionHeaderText }}>{item.title}</Text>
                                     </View>
                                     {item.description && (
                                         <Text className="text-sm text-gray-400 ml-5 leading-5">{item.description}</Text>

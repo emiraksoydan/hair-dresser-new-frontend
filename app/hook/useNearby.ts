@@ -10,7 +10,7 @@ import { useCallback } from "react";
 import { useNearbyControl } from "./useNearByControl";
 import { LocationStatus } from "../types";
 
-const DEFAULT_RADIUS_KM = 1;
+const DEFAULT_RADIUS_KM = 10;
 const DEFAULT_MOVE_THRESHOLD_M = 150;
 const DEFAULT_STALE_MS = 15_000;
 const DEFAULT_HARD_REFRESH_MS = 15_000;

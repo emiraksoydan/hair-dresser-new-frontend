@@ -15,6 +15,7 @@ import { getErrorMessage } from "../../utils/errorHandler";
 import { MESSAGES } from "../../constants/messages";
 import { Dropdown } from "react-native-element-dropdown";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 type ChairModalBarber = {
   id: string;
@@ -61,6 +62,7 @@ export const ChairEditModal: React.FC<Props> = ({
 
   const barberOptions = barbers.map((b) => ({ label: b.name, value: b.id }));
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const dispatch = useAppDispatch();
 
   // Modal açıldığında initial değerleri tekrar yükle
@@ -154,10 +156,10 @@ export const ChairEditModal: React.FC<Props> = ({
         dismissableBackButton={false}
         visible={visible}
         onDismiss={onClose}
-        style={{ backgroundColor: "#111827" }}
+        style={{ backgroundColor: colors.cardBg }}
       >
         <Dialog.Title
-          style={{ color: "white", fontFamily: "CenturyGothic-Bold" }}
+          style={{ color: colors.sectionHeaderText, fontFamily: "CenturyGothic-Bold" }}
         >
           {title}
         </Dialog.Title>
@@ -175,7 +177,7 @@ export const ChairEditModal: React.FC<Props> = ({
                     : "border-gray-400"
                 }`}
               />
-              <Text className="text-white text-sm">İsme ata</Text>
+              <Text style={{ color: colors.sectionHeaderText }} className="text-sm">İsme ata</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -190,7 +192,7 @@ export const ChairEditModal: React.FC<Props> = ({
                     : "border-gray-400"
                 }`}
               />
-              <Text className="text-white text-sm">
+              <Text style={{ color: colors.sectionHeaderText }} className="text-sm">
                 {t("form.assignToBarber")}
               </Text>
             </TouchableOpacity>
@@ -215,13 +217,13 @@ export const ChairEditModal: React.FC<Props> = ({
                       value={value ?? ""}
                       onChangeText={onChange}
                       onBlur={onBlur}
-                      textColor="white"
-                      outlineColor={errors.name ? "#b00020" : "#444"}
+                      textColor={colors.sectionHeaderText}
+                      outlineColor={errors.name ? "#b00020" : colors.borderColor2}
                       theme={{
                         roundness: 10,
-                        colors: { onSurfaceVariant: "gray", primary: "white" },
+                        colors: { onSurfaceVariant: "gray", primary: colors.sectionHeaderText },
                       }}
-                      style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
+                      style={{ backgroundColor: colors.cardBg, borderWidth: 0 }}
                     />
                     <HelperText type="error" visible={!!errors.name}>
                       {errors.name?.message as string}
@@ -254,9 +256,9 @@ export const ChairEditModal: React.FC<Props> = ({
                         height: 42,
                         borderRadius: 10,
                         paddingHorizontal: 12,
-                        backgroundColor: "#1F2937",
+                        backgroundColor: colors.cardBg,
                         borderWidth: 1,
-                        borderColor: "#444",
+                        borderColor: colors.borderColor2,
                         justifyContent: "center",
                         marginTop: 0,
                       }}
@@ -265,15 +267,15 @@ export const ChairEditModal: React.FC<Props> = ({
                         fontFamily: "CenturyGothic",
                       }}
                       selectedTextStyle={{
-                        color: "white",
+                        color: colors.sectionHeaderText,
                         fontFamily: "CenturyGothic",
                       }}
                       itemTextStyle={{
-                        color: "white",
+                        color: colors.sectionHeaderText,
                         fontFamily: "CenturyGothic",
                       }}
                       containerStyle={{
-                        backgroundColor: "#1F2937",
+                        backgroundColor: colors.cardBg,
                         borderWidth: 0,
                         borderRadius: 10,
                         overflow: "hidden",

@@ -19,7 +19,7 @@ export function useNearbyStoresControl({
     stores,
     enabled,
     hardRefreshMs = 15_000,
-    radiusKm = 1,
+    radiusKm = 10,
     filter,
     currentUserId,
 }: UseNearbyStoresParams) {

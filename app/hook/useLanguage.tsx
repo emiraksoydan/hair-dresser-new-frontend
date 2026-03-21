@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadLanguage, saveLanguage } from '../i18n/config';
-import { InteractionManager } from 'react-native';
 
 export type Language = 'tr' | 'en' | 'ar' | 'de';
 
@@ -87,16 +86,14 @@ export const useLanguage = () => {
     try {
       // Önce state'i güncelle (optimistic update)
       setCurrentLanguage(language);
-      
+
       // AsyncStorage'a kaydet (arka planda)
       saveLanguage(language);
-      
-      // i18n'i güncelle - InteractionManager ile UI thread'i bloklamadan
-      InteractionManager.runAfterInteractions(() => {
-        if (i18n.language !== language) {
-          i18n.changeLanguage(language);
-        }
-      });
+
+      // i18n'i güncelle
+      if (i18n.language !== language) {
+        i18n.changeLanguage(language);
+      }
     } catch (error) {
       // Dil değiştirme hatası sessizce atlanır
     }

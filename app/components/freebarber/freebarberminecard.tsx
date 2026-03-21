@@ -17,6 +17,7 @@ import { showSnack } from "../../store/snackbarSlice";
 import { TouchableOpacity, ActivityIndicator } from "react-native";
 import { useLanguage } from "../../hook/useLanguage";
 import { useCategoryHierarchy } from "../../hook/useCategoryHierarchy";
+import { useTheme } from "../../hook/useTheme";
 
 type Props = {
   freeBarber: FreeBarberPanelDto;
@@ -40,6 +41,7 @@ const FreeBarberMineCard: React.FC<Props> = ({
   const carouselWidth = Math.max(0, cardWidthFreeBarber - 20);
   const { t } = useLanguage();
   const { getAllServicesForType } = useCategoryHierarchy({});
+  const { colors } = useTheme();
 
   const hasBeautySalonCertificate = Boolean(
     freeBarber.type === 2 || freeBarber.beautySalonCertificateImageId,
@@ -100,8 +102,8 @@ const FreeBarberMineCard: React.FC<Props> = ({
 
   return (
     <View
-      style={{ width: cardWidthFreeBarber }}
-      className={`mt-4 ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+      style={{ width: cardWidthFreeBarber, backgroundColor: colors.cardBg }}
+      className={`mt-4 ${!isList ? "pl-4 py-2 rounded-lg" : "rounded-xl p-3"
         }`}
     >
       {!isList && (
@@ -154,7 +156,7 @@ const FreeBarberMineCard: React.FC<Props> = ({
                     style={{
                       width: 80,
                       height: 24,
-                      backgroundColor: "#2d2d2d",
+                      backgroundColor: colors.cardBg,
                       borderRadius: 12,
                       justifyContent: "center",
                       alignItems: "center",
@@ -194,7 +196,7 @@ const FreeBarberMineCard: React.FC<Props> = ({
           </View>
           {!isList && (
             <View className="flex-row pr-2 justify-between">
-              <Text className="text-base text-gray-500">
+              <Text style={{ color: colors.textSecondary }} className="text-base">
                 {getShortBarberTypeLabel(freeBarber.type)}
               </Text>
               <FavoriteButton
@@ -230,7 +232,7 @@ const FreeBarberMineCard: React.FC<Props> = ({
         )}
         {beautyOfferings.length > 0 && (
           <View className="mt-3">
-            <Text className="text-gray-400 text-sm mb-1.5 font-century-gothic-sans-semibold">
+            <Text style={{ color: colors.textSecondary }} className="text-sm mb-1.5 font-century-gothic-sans-semibold">
               {t("form.beautySalonServices")}
             </Text>
             <ServiceOfferingsList

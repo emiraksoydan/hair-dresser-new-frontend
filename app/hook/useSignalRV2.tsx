@@ -16,6 +16,7 @@ import type {
   ChatThreadListItemDto,
   ChatMessageDto,
   AppointmentGetDto,
+  ChatMessagesReadEvent,
 } from "../types";
 import { AppointmentStatus, AppointmentFilter } from "../types/appointment";
 import { API_CONFIG } from "../constants/api";
@@ -105,9 +106,24 @@ export const useSignalRV2 = () => {
       // Backend'den badge.updated event'i ile authoritative count gelecek
       // Bu sayede çift artırma (double increment) sorunu önlenir
 
-      if (dto.appointmentId) {
+      // Kendi mesajlarını SignalR üzerinden cache'e EKLEMİYORUZ.
+      // Çünkü api.tsx'deki onQueryStarted, HTTP yanıtından sonra cache'e ekliyor.
+      // SignalR ile de eklenirse: optimistic(tempId) + real(uuid) aynı anda görünür → çift balon sorunu.
+      if (!isOwnMessage) {
+        if (dto.appointmentId) {
+          dispatch(
+            api.util.updateQueryData("getChatMessages", { appointmentId: dto.appointmentId }, (draft) => {
+              if (!draft) return;
+              if (!draft.find((m) => m.messageId === dto.messageId)) {
+                draft.push({ messageId: dto.messageId, senderUserId: dto.senderUserId, text: dto.text, createdAt: dto.createdAt });
+                draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+              }
+            }),
+          );
+        }
+
         dispatch(
-          api.util.updateQueryData("getChatMessages", { appointmentId: dto.appointmentId }, (draft) => {
+          api.util.updateQueryData("getChatMessagesByThread", { threadId: dto.threadId }, (draft) => {
             if (!draft) return;
             if (!draft.find((m) => m.messageId === dto.messageId)) {
               draft.push({ messageId: dto.messageId, senderUserId: dto.senderUserId, text: dto.text, createdAt: dto.createdAt });
@@ -116,16 +132,6 @@ export const useSignalRV2 = () => {
           }),
         );
       }
-
-      dispatch(
-        api.util.updateQueryData("getChatMessagesByThread", { threadId: dto.threadId }, (draft) => {
-          if (!draft) return;
-          if (!draft.find((m) => m.messageId === dto.messageId)) {
-            draft.push({ messageId: dto.messageId, senderUserId: dto.senderUserId, text: dto.text, createdAt: dto.createdAt });
-            draft.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          }
-        }),
-      );
     });
 
     conn.on("chat.threadCreated", (dto: ChatThreadListItemDto) => {
@@ -167,7 +173,19 @@ export const useSignalRV2 = () => {
       );
     });
 
-    conn.on("chat.typing", () => {});
+    conn.on("chat.messagesRead", (data: ChatMessagesReadEvent) => {
+      const messageIdSet = new Set(data.messageIds);
+      dispatch(
+        api.util.updateQueryData("getChatMessagesByThread", { threadId: data.threadId }, (draft) => {
+          if (!draft || !Array.isArray(draft)) return;
+          draft.forEach((msg) => {
+            if (messageIdSet.has(msg.messageId)) {
+              msg.isFullyRead = true;
+            }
+          });
+        }),
+      );
+    });
 
     conn.on("appointment.updated", (appointment: AppointmentGetDto) => {
 
@@ -264,6 +282,10 @@ export const useSignalRV2 = () => {
     });
 
     conn.on("image.updated", () => {
+      dispatch(api.util.invalidateTags(["UserProfile", "Chat", "Notification", { type: "StoreForUsers", id: "LIST" }, { type: "FreeBarberForUsers", id: "LIST" }, "MineStores", "MineFreeBarberPanel"]));
+    });
+
+    conn.on("image.removed", () => {
       dispatch(api.util.invalidateTags(["UserProfile", "Chat", "Notification", { type: "StoreForUsers", id: "LIST" }, { type: "FreeBarberForUsers", id: "LIST" }, "MineStores", "MineFreeBarberPanel"]));
     });
 
@@ -473,10 +495,11 @@ export const useSignalRV2 = () => {
         conn.off("chat.threadCreated");
         conn.off("chat.threadUpdated");
         conn.off("chat.threadRemoved");
-        conn.off("chat.typing");
+        conn.off("chat.messagesRead");
         conn.off("appointment.updated");
         conn.off("badge.updated");
         conn.off("image.updated");
+        conn.off("image.removed");
         conn.off("group.joined");
         await conn.stop();
       } catch (e) {

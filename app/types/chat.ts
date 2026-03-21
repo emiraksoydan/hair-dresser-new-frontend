@@ -31,6 +31,13 @@ export type ChatMessageItemDto = {
   senderUserId: string;
   text: string;
   createdAt: string;
+  isFullyRead?: boolean; // optional: yeni/optimistic mesajlarda henüz set edilmez (default false)
+};
+
+export type ChatMessagesReadEvent = {
+  threadId: string;
+  readerUserId: string;
+  messageIds: string[];
 };
 
 export type ChatMessageDto = {

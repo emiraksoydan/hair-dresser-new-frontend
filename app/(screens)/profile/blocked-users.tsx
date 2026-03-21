@@ -9,11 +9,13 @@ import { useAlert } from "../../hook/useAlert";
 import { LottieViewComponent } from "../../components/common/lottieview";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../hook/useTheme";
 
 export default function BlockedUsersPage() {
     const router = useRouter();
     const { t } = useLanguage();
     const { showSuccess, showError } = useAlert();
+    const { colors } = useTheme();
 
     const { data: blockedUsers, isLoading, refetch, isFetching } = useGetMyBlockedUsersQuery();
     const [unblockUser, { isLoading: isUnblocking }] = useUnblockUserMutation();
@@ -61,7 +63,10 @@ export default function BlockedUsersPage() {
         const userTypeName = getUserTypeName(item.targetUserType);
 
         return (
-            <View className="mb-3 flex-row items-center rounded-xl bg-[#1e2024] p-4">
+            <View
+                className="mb-3 flex-row items-center rounded-xl p-4"
+                style={{ backgroundColor: colors.cardBg2 }}
+            >
                 <View className="relative mr-3">
                     <Image
                         source={imageUrl ? { uri: imageUrl } : { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
@@ -70,7 +75,7 @@ export default function BlockedUsersPage() {
                     />
                 </View>
                 <View className="flex-1">
-                    <Text className="text-base font-semibold text-white">{displayName}</Text>
+                    <Text className="text-base font-semibold" style={{ color: colors.sectionHeaderText }}>{displayName}</Text>
                     {userTypeName ? (
                         <Text className="text-xs text-gray-400">{userTypeName}</Text>
                     ) : null}
@@ -88,12 +93,15 @@ export default function BlockedUsersPage() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#151618]" edges={["top"]}>
-            <View className="flex-row items-center px-4 py-3 border-b border-gray-800">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.screenBg }} edges={["top"]}>
+            <View
+                className="flex-row items-center px-4 py-3"
+                style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}
+            >
                 <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Icon source="chevron-left" size={28} color="white" />
+                    <Icon source="chevron-left" size={28} color={colors.sectionHeaderText} />
                 </TouchableOpacity>
-                <Text className="text-lg font-bold text-white ml-2">
+                <Text className="text-lg font-bold ml-2" style={{ color: colors.sectionHeaderText }}>
                     {t("profile.blockedUsers")}
                 </Text>
             </View>

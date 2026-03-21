@@ -60,6 +60,7 @@ import { CrudSkeletonComponent } from "../common/crudskeleton";
 import { MESSAGES } from "../../constants/messages";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
 import { StepFormIndicator } from "../common/StepFormIndicator";
+import { useTheme } from "../../hook/useTheme";
 
 // --- Schema Definitions ---
 const createLocationSchema = (t: (key: string) => string) =>
@@ -207,21 +208,21 @@ const bsPriceKey = (name: string) => `${BS_PRICE_PREFIX}${name}`;
 const isBsPriceKey = (key: string) => key.startsWith(BS_PRICE_PREFIX);
 const stripBsPrefix = (key: string) => isBsPriceKey(key) ? key.slice(BS_PRICE_PREFIX.length) : key;
 
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <View className="py-1.5 border-b border-gray-700">
+const Row = ({ label, value, colors }: { label: string; value: string; colors: any }) => (
+  <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
     <Text className="text-gray-400 text-sm mb-0.5">{label}</Text>
-    <Text className="text-white text-sm">{value || "—"}</Text>
+    <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>{value || "—"}</Text>
   </View>
 );
 
-const RowList = ({ label, items }: { label: string; items: string[] }) => {
+const RowList = ({ label, items, colors }: { label: string; items: string[]; colors: any }) => {
   const unique = React.useMemo(() => Array.from(new Set(items)), [items]);
   if (unique.length === 0) return null;
   return (
-    <View className="py-1.5 border-b border-gray-700">
+    <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
       <Text className="text-gray-400 text-sm mb-1">{label}</Text>
       {unique.map((item, i) => (
-        <Text key={`${item}-${i}`} className="text-white text-sm py-0.5">{item}</Text>
+        <Text key={`${item}-${i}`} className="text-sm py-0.5" style={{ color: colors.sectionHeaderText }}>{item}</Text>
       ))}
     </View>
   );
@@ -259,6 +260,7 @@ export const FormFreeBarberOperation = React.memo(
     const dispatch = useAppDispatch();
     const { userId } = useAuth();
     const { t, currentLanguage } = useLanguage();
+    const { colors } = useTheme();
 
     const stepLabels = React.useMemo(() => {
       const base = [
@@ -1004,126 +1006,69 @@ export const FormFreeBarberOperation = React.memo(
           ? (offeringsMapped as ServiceOfferingCreateDto[])
           : (offeringsMapped as ServiceOfferingUpdateDto[]);
 
-        // Certificate image upload (tekli resim)
-        // ÖNEMLİ: Eğer certificate değişmemişse (backend URL), yükleme yapma, mevcut ID'yi kullan
+        // Certificate ve beauty salon certificate - paralel yükleme
         const existingCertificateImage = (data as any)?.barberCertificateImage as { id?: string; imageUrl?: string } | undefined;
         let certImageId: string | undefined = existingCertificateImage?.id;
 
-        if (form.certificateImage) {
-          // Certificate değişmiş mi kontrol et (local file URI ise değişmiş demektir)
-          const isCertificateChanged =
-            form.certificateImage.uri.startsWith('file://') ||
-            form.certificateImage.uri.startsWith('content://') ||
-            (existingCertificateImage?.imageUrl && form.certificateImage.uri !== existingCertificateImage.imageUrl);
-
-          if (isCertificateChanged) {
-            if (!userId) {
-              dispatch(
-                showSnack({
-                  message: MESSAGES.PROFILE.USER_NOT_FOUND,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            const formData = new FormData();
-            formData.append("file", {
-              uri: form.certificateImage.uri,
-              name: form.certificateImage.name ?? "certificate.jpg",
-              type: form.certificateImage.type ?? "image/jpeg",
-            } as any);
-            formData.append("ownerType", String(ImageOwnerType.User));
-            formData.append("ownerId", userId);
-
-            const uploadImageResult = await uploadImage({
-              data: formData,
-              isProfileImage: false,
-            });
-            if ("error" in uploadImageResult) {
-              const errorMessage = getErrorMessage(
-                uploadImageResult.error,
-              );
-              dispatch(
-                showSnack({
-                  message:
-                    errorMessage || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            const uploadResult = uploadImageResult.data;
-            if (!uploadResult?.success || !uploadResult.data) {
-              dispatch(
-                showSnack({
-                  message:
-                    uploadResult?.message ||
-                    MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            certImageId = uploadResult.data;
-          }
-          // Eğer değişmemişse, certImageId zaten mevcut ID'ye set edildi (yukarıda)
-        }
-
-        // Beauty salon certificate image upload (ayrı sertifika)
         const existingBeautyCertImage = (data as any)?.beautySalonCertificateImage as { id?: string; imageUrl?: string } | undefined;
         let beautyCertImageId: string | undefined = existingBeautyCertImage?.id;
 
-        if (form.beautySalonCertificateImage) {
-          const isBeautyCertChanged =
-            form.beautySalonCertificateImage.uri.startsWith('file://') ||
-            form.beautySalonCertificateImage.uri.startsWith('content://') ||
-            (existingBeautyCertImage?.imageUrl && form.beautySalonCertificateImage.uri !== existingBeautyCertImage.imageUrl);
+        const isCertificateChanged = !!form.certificateImage && (
+          form.certificateImage.uri.startsWith('file://') ||
+          form.certificateImage.uri.startsWith('content://') ||
+          !!(existingCertificateImage?.imageUrl && form.certificateImage.uri !== existingCertificateImage.imageUrl)
+        );
 
-          if (isBeautyCertChanged) {
-            if (!userId) {
-              dispatch(
-                showSnack({
-                  message: MESSAGES.PROFILE.USER_NOT_FOUND,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            const beautyFormData = new FormData();
-            beautyFormData.append("file", {
-              uri: form.beautySalonCertificateImage.uri,
-              name: form.beautySalonCertificateImage.name ?? "beauty-certificate.jpg",
-              type: form.beautySalonCertificateImage.type ?? "image/jpeg",
-            } as any);
-            beautyFormData.append("ownerType", String(ImageOwnerType.User));
-            beautyFormData.append("ownerId", userId);
+        const isBeautyCertChanged = !!form.beautySalonCertificateImage && (
+          form.beautySalonCertificateImage.uri.startsWith('file://') ||
+          form.beautySalonCertificateImage.uri.startsWith('content://') ||
+          !!(existingBeautyCertImage?.imageUrl && form.beautySalonCertificateImage.uri !== existingBeautyCertImage.imageUrl)
+        );
 
-            const beautyUploadResult = await uploadImage({
-              data: beautyFormData,
-              isProfileImage: false,
-            });
-            if ("error" in beautyUploadResult) {
-              const errorMessage = getErrorMessage(beautyUploadResult.error);
-              dispatch(
-                showSnack({
-                  message: errorMessage || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            const beautyResult = beautyUploadResult.data;
-            if (!beautyResult?.success || !beautyResult.data) {
-              dispatch(
-                showSnack({
-                  message: beautyResult?.message || MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR,
-                  isError: true,
-                }),
-              );
-              return;
-            }
-            beautyCertImageId = beautyResult.data;
+        if ((isCertificateChanged || isBeautyCertChanged) && !userId) {
+          dispatch(showSnack({ message: MESSAGES.PROFILE.USER_NOT_FOUND, isError: true }));
+          return;
+        }
+
+        const makeCertFormData = (file: { uri: string; name?: string | null; type?: string | null }, defaultName: string) => {
+          const fd = new FormData();
+          fd.append("file", { uri: file.uri, name: file.name ?? defaultName, type: file.type ?? "image/jpeg" } as any);
+          fd.append("ownerType", String(ImageOwnerType.User));
+          fd.append("ownerId", userId!);
+          return fd;
+        };
+
+        const [certUploadResult, beautyUploadResult] = await Promise.all([
+          isCertificateChanged
+            ? uploadImage({ data: makeCertFormData(form.certificateImage!, "certificate.jpg"), isProfileImage: false })
+            : Promise.resolve(null),
+          isBeautyCertChanged
+            ? uploadImage({ data: makeCertFormData(form.beautySalonCertificateImage!, "beauty-certificate.jpg"), isProfileImage: false })
+            : Promise.resolve(null),
+        ]);
+
+        if (certUploadResult) {
+          if ("error" in certUploadResult) {
+            dispatch(showSnack({ message: getErrorMessage(certUploadResult.error) || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED, isError: true }));
+            return;
           }
+          if (!certUploadResult.data?.success || !certUploadResult.data.data) {
+            dispatch(showSnack({ message: certUploadResult.data?.message || MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR, isError: true }));
+            return;
+          }
+          certImageId = certUploadResult.data.data;
+        }
+
+        if (beautyUploadResult) {
+          if ("error" in beautyUploadResult) {
+            dispatch(showSnack({ message: getErrorMessage(beautyUploadResult.error) || MESSAGES.FORM.CERTIFICATE_UPLOAD_FAILED, isError: true }));
+            return;
+          }
+          if (!beautyUploadResult.data?.success || !beautyUploadResult.data.data) {
+            dispatch(showSnack({ message: beautyUploadResult.data?.message || MESSAGES.FORM.CERTIFICATE_UPLOAD_ERROR, isError: true }));
+            return;
+          }
+          beautyCertImageId = beautyUploadResult.data.data;
         }
 
         // selectedMainCategories'den type'ı belirle (ilk seçilen kategori)
@@ -1172,63 +1117,63 @@ export const FormFreeBarberOperation = React.memo(
 
           if (hasImageChanges) {
             try {
-              let ownerId = isEdit ? (data?.id ?? freeBarberId ?? "") : "";
-              if (!ownerId) {
-                const panelResult = await triggerGetFreeBarberMinePanel();
-                if ("error" in panelResult || !panelResult.data) {
-                  throw new Error(MESSAGES.FORM.PANEL_ID_NOT_FOUND);
-                }
-                ownerId = panelResult.data?.id ?? "";
-              }
+              const ownerId = isEdit
+                ? (data?.id ?? freeBarberId ?? "")
+                : (mutationResult.data?.data ?? "");
               if (!ownerId) {
                 throw new Error(MESSAGES.FORM.PANEL_ID_NOT_FOUND);
               }
 
               if (isEdit) {
-                // 1. Silinecek resimleri sil
-                for (const img of removedImages) {
-                  const deleteImageResult = await deleteImage(img.id);
-                  if ("error" in deleteImageResult) {
-                    throw new Error(
-                      getErrorMessage(deleteImageResult.error) ||
-                      MESSAGES.FORM.IMAGE_DELETE_ERROR,
-                    );
-                  }
-                  const deleteResult = deleteImageResult.data;
-                  if (!deleteResult?.success) {
-                    throw new Error(
-                      deleteResult?.message || MESSAGES.FORM.IMAGE_DELETE_ERROR,
-                    );
-                  }
-                }
+                // 1. Silinecek resimleri paralel sil
+                await Promise.all(
+                  removedImages.map(async (img) => {
+                    const deleteImageResult = await deleteImage(img.id);
+                    if ("error" in deleteImageResult) {
+                      throw new Error(
+                        getErrorMessage(deleteImageResult.error) ||
+                        MESSAGES.FORM.IMAGE_DELETE_ERROR,
+                      );
+                    }
+                    const deleteResult = deleteImageResult.data;
+                    if (!deleteResult?.success) {
+                      throw new Error(
+                        deleteResult?.message || MESSAGES.FORM.IMAGE_DELETE_ERROR,
+                      );
+                    }
+                  }),
+                );
 
-                // 2. Güncellenecek resimleri update-blob ile güncelle (aynı blob'u koru)
-                for (const img of updatedImages) {
-                  if (!img.id) continue;
-                  const formData = new FormData();
-                  formData.append("file", {
-                    uri: img.uri,
-                    name: img.name ?? "photo.jpg",
-                    type: img.type ?? "image/jpeg",
-                  } as any);
-                  const updateBlobResult = await updateImageBlob({
-                    imageId: img.id,
-                    file: formData,
-                  });
-                  if ("error" in updateBlobResult) {
-                    throw new Error(
-                      getErrorMessage(updateBlobResult.error) ||
-                      MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR,
-                    );
-                  }
-                  const updateResult = updateBlobResult.data;
-                  if (!updateResult?.success) {
-                    throw new Error(
-                      updateResult?.message ||
-                      MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR,
-                    );
-                  }
-                }
+                // 2. Güncellenecek resimleri paralel güncelle
+                await Promise.all(
+                  updatedImages
+                    .filter((img) => img.id)
+                    .map(async (img) => {
+                      const formData = new FormData();
+                      formData.append("file", {
+                        uri: img.uri,
+                        name: img.name ?? "photo.jpg",
+                        type: img.type ?? "image/jpeg",
+                      } as any);
+                      const updateBlobResult = await updateImageBlob({
+                        imageId: img.id!,
+                        file: formData,
+                      });
+                      if ("error" in updateBlobResult) {
+                        throw new Error(
+                          getErrorMessage(updateBlobResult.error) ||
+                          MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR,
+                        );
+                      }
+                      const updateResult = updateBlobResult.data;
+                      if (!updateResult?.success) {
+                        throw new Error(
+                          updateResult?.message ||
+                          MESSAGES.FORM.IMAGE_UPDATE_BLOB_ERROR,
+                        );
+                      }
+                    }),
+                );
               }
 
               // 3. Yeni resimleri ekle
@@ -1379,17 +1324,17 @@ export const FormFreeBarberOperation = React.memo(
     return (
       <View className="h-full">
         <View className="flex-row justify-between items-center px-2 py-2">
-          <Text className="text-white flex-1 font-century-gothic text-2xl">
+          <Text className="flex-1 font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
             {!isEdit ? t("form.createPanel") : t("form.editPanel")}
           </Text>
           <IconButton
             onPress={() => onClose?.()}
             icon="close"
-            iconColor="white"
+            iconColor={colors.sectionHeaderText}
           />
         </View>
 
-        <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
+        <Divider style={{ height: 1, backgroundColor: colors.borderColor }} />
 
         {!enabled ? null : showSkeleton ? (
           <View className="flex-1 pt-4">
@@ -1416,7 +1361,7 @@ export const FormFreeBarberOperation = React.memo(
               <Animated.View style={{ flex: 1, transform: [{ translateX: stepSlideAnim }] }}>
                 {currentStep === 0 && (
                   <>
-                    <Text className="text-white text-xl mt-2">
+                    <Text className="text-xl mt-2" style={{ color: colors.sectionHeaderText }}>
                       {t("form.panelImagesTitle")}
                     </Text>
 
@@ -1456,7 +1401,7 @@ export const FormFreeBarberOperation = React.memo(
                                       bottom: 0,
                                       justifyContent: "center",
                                       alignItems: "center",
-                                      backgroundColor: "#1F2937",
+                                      backgroundColor: colors.cardBg,
                                       borderRadius: 10,
                                     }}
                                   >
@@ -1476,8 +1421,8 @@ export const FormFreeBarberOperation = React.memo(
                               <TouchableOpacity
                                 onPress={pickMultipleImages}
                                 disabled={isImagePickerLoading}
-                                className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                                style={{ width: 200, height: 150 }}
+                                className="rounded-xl items-center justify-center"
+                                style={{ width: 200, height: 150, backgroundColor: colors.cardBg2, borderWidth: 1, borderColor: colors.borderColor }}
                                 activeOpacity={0.85}
                               >
                                 {isImagePickerLoading ? (
@@ -1508,7 +1453,7 @@ export const FormFreeBarberOperation = React.memo(
                       )}
                     />
 
-                    <Text className="text-white text-xl mt-2 px-2">
+                    <Text className="text-xl mt-2 px-2" style={{ color: colors.sectionHeaderText }}>
                       {t("form.panelInformation")}
                     </Text>
 
@@ -1543,9 +1488,9 @@ export const FormFreeBarberOperation = React.memo(
                                 editable={false}
                                 dense
                                 pointerEvents="none"
-                                textColor="white"
+                                textColor={colors.sectionHeaderText}
                                 outlineColor={
-                                  errors.certificateImage ? "#b00020" : "#444"
+                                  errors.certificateImage ? "#b00020" : colors.borderColor2
                                 }
                                 right={
                                   isCertificateLoading ? (
@@ -1555,17 +1500,17 @@ export const FormFreeBarberOperation = React.memo(
                                       style={{ marginRight: 12 }}
                                     />
                                   ) : (
-                                    <TextInput.Icon icon="image" color="white" />
+                                    <TextInput.Icon icon="image" color={colors.sectionHeaderText} />
                                   )
                                 }
                                 theme={{
                                   roundness: 10,
                                   colors: {
                                     onSurfaceVariant: "gray",
-                                    primary: "white",
+                                    primary: colors.sectionHeaderText,
                                   },
                                 }}
-                                style={{ backgroundColor: "#1F2937" }}
+                                style={{ backgroundColor: colors.cardBg }}
                               />
                             </TouchableOpacity>
                             {value?.uri && !isCertificateLoading && (
@@ -1607,16 +1552,16 @@ export const FormFreeBarberOperation = React.memo(
                                 value={value}
                                 onChangeText={onChange}
                                 onBlur={onBlur}
-                                textColor="white"
-                                outlineColor={errors.name ? "#b00020" : "#444"}
+                                textColor={colors.sectionHeaderText}
+                                outlineColor={errors.name ? "#b00020" : colors.borderColor2}
                                 theme={{
                                   roundness: 10,
                                   colors: {
                                     onSurfaceVariant: "gray",
-                                    primary: "white",
+                                    primary: colors.sectionHeaderText,
                                   },
                                 }}
-                                style={{ backgroundColor: "#1F2937" }}
+                                style={{ backgroundColor: colors.cardBg }}
                               />
                               <HelperText type="error" visible={!!errors.name} style={{ fontFamily: 'CenturyGothic' }}>
                                 {errors?.name?.message as string}
@@ -1638,16 +1583,16 @@ export const FormFreeBarberOperation = React.memo(
                                 value={value}
                                 onChangeText={onChange}
                                 onBlur={onBlur}
-                                textColor="white"
-                                outlineColor={errors.surname ? "#b00020" : "#444"}
+                                textColor={colors.sectionHeaderText}
+                                outlineColor={errors.surname ? "#b00020" : colors.borderColor2}
                                 theme={{
                                   roundness: 10,
                                   colors: {
                                     onSurfaceVariant: "gray",
-                                    primary: "white",
+                                    primary: colors.sectionHeaderText,
                                   },
                                 }}
-                                style={{ backgroundColor: "#1F2937" }}
+                                style={{ backgroundColor: colors.cardBg }}
                               />
                               <HelperText type="error" visible={!!errors.surname} style={{ fontFamily: 'CenturyGothic' }}>
                                 {errors?.surname?.message as string}
@@ -1662,7 +1607,7 @@ export const FormFreeBarberOperation = React.memo(
                 {currentStep === 1 && (
                   <>
                     <View className="mt-2">
-                      <Text className="text-white text-lg mb-2">
+                      <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                         {t("form.mainCategories")} *
                       </Text>
                       <Controller
@@ -1694,7 +1639,7 @@ export const FormFreeBarberOperation = React.memo(
                         </Text>
                       ) : (
                         <>
-                          <Text className="text-white text-lg mb-2">
+                          <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                             {t("form.mainHeadings")}
                           </Text>
                           <Controller
@@ -1731,7 +1676,7 @@ export const FormFreeBarberOperation = React.memo(
                       ) : (
                         <>
                           <View>
-                            <Text className="text-white text-lg mb-2">
+                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.subHeadings")}
                             </Text>
                             <Controller
@@ -1769,7 +1714,7 @@ export const FormFreeBarberOperation = React.memo(
                       ) : (
                         <>
                           <View>
-                            <Text className="text-white text-xl mb-2">
+                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.servicesTitle")}
                             </Text>
                             <Controller
@@ -1800,14 +1745,14 @@ export const FormFreeBarberOperation = React.memo(
                 {currentStep === 5 && (
                   <>
                     <View className="mt-2">
-                      <Divider style={{ backgroundColor: '#47494e', marginVertical: 16 }} />
-                      <Text className="text-white text-xl mb-4 font-bold">
+                      <Divider style={{ height: 1, backgroundColor: colors.borderColor2, marginVertical: 16 }} />
+                      <Text className="text-xl mb-4 font-bold" style={{ color: colors.sectionHeaderText }}>
                         {t("form.beautySalonCategories")}
                       </Text>
 
                       {/* Güzellik Salonu Belgesi (Opsiyonel) */}
                       <View className="mb-4">
-                        <Text className="text-white text-lg mb-2">
+                        <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                           {t("form.beautySalonCertificate")} ({t("common.optional")})
                         </Text>
                         <Controller
@@ -1839,9 +1784,9 @@ export const FormFreeBarberOperation = React.memo(
                                   editable={false}
                                   dense
                                   pointerEvents="none"
-                                  textColor="white"
+                                  textColor={colors.sectionHeaderText}
                                   outlineColor={
-                                    errors.beautySalonCertificateImage ? "#b00020" : "#444"
+                                    errors.beautySalonCertificateImage ? "#b00020" : colors.borderColor2
                                   }
                                   right={
                                     isCertificateLoading ? (
@@ -1851,17 +1796,17 @@ export const FormFreeBarberOperation = React.memo(
                                         style={{ marginRight: 12 }}
                                       />
                                     ) : (
-                                      <TextInput.Icon icon="image" color="white" />
+                                      <TextInput.Icon icon="image" color={colors.sectionHeaderText} />
                                     )
                                   }
                                   theme={{
                                     roundness: 10,
                                     colors: {
                                       onSurfaceVariant: "gray",
-                                      primary: "white",
+                                      primary: colors.sectionHeaderText,
                                     },
                                   }}
-                                  style={{ backgroundColor: "#1F2937" }}
+                                  style={{ backgroundColor: colors.cardBg }}
                                 />
                               </TouchableOpacity>
                               {value?.uri && !isCertificateLoading && (
@@ -1894,7 +1839,7 @@ export const FormFreeBarberOperation = React.memo(
                       <View>
                         {/* Güzellik Salonu Ana Başlıklar */}
                         <View className="mt-1">
-                          <Text className="text-white text-lg mb-2">
+                          <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                             {t("form.beautySalonMainHeadings")} *
                           </Text>
                           <Controller
@@ -1918,7 +1863,7 @@ export const FormFreeBarberOperation = React.memo(
                         {/* Güzellik Salonu Alt Başlıklar */}
                         {selectedBeautySalonMainHeadings.length > 0 && beautySalonSubHeadingOptions.length > 0 && (
                           <View className="mt-1">
-                            <Text className="text-white text-lg mb-2">
+                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.beautySalonSubHeadings")}
                             </Text>
                             <Controller
@@ -1946,7 +1891,7 @@ export const FormFreeBarberOperation = React.memo(
                         {/* Güzellik Salonu Hizmetleri */}
                         {selectedBeautySalonSubHeadings.length > 0 && beautySalonCategoryOptions.length > 0 && (
                           <View className="mt-1">
-                            <Text className="text-white text-lg mb-2">
+                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.beautySalonServices")}
                             </Text>
                             <Controller
@@ -1981,8 +1926,8 @@ export const FormFreeBarberOperation = React.memo(
                   <>
                     {/* Prices - Ana Kategori Hizmetleri */}
                     {(selectedCategories ?? []).length > 0 && (
-                      <View className="mt-2 mx-0 rounded-xl bg-gray-800 p-4">
-                        <Text className="text-white text-lg mb-3 font-semibold">
+                      <View className="mt-2 mx-0 rounded-xl p-4" style={{ backgroundColor: colors.cardBg }}>
+                        <Text className="text-lg mb-3 font-semibold" style={{ color: colors.sectionHeaderText }}>
                           {t("form.servicesTitle")} - {t("form.mainCategories")}
                         </Text>
                         {(selectedCategories ?? []).map((categoryId) => {
@@ -1993,7 +1938,7 @@ export const FormFreeBarberOperation = React.memo(
                               key={categoryId}
                               className="flex-row items-center justify-between mb-2"
                             >
-                              <Text className="text-white w-[40%]" numberOfLines={1}>
+                              <Text className="w-[40%]" numberOfLines={1} style={{ color: colors.sectionHeaderText }}>
                                 {label}
                               </Text>
                               <View className="w-[55%]">
@@ -2026,17 +1971,17 @@ export const FormFreeBarberOperation = React.memo(
                                           );
                                         }
                                       }}
-                                      textColor="white"
-                                      outlineColor={error ? "#b00020" : "#444"}
+                                      textColor={colors.sectionHeaderText}
+                                      outlineColor={error ? "#b00020" : colors.borderColor2}
                                       style={{
-                                        backgroundColor: "#1F2937",
+                                        backgroundColor: colors.cardBg,
                                         height: 40,
                                       }}
                                       theme={{
                                         roundness: 10,
                                         colors: {
                                           onSurfaceVariant: "gray",
-                                          primary: "white",
+                                          primary: colors.sectionHeaderText,
                                         },
                                       }}
                                     />
@@ -2051,8 +1996,8 @@ export const FormFreeBarberOperation = React.memo(
 
                     {/* Prices - Güzellik Salonu Hizmetleri */}
                     {(selectedBeautySalonCategories ?? []).length > 0 && (
-                      <View className="mt-4 mx-0 rounded-xl bg-gray-800 p-4">
-                        <Text className="text-white text-lg mb-3 font-semibold">
+                      <View className="mt-4 mx-0 rounded-xl p-4" style={{ backgroundColor: colors.cardBg }}>
+                        <Text className="text-lg mb-3 font-semibold" style={{ color: colors.sectionHeaderText }}>
                           {t("form.servicesTitle")} - {t("form.beautySalonCategories")}
                         </Text>
                         {(selectedBeautySalonCategories ?? []).map((categoryId) => {
@@ -2064,7 +2009,7 @@ export const FormFreeBarberOperation = React.memo(
                               key={`bs-${categoryId}`}
                               className="flex-row items-center justify-between mb-2"
                             >
-                              <Text className="text-white w-[40%]" numberOfLines={1}>
+                              <Text className="w-[40%]" numberOfLines={1} style={{ color: colors.sectionHeaderText }}>
                                 {label}
                               </Text>
                               <View className="w-[55%]">
@@ -2097,17 +2042,17 @@ export const FormFreeBarberOperation = React.memo(
                                           );
                                         }
                                       }}
-                                      textColor="white"
-                                      outlineColor={error ? "#b00020" : "#444"}
+                                      textColor={colors.sectionHeaderText}
+                                      outlineColor={error ? "#b00020" : colors.borderColor2}
                                       style={{
-                                        backgroundColor: "#1F2937",
+                                        backgroundColor: colors.cardBg,
                                         height: 40,
                                       }}
                                       theme={{
                                         roundness: 10,
                                         colors: {
                                           onSurfaceVariant: "gray",
-                                          primary: "white",
+                                          primary: colors.sectionHeaderText,
                                         },
                                       }}
                                     />
@@ -2125,10 +2070,10 @@ export const FormFreeBarberOperation = React.memo(
                 {currentStep === 7 && (
                   <>
                     <View className="px-0 py-4">
-                      <Text className="text-white text-lg font-bold mb-4">
+                      <Text className="text-lg font-bold mb-4" style={{ color: colors.sectionHeaderText }}>
                         {t("form.stepPreview")}
                       </Text>
-                      <View className="bg-gray-800 rounded-xl p-4 gap-3 border border-gray-700">
+                      <View className="rounded-xl p-4 gap-3" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor }}>
                         {(getValues("images") ?? []).length > 0 && (
                           <View className="mb-3">
                             <Text className="text-gray-400 text-sm mb-2">{t("form.panelImagesTitle")}</Text>
@@ -2139,29 +2084,29 @@ export const FormFreeBarberOperation = React.memo(
                             </ScrollView>
                           </View>
                         )}
-                        <Row label={t("form.panelInformation")} value={`${getValues("name") ?? ""} ${getValues("surname") ?? ""}`.trim()} />
-                        <RowList label={t("form.mainCategories")} items={(getValues("selectedMainCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
-                        <RowList label={t("form.mainHeadings")} items={(getValues("selectedMainHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
-                        <RowList label={t("form.subHeadings")} items={(getValues("selectedSubHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
-                        <RowList label={t("form.servicesTitle")} items={(getValues("selectedCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} />
+                        <Row label={t("form.panelInformation")} value={`${getValues("name") ?? ""} ${getValues("surname") ?? ""}`.trim()} colors={colors} />
+                        <RowList label={t("form.mainCategories")} items={(getValues("selectedMainCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} colors={colors} />
+                        <RowList label={t("form.mainHeadings")} items={(getValues("selectedMainHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} colors={colors} />
+                        <RowList label={t("form.subHeadings")} items={(getValues("selectedSubHeadings") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} colors={colors} />
+                        <RowList label={t("form.servicesTitle")} items={(getValues("selectedCategories") ?? []).map((id: string) => categoryLabelMap.get(id) ?? id)} colors={colors} />
                         {/* Sertifika Resmi */}
                         {getValues("certificateImage")?.uri && (
-                          <View className="py-1.5 border-b border-gray-700">
+                          <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
                             <Text className="text-gray-400 text-sm mb-2">{t("form.certificateImage")}</Text>
                             <Image source={{ uri: getValues("certificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
                           </View>
                         )}
                         {/* Güzellik Salonu Sertifika Resmi */}
                         {getValues("beautySalonCertificateImage")?.uri && (
-                          <View className="py-1.5 border-b border-gray-700">
+                          <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
                             <Text className="text-gray-400 text-sm mb-2">{t("form.beautySalonCertificate")}</Text>
                             <Image source={{ uri: getValues("beautySalonCertificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
                           </View>
                         )}
                         {/* Güzellik Salonu Kategorileri */}
-                        <RowList label={t("form.beautySalonMainHeadings")} items={(getValues("selectedBeautySalonMainHeadings") ?? []).map((id: string) => id)} />
-                        <RowList label={t("form.beautySalonSubHeadings")} items={(getValues("selectedBeautySalonSubHeadings") ?? []).map((id: string) => id)} />
-                        <RowList label={t("form.beautySalonServices")} items={(getValues("selectedBeautySalonCategories") ?? []).map((id: string) => id)} />
+                        <RowList label={t("form.beautySalonMainHeadings")} items={(getValues("selectedBeautySalonMainHeadings") ?? []).map((id: string) => id)} colors={colors} />
+                        <RowList label={t("form.beautySalonSubHeadings")} items={(getValues("selectedBeautySalonSubHeadings") ?? []).map((id: string) => id)} colors={colors} />
+                        <RowList label={t("form.beautySalonServices")} items={(getValues("selectedBeautySalonCategories") ?? []).map((id: string) => id)} colors={colors} />
                         {Object.keys(getValues("prices") ?? {}).length > 0 && (
                           <View className="mt-2">
                             <Text className="text-gray-400 text-sm mb-1">{t("form.stepPrices")}</Text>
@@ -2170,7 +2115,7 @@ export const FormFreeBarberOperation = React.memo(
                               const isBs = isBsPriceKey(catId);
                               return (
                                 <View key={`price-${idx}-${catId}`} className="flex-row justify-between py-1">
-                                  <Text className="text-white flex-1">
+                                  <Text className="flex-1" style={{ color: colors.sectionHeaderText }}>
                                     {categoryLabelMap.get(displayName) ?? displayName}
                                     {isBs ? ` (${t("form.beautySalonCategories")})` : ""}
                                   </Text>
@@ -2180,7 +2125,7 @@ export const FormFreeBarberOperation = React.memo(
                             })}
                           </View>
                         )}
-                        <Row label={t("form.locationRequired")} value={getValues("location")?.latitude && getValues("location")?.longitude ? `${getValues("location").latitude.toFixed(4)}, ${getValues("location").longitude.toFixed(4)}` : t("form.locationNotSet")} />
+                        <Row label={t("form.locationRequired")} value={getValues("location")?.latitude && getValues("location")?.longitude ? `${getValues("location").latitude.toFixed(4)}, ${getValues("location").longitude.toFixed(4)}` : t("form.locationNotSet")} colors={colors} />
                       </View>
                     </View>
                   </>
@@ -2188,8 +2133,8 @@ export const FormFreeBarberOperation = React.memo(
                 {currentStep === 8 && isEdit && (
                   <>
                     <View className="px-4 mt-2">
-                      <View className="bg-gray-800 rounded-xl p-4 flex-row items-center justify-between border border-gray-700">
-                        <Text className="text-white text-lg font-bold">
+                      <View className="rounded-xl p-4 flex-row items-center justify-between" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor }}>
+                        <Text className="text-lg font-bold" style={{ color: colors.sectionHeaderText }}>
                           {t("status.availabilityStatus")}
                         </Text>
                         <Controller

@@ -33,10 +33,12 @@ import { useNearbyStores } from "../../hook/useNearByStore";
 import { useNearbyFreeBarber } from "../../hook/useNearByFreeBarber";
 import { useBackendFilters } from "../../hook/useBackendFilters";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 const Index = () => {
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -114,7 +116,7 @@ const Index = () => {
 
   // Bottom sheet hooks
   const mapDetailSheet = useBottomSheet({
-    snapPoints: ["60%", "90%"],
+    snapPoints: ["90%", "100%"],
     enablePanDownToClose: true,
   });
 
@@ -369,8 +371,7 @@ const Index = () => {
       | "freebarbers-empty"
       | "freebarbers-loading"
       | "freebarbers-error"
-      | "freebarbers-content-horizontal"
-      | "nearby-empty";
+      | "freebarbers-content-horizontal";
       data?: any;
     }> = [];
 
@@ -380,27 +381,6 @@ const Index = () => {
     const shouldShowFreeBarbers =
       filterCriteria.userType === "all" ||
       filterCriteria.userType === "freeBarber";
-
-    const storesEmpty =
-      shouldShowStores &&
-      storesFetchedOnce &&
-      !storesLoading &&
-      !storesError &&
-      filteredStores.length === 0;
-    const freeBarbersEmpty =
-      shouldShowFreeBarbers &&
-      freeBarbersFetchedOnce &&
-      !freeBarbersLoading &&
-      !freeBarbersError &&
-      filteredFreeBarbers.length === 0;
-    const bothEmpty =
-      filterCriteria.userType === "all" && storesEmpty && freeBarbersEmpty;
-
-    if (bothEmpty) {
-      items.push({ id: "stores-header", type: "stores-header" });
-      items.push({ id: "nearby-empty", type: "nearby-empty" });
-      return items;
-    }
 
     if (shouldShowStores) {
       items.push({ id: "stores-header", type: "stores-header" });
@@ -468,7 +448,7 @@ const Index = () => {
   ]);
 
   return (
-    <View className="flex flex-1 pl-4 pr-2 bg-[#0d0d12]">
+    <View className="flex flex-1 pl-4 pr-2" style={{ backgroundColor: colors.screenBg }}>
       <View
         className={
           isMapMode
@@ -493,8 +473,10 @@ const Index = () => {
         <View className="absolute inset-0 z-0">
           <MapView
             style={{ flex: 1 }}
-            userInterfaceStyle="dark"
+            userInterfaceStyle={isDark ? "dark" : "light"}
             initialRegion={mapInitialRegion}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
           >
             {storeMarkers}
             {freeBarberMarkers}
@@ -517,7 +499,7 @@ const Index = () => {
             if (item.type === "stores-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-4">
-                  <Text className="font-century-gothic text-xl text-white">
+                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyStores")}
                   </Text>
                   {filteredStores.length > 0 && (
@@ -578,29 +560,6 @@ const Index = () => {
                 </View>
               );
             }
-            if (item.type === "nearby-empty") {
-              return (
-                <View className="mt-2" style={{ minHeight: 250, maxHeight: 400, overflow: 'hidden' }}>
-                  <UnifiedStateWrapper
-                    loading={false}
-                    error={undefined}
-                    data={[]}
-                    locationStatus={storesLocationStatus}
-                    fetchedOnce={true}
-                    onRetry={() => {
-                      manualFetchStores();
-                      manualFetchFreeBarbers();
-                    }}
-                    customMessages={{
-                      empty: t("empty.noNearbyStoresOrFreeBarbers"),
-                    }}
-                  >
-                    <View />
-                  </UnifiedStateWrapper>
-                </View>
-              );
-            }
-
             if (item.type === "store") {
               return renderStoreItem({ item: item.data });
             }
@@ -623,7 +582,7 @@ const Index = () => {
             if (item.type === "freebarbers-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-12">
-                  <Text className="font-century-gothic text-xl text-white">
+                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
                   {filteredFreeBarbers.length > 0 && (
@@ -716,8 +675,8 @@ const Index = () => {
       {/* Map toggle button */}
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
-        className="absolute right-0 bottom-6 bg-[#1a1b25] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
-        style={{ elevation: 8 }}
+        className="absolute right-0 bottom-6 rounded-full rounded-r-none items-center justify-center z-20 shadow-lg px-2 py-1 flex-row gap-0"
+        style={{ backgroundColor: colors.mapToggleBg, borderColor: colors.mapToggleBorder, borderWidth: 1, elevation: 8 }}
       >
         <IconButton
           icon={isMapMode ? "format-list-bulleted" : "map"}
@@ -725,7 +684,7 @@ const Index = () => {
           size={24}
           style={{ margin: 0 }}
         />
-        <Text className="text-white font-semibold text-sm">
+        <Text className="font-semibold text-sm" style={{ color: colors.sectionHeaderText }}>
           {isMapMode ? t("common.list") : t("common.searchOnMap")}
         </Text>
       </TouchableOpacity>
@@ -785,8 +744,8 @@ const Index = () => {
       <BottomSheetModal
         ref={mapDetailSheet.ref}
         backdropComponent={mapDetailSheet.makeBackdrop()}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         snapPoints={mapDetailSheet.snapPoints}
         enablePanDownToClose={mapDetailSheet.enablePanDownToClose}
         onChange={mapDetailSheet.handleChange}
@@ -824,8 +783,8 @@ const Index = () => {
       <BottomSheetModal
         ref={ratingsSheet.ref}
         backdropComponent={ratingsSheet.makeBackdrop()}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         snapPoints={ratingsSheet.snapPoints}
         enablePanDownToClose={ratingsSheet.enablePanDownToClose}
         onChange={(index) => {

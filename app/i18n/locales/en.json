@@ -69,7 +69,32 @@
     "messagePlaceholder": "Type a message...",
     "submit": "Submit Request",
     "requestEmpty": "No requests found yet",
-    "requestCreateNew": "Create New Request"
+    "requestCreateNew": "Create New Request",
+    "phoneChange": "Change Phone",
+    "phoneChangeOtpTitle": "Phone Verification",
+    "phoneChangeOtpDesc": "Enter the code sent to {{phone}}.",
+    "phoneChangeOtpSend": "Send Code",
+    "phoneChangeOtpVerify": "Verify & Update",
+    "phoneChangeSuccess": "Your phone number has been updated.",
+    "phoneFormat": "Enter in 5XX XXX XX XX format",
+    "phoneOtpSent": "Verification code sent.",
+    "phoneOtpResend": "Resend code",
+    "otpCode": "Verification Code"
+  },
+  "subscription": {
+    "title": "Subscription",
+    "statusTrial": "Trial",
+    "statusActive": "Active Subscription",
+    "statusExpired": "Expired",
+    "statusBanned": "Account Suspended",
+    "trialDaysLeft": "{{days}} days left",
+    "subscriptionDaysLeft": "{{days}} days left",
+    "trialEnds": "Trial ends: {{date}}",
+    "subscriptionEnds": "Subscription ends: {{date}}",
+    "upgradeButton": "Subscribe",
+    "trialInfo": "You can add 1 panel during the trial period.",
+    "expiredInfo": "Your trial period has ended. Please subscribe to continue using the app.",
+    "bannedInfo": "Your account has been suspended. Please contact support for more information."
   },
   "navigation": {
     "welcome": "Welcome",
@@ -251,7 +276,12 @@
     "searchOnMap": "Search on Map",
     "showAll": "Show All",
     "showLess": "Show Less",
-    "services": "Services"
+    "services": "Services",
+    "goBack": "Go Back",
+    "note": "Note",
+    "customer": "Customer",
+    "freeBarber": "Free Barber",
+    "barberStore": "Barber Store"
   },
   "panel": {
     "myPanel": "My Panel",
@@ -358,7 +388,20 @@
     "fcmTokenRegistered": "FCM token registered successfully.",
     "fcmTokenRegistrationFailed": "FCM token could not be registered.",
     "fcmTokenUnregistered": "FCM token unregistered successfully.",
-    "fcmTokenUnregistrationFailed": "FCM token could not be unregistered."
+    "fcmTokenUnregistrationFailed": "FCM token could not be unregistered.",
+    "locationNotSet": "Location not set.",
+    "locationInvalid": "Invalid location.",
+    "requestLocationNotSet": "Request location not set.",
+    "targetLocationNotSet": "Target location not set.",
+    "freeBarberLocationNotSet": "Free barber location not set.",
+    "freeBarberLocationInvalid": "Free barber location is invalid.",
+    "distanceExceeded": "Distance limit exceeded.",
+    "freebarberHasActiveAppointmentUpdate": "You have an active appointment. Please update after the appointment is completed.",
+    "userBlockedCannotCreateAppointment": "You cannot make an appointment from a blocked user.",
+    "userBanned": "Your account has been suspended by an administrator.",
+    "trialExpired": "Your trial period has ended. Please subscribe to continue.",
+    "trialPanelLimitReached": "You can only add 1 panel during the trial period. Please subscribe for more panels.",
+    "barberStorePanelAlreadyExists": "You already have a barber store panel."
   },
   "form": {
     "rentPriceRequired": "Rent price is required",
@@ -593,7 +636,14 @@
     "messageSendFailed": "Message could not be sent",
     "cannotSendToThread": "You cannot send messages to this thread.",
     "messagePlaceholder": "Write a message...",
-    "messageCannotBeSentPlaceholder": "Message cannot be sent"
+    "messageCannotBeSentPlaceholder": "Message cannot be sent",
+    "noMessagesYet": "No messages yet",
+    "sendFirstMessage": "Send the first message",
+    "participants": "Participants",
+    "someone": "Someone",
+    "typing": "is typing...",
+    "serverConnectionError": "Cannot connect to server. You cannot send messages.",
+    "threadNotFound": "Chat not found"
   },
   "rating": {
     "selectRating": "Please select a rating.",
@@ -608,7 +658,12 @@
     "invalidTargetForRating": "Invalid target. Ratings can only be made with Store ID, FreeBarber ID or Customer UserId. Cannot rate ManuelBarber.",
     "ratingAlreadyExists": "You have already rated this target for this appointment. Rating cannot be updated.",
     "all": "All",
-    "commentPlaceholder": "Write your comment..."
+    "commentPlaceholder": "Write your comment...",
+    "yourBadge": "You",
+    "title": "Rate",
+    "rateFor": "Rate for",
+    "commentOptional": "Comment (Optional)",
+    "submit": "Submit Rating"
   },
   "notification": {
     "redirectFailed": "Redirect failed.",
@@ -683,7 +738,8 @@
     "pricingRent": "Pricing: Seat Rental ({{value}} TL per hour)",
     "currency": "TL",
     "currencySymbol": "₺",
-    "beautyExpert": "Beauty Expert"
+    "beautyExpert": "Beauty Expert",
+    "services": "Services"
   },
   "status": {
     "open": "Open",
@@ -782,6 +838,10 @@
     "appointmentCompletedNotification": "Appointment completed",
     "appointmentUnansweredNotification": "Appointment unanswered",
     "targetNotFound": "Target not found"
+  },
+  "moderation": {
+    "inappropriateText": "Your message contains inappropriate content. Please do not use profanity, insults, or offensive language.",
+    "inappropriateImage": "The image you uploaded contains inappropriate content. Please upload an appropriate image."
   },
   "legal": {
     "agreementPrefix": "By signing up, I have read and accept the ",

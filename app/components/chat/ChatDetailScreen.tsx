@@ -13,11 +13,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  ScrollView,
 } from "react-native";
 import { Text } from "../common/Text";
 import { useRouter } from "expo-router";
 import { Icon } from "react-native-paper";
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import {
   useGetChatMessagesByThreadQuery,
   useSendChatMessageMutation,
@@ -45,6 +49,7 @@ import {
 import { setActiveThreadId } from "../../lib/activeChatThread";
 import { OwnerAvatar } from "../common/owneravatar";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 interface ChatDetailScreenProps {
   threadId: string; // ThreadId ile çalışıyoruz (hem randevu hem favori thread'leri için)
@@ -58,6 +63,7 @@ interface ChatDetailScreenProps {
 export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
   threadId,
 }) => {
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [messageText, setMessageText] = useState("");
   const flatListRef = useRef<FlatList>(null);
@@ -65,6 +71,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const { t } = useLanguage();
   const { alertError } = useAlert();
+  const participantsSheetRef = useRef<BottomSheetModal>(null);
+  type OptimisticMessage = ChatMessageItemDto & { isPending: true };
+  const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
 
   // SignalR bağlantı kontrolü (V2 - optimized)
   const { isConnected, connectionRef } = useSignalRV2();
@@ -186,9 +195,18 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
     connection.on("chat.message", handleNewMessage);
 
+    const handleMessageRemoved = (data: { threadId: string; messageId: string }) => {
+      if (data.threadId !== threadId) return;
+      // Mesaj moderasyon tarafından silindi - listeyi yenile
+      refetch();
+    };
+
+    connection.on("chat.messageRemoved", handleMessageRemoved);
+
     return () => {
       if (connection) {
         connection.off("chat.message", handleNewMessage);
+        connection.off("chat.messageRemoved", handleMessageRemoved);
       }
       // Cleanup: timeout'u temizle
       if (autoReadTimeoutRef.current) {
@@ -298,6 +316,17 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
     }
 
     const text = messageText.trim();
+    const tempId = `opt-${Date.now()}`;
+
+    // Optimistic update: show message immediately before backend confirms
+    const optimisticMsg: OptimisticMessage = {
+      messageId: tempId,
+      senderUserId: currentUserId!,
+      text,
+      createdAt: new Date().toISOString(),
+      isPending: true,
+    };
+    setOptimisticMessages((prev) => [...prev, optimisticMsg]);
     setMessageText("");
 
     // Randevu thread'i ise appointmentId ile gönder, favori thread ise threadId ile
@@ -310,6 +339,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
     } else {
       sendResult = await sendMessageByThread({ threadId, text });
     }
+
+    // Remove the optimistic message (real message now in RTK cache, or error)
+    setOptimisticMessages((prev) => prev.filter((m) => m.messageId !== tempId));
 
     if ("error" in sendResult) {
       setMessageText(text); // Restore text on error
@@ -324,6 +356,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
     isSending,
     canSendMessage,
     isConnected,
+    currentUserId,
     currentThread,
     sendMessageByThread,
     sendMessageByAppointment,
@@ -360,6 +393,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
       return [];
     }
   }, [messages]);
+
+  // Combine optimistic (pending) messages with real messages for display
+  // FlatList is inverted so index 0 = visual bottom; optimistic (newest) go first
+  const displayMessages = useMemo<Array<ChatMessageItemDto | OptimisticMessage>>(() => {
+    if (optimisticMessages.length === 0) return sortedMessages;
+    return [...[...optimisticMessages].reverse(), ...sortedMessages];
+  }, [optimisticMessages, sortedMessages]);
 
   // Participants'ı Map'e çevir - hızlı lookup için (senderParticipant undefined sorununu çözer)
   // Normalize edilmiş userId ile lookup yapıyoruz (trim, toLowerCase) - backend'den gelen verilerde farklılık olabilir
@@ -417,10 +457,17 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
   useEffect(() => {
     if (sortedMessages && sortedMessages.length > 0) {
       setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
       }, 100);
     }
   }, [sortedMessages]);
+
+  // Optimistic mesaj eklenince hemen scroll et (ilk mesaj pozisyon hatasını önler)
+  useEffect(() => {
+    if (optimisticMessages.length > 0) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [optimisticMessages]);
 
   if (isLoading) {
     return (
@@ -433,9 +480,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
   if (!currentThread) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-400">Sohbet bulunamadı</Text>
+        <Text className="text-gray-400">{t("chat.threadNotFound")}</Text>
         <TouchableOpacity onPress={() => router.back()} className="mt-4">
-          <Text className="text-green-500">Geri Dön</Text>
+          <Text className="text-green-500">{t("common.goBack")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -447,137 +494,104 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
-      {/* Header with Participants Tab */}
-      <SafeAreaView className="bg-gray-800">
+      {/* Header with Participants */}
+      <SafeAreaView style={{ backgroundColor: colors.headerBg }}>
         <View className="px-4 py-3 flex-row items-center">
           <TouchableOpacity
             onPress={() => router.back()}
             className="mr-0 flex-row items-center"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon source="chevron-left" size={28} color="white" />
+            <Icon source="chevron-left" size={28} color={colors.sectionHeaderText} />
           </TouchableOpacity>
-          <View className="flex-1 ml-0">
-            {/* Participants Tab - kullanıcı türüne göre görünüm */}
-            {currentThread.participants.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="px-2 py-2"
-              >
-                {currentThread.participants.map((participant) => {
-                  // Kullanıcı türüne göre participant etiketi belirle
-                  const getParticipantLabel = () => {
-                    // Eğer participant kendi türümüzle aynıysa, tür etiketi gösterme
-                    if (participant.userType === currentUserType) {
-                      return null;
-                    }
+          {currentThread.participants.length > 0 && (
+            <TouchableOpacity
+              className="flex-1 ml-2 flex-row items-center"
+              activeOpacity={0.7}
+              onPress={() => participantsSheetRef.current?.present()}
+            >
+              {/* Overlapping avatarlar */}
+              <View className="flex-row items-center" style={{ flexShrink: 0 }}>
+                {currentThread.participants.slice(0, 2).map((participant, idx) => (
+                  <View
+                    key={participant.userId}
+                    className="w-10 h-10 rounded-full overflow-hidden items-center justify-center"
+                    style={{
+                      marginLeft: idx > 0 ? -12 : 0,
+                      zIndex: 2 - idx,
+                      borderWidth: 2,
+                      borderColor: colors.borderColor,
+                      backgroundColor: colors.cardBg2,
+                    }}
+                  >
+                    <OwnerAvatar
+                      ownerId={participant.userId}
+                      ownerType={ImageOwnerType.User}
+                      fallbackUrl={participant.imageUrl}
+                      imageClassName="w-full h-full"
+                      iconSource={
+                        participant.userType === UserType.BarberStore
+                          ? "store"
+                          : participant.userType === UserType.FreeBarber
+                            ? "account-supervisor"
+                            : "account"
+                      }
+                      iconSize={20}
+                      iconColor={isDark ? 'white' : colors.sectionHeaderText}
+                      iconContainerClassName="bg-transparent"
+                    />
+                  </View>
+                ))}
+                {currentThread.participants.length > 2 && (
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center"
+                    style={{ marginLeft: -12, zIndex: 0, borderWidth: 2, borderColor: colors.borderColor, backgroundColor: colors.cardBg2 }}
+                  >
+                    <Text className="text-xs font-century-gothic-sans-bold" style={{ color: colors.sectionHeaderText }}>
+                      +{currentThread.participants.length - 2}
+                    </Text>
+                  </View>
+                )}
+              </View>
 
-                    // Participant'ın türüne göre etiket
-                    if (participant.userType === UserType.BarberStore) {
-                      return t("labels.store");
-                    } else if (participant.userType === UserType.FreeBarber) {
-                      return t("labels.freeBarber");
-                    } else if (participant.userType === UserType.Customer) {
-                      return t("card.customer");
-                    }
-                    return null;
-                  };
-
-                  const participantLabel = getParticipantLabel();
-
-                  // BarberType bilgisini göster (eğer varsa)
-                  const getBarberTypeLabel = () => {
-                    if (
-                      participant.barberType === undefined ||
-                      participant.barberType === null
-                    ) {
-                      return null;
-                    }
-
-                    if (participant.userType === UserType.FreeBarber) {
-                      return participant.barberType ===
-                        BarberType.MaleHairdresser
-                        ? t("barberType.maleHairdresserShort")
-                        : t("barberType.femaleHairdresserShort");
-                    } else if (participant.userType === UserType.BarberStore) {
-                      if (participant.barberType === BarberType.MaleHairdresser)
-                        return t("barberType.maleHairdresserOf");
-                      if (
-                        participant.barberType === BarberType.FemaleHairdresser
-                      )
-                        return t("barberType.femaleHairdresserOf");
-                      return t("barberType.beautySalon");
-                    }
-                    return null;
-                  };
-
-                  const barberTypeLabel = getBarberTypeLabel();
-
-                  return (
-                    <View
-                      key={participant.userId}
-                      className="flex-row items-center mr-5"
-                    >
-                      <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center mr-2.5">
-                        <OwnerAvatar
-                          ownerId={participant.userId}
-                          ownerType={ImageOwnerType.User}
-                          fallbackUrl={participant.imageUrl}
-                          imageClassName="w-full h-full"
-                          iconSource={
-                            participant.userType === UserType.BarberStore
-                              ? "store"
-                              : participant.userType === UserType.FreeBarber
-                                ? "account-supervisor"
-                                : "account"
-                          }
-                          iconSize={20}
-                          iconColor="white"
-                          iconContainerClassName="bg-transparent"
-                        />
-                      </View>
-                      <View>
-                        <Text
-                          className="text-white text-base font-century-gothic"
-                          numberOfLines={1}
-                        >
-                          {participant.displayName}
-                        </Text>
-                        {(participantLabel || barberTypeLabel) && (
-                          <Text className="text-gray-400 text-xs font-century-gothic mt-0.5">
-                            {participantLabel && barberTypeLabel
-                              ? `${participantLabel} • ${barberTypeLabel}`
-                              : participantLabel || barberTypeLabel}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-            {currentThread.status !== null &&
-              currentThread.status !== undefined && (
-                <Text className="text-gray-400 text-xs">
-                  {(() => {
-                    const status = currentThread.status;
-                    if (status === AppointmentStatus.Approved)
-                      return "Onaylandı";
-                    if (status === AppointmentStatus.Pending)
-                      return "Beklemede";
-                    return "";
-                  })()}
+              {/* İsim ve durum */}
+              <View className="ml-3 flex-1" style={{ minWidth: 0 }}>
+                <Text
+                  className="text-base font-century-gothic"
+                  numberOfLines={1}
+                  style={{ color: colors.sectionHeaderText }}
+                >
+                  {currentThread.participants.map(p => p.displayName).join(', ')}
                 </Text>
-              )}
-          </View>
+                {currentThread.status !== null &&
+                  currentThread.status !== undefined && (
+                    <Text className="text-gray-400 text-xs mt-0.5">
+                      {currentThread.status === AppointmentStatus.Approved
+                        ? t("appointment.status.approved")
+                        : currentThread.status === AppointmentStatus.Pending
+                          ? t("appointment.status.pending")
+                          : currentThread.status === AppointmentStatus.Completed
+                            ? t("appointment.status.completed")
+                            : currentThread.status === AppointmentStatus.Cancelled
+                              ? t("appointment.status.cancelled")
+                              : currentThread.status === AppointmentStatus.Rejected
+                                ? t("appointment.status.rejected")
+                                : currentThread.status === AppointmentStatus.Unanswered
+                                  ? t("appointment.status.unanswered")
+                                  : ""}
+                    </Text>
+                  )}
+              </View>
+              <Icon source="chevron-down" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 
       {/* Messages List - WhatsApp style: inverted FlatList for bottom-aligned messages */}
       <FlatList
         ref={flatListRef}
-        data={sortedMessages}
+        data={displayMessages}
         keyExtractor={(item) => item.messageId}
         contentContainerStyle={{ padding: 16, gap: 12 }}
         inverted={true}
@@ -590,8 +604,9 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
             flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
           }, 100);
         }}
-        renderItem={({ item }: { item: ChatMessageItemDto }) => {
+        renderItem={({ item }: { item: ChatMessageItemDto | OptimisticMessage }) => {
           const isMe = item.senderUserId === currentUserId;
+          const isPending = (item as OptimisticMessage).isPending === true;
 
           // Participants Map'inden lookup
           let senderParticipant: ChatThreadParticipantDto | null = null;
@@ -606,7 +621,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
           // Fallback: Eğer participant bulunamadıysa, mesajdan bilgi oluştur
           const displayInfo = senderParticipant || {
             userId: item.senderUserId,
-            displayName: item.senderUserId?.substring(0, 8) || "Bilinmeyen",
+            displayName: item.senderUserId?.substring(0, 8) || t("favorites.unknown"),
             userType: UserType.Customer, // Default
             imageUrl: null,
             barberType: null,
@@ -614,13 +629,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
           return (
             <View
-              className={`flex-row items-start gap-2 mb-3 ${isMe ? "justify-end" : "justify-start"}`}
+              className={`flex-row items-start gap-2 mb-3 ${isMe ? "justify-end" : "justify-start"} ${isPending ? "opacity-70" : ""}`}
               style={{ flexShrink: 1 }}
             >
               {!isMe && (
                 <View
-                  className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center"
-                  style={{ flexShrink: 0 }}
+                  className="w-10 h-10 rounded-full overflow-hidden items-center justify-center"
+                  style={{ flexShrink: 0, backgroundColor: colors.cardBg2 }}
                 >
                   <OwnerAvatar
                     ownerId={displayInfo.userId}
@@ -635,7 +650,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                           : "account"
                     }
                     iconSize={20}
-                    iconColor="white"
+                    iconColor={isDark ? 'white' : colors.sectionHeaderText}
                     iconContainerClassName="bg-transparent"
                   />
                 </View>
@@ -646,11 +661,8 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                 style={{ flexShrink: 1, minWidth: 0 }}
               >
                 <View
-                  className={`rounded-2xl px-4 py-2.5 ${isMe
-                    ? "bg-green-600 rounded-tr-sm"
-                    : "bg-gray-700 rounded-tl-sm"
-                    }`}
-                  style={{ flexShrink: 1 }}
+                  className={`rounded-2xl px-4 py-2.5 ${isMe ? "bg-green-600 rounded-tr-sm" : "rounded-tl-sm"}`}
+                  style={[{ flexShrink: 1 }, !isMe ? { backgroundColor: colors.cardBg2 } : undefined]}
                 >
                   {!isMe && (
                     <View className="flex-row items-center gap-1.5 mb-1.5 flex-wrap">
@@ -659,14 +671,14 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                         {senderParticipant &&
                           senderParticipant.userType !== currentUserType &&
                           ` • ${senderParticipant.userType === UserType.BarberStore
-                            ? "Dükkan"
+                            ? t("labels.store")
                             : senderParticipant.userType === UserType.FreeBarber
-                              ? "Serbest Berber"
+                              ? t("labels.freeBarber")
                               : t("card.customer")}`}
                       </Text>
                       {!senderParticipant && (
                         <Text className="text-gray-500 text-xs">
-                          (yükleniyor...)
+                          ({t("common.loading")})
                         </Text>
                       )}
                     </View>
@@ -678,15 +690,27 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                     {item.text}
                   </Text>
                 </View>
-                <Text
-                  className={`text-gray-500 text-xs mt-1 ${isMe ? "text-right" : "text-left"} px-2`}
-                >
-                  {formatMessageTime(item.createdAt)}
-                </Text>
+                <View className={`flex-row items-center gap-1 mt-1 ${isMe ? "justify-end" : "justify-start"} px-2`}>
+                  {isPending && (
+                    <Icon source="clock-outline" size={11} color={colors.textSecondary} />
+                  )}
+                  {isMe && !isPending && (
+                    <Icon
+                      source={(item as ChatMessageItemDto).isFullyRead ? "check-all" : "check"}
+                      size={13}
+                      color={(item as ChatMessageItemDto).isFullyRead ? "#22c55e" : colors.textSecondary}
+                    />
+                  )}
+                  <Text
+                    className={`text-gray-500 text-xs ${isMe ? "text-right" : "text-left"} ${isPending ? "opacity-60" : ""}`}
+                  >
+                    {formatMessageTime(item.createdAt)}
+                  </Text>
+                </View>
               </View>
 
               {isMe && (
-                <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center">
+                <View className="w-10 h-10 rounded-full overflow-hidden items-center justify-center" style={{ backgroundColor: colors.cardBg2 }}>
                   <OwnerAvatar
                     ownerId={currentUserId}
                     ownerType={ImageOwnerType.User}
@@ -700,7 +724,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                           : "account"
                     }
                     iconSize={20}
-                    iconColor="white"
+                    iconColor={isDark ? 'white' : colors.sectionHeaderText}
                     iconContainerClassName="bg-transparent"
                   />
                 </View>
@@ -716,7 +740,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
             </Text>
           </View>
         }
-        ListFooterComponent={
+        ListHeaderComponent={
           typingUsers.size > 0 ? (
             <View className="flex-row items-center px-4 py-2">
               <Text className="text-gray-500 text-xs italic">
@@ -725,10 +749,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                     const user = currentThread.participants.find(
                       (p) => p.userId === userId,
                     );
-                    return user?.displayName || "Birisi";
+                    return user?.displayName || t("chat.someone");
                   })
                   .join(", ")}{" "}
-                yazıyor...
+                {t("chat.typing")}
               </Text>
             </View>
           ) : null
@@ -737,20 +761,20 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
 
       {/* Input */}
       <View
-        className="bg-gray-800 border-t border-gray-700 px-4 py-3"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        className="px-4 py-3"
+        style={{ backgroundColor: colors.headerBg, borderTopWidth: 1, borderTopColor: colors.borderColor, paddingBottom: Math.max(insets.bottom, 12) }}
       >
         {!isConnected && (
           <View className="bg-red-900/20 border border-red-800/30 rounded-lg px-3 py-2 mb-2">
             <Text className="text-red-400 text-xs text-center">
-              Sunucuya bağlanılamıyor. Mesaj gönderemezsiniz.
+              {t("chat.serverConnectionError")}
             </Text>
           </View>
         )}
         {!canSendMessage && isConnected && (
           <View className="bg-yellow-900/20 border border-yellow-800/30 rounded-lg px-3 py-2 mb-2">
             <Text className="text-yellow-400 text-xs text-center">
-              Bu thread için mesaj gönderemezsiniz
+              {t("chat.cannotSendToThread")}
             </Text>
           </View>
         )}
@@ -763,23 +787,22 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
                 ? t("chat.messagePlaceholder")
                 : t("chat.messageCannotBeSentPlaceholder")
             }
-            placeholderTextColor="#6b7280"
-            className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 font-century-gothic"
+            placeholderTextColor={colors.textSecondary}
+            className="flex-1 rounded-full px-4 py-2 font-century-gothic"
             multiline
             maxLength={500}
             editable={canSendMessage}
             style={{
-              fontFamily:
-                Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
+              fontFamily: Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
+              backgroundColor: colors.cardBg2,
+              color: colors.sectionHeaderText,
             }}
           />
           <TouchableOpacity
             onPress={handleSend}
             disabled={!messageText.trim() || isSending || !canSendMessage}
-            className={`w-10 h-10 rounded-full items-center justify-center ${messageText.trim() && canSendMessage
-              ? "bg-green-600"
-              : "bg-gray-700"
-              }`}
+            className={`w-10 h-10 rounded-full items-center justify-center ${messageText.trim() && canSendMessage ? "bg-green-600" : ""}`}
+            style={!(messageText.trim() && canSendMessage) ? { backgroundColor: colors.cardBg2 } : undefined}
           >
             {isSending ? (
               <ActivityIndicator size="small" color="white" />
@@ -789,6 +812,83 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Participants Bottom Sheet */}
+      <BottomSheetModal
+        ref={participantsSheetRef}
+        enablePanDownToClose
+        enableDynamicSizing
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
+        )}
+      >
+        <BottomSheetView style={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 }}>
+          <Text className="text-lg font-century-gothic-sans-bold mb-4" style={{ color: colors.sectionHeaderText }}>
+            {t('chat.participants')}
+          </Text>
+          {currentThread?.participants.map((participant) => {
+            const getLabel = () => {
+              if (participant.userType === currentUserType) return null;
+              if (participant.userType === UserType.BarberStore) return t('labels.store');
+              if (participant.userType === UserType.FreeBarber) return t('labels.freeBarber');
+              if (participant.userType === UserType.Customer) return t('card.customer');
+              return null;
+            };
+            const getBarberLabel = () => {
+              if (participant.barberType === undefined || participant.barberType === null) return null;
+              if (participant.userType === UserType.FreeBarber) {
+                return participant.barberType === BarberType.MaleHairdresser
+                  ? t('barberType.maleHairdresserShort')
+                  : t('barberType.femaleHairdresserShort');
+              }
+              if (participant.userType === UserType.BarberStore) {
+                if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
+                if (participant.barberType === BarberType.FemaleHairdresser) return t('barberType.femaleHairdresserOf');
+                return t('barberType.beautySalon');
+              }
+              return null;
+            };
+            const label = getLabel();
+            const barberLabel = getBarberLabel();
+            const labelText = [label, barberLabel].filter(Boolean).join(' • ');
+
+            return (
+              <View key={participant.userId} className="flex-row items-center mb-4">
+                <View className="w-12 h-12 rounded-full overflow-hidden items-center justify-center" style={{ flexShrink: 0, backgroundColor: colors.cardBg2 }}>
+                  <OwnerAvatar
+                    ownerId={participant.userId}
+                    ownerType={ImageOwnerType.User}
+                    fallbackUrl={participant.imageUrl}
+                    imageClassName="w-full h-full"
+                    iconSource={
+                      participant.userType === UserType.BarberStore
+                        ? "store"
+                        : participant.userType === UserType.FreeBarber
+                          ? "account-supervisor"
+                          : "account"
+                    }
+                    iconSize={24}
+                    iconColor={isDark ? 'white' : colors.sectionHeaderText}
+                    iconContainerClassName="bg-transparent"
+                  />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-century-gothic-sans-bold" style={{ color: colors.sectionHeaderText }}>
+                    {participant.displayName}
+                  </Text>
+                  {labelText ? (
+                    <Text className="text-gray-400 text-sm font-century-gothic mt-0.5">
+                      {labelText}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
     </KeyboardAvoidingView>
   );
 };

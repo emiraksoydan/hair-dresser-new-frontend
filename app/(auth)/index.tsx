@@ -180,7 +180,7 @@ const Index = () => {
   // Bu süre boyunca resend butonu devre dışı olmalı
   useEffect(() => {
     if (modalVisible) {
-      setLeft(600); // 10 minutes (600 seconds) - Twilio OTP validity period
+      setLeft(300); // 5 minutes (300 seconds) - NetGSM OTP validity period
     }
   }, [modalVisible]);
 
@@ -445,7 +445,7 @@ const Index = () => {
           {/* Form Card */}
           <View
             className="w-10/12 max-w-sm mx-4 rounded-2xl p-4"
-            style={{ backgroundColor: colors.card }}
+            style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}
           >
             {/* Name and Surname (Register only) */}
             {isRegister && (
@@ -456,35 +456,44 @@ const Index = () => {
                     name="firstName"
                     render={({ field: { onChange, onBlur, value } }) => (
                       <>
-                        <TextInput
-                          mode="outlined"
-                          dense
-                          label={t("auth.firstName")}
-                          value={value}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          returnKeyType="next"
-                          onSubmitEditing={() => setFocus("surname")}
-                          placeholder={t("auth.firstName")}
-                          placeholderTextColor={colors.textTertiary}
-                          textColor={colors.text}
-                          outlineColor={
-                            errors.firstName ? "#ef4444" : colors.inputBorder
-                          }
-                          style={{
-                            backgroundColor: colors.inputBackground,
-                            fontSize: 14,
-                            fontFamily: 'CenturyGothic',
-                          }}
-                          contentStyle={{ height: 44, paddingVertical: 0 }}
-                          theme={{
-                            colors: {
-                              background: colors.inputBackground,
-                              onSurface: colors.text,
-                              primary: colors.primary,
-                            },
-                          }}
-                        />
+                        <View style={{ position: 'relative' }}>
+                          <TextInput
+                            mode="outlined"
+                            dense
+                            label={t("auth.firstName")}
+                            value={value}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            returnKeyType="next"
+                            onSubmitEditing={() => setFocus("surname")}
+                            placeholder={t("auth.firstName")}
+                            placeholderTextColor={colors.textTertiary}
+                            textColor={colors.text}
+                            outlineColor={
+                              errors.firstName ? "#ef4444" : colors.inputBorder
+                            }
+                            style={{
+                              backgroundColor: colors.inputBackground,
+                              fontSize: 16,
+                              fontFamily: 'CenturyGothic-Bold',
+                              shadowColor: '#000000',
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.13,
+                              shadowRadius: 6,
+                              elevation: 4,
+                            }}
+                            contentStyle={{ height: 48, paddingVertical: 0 }}
+                            theme={{
+                              roundness: 10,
+                              colors: {
+                                background: colors.inputBackground,
+                                onSurface: colors.text,
+                                primary: colors.primary,
+                              },
+                            }}
+                          />
+                          <View pointerEvents="none" style={{ position: 'absolute', bottom: 6, left: 0, right: 0, height: 1, backgroundColor: colors.inputBorder, opacity: 0.3 }} />
+                        </View>
                         {errors.firstName && (
                           <HelperText
                             type="error"
@@ -493,7 +502,7 @@ const Index = () => {
                               color: "#ef4444",
                               fontSize: 11,
                               fontWeight: "500",
-                              fontFamily: 'CenturyGothic',
+                              fontFamily: 'CenturyGothic-Bold',
                               marginTop: -4,
                               marginBottom: 0,
                               paddingHorizontal: 0,
@@ -513,35 +522,44 @@ const Index = () => {
                     name="surname"
                     render={({ field: { onChange, onBlur, value } }) => (
                       <>
-                        <TextInput
-                          mode="outlined"
-                          dense
-                          label={t("auth.lastName")}
-                          value={value}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          returnKeyType="next"
-                          onSubmitEditing={() => setFocus("phone")}
-                          placeholder={t("auth.lastName")}
-                          placeholderTextColor={colors.textTertiary}
-                          textColor={colors.text}
-                          outlineColor={
-                            errors.surname ? "#ef4444" : colors.inputBorder
-                          }
-                          style={{
-                            backgroundColor: colors.inputBackground,
-                            fontSize: 14,
-                            fontFamily: 'CenturyGothic',
-                          }}
-                          contentStyle={{ height: 44, paddingVertical: 0 }}
-                          theme={{
-                            colors: {
-                              background: colors.inputBackground,
-                              onSurface: colors.text,
-                              primary: colors.primary,
-                            },
-                          }}
-                        />
+                        <View style={{ position: 'relative' }}>
+                          <TextInput
+                            mode="outlined"
+                            dense
+                            label={t("auth.lastName")}
+                            value={value}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            returnKeyType="next"
+                            onSubmitEditing={() => setFocus("phone")}
+                            placeholder={t("auth.lastName")}
+                            placeholderTextColor={colors.textTertiary}
+                            textColor={colors.text}
+                            outlineColor={
+                              errors.surname ? "#ef4444" : colors.inputBorder
+                            }
+                            style={{
+                              backgroundColor: colors.inputBackground,
+                              fontSize: 16,
+                              fontFamily: 'CenturyGothic-Bold',
+                              shadowColor: '#000000',
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.13,
+                              shadowRadius: 6,
+                              elevation: 4,
+                            }}
+                            contentStyle={{ height: 48, paddingVertical: 0 }}
+                            theme={{
+                              roundness: 10,
+                              colors: {
+                                background: colors.inputBackground,
+                                onSurface: colors.text,
+                                primary: colors.primary,
+                              },
+                            }}
+                          />
+                          <View pointerEvents="none" style={{ position: 'absolute', bottom: 6, left: 0, right: 0, height: 1, backgroundColor: colors.inputBorder, opacity: 0.3 }} />
+                        </View>
                         {errors.surname && (
                           <HelperText
                             type="error"
@@ -550,7 +568,7 @@ const Index = () => {
                               color: "#ef4444",
                               fontSize: 11,
                               fontWeight: "500",
-                              fontFamily: 'CenturyGothic',
+                              fontFamily: 'CenturyGothic-Bold',
                               marginTop: -4,
                               marginBottom: 0,
                               paddingHorizontal: 0,
@@ -573,42 +591,50 @@ const Index = () => {
                 name="phone"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <>
-                    <TextInput
-                      mode="outlined"
-                      dense
-                      label={t("auth.phoneNumber")}
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      keyboardType="number-pad"
-                      placeholder="555 555 5555"
-                      placeholderTextColor={colors.textTertiary}
-                      textColor={colors.text}
-                      outlineColor={
-                        errors.phone ? "#ef4444" : colors.inputBorder
-                      }
-                      left={
-                        <TextInput.Icon
-                          icon="phone"
-                          color={colors.textSecondary}
-                          style={{ marginTop: 6 }}
-                        />
-                      }
-                      style={{
-                        backgroundColor: colors.inputBackground,
-                        fontSize: 14,
-                        fontFamily: 'CenturyGothic'
-                      }}
-                      contentStyle={{ height: 44, paddingVertical: 0 }}
-                      theme={{
-                        colors: {
-                          background: colors.inputBackground,
-                          onSurface: colors.text,
-                          primary: colors.primary,
-                        },
-
-                      }}
-                    />
+                    <View style={{ position: 'relative' }}>
+                      <TextInput
+                        mode="outlined"
+                        dense
+                        label={t("auth.phoneNumber")}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        keyboardType="number-pad"
+                        placeholder="555 555 5555"
+                        placeholderTextColor={colors.textTertiary}
+                        textColor={colors.text}
+                        outlineColor={
+                          errors.phone ? "#ef4444" : colors.inputBorder
+                        }
+                        left={
+                          <TextInput.Icon
+                            icon="phone"
+                            color={colors.textSecondary}
+                            style={{ marginTop: 6 }}
+                          />
+                        }
+                        style={{
+                          backgroundColor: colors.inputBackground,
+                          fontSize: 16,
+                          fontFamily: 'CenturyGothic-Bold',
+                          shadowColor: '#000000',
+                          shadowOffset: { width: 0, height: 3 },
+                          shadowOpacity: 0.08,
+                          shadowRadius: 2,
+                          elevation: 2,
+                        }}
+                        contentStyle={{ height: 48, paddingVertical: 0 }}
+                        theme={{
+                          roundness: 10,
+                          colors: {
+                            background: colors.inputBackground,
+                            onSurface: colors.text,
+                            primary: colors.primary,
+                          },
+                        }}
+                      />
+                      <View pointerEvents="none" style={{ position: 'absolute', bottom: 6, left: 0, right: 0, height: 1, backgroundColor: colors.inputBorder, opacity: 0.3 }} />
+                    </View>
                     {errors.phone && (
                       <HelperText
                         type="error"
@@ -617,7 +643,7 @@ const Index = () => {
                           color: "#ef4444",
                           fontSize: 11,
                           fontWeight: "500",
-                          fontFamily: 'CenturyGothic',
+                          fontFamily: 'CenturyGothic-Bold',
                           marginTop: -4,
                           marginBottom: 0,
                           paddingHorizontal: 0,
@@ -633,7 +659,7 @@ const Index = () => {
 
             {/* User Type Selection */}
             <View style={{ marginBottom: 0 }}>
-              <Text className="text-sm mb-1" style={{ color: colors.text }}>
+              <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
                 {t("auth.userType")}
               </Text>
               <Controller
@@ -650,22 +676,27 @@ const Index = () => {
                             className="flex-1 flex-row items-center justify-center py-2.5 px-3 rounded-lg"
                             style={{
                               backgroundColor: isSelected
-                                ? "#1a1a1a"
-                                : "#ffffff",
-                              borderWidth: isSelected ? 1.5 : 1,
-                              borderColor: isSelected ? "#1a1a1a" : "#e0e0e0",
+                                ? colors.primary
+                                : colors.inputBackground,
+                              borderWidth: 1.5,
+                              borderColor: isSelected ? colors.primary : colors.inputBorder,
+                              shadowColor: '#000000',
+                              shadowOffset: { width: 0, height: 3 },
+                              shadowOpacity: 0.08,
+                              shadowRadius: 2,
+                              elevation: 2,
                             }}
                             onPress={() => onChange(item.value)}
                           >
                             <Icon
                               source={item.icon}
                               size={18}
-                              color={isSelected ? "#ffffff" : colors.text}
+                              color={isSelected ? colors.primaryText : colors.text}
                             />
                             <Text
-                              className="text-xs ml-2 font-medium"
+                              className="text-sm ml-2 font-bold"
                               style={{
-                                color: isSelected ? "#ffffff" : colors.text,
+                                color: isSelected ? colors.primaryText : colors.text,
                               }}
                             >
                               {item.value === "customer"
@@ -685,7 +716,7 @@ const Index = () => {
                         color: "#ef4444",
                         fontSize: 12,
                         fontWeight: "600",
-                        fontFamily: 'CenturyGothic',
+                        fontFamily: 'CenturyGothic-Bold',
                         marginTop: 0,
                         marginBottom: 0,
                       }}
@@ -720,6 +751,11 @@ const Index = () => {
               style={{
                 backgroundColor: "#1a1a1a",
                 opacity: isLoading ? 0.6 : 1,
+                shadowColor: '#000000',
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.15,
+                shadowRadius: 3,
+                elevation: 3,
               }}
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
@@ -729,7 +765,7 @@ const Index = () => {
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <Text
-                  className="text-base font-semibold"
+                  className="text-lg font-bold"
                   style={{ color: "#ffffff" }}
                 >
                   {t("auth.start")}
@@ -739,7 +775,7 @@ const Index = () => {
 
             {/* Login/Register Toggle */}
             <View className="flex-row items-center justify-center gap-2 mt-4">
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              <Text className="text-base font-century-gothic-bold" style={{ color: colors.textSecondary }}>
                 {isRegister
                   ? t("auth.alreadyHaveAccount")
                   : t("auth.noAccount")}
@@ -749,7 +785,7 @@ const Index = () => {
                 className="flex-row items-center "
               >
                 <Text
-                  className="text-sm underline"
+                  className="text-base underline font-bold"
                   style={{ color: colors.text }}
                 >
                   {isRegister ? t("auth.login") : t("auth.register")}
@@ -785,7 +821,7 @@ const Index = () => {
                 {t("auth.verifyPhone")}
               </Text>
               <Text
-                className="text-sm mb-5"
+                className="text-sm mb-5 font-century-gothic-bold"
                 style={{ color: colors.textSecondary }}
               >
                 {t("auth.enterCode", { phone })}
@@ -815,7 +851,7 @@ const Index = () => {
 
               <View className="flex-row justify-between items-center">
                 <Text
-                  className="text-sm"
+                  className="text-sm font-century-gothic-bold"
                   style={{ color: colors.textSecondary }}
                 >
                   {t("auth.timeRemaining", { time: mmss })}

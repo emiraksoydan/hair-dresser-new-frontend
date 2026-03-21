@@ -35,7 +35,7 @@ const CACHE_DURATIONS = {
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting", "HelpGuide", "Complaint", "Request", "Blocked", "Rating"],
+    tagTypes: ['MineStores', 'GetStoreById', "MineFreeBarberPanel", "Notification", "Chat", "Appointment", "Favorite", "IsFavorite", "StoreForUsers", "FreeBarberForUsers", "UserProfile", "Setting", "HelpGuide", "Complaint", "Request", "Blocked", "Rating", "Subscription"],
     // Only refetch on reconnect for critical data (Notification)
     // refetchOnFocus is disabled to prevent unnecessary requests
     refetchOnReconnect: false,
@@ -59,7 +59,7 @@ export const api = createApi({
         }),
 
         // --- BARBER STORE API ---
-        addBarberStore: builder.mutation<{ message: string, success: boolean }, BarberStoreCreateDto>({
+        addBarberStore: builder.mutation<{ message: string, success: boolean, data?: string }, BarberStoreCreateDto>({
             query: (dto) => ({ url: 'BarberStore/create-store', method: 'POST', body: dto }),
             invalidatesTags: ['MineStores', { type: 'MineStores', id: 'LIST' }],
         }),
@@ -74,7 +74,7 @@ export const api = createApi({
             ],
         }),
         getNearbyStores: builder.query<BarberStoreGetDto[], NearbyRequest>({
-            query: ({ lat, lon, radiusKm = 1 }) => ({
+            query: ({ lat, lon, radiusKm = 10 }) => ({
                 url: 'BarberStore/nearby',
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
@@ -116,11 +116,11 @@ export const api = createApi({
         }),
 
         // --- FREE BARBER API ---
-        addFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberCreateDto>({
+        addFreeBarberPanel: builder.mutation<{ message: string, success: boolean, data?: string }, FreeBarberCreateDto>({
             query: (dto) => ({ url: 'FreeBarber/create-free-barber', method: 'POST', body: dto }),
             invalidatesTags: ['MineFreeBarberPanel'],
         }),
-        updateFreeBarberPanel: builder.mutation<{ message: string, success: boolean }, FreeBarberUpdateDto>({
+        updateFreeBarberPanel: builder.mutation<{ message: string, success: boolean, data?: string }, FreeBarberUpdateDto>({
             query: (dto) => ({ url: 'FreeBarber/update-free-barber', method: 'PUT', body: dto }),
             invalidatesTags: (result, error, arg) => [
                 'MineFreeBarberPanel',
@@ -144,7 +144,7 @@ export const api = createApi({
             invalidatesTags: ['MineFreeBarberPanel'],
         }),
         getNearbyFreeBarber: builder.query<FreeBarGetDto[], NearbyRequest>({
-            query: ({ lat, lon, radiusKm = 1 }) => ({
+            query: ({ lat, lon, radiusKm = 10 }) => ({
                 url: 'FreeBarber/nearby',
                 method: 'GET',
                 params: { lat, lon, distance: radiusKm },
@@ -612,6 +612,8 @@ export const api = createApi({
                 { type: 'FreeBarberForUsers', id: arg.targetId },
                 { type: 'Rating', id: arg.targetId },
                 { type: 'Rating', id: 'LIST' },
+                { type: 'Appointment', id: arg.appointmentId },
+                { type: 'Appointment', id: 'LIST' },
             ],
         }),
         deleteRating: builder.mutation<ApiResponse<boolean>, string>({
@@ -1031,6 +1033,14 @@ export const api = createApi({
             invalidatesTags: ['UserProfile'],
         }),
 
+        sendPhoneChangeOtp: builder.mutation<{ success: boolean; message: string }, { newPhone: string }>({
+            query: (body) => ({ url: 'User/send-phone-change-otp', method: 'POST', body }),
+        }),
+        updatePhone: builder.mutation<ApiResponse<AccessTokenDto>, { newPhone: string; otpCode: string }>({
+            query: (body) => ({ url: 'User/update-phone', method: 'PUT', body }),
+            invalidatesTags: ['UserProfile'],
+        }),
+
         // --- SETTING API ---
         getSetting: builder.query<ApiResponse<SettingGetDto>, void>({
             query: () => 'Setting',
@@ -1164,6 +1174,24 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.REAL_TIME,
         }),
 
+        // --- SUBSCRIPTION ---
+        getSubscriptionStatus: builder.query<{
+            success: boolean;
+            data: {
+                status: 'Trial' | 'Active' | 'Expired' | 'Banned';
+                trialEndDate: string;
+                subscriptionEndDate: string | null;
+                isBanned: boolean;
+                banReason: string | null;
+                trialDaysLeft: number;
+                subscriptionDaysLeft: number;
+            };
+        }, void>({
+            query: () => 'Subscription/status',
+            providesTags: ['Subscription'],
+            keepUnusedDataFor: CACHE_DURATIONS.USER_DATA,
+        }),
+
     }),
 });
 
@@ -1267,4 +1295,7 @@ export const {
     useUnblockUserMutation,
     useGetMyBlockedUsersQuery,
     useGetBlockStatusQuery,
+    useGetSubscriptionStatusQuery,
+    useSendPhoneChangeOtpMutation,
+    useUpdatePhoneMutation,
 } = api;

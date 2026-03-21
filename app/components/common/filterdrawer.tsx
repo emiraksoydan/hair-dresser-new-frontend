@@ -17,23 +17,9 @@ import { Divider, Icon, TextInput } from 'react-native-paper';
 import { MultiSelect } from 'react-native-element-dropdown';
 import { useCategoryHierarchy } from '../../hook/useCategoryHierarchy';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
-
-// Renk sabitleri
-const COLORS = {
-    drawerBg: '#1a1b25',
-    headerBorder: '#2a2b35',
-    chipSelected: '#ffb900',
-    chipBorder: '#3a3b45',
-    chipBg: '#252630',
-    sectionTitle: '#e5e7eb',
-    divider: '#2a2b35',
-    inputBg: '#252630',
-    inputBorder: '#3a3b45',
-    accent: '#ffb900',
-    textMuted: '#9ca3af',
-};
 
 interface FilterDrawerProps {
     visible: boolean;
@@ -90,69 +76,33 @@ interface FilterDrawerProps {
 }
 
 // Chip bileşeni - tekrar kullanılabilir
-const FilterChipItem = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
-    <TouchableOpacity
-        onPress={onPress}
-        style={{
-            backgroundColor: selected ? COLORS.chipSelected : COLORS.chipBg,
-            borderColor: selected ? COLORS.chipSelected : COLORS.chipBorder,
-            borderWidth: 1,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 20,
-        }}
-        activeOpacity={0.7}
-    >
-        <Text style={{
-            color: selected ? '#1a1b25' : '#d1d5db',
-            fontSize: 13,
-            fontWeight: selected ? '600' : '400',
-            fontFamily: 'CenturyGothic',
-        }}>
-            {label}
-        </Text>
-    </TouchableOpacity>
-);
-
-// MultiSelect ortak stilleri
-const multiSelectStyles = {
-    style: {
-        backgroundColor: COLORS.inputBg,
-        borderColor: COLORS.inputBorder,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginBottom: 16,
-    },
-    containerStyle: {
-        backgroundColor: COLORS.inputBg,
-        borderWidth: 1,
-        borderColor: COLORS.inputBorder,
-        borderRadius: 12,
-        overflow: 'hidden' as const,
-    },
-    inputSearchStyle: {
-        backgroundColor: COLORS.inputBg,
-        borderColor: COLORS.accent,
-        borderWidth: 1,
-        borderRadius: 8,
-        color: 'white',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-    },
-    placeholderStyle: { color: COLORS.textMuted, fontSize: 14, fontFamily: 'CenturyGothic' as const },
-    selectedTextStyle: { color: 'white', fontSize: 14, fontFamily: 'CenturyGothic' as const },
-    itemTextStyle: { color: 'white', fontSize: 14, fontFamily: 'CenturyGothic' as const },
-    selectedStyle: {
-        borderRadius: 8,
-        backgroundColor: '#2a2b35',
-        borderColor: COLORS.accent,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        margin: 2,
-    },
+const FilterChipItem = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => {
+    const { colors } = useTheme();
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            style={{
+                backgroundColor: selected ? '#ffb900' : colors.cardBg2,
+                borderColor: selected ? '#ffb900' : colors.borderColor,
+                borderWidth: 1,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+            }}
+            activeOpacity={0.7}
+        >
+            <Text style={{
+                color: selected ? '#1a1b25' : colors.sectionHeaderText,
+                fontSize: 13,
+                fontWeight: selected ? '600' : '400',
+                fontFamily: 'CenturyGothic',
+            }}>
+                {label}
+            </Text>
+        </TouchableOpacity>
+    );
 };
+
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     visible,
@@ -186,7 +136,47 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     onClearFilters,
 }) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const translateX = useSharedValue(-DRAWER_WIDTH);
+
+    const multiSelectStylesDynamic = useMemo(() => ({
+        style: {
+            backgroundColor: colors.cardBg2,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            marginBottom: 16,
+        },
+        containerStyle: {
+            backgroundColor: colors.cardBg2,
+            borderWidth: 1,
+            borderColor: colors.borderColor,
+            borderRadius: 12,
+            overflow: 'hidden' as const,
+        },
+        inputSearchStyle: {
+            backgroundColor: colors.cardBg2,
+            borderColor: '#ffb900',
+            borderWidth: 1,
+            borderRadius: 8,
+            color: colors.sectionHeaderText,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+        placeholderStyle: { color: colors.textSecondary, fontSize: 14, fontFamily: 'CenturyGothic' as const },
+        selectedTextStyle: { color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothic' as const },
+        itemTextStyle: { color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothic' as const },
+        selectedStyle: {
+            borderRadius: 8,
+            backgroundColor: colors.borderColor,
+            borderColor: '#ffb900',
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            margin: 2,
+        },
+    }), [colors]);
     const prevMainCategoryRef = useRef(selectedMainCategory);
     const prevMainHeadingsRef = useRef(selectedMainHeadings);
     const prevSubHeadingsRef = useRef(selectedSubHeadings);
@@ -291,12 +281,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     ];
 
     const mainCategories = useMemo(() => {
-        let categories = parentCategories.map((cat: any) => cat.name);
-        if (selectedUserType === 'freeBarber') {
-            categories = categories.filter((cat: string) => cat !== "Güzellik Salonu");
-        }
+        const categories = parentCategories.map((cat: any) => cat.name);
         return Array.from(new Set(['all', ...categories]));
-    }, [parentCategories, selectedUserType]);
+    }, [parentCategories]);
 
     const getMainCategoryLabel = (category: string) => {
         if (category === 'all') return t('filters.all');
@@ -349,12 +336,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
 
                 {/* Drawer */}
                 <GestureDetector gesture={panGesture}>
-                    <Animated.View style={[styles.drawer, drawerStyle]}>
+                    <Animated.View style={[styles.drawer, { backgroundColor: colors.sheetBg }, drawerStyle]}>
                         {/* Header */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.headerBorder }}>
-                            <Text className="text-white text-xl font-century-gothic-bold">{t('filters.title')}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                            <Text className="text-white text-xl font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>{t('filters.title')}</Text>
                             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-                                <Icon source="close" size={22} color="#9ca3af" />
+                                <Icon source="close" size={22} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -367,7 +354,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             {/* Kullanıcı Türü */}
                             {showUserTypeFilter && (
                                 <>
-                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                    <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.userType')}
                                     </Text>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -380,12 +367,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                             />
                                         ))}
                                     </ScrollView>
-                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Ana Kategori */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.mainCategory')}
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -398,12 +385,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                     />
                                 ))}
                             </ScrollView>
-                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
 
                             {/* Ana Başlıklar */}
                             {mainHeadingsOptions.length > 0 && (
                                 <>
-                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                    <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('form.mainHeadings')}
                                     </Text>
                                     <MultiSelect
@@ -419,24 +406,24 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         inside
                                         alwaysRenderSelectedItem
                                         visibleSelectedItem
-                                        style={multiSelectStyles.style}
-                                        containerStyle={multiSelectStyles.containerStyle}
-                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
-                                        placeholderStyle={multiSelectStyles.placeholderStyle}
-                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
-                                        itemTextStyle={multiSelectStyles.itemTextStyle}
-                                        activeColor={COLORS.accent}
-                                        selectedStyle={multiSelectStyles.selectedStyle}
+                                        style={multiSelectStylesDynamic.style}
+                                        containerStyle={multiSelectStylesDynamic.containerStyle}
+                                        inputSearchStyle={multiSelectStylesDynamic.inputSearchStyle}
+                                        placeholderStyle={multiSelectStylesDynamic.placeholderStyle}
+                                        selectedTextStyle={multiSelectStylesDynamic.selectedTextStyle}
+                                        itemTextStyle={multiSelectStylesDynamic.itemTextStyle}
+                                        activeColor="#ffb900"
+                                        selectedStyle={multiSelectStylesDynamic.selectedStyle}
                                         selectedTextProps={{ numberOfLines: 1 }}
                                     />
-                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Alt Başlıklar */}
                             {subHeadingsOptions.length > 0 && (
                                 <>
-                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                    <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('form.subHeadings')}
                                     </Text>
                                     <MultiSelect
@@ -452,24 +439,24 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         inside
                                         alwaysRenderSelectedItem
                                         visibleSelectedItem
-                                        style={multiSelectStyles.style}
-                                        containerStyle={multiSelectStyles.containerStyle}
-                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
-                                        placeholderStyle={multiSelectStyles.placeholderStyle}
-                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
-                                        itemTextStyle={multiSelectStyles.itemTextStyle}
-                                        activeColor={COLORS.accent}
-                                        selectedStyle={multiSelectStyles.selectedStyle}
+                                        style={multiSelectStylesDynamic.style}
+                                        containerStyle={multiSelectStylesDynamic.containerStyle}
+                                        inputSearchStyle={multiSelectStylesDynamic.inputSearchStyle}
+                                        placeholderStyle={multiSelectStylesDynamic.placeholderStyle}
+                                        selectedTextStyle={multiSelectStylesDynamic.selectedTextStyle}
+                                        itemTextStyle={multiSelectStylesDynamic.itemTextStyle}
+                                        activeColor="#ffb900"
+                                        selectedStyle={multiSelectStylesDynamic.selectedStyle}
                                         selectedTextProps={{ numberOfLines: 1 }}
                                     />
-                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Hizmetler */}
                             {servicesOptions.length > 0 && (
                                 <>
-                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                    <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.services')}
                                     </Text>
                                     <MultiSelect
@@ -485,24 +472,24 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         inside
                                         alwaysRenderSelectedItem
                                         visibleSelectedItem
-                                        style={multiSelectStyles.style}
-                                        containerStyle={multiSelectStyles.containerStyle}
-                                        inputSearchStyle={multiSelectStyles.inputSearchStyle}
-                                        placeholderStyle={multiSelectStyles.placeholderStyle}
-                                        selectedTextStyle={multiSelectStyles.selectedTextStyle}
-                                        itemTextStyle={multiSelectStyles.itemTextStyle}
-                                        activeColor={COLORS.accent}
-                                        selectedStyle={multiSelectStyles.selectedStyle}
+                                        style={multiSelectStylesDynamic.style}
+                                        containerStyle={multiSelectStylesDynamic.containerStyle}
+                                        inputSearchStyle={multiSelectStylesDynamic.inputSearchStyle}
+                                        placeholderStyle={multiSelectStylesDynamic.placeholderStyle}
+                                        selectedTextStyle={multiSelectStylesDynamic.selectedTextStyle}
+                                        itemTextStyle={multiSelectStylesDynamic.itemTextStyle}
+                                        activeColor="#ffb900"
+                                        selectedStyle={multiSelectStylesDynamic.selectedStyle}
                                         selectedTextProps={{ numberOfLines: 1 }}
                                     />
-                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Fiyatlandırma Türü */}
                             {showPricingType && (
                                 <>
-                                    <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                                    <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                         {t('filters.pricingType')}
                                     </Text>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -515,12 +502,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                             />
                                         ))}
                                     </ScrollView>
-                                    <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                                    <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
                                 </>
                             )}
 
                             {/* Fiyat Sıralaması */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.priceSort')}
                             </Text>
                             <View className="flex-row gap-2 mb-4">
@@ -535,13 +522,13 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         paddingVertical: 10,
                                         borderRadius: 12,
                                         borderWidth: 1,
-                                        backgroundColor: priceSort === 'asc' ? COLORS.chipSelected : COLORS.chipBg,
-                                        borderColor: priceSort === 'asc' ? COLORS.chipSelected : COLORS.chipBorder,
+                                        backgroundColor: priceSort === 'asc' ? '#ffb900' : colors.cardBg2,
+                                        borderColor: priceSort === 'asc' ? '#ffb900' : colors.borderColor,
                                     }}
                                     activeOpacity={0.7}
                                 >
-                                    <Icon source="arrow-up" size={16} color={priceSort === 'asc' ? '#1a1b25' : '#d1d5db'} />
-                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'asc' ? '#1a1b25' : '#d1d5db', fontWeight: priceSort === 'asc' ? '600' : '400' }}>
+                                    <Icon source="arrow-up" size={16} color={priceSort === 'asc' ? '#1a1b25' : colors.sectionHeaderText} />
+                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'asc' ? '#1a1b25' : colors.sectionHeaderText, fontWeight: priceSort === 'asc' ? '600' : '400' }}>
                                         {t('filters.lowest')}
                                     </Text>
                                 </TouchableOpacity>
@@ -556,21 +543,21 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         paddingVertical: 10,
                                         borderRadius: 12,
                                         borderWidth: 1,
-                                        backgroundColor: priceSort === 'desc' ? COLORS.chipSelected : COLORS.chipBg,
-                                        borderColor: priceSort === 'desc' ? COLORS.chipSelected : COLORS.chipBorder,
+                                        backgroundColor: priceSort === 'desc' ? '#ffb900' : colors.cardBg2,
+                                        borderColor: priceSort === 'desc' ? '#ffb900' : colors.borderColor,
                                     }}
                                     activeOpacity={0.7}
                                 >
-                                    <Icon source="arrow-down" size={16} color={priceSort === 'desc' ? '#1a1b25' : '#d1d5db'} />
-                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'desc' ? '#1a1b25' : '#d1d5db', fontWeight: priceSort === 'desc' ? '600' : '400' }}>
+                                    <Icon source="arrow-down" size={16} color={priceSort === 'desc' ? '#1a1b25' : colors.sectionHeaderText} />
+                                    <Text style={{ fontSize: 13, marginLeft: 4, color: priceSort === 'desc' ? '#1a1b25' : colors.sectionHeaderText, fontWeight: priceSort === 'desc' ? '600' : '400' }}>
                                         {t('filters.highest')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
-                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
 
                             {/* Fiyat Aralığı */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.priceRange')}
                             </Text>
                             <View className="flex-row items-center gap-3 mb-4">
@@ -583,13 +570,13 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         value={minPrice}
                                         onChangeText={(text) => onChangeMinPrice(text.replace(/[^\d]/g, ''))}
                                         placeholder="0"
-                                        textColor="white"
-                                        outlineColor={COLORS.inputBorder}
-                                        theme={{ roundness: 12, colors: { onSurfaceVariant: COLORS.textMuted, primary: COLORS.accent } }}
-                                        style={{ backgroundColor: COLORS.inputBg, borderWidth: 0 }}
+                                        textColor={colors.sectionHeaderText}
+                                        outlineColor={colors.borderColor}
+                                        theme={{ roundness: 12, colors: { onSurfaceVariant: colors.textSecondary, primary: '#ffb900' } }}
+                                        style={{ backgroundColor: colors.cardBg2, borderWidth: 0 }}
                                     />
                                 </View>
-                                <Text style={{ color: COLORS.textMuted, marginTop: 8 }}>-</Text>
+                                <Text style={{ color: colors.textSecondary, marginTop: 8 }}>-</Text>
                                 <View className="flex-1">
                                     <TextInput
                                         label={t('filters.maxPrice')}
@@ -599,17 +586,17 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                         value={maxPrice}
                                         onChangeText={(text) => onChangeMaxPrice(text.replace(/[^\d]/g, ''))}
                                         placeholder="∞"
-                                        textColor="white"
-                                        outlineColor={COLORS.inputBorder}
-                                        theme={{ roundness: 12, colors: { onSurfaceVariant: COLORS.textMuted, primary: COLORS.accent } }}
-                                        style={{ backgroundColor: COLORS.inputBg, borderWidth: 0 }}
+                                        textColor={colors.sectionHeaderText}
+                                        outlineColor={colors.borderColor}
+                                        theme={{ roundness: 12, colors: { onSurfaceVariant: colors.textSecondary, primary: '#ffb900' } }}
+                                        style={{ backgroundColor: colors.cardBg2, borderWidth: 0 }}
                                     />
                                 </View>
                             </View>
-                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
 
                             {/* Durum Filtresi */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.status')}
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -622,10 +609,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                     />
                                 ))}
                             </ScrollView>
-                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
 
                             {/* Puanlama Filtresi */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.minimumRating')}
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -638,10 +625,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                     />
                                 ))}
                             </ScrollView>
-                            <Divider style={{ backgroundColor: COLORS.divider, marginBottom: 16 }} />
+                            <Divider style={{ backgroundColor: colors.borderColor, marginBottom: 16 }} />
 
                             {/* Favori Filtresi */}
-                            <Text style={{ color: COLORS.sectionTitle, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
+                            <Text style={{ color: colors.sectionHeaderText, fontSize: 14, fontFamily: 'CenturyGothicBold', marginBottom: 10 }}>
                                 {t('filters.favoriteFilter')}
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
@@ -657,13 +644,13 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                         </ScrollView>
 
                         {/* Footer - Temizle Butonu */}
-                        <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.headerBorder }}>
+                        <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderColor }}>
                             <TouchableOpacity
                                 onPress={onClearFilters}
                                 style={{
                                     width: '100%',
                                     borderWidth: 1.5,
-                                    borderColor: COLORS.accent,
+                                    borderColor: '#ffb900',
                                     borderRadius: 12,
                                     paddingVertical: 12,
                                     alignItems: 'center',
@@ -671,7 +658,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 }}
                                 activeOpacity={0.8}
                             >
-                                <Text style={{ color: COLORS.accent, fontSize: 14, fontWeight: '600', fontFamily: 'CenturyGothic' }}>
+                                <Text style={{ color: '#ffb900', fontSize: 14, fontWeight: '600', fontFamily: 'CenturyGothic' }}>
                                     {t('filters.clear')}
                                 </Text>
                             </TouchableOpacity>
@@ -701,7 +688,6 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         width: DRAWER_WIDTH,
-        backgroundColor: COLORS.drawerBg,
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 0 },
         shadowOpacity: 0.4,

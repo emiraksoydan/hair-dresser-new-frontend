@@ -6,6 +6,7 @@ import { Chip, Divider, Icon } from "react-native-paper";
 import { LegendList } from "@legendapp/list";
 import { useBottomSheet } from "../../hook/useBottomSheet";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 import { catData, ratings } from "../../constants";
 
 type FilterBottomSheetProps = {
@@ -28,6 +29,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
   toggleService,
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const filterSheet = useBottomSheet({
     snapPoints: ["60%", "100%"],
     enablePanDownToClose: true,
@@ -39,15 +41,15 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
       snapPoints={filterSheet.snapPoints}
       backdropComponent={filterSheet.makeBackdrop()}
       enablePanDownToClose={filterSheet.enablePanDownToClose}
-      handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-      backgroundStyle={{ backgroundColor: "#202123" }}
+      handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+      backgroundStyle={{ backgroundColor: colors.sheetBg }}
       onChange={filterSheet.handleChange}
     >
       <BottomSheetView className="h-full p-5 pt-2">
-        <Text className="text-center text-xl text-white mb-4">
+        <Text className="text-center text-xl mb-4" style={{ color: colors.sectionHeaderText }}>
           {t("filters.title") || "Filtreler"}
         </Text>
-        <Divider style={{ borderWidth: 0.1, backgroundColor: "#696969" }} />
+        <Divider style={{ borderWidth: 0.1, backgroundColor: colors.borderColor }} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
@@ -56,7 +58,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
           }}
         >
           {/* Kategori */}
-          <Text className="text-white text-lg font-semibold mb-2">
+          <Text className="text-lg font-semibold mb-2" style={{ color: colors.sectionHeaderText }}>
             Kategori
           </Text>
           <View className="flex-row gap-2">
@@ -69,7 +71,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
                   mode="outlined"
                   textStyle={{
                     fontSize: 12,
-                    color: isSelected ? "white" : "#d1d5db",
+                    color: isSelected ? '#ffffff' : colors.sectionHeaderText,
                   }}
                   style={{
                     borderRadius: 24,
@@ -86,7 +88,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
           </View>
 
           {/* Puanlama */}
-          <Text className="text-white text-lg font-semibold mb-2">
+          <Text className="text-lg font-semibold mb-2" style={{ color: colors.sectionHeaderText }}>
             Puanlama
           </Text>
           <ScrollView
@@ -112,7 +114,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
                   mode="outlined"
                   textStyle={{
                     fontSize: 12,
-                    color: isSelected ? "white" : "#d1d5db",
+                    color: isSelected ? '#ffffff' : colors.sectionHeaderText,
                   }}
                   style={{
                     borderRadius: 24,
@@ -129,7 +131,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
           </ScrollView>
 
           {/* Hizmetler */}
-          <Text className="text-white text-lg font-semibold mb-2">
+          <Text className="text-lg font-semibold mb-2" style={{ color: colors.sectionHeaderText }}>
             Hizmetler
           </Text>
           <LegendList
@@ -163,7 +165,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
                   }}
                   textStyle={{
                     fontSize: 12,
-                    color: isSelected ? "white" : "#d1d5db",
+                    color: isSelected ? '#ffffff' : colors.sectionHeaderText,
                   }}
                 >
                   {service}

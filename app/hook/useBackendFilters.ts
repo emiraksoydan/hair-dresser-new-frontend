@@ -19,6 +19,13 @@ export const USER_TYPE_KEYS = {
   STORE: 'store',
 } as const;
 
+// Backend expects these exact Turkish string values for UserType field
+const USER_TYPE_BACKEND_MAP: Record<string, string> = {
+  [USER_TYPE_KEYS.STORE]: 'Dükkan',
+  [USER_TYPE_KEYS.FREE_BARBER]: 'Serbest Berber',
+  [USER_TYPE_KEYS.ALL]: 'Hepsi',
+} as const;
+
 export const MAIN_CATEGORY_KEYS = {
   ALL: 'all',
 } as const;
@@ -83,56 +90,38 @@ export const useBackendFilters = (options: UseBackendFiltersOptions = {}) => {
       mainCategoryEnum = categoryNameToEnum(criteria.mainCategory, t);
     }
 
-    // Convert language-independent userType key to backend format
-    let backendUserType: string | undefined = undefined;
-    if (criteria.userType === USER_TYPE_KEYS.STORE) {
-      backendUserType = 'Dükkan'; // Backend expects Turkish values
-    } else if (criteria.userType === USER_TYPE_KEYS.FREE_BARBER) {
-      backendUserType = 'Serbest Berber';
-    } else if (criteria.userType === USER_TYPE_KEYS.ALL) {
-      backendUserType = 'Hepsi';
-    }
+    // Convert language-independent userType key to backend Turkish value
+    const backendUserType = criteria.userType ? USER_TYPE_BACKEND_MAP[criteria.userType] : undefined;
 
-    return {
-      // Location data
+    // Status filter: backend uses isAvailable for FreeBarber, isOpenNow for Store
+    // Since we don't know which endpoint will be called here, we set both
+    const statusValue = criteria.status === STATUS_KEYS.ALL
+      ? undefined
+      : criteria.status === STATUS_KEYS.AVAILABLE;
+
+    const dto: FilterRequestDto = {
       latitude: location?.latitude,
       longitude: location?.longitude,
-      distanceKm: 1.0,
-
-      // Search
+      distanceKm: 10.0,
       searchQuery: criteria.searchQuery || undefined,
-
-      // User type - send backend-compatible value
       userType: backendUserType,
-
-      // Category - ✅ Category name -> BarberType enum conversion
-      // Backend expects BarberType enum (0=MaleHairdresser, 1=FemaleHairdresser, 2=BeautySalon)
       mainCategory: mainCategoryEnum,
-
-      // Services
-      serviceIds: criteria.serviceIds?.map(id => id) || undefined,
-
-      // Price
+      serviceIds: criteria.serviceIds?.length ? criteria.serviceIds : undefined,
       priceSort: criteria.priceSort === 'none' ? undefined : criteria.priceSort,
       minPrice: criteria.minPrice ? parseFloat(criteria.minPrice) : undefined,
       maxPrice: criteria.maxPrice ? parseFloat(criteria.maxPrice) : undefined,
-
-      // Pricing type
       pricingType: criteria.pricingType === 'all' ? undefined : criteria.pricingType,
-
-      // Status - unified filter for both Store (isOpenNow) and FreeBarber (isAvailable)
-      isAvailable: criteria.status === STATUS_KEYS.ALL ? undefined : criteria.status === STATUS_KEYS.AVAILABLE,
-      isOpenNow: criteria.status === STATUS_KEYS.ALL ? undefined : criteria.status === STATUS_KEYS.AVAILABLE,
-
-      // Rating
+      isAvailable: statusValue,
+      isOpenNow: statusValue,
       minRating: criteria.minRating && criteria.minRating > 0 ? criteria.minRating : undefined,
-
-      // Favorites
       favoritesOnly: criteria.favoritesOnly || undefined,
-
-      // User ID
-      currentUserId: currentUserId ? currentUserId : undefined,
+      currentUserId: currentUserId || undefined,
     };
+
+    // Remove undefined fields to keep the payload clean
+    return Object.fromEntries(
+      Object.entries(dto).filter(([_, v]) => v !== undefined)
+    ) as FilterRequestDto;
   }, []);
 
   const updateCriteria = useCallback((updates: Partial<BackendFilterCriteria>, t?: (key: string) => string) => {

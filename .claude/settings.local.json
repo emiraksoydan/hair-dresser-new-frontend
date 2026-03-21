@@ -16,7 +16,15 @@
       "Bash(dotnet ef database update:*)",
       "Bash(find:*)",
       "Bash(ls:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(openssl rand:*)",
+      "Bash(sort:*)",
+      "Bash(xargs grep -l \"Middleware\\\\|ActionFilter\\\\|ExceptionFilter\\\\|AuthorizationFilter\")",
+      "Bash(grep -r \"subscription\\\\|Subscription\\\\|panel.*limit\\\\|limit.*panel\" C:UsersyazilimciemirsourcereposHairDresser --include=*.cs)",
+      "Bash(npx expo:*)",
+      "Bash(xargs basename:*)",
+      "Bash(sed \"s/ =>$//g\")",
+      "Bash(sed 's/:$//')"
     ],
     "additionalDirectories": [
       "C:\\Users\\yazilimciemir\\source\\repos\\HairDresser\\Business\\Concrete",

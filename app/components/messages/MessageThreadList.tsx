@@ -20,6 +20,7 @@ import { COLORS } from '../../constants/colors';
 import { MESSAGES } from '../../constants/messages';
 import { useAuth } from '../../hook/useAuth';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 interface MessageThreadListProps {
     routePrefix: string; // e.g., '/(customertabs)/(messages)' or '/(barberstoretabs)/(messages)'
@@ -29,6 +30,7 @@ interface MessageThreadListProps {
 export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefix, iconSource }) => {
     const router = useRouter();
     const { t } = useLanguage();
+    const { colors, isDark } = useTheme();
     const { data: threads, isLoading, refetch, isFetching, error, isError } = useGetChatThreadsQuery();
     const formatTime = useFormatTime();
     const { userType: currentUserType } = useAuth();
@@ -52,96 +54,136 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
             router.push(`/(screens)/chat/${item.threadId}`);
         };
 
-        // Participant'ları render et - kullanıcı türüne göre görünüm
-        const renderParticipant = (participant: ChatThreadParticipantDto, index: number) => {
-            const isFirst = index === 0;
-            const displayName = participant.displayName;
+        // Participant etiketlerini hesapla
+        const getParticipantLabel = (participant: ChatThreadParticipantDto) => {
+            if (participant.userType === currentUserType) return '';
+            if (participant.userType === UserType.BarberStore) return t('labels.store');
+            if (participant.userType === UserType.FreeBarber) return t('labels.freeBarber');
+            if (participant.userType === UserType.Customer) return t('card.customer');
+            return '';
+        };
 
-            // Kullanıcı türüne göre participant etiketi belirle
-            // ÖNEMLİ: Her kullanıcı kendi bakış açısından diğer kişileri görmeli
-            const getParticipantLabel = () => {
-                // Eğer participant kendi türümüzle aynıysa, tür etiketi gösterme
-                if (participant.userType === currentUserType) {
-                    return '';
-                }
+        const getBarberTypeLabel = (participant: ChatThreadParticipantDto) => {
+            if (participant.barberType === undefined || participant.barberType === null) return null;
+            if (participant.userType === UserType.FreeBarber) {
+                return participant.barberType === BarberType.MaleHairdresser
+                    ? t('barberType.maleHairdresserShort')
+                    : t('barberType.femaleHairdresserShort');
+            } else if (participant.userType === UserType.BarberStore) {
+                if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
+                if (participant.barberType === BarberType.FemaleHairdresser) return t('barberType.femaleHairdresserOf');
+                return t('barberType.beautySalon');
+            }
+            return null;
+        };
 
-                // Participant'ın türüne göre etiket
-                if (participant.userType === UserType.BarberStore) {
-                    return t('labels.store');
-                } else if (participant.userType === UserType.FreeBarber) {
-                    return t('labels.freeBarber');
-                } else if (participant.userType === UserType.Customer) {
-                    return t('card.customer');
-                }
-                return '';
-            };
+        const getIconForParticipant = (participant: ChatThreadParticipantDto) => {
+            return participant.userType === UserType.BarberStore
+                ? "store"
+                : participant.userType === UserType.FreeBarber
+                    ? "account-supervisor"
+                    : "account";
+        };
 
-            const participantLabel = getParticipantLabel();
-
-            // BarberType bilgisini göster (eğer varsa)
-            const getBarberTypeLabel = () => {
-                if (participant.barberType === undefined || participant.barberType === null) {
-                    return null;
-                }
-
-                if (participant.userType === UserType.FreeBarber) {
-                    return participant.barberType === BarberType.MaleHairdresser
-                        ? t('barberType.maleHairdresserShort')
-                        : t('barberType.femaleHairdresserShort');
-                } else if (participant.userType === UserType.BarberStore) {
-                    if (participant.barberType === BarberType.MaleHairdresser) return t('barberType.maleHairdresserOf');
-                    if (participant.barberType === BarberType.FemaleHairdresser) return t('barberType.femaleHairdresserOf');
-                    return t('barberType.beautySalon');
-                }
-                return null;
-            };
-
-            const barberTypeLabel = getBarberTypeLabel();
+        // Tek participant: klasik düzen
+        const renderSingleParticipant = (participant: ChatThreadParticipantDto) => {
+            const participantLabel = getParticipantLabel(participant);
+            const barberTypeLabel = getBarberTypeLabel(participant);
+            const labelText = [participantLabel, barberTypeLabel].filter(Boolean).join(' • ');
 
             return (
-                <View key={participant.userId} className={!isFirst ? 'mt-3' : ''} style={{ maxWidth: '100%' }}>
-                    <View className="flex-row items-start" style={{ maxWidth: '100%' }}>
-                        <View className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 items-center justify-center" style={{ flexShrink: 0 }}>
-                            <OwnerAvatar
-                                ownerId={participant.userId}
-                                ownerType={ImageOwnerType.User}
-                                fallbackUrl={participant.imageUrl}
-                                imageClassName="w-full h-full"
-                                iconSource={
-                                    participant.userType === UserType.BarberStore
-                                        ? "store"
-                                        : participant.userType === UserType.FreeBarber
-                                            ? "account-supervisor"
-                                            : "account"
-                                }
-                                iconSize={20}
-                                iconColor="white"
-                                iconContainerClassName="bg-transparent"
-                            />
+                <View className="flex-row items-start" style={{ maxWidth: '100%' }}>
+                    <View className="w-10 h-10 rounded-full overflow-hidden items-center justify-center" style={{ flexShrink: 0, backgroundColor: colors.cardBg2 }}>
+                        <OwnerAvatar
+                            ownerId={participant.userId}
+                            ownerType={ImageOwnerType.User}
+                            fallbackUrl={participant.imageUrl}
+                            imageClassName="w-full h-full"
+                            iconSource={getIconForParticipant(participant)}
+                            iconSize={20}
+                            iconColor={isDark ? 'white' : colors.sectionHeaderText}
+                            iconContainerClassName="bg-transparent"
+                        />
+                    </View>
+                    <View className="ml-3 gap-1 flex-1" style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
+                        <Text className="font-century-gothic-sans-bold text-base" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%', color: colors.sectionHeaderText }}>
+                            {participant.displayName}
+                        </Text>
+                        <View className="flex-row items-center gap-1.5" style={{ minWidth: 0 }}>
+                            {labelText ? (
+                                <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" style={{ flexShrink: 0 }}>
+                                    {labelText}
+                                </Text>
+                            ) : null}
+                            {item.isFavoriteThread && (
+                                <Icon source="heart" size={11} color="#fbbf24" />
+                            )}
                         </View>
-                        <View className="ml-3 gap-1 flex-1" style={{ minWidth: 0, maxWidth: '100%', flexShrink: 1 }}>
-                            <Text className="text-white font-century-gothic-sans-bold text-base" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
-                                {displayName}
-                            </Text>
-                            <View className="flex-row items-center gap-1.5" style={{ minWidth: 0 }}>
-                                {participantLabel && barberTypeLabel ? (
-                                    <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" style={{ flexShrink: 0 }}>
-                                        {participantLabel} • {barberTypeLabel}
-                                    </Text>
-                                ) : participantLabel ? (
-                                    <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" style={{ flexShrink: 0 }}>
-                                        {participantLabel}
-                                    </Text>
-                                ) : barberTypeLabel ? (
-                                    <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" style={{ flexShrink: 0 }}>
-                                        {barberTypeLabel}
-                                    </Text>
-                                ) : null}
-                                {item.isFavoriteThread && isFirst && (
-                                    <Icon source="heart" size={11} color="#fbbf24" />
-                                )}
+                    </View>
+                </View>
+            );
+        };
+
+        // Çoklu participant: overlapping avatarlar + isimler
+        const renderOverlappingParticipants = (participants: ChatThreadParticipantDto[]) => {
+            const visibleAvatars = participants.slice(0, 2);
+            const extraCount = participants.length - 2;
+
+            return (
+                <View className="flex-row items-center" style={{ maxWidth: '100%' }}>
+                    {/* Overlapping avatarlar */}
+                    <View className="flex-row items-center" style={{ flexShrink: 0 }}>
+                        {visibleAvatars.map((participant, idx) => (
+                            <View
+                                key={participant.userId}
+                                className="w-10 h-10 rounded-full overflow-hidden items-center justify-center"
+                                style={{
+                                    marginLeft: idx > 0 ? -12 : 0,
+                                    zIndex: visibleAvatars.length - idx,
+                                    borderWidth: 2,
+                                    borderColor: colors.borderColor,
+                                    backgroundColor: colors.cardBg2,
+                                }}
+                            >
+                                <OwnerAvatar
+                                    ownerId={participant.userId}
+                                    ownerType={ImageOwnerType.User}
+                                    fallbackUrl={participant.imageUrl}
+                                    imageClassName="w-full h-full"
+                                    iconSource={getIconForParticipant(participant)}
+                                    iconSize={20}
+                                    iconColor={isDark ? 'white' : colors.sectionHeaderText}
+                                    iconContainerClassName="bg-transparent"
+                                />
                             </View>
+                        ))}
+                        {extraCount > 0 && (
+                            <View
+                                className="w-10 h-10 rounded-full items-center justify-center"
+                                style={{ marginLeft: -12, zIndex: 0, borderWidth: 2, borderColor: colors.borderColor, backgroundColor: colors.cardBg2 }}
+                            >
+                                <Text className="text-xs font-century-gothic-sans-bold" style={{ color: colors.sectionHeaderText }}>+{extraCount}</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* İsimler ve etiketler */}
+                    <View className="ml-3 gap-0.5 flex-1" style={{ minWidth: 0, flexShrink: 1 }}>
+                        <View className="flex-row items-center gap-1.5">
+                            <Text className="font-century-gothic-sans-bold text-sm" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0, color: colors.sectionHeaderText }}>
+                                {participants.map(p => p.displayName).join(', ')}
+                            </Text>
+                            {item.isFavoriteThread && (
+                                <Icon source="heart" size={11} color="#fbbf24" />
+                            )}
                         </View>
+                        <Text className="text-gray-400 text-xs font-century-gothic-sans-medium" numberOfLines={1}>
+                            {participants.map(p => {
+                                const label = getParticipantLabel(p);
+                                const barberLabel = getBarberTypeLabel(p);
+                                return [label, barberLabel].filter(Boolean).join(' • ');
+                            }).filter(Boolean).join(' — ')}
+                        </Text>
                     </View>
                 </View>
             );
@@ -150,7 +192,8 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
         return (
             <TouchableOpacity
                 onPress={handlePress}
-                className="bg-gray-800 rounded-xl pt-2 p-4 mb-3 border border-gray-700/50"
+                className="rounded-xl pt-2 p-4 mb-3"
+                style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor }}
             >
                 {statusText && statusColor && (
                     <View className="flex-row items-center mb-2 justify-end">
@@ -169,12 +212,12 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                 )}
                 <View className="flex-row items-start" style={{ minWidth: 0 }}>
                     <View className="flex-1 pr-4" style={{ minWidth: 0, flexShrink: 1 }}>
-                        {item.participants.length > 0 ? (
-                            <View className="flex-col" style={{ maxWidth: '100%' }}>
-                                {item.participants.map((p, idx) => renderParticipant(p, idx))}
-                            </View>
+                        {item.participants.length > 1 ? (
+                            renderOverlappingParticipants(item.participants)
+                        ) : item.participants.length === 1 ? (
+                            renderSingleParticipant(item.participants[0])
                         ) : (
-                            <View className="w-12 h-12 rounded-full bg-gray-700 items-center justify-center">
+                            <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: colors.cardBg2 }}>
                                 <Icon source={iconSource} size={24} color="white" />
                             </View>
                         )}
@@ -183,9 +226,9 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
                             <View className="flex-row items-center gap-2 mt-2.5" style={{ marginLeft: item.participants.length > 0 ? 42 : 0, minWidth: 0, maxWidth: '100%' }}>
                                 <Icon source="message-text" size={12} color={hasUnread ? "#22c55e" : "#6b7280"} />
                                 <Text
-                                    className={`text-sm mb-0 ${hasUnread ? 'text-white font-century-gothic-sans-medium' : 'text-gray-400 font-century-gothic-sans-regular'}`}
+                                    className={`text-sm mb-0 ${hasUnread ? 'font-century-gothic-sans-medium' : 'text-gray-400 font-century-gothic-sans-regular'}`}
+                                    style={hasUnread ? { color: colors.sectionHeaderText, flexShrink: 1, minWidth: 0, maxWidth: '100%' } : { flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                                     numberOfLines={2}
-                                    style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
                                 >
                                     {item.lastMessagePreview}
                                 </Text>
@@ -224,7 +267,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     // Loading durumu
     if (isLoading) {
         return (
-            <View className="flex-1 bg-[#151618] pt-4 px-4">
+            <View className="flex-1 pt-4 px-4" style={{ backgroundColor: colors.screenBg }}>
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonComponent key={i} />)}
             </View>
         );
@@ -266,7 +309,7 @@ export const MessageThreadList: React.FC<MessageThreadListProps> = ({ routePrefi
     }
 
     return (
-        <View className="flex-1">
+        <View className="flex-1" style={{ backgroundColor: colors.screenBg }}>
             <LegendList
                 data={threads ?? []}
                 keyExtractor={(item) => item.threadId}

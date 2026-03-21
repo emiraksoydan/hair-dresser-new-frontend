@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { View } from "react-native";
 import { Badge, IconButton } from "react-native-paper";
+import { useTheme } from "../../hook/useTheme";
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -28,6 +29,7 @@ export function BadgeIconButton({
     badgeColor = "#ef4444",
     animateWhenActive = false,
 }: Props) {
+    const { colors, isDark } = useTheme();
     const show = badgeCount > 0;
     const text = badgeCount > 99 ? "99+" : String(badgeCount);
 
@@ -65,7 +67,10 @@ export function BadgeIconButton({
 
     return (
         // Menü butonuyla aynı: w-10 h-10, rounded-full ve bg-[#1F2937]
-        <View className={`${icon === 'bell-outline' || icon === 'bell' ? 'bg-[#1a1b25] ' : ''} w-12 h-12 items-center justify-center rounded-full relative `}>
+        <View
+            className="w-12 h-12 items-center justify-center rounded-full relative"
+            style={(icon === 'bell-outline' || icon === 'bell') ? { backgroundColor: isDark ? colors.cardBg : colors.screenBg } : undefined}
+        >
             <Animated.View style={animateWhenActive && show ? animatedIconStyle : {}}>
                 <IconButton
                     icon={icon}

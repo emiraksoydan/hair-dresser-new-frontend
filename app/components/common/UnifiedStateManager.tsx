@@ -3,6 +3,7 @@ import { View, ActivityIndicator, TouchableOpacity } from "react-native";
 import { Text } from "./Text";
 import { LottieViewComponent } from "./lottieview";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 import { LocationStatus } from "../../types";
 
 export type StateType =
@@ -84,6 +85,7 @@ export const UnifiedStateManager: React.FC<UnifiedStateProps> = ({
   error,
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   // Auto-determine state from props if not explicitly provided
   const determineState = (): StateType => {
@@ -121,7 +123,7 @@ export const UnifiedStateManager: React.FC<UnifiedStateProps> = ({
 
   return (
     <View className="flex-1 items-center justify-start py-4 px-2">
-      <View className="bg-[#1a1b25]  rounded-2xl p-6 items-center w-full">
+      <View style={{ backgroundColor: colors.cardBg }} className="rounded-2xl p-6 items-center w-full">
         <LottieViewComponent
           animationSource={animationSource}
           message={displayMessage}
@@ -268,4 +270,3 @@ export const UnifiedStateWrapper: React.FC<UnifiedStateWrapperProps> = ({
 
   return <>{children}</>;
 };
-

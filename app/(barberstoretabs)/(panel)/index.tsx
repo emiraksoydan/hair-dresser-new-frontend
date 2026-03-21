@@ -36,8 +36,10 @@ import { DeferredRender } from "../../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../../components/common/crudskeleton";
 import { useLanguage } from "../../hook/useLanguage";
 import { UnifiedStateWrapper } from "../../components/common/UnifiedStateManager";
+import { useTheme } from "../../hook/useTheme";
 
 const Index = () => {
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
   // Current user for filters
@@ -80,7 +82,7 @@ const Index = () => {
     enabled: true,
     stores,
     hardRefreshMs: 15000,
-    radiusKm: 1,
+    radiusKm: 10,
     filter: freeBarberFilterDto,
     currentUserId,
   });
@@ -95,7 +97,7 @@ const Index = () => {
 
   // Bottom sheet hooks
   const mapDetailSheet = useBottomSheet({
-    snapPoints: ["65%"],
+    snapPoints: ["90%", "100%"],
     enablePanDownToClose: true,
   });
   const updateStoreSnapPoints = useMemo(
@@ -492,7 +494,7 @@ const Index = () => {
   }, [filteredStores, handlePressUpdateStore]);
 
   return (
-    <View className="flex flex-1 pl-4 pr-2">
+    <View className="flex flex-1 pl-4 pr-2" style={{ backgroundColor: colors.screenBg }}>
       <View
         className={
           isMapMode
@@ -517,7 +519,7 @@ const Index = () => {
         <View className="absolute inset-0 z-0">
           <MapView
             style={{ flex: 1 }}
-            userInterfaceStyle="dark"
+            userInterfaceStyle={isDark ? "dark" : "light"}
             initialRegion={mapInitialRegion}
           >
             {freeBarberMarkers}
@@ -547,7 +549,7 @@ const Index = () => {
             if (item.type === "stores-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-4">
-                  <Text className="font-century-gothic text-xl text-white">
+                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.myStores")}
                   </Text>
                   {hasStores && (
@@ -638,7 +640,7 @@ const Index = () => {
             if (item.type === "freebarbers-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-12">
-                  <Text className="font-century-gothic text-xl text-white">
+                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
                   {hasFreeBarbers && (
@@ -739,8 +741,8 @@ const Index = () => {
 
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
-        className="absolute right-0 bottom-6 bg-[#1a1b25] rounded-full rounded-r-none items-center justify-center z-20 shadow-lg border border-[#47494e] px-2 py-1 flex-row gap-0"
-        style={{ elevation: 8 }}
+        className="absolute right-0 bottom-6 rounded-full rounded-r-none items-center justify-center z-20 shadow-lg px-2 py-1 flex-row gap-0"
+        style={{ backgroundColor: colors.mapToggleBg, borderColor: colors.mapToggleBorder, borderWidth: 1, elevation: 8 }}
       >
         <IconButton
           icon={isMapMode ? "format-list-bulleted" : "map"}
@@ -748,7 +750,7 @@ const Index = () => {
           size={24}
           style={{ margin: 0 }}
         />
-        <Text className="text-white font-semibold text-sm">
+        <Text className="font-semibold text-sm" style={{ color: colors.sectionHeaderText }}>
           {isMapMode ? t("common.list") : t("common.searchOnMap")}
         </Text>
       </TouchableOpacity>
@@ -806,8 +808,8 @@ const Index = () => {
       <BottomSheetModal
         ref={updateStoreSheet.ref}
         backdropComponent={updateStoreSheet.makeBackdrop()}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         onChange={updateStoreSheet.handleChange}
         snapPoints={updateStoreSheet.snapPoints}
         enableOverDrag={updateStoreSheet.enableOverDrag}
@@ -840,8 +842,8 @@ const Index = () => {
         onChange={mapDetailSheet.handleChange}
         snapPoints={mapDetailSheet.snapPoints}
         enablePanDownToClose={mapDetailSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={mapDetailSheet.makeBackdrop()}
       >
         <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
@@ -870,8 +872,8 @@ const Index = () => {
         ref={ratingsSheet.ref}
         snapPoints={ratingsSheet.snapPoints}
         enablePanDownToClose={ratingsSheet.enablePanDownToClose}
-        handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-        backgroundStyle={{ backgroundColor: "#151618" }}
+        handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+        backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={ratingsSheet.makeBackdrop()}
         onChange={(index) => {
           ratingsSheet.handleChange(index);

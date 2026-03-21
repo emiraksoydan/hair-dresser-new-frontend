@@ -44,6 +44,7 @@ import { getErrorMessage } from "../../utils/errorHandler";
 import { ImageCarousel } from "../common/imagecarousel";
 import { useCanPerformAction } from "../../hook/useCanPerformAction";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 const toLocalIso = (dateStr: string, hhmm: string) =>
   `${dateStr}T${normalizeTime(hhmm)}:00`;
@@ -72,6 +73,7 @@ const StoreBookingContent = ({
   mode,
   appointmentId,
 }: Props) => {
+  const { colors, isDark } = useTheme();
   // store header info
   const { data: storeData } = useGetStoreForUsersQuery(storeId, {
     skip: !storeId,
@@ -211,27 +213,26 @@ const StoreBookingContent = ({
 
   const { alert, alertSuccess, alertError } = useAlert();
 
+  // Servis seçimi zorunlu olduğu durumlar:
+  // 1. isAddStoreMode=true (FreeBarber dükkan ekliyor)
+  // 2. isFreeBarber=true VE pricingType=percent (yüzdelik sistem, servis fiyatına göre hesaplanır)
+  // 3. isCustomer=true (müşteri dükkandan randevu alıyor - her zaman servis seçmeli)
+  //
+  // Servis seçimi zorunlu OLMAYAN durumlar:
+  // 1. isFreeBarber=true VE pricingType=rent (saatlik kiralama - isHourlyFree=true)
+  const requireServices = useMemo(
+    () => isAddStoreMode || isCustomer || (isFreeBarber && !isHourlyFree),
+    [isAddStoreMode, isCustomer, isFreeBarber, isHourlyFree]
+  );
+
   const canSubmit = useMemo(() => {
     const baseReady = !!selectedChairId && selectedSlotKeys.length > 0;
-
-    // Servis seçimi zorunlu olduğu durumlar:
-    // 1. isAddStoreMode=true (FreeBarber dükkan ekliyor)
-    // 2. isFreeBarber=true VE pricingType=percent (yüzdelik sistem, servis fiyatına göre hesaplanır)
-    // 3. isCustomer=true (müşteri dükkandan randevu alıyor - her zaman servis seçmeli)
-    //
-    // Servis seçimi zorunlu OLMAYAN durumlar:
-    // 1. isFreeBarber=true VE pricingType=rent (saatlik kiralama - isHourlyFree=true)
-    const requireServices = isAddStoreMode || isCustomer || (isFreeBarber && !isHourlyFree);
-
     return baseReady && (requireServices ? selectedServices.length > 0 : true);
   }, [
     selectedChairId,
     selectedSlotKeys.length,
     selectedServices.length,
-    isHourlyFree,
-    isAddStoreMode,
-    isCustomer,
-    isFreeBarber,
+    requireServices,
   ]);
 
   return (
@@ -300,10 +301,10 @@ const StoreBookingContent = ({
         )}
       </View>
 
-      <ScrollView nestedScrollEnabled>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: 140 }}>
         <View className="p-4 z-0 gap-3">
           <View className="flex-row justify-between items-center">
-            <Text className="text-white font-century-gothic mt-3 text-xl">
+            <Text className="font-century-gothic mt-3 text-xl" style={{ color: colors.sectionHeaderText }}>
               Randevu Al
             </Text>
           </View>
@@ -315,9 +316,6 @@ const StoreBookingContent = ({
             nestedScrollEnabled
           >
             <View className="flex-row gap-2 items-center">
-              <View className="items-center justify-center rounded-2xl px-2 py-2.5 min-w-[52px] bg-[#0f172a] border border-[#334155]">
-                <Icon source="calendar-month" size={24} color="#60a5fa" />
-              </View>
               {days.map((d) => {
                 const key = fmtDateOnly(d);
                 const active = key === selectedDateOnly;
@@ -329,13 +327,14 @@ const StoreBookingContent = ({
                     disabled={disabled}
                     onPress={() => onChangeDay(key)}
                     activeOpacity={0.7}
-                    className={`items-center rounded-2xl px-3 py-2.5 min-w-[68px] border ${
+                    className="items-center rounded-2xl px-3 py-2.5 min-w-[68px]"
+                    style={
                       disabled
-                        ? "bg-[#1e1e1e] border-[#2a2a2a] opacity-40"
+                        ? { backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', borderColor: isDark ? '#2a2a2a' : '#d1d5db', borderWidth: 1, opacity: 0.4 }
                         : active
-                          ? "bg-[#16a34a] border-[#22c55e]"
-                          : "bg-[#1e293b] border-[#334155]"
-                    }`}
+                          ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                          : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
+                    }
                   >
                     <Text
                       className={`text-xs font-century-gothic ${
@@ -358,6 +357,13 @@ const StoreBookingContent = ({
                     >
                       {info.monthShort}
                     </Text>
+                    <View className="mt-1">
+                      <Icon
+                        source="calendar-month"
+                        size={14}
+                        color={disabled ? "#4b5563" : active ? "#86efac" : "#60a5fa"}
+                      />
+                    </View>
                     {disabled && (
                       <View className="mt-1 bg-red-900/50 px-1.5 py-0.5 rounded">
                         <Text className="text-red-400 text-[10px]">Kapalı</Text>
@@ -374,7 +380,7 @@ const StoreBookingContent = ({
             </View>
           )}
           {chairs.length === 0 ? (
-            <View className="bg-[#1e293b] rounded-xl p-4 items-center">
+            <View className="rounded-xl p-4 items-center" style={{ backgroundColor: colors.cardBg2 }}>
               <Icon source="seat-outline" size={28} color="#6b7280" />
               <Text className="text-gray-400 mt-2">
                 Bu gün için koltuk/slot bulunamadı.
@@ -406,13 +412,17 @@ const StoreBookingContent = ({
                         key={c.chairId}
                         onPress={() => setSelectedChairId(c.chairId)}
                         activeOpacity={0.7}
-                        className={`items-center min-w-[110px] px-3 py-3 rounded-2xl border ${
+                        className="items-center min-w-[110px] px-3 py-3 rounded-2xl"
+                        style={
                           isSelected
-                            ? "bg-[#16a34a] border-[#22c55e]"
-                            : "bg-[#1e293b] border-[#334155]"
-                        }`}
+                            ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                            : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
+                        }
                       >
-                        <View className={`rounded-full p-2 mb-1.5 ${isSelected ? "bg-white/20" : "bg-[#334155]"}`}>
+                        <View
+                          className="rounded-full p-2 mb-1.5"
+                          style={isSelected ? { backgroundColor: 'rgba(255,255,255,0.2)' } : { backgroundColor: isDark ? '#334155' : '#e2e8f0' }}
+                        >
                           <Icon source="seat" size={22} color={isSelected ? "white" : "#94a3b8"} />
                         </View>
                         <Text
@@ -450,7 +460,7 @@ const StoreBookingContent = ({
           )}
 
           {!selectedChair ? (
-            <View className="bg-[#1e293b] rounded-xl p-4 items-center">
+            <View className="rounded-xl p-4 items-center" style={{ backgroundColor: colors.cardBg2 }}>
               <Icon source="clock-outline" size={28} color="#6b7280" />
               <Text className="text-gray-400 mt-2">{t("form.selectChairFirst")}</Text>
             </View>
@@ -472,15 +482,16 @@ const StoreBookingContent = ({
                       disabled={isDisabled}
                       onPress={() => onToggleSlot(s, isBooked, isPast)}
                       activeOpacity={0.7}
-                      className={`items-center px-3 py-2.5 rounded-xl border ${
+                      className="items-center px-3 py-2.5 rounded-xl"
+                      style={
                         isBooked
-                          ? "bg-red-900/40 border-red-800/50 opacity-60"
+                          ? { backgroundColor: 'rgba(127,29,29,0.4)', borderColor: 'rgba(153,27,27,0.5)', borderWidth: 1, opacity: 0.6 }
                           : isPast
-                            ? "bg-[#1e1e1e] border-[#2a2a2a] opacity-40"
+                            ? { backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', borderColor: isDark ? '#2a2a2a' : '#d1d5db', borderWidth: 1, opacity: 0.4 }
                             : isSelected
-                              ? "bg-[#16a34a] border-[#22c55e]"
-                              : "bg-[#1e293b] border-[#334155]"
-                      }`}
+                              ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                              : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
+                      }
                     >
                       <Text
                         className={`text-sm font-century-gothic-bold ${
@@ -513,7 +524,7 @@ const StoreBookingContent = ({
             </View>
           )}
           {!!startHHmm && !!endHHmm && (
-            <View className="bg-[#0f1b2d] border border-[#1e3a5f] rounded-2xl p-4 flex-row items-center justify-between">
+            <View className="rounded-2xl p-4 flex-row items-center justify-between" style={{ backgroundColor: colors.cardBg3, borderColor: isDark ? '#1e3a5f' : '#e2e8f0', borderWidth: 1 }}>
               <View className="flex-row items-center gap-3">
                 <View className="bg-[#16a34a] rounded-full p-2">
                   <Icon source="clock-check" size={20} color="white" />
@@ -526,7 +537,7 @@ const StoreBookingContent = ({
                 </View>
               </View>
               <View className="items-end gap-1">
-                <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                <View className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: colors.cardBg2 }}>
                   <Text className="text-[#60a5fa] font-century-gothic-bold text-sm">
                     {selectedSlotKeys.length} saat
                   </Text>
@@ -539,11 +550,11 @@ const StoreBookingContent = ({
               </View>
             </View>
           )}
-          <View className="h-px bg-[#334155] my-3" />
+          <View style={{ height: 1, backgroundColor: colors.borderColor, marginVertical: 12 }} />
           <View>
             {isFreeBarber && (
-              <View className="bg-gray-800 px-3 py-2 rounded-lg mb-2">
-                <Text className="text-white text-base font-century-gothic">
+              <View className="px-3 py-2 rounded-lg mb-2" style={{ backgroundColor: colors.cardBg }}>
+                <Text className="text-base font-century-gothic" style={{ color: colors.sectionHeaderText }}>
                   {storeData?.pricingType!.toLowerCase() === "percent"
                     ? `ℹ️ ${t("card.pricingPercent", { value: storeData?.pricingValue })}`
                     : storeData?.pricingType!.toLowerCase() === "rent"
@@ -555,10 +566,10 @@ const StoreBookingContent = ({
             {(isAddStoreMode || isFreeBarber || isCustomer) && (
               <View>
                 <View className="flex-row items-center justify-between mb-3 mt-2 px-1">
-                  <Text className="text-white font-century-gothic-bold text-lg">
+                  <Text className="font-century-gothic-bold text-lg" style={{ color: colors.sectionHeaderText }}>
                     {t("common.services")}
                   </Text>
-                  <View className="bg-[#1e293b] px-3 py-1.5 rounded-lg">
+                  <View className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: colors.cardBg2 }}>
                     <Text className="text-[#a3e635] font-century-gothic-bold text-lg">
                       {servicePriceTotal} {t("card.currencySymbol")}
                     </Text>
@@ -576,7 +587,8 @@ const StoreBookingContent = ({
                       <TouchableOpacity
                         onPress={() => toggleService(item.id)}
                         activeOpacity={0.7}
-                        className={`flex-row items-center justify-between px-4 py-3 rounded-xl border ${isSelected ? "bg-[#14532d] border-[#22c55e]" : "bg-[#1e293b] border-[#334155]"}`}
+                        className="flex-row items-center justify-between px-4 py-3 rounded-xl"
+                        style={isSelected ? { backgroundColor: '#14532d', borderColor: '#22c55e', borderWidth: 1 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
                       >
                         <View className="flex-row items-center flex-1 mr-2">
                           <Icon
@@ -602,6 +614,14 @@ const StoreBookingContent = ({
                     );
                   }}
                 />
+                {requireServices && selectedServices.length === 0 && (storeData?.serviceOfferings?.length ?? 0) > 0 && (
+                  <View className="flex-row items-center gap-2 mt-2 px-1">
+                    <Icon source="alert-circle-outline" size={16} color="#f87171" />
+                    <Text className="text-sm" style={{ color: '#f87171' }}>
+                      {t("booking.atLeastOneServiceRequired")}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>

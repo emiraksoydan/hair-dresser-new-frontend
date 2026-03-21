@@ -1,16 +1,14 @@
-import { Alert, FlatList, ScrollView, TouchableOpacity, View, StatusBar, Image } from 'react-native'
-import { Text } from '../../components/common/Text'
-import React, { useCallback, useMemo, useState } from 'react'
+import { TouchableOpacity, View, StatusBar } from 'react-native'
+import React from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useGetFreeBarberForUsersQuery } from '../../store/api';
 import { Icon } from 'react-native-paper';
-import FilterChip from '../../components/common/filter-chip';
-import { getBarberTypeName } from '../../utils/store/barber-type';
 import FreeBarberBookingContent from '../../components/freebarber/freebarberbooking';
+import { useTheme } from '../../hook/useTheme';
 
 const FreeBarberDetail = () => {
 
     const router = useRouter();
+    const { colors, isDark } = useTheme();
     const { freeBarberId, freeBarber, mode, appointmentId } = useLocalSearchParams<{
         freeBarberId?: string;
         freeBarber?: string;
@@ -21,8 +19,8 @@ const FreeBarberDetail = () => {
     const bookingMode = mode === "add-store" ? "add-store" : undefined;
 
     return (
-        <View className="flex-1 bg-[#151618]">
-            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        <View style={{ flex: 1, backgroundColor: colors.screenBg }}>
+            <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? "light-content" : "dark-content"} />
             <FreeBarberBookingContent
                 barberId={frbId}
                 isBottomSheet={false}
@@ -41,4 +39,3 @@ const FreeBarberDetail = () => {
 }
 
 export default FreeBarberDetail
-

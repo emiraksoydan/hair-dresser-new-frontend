@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { BadgeIconButton } from "./badgeiconbutton";
 import { HeaderDropdownMenu } from "./headerdropdownmenu";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 interface HeaderActionsProps {
   unreadNoti: number;
@@ -19,6 +20,7 @@ export const HeaderActions = React.memo<HeaderActionsProps>(({
   onShoppingPress,
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   const menuItems = [
     {
@@ -37,7 +39,7 @@ export const HeaderActions = React.memo<HeaderActionsProps>(({
     <View className="items-center justify-center flex-row mr-2">
       <BadgeIconButton
         icon="bell-outline"
-        iconColor="white"
+        iconColor={colors.headerText}
         size={22}
         badgeCount={unreadNoti}
         onPress={onNotificationPress}

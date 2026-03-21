@@ -3,6 +3,7 @@ import { Image, View } from "react-native";
 import { Icon } from "react-native-paper";
 import { useGetImagesByOwnerQuery } from "../../store/api";
 import { ImageOwnerType } from "../../types";
+import { useTheme } from "../../hook/useTheme";
 
 type Props = {
     ownerId?: string | null;
@@ -27,8 +28,10 @@ const OwnerAvatarInner: React.FC<Props> = ({
     iconSource,
     iconSize = 24,
     iconColor = "#6b7280",
-    iconContainerClassName = "bg-[#2a2c30]",
+    iconContainerClassName,
 }) => {
+    const { colors } = useTheme();
+
     // fallbackUrl boş string veya null/undefined ise fetch yap
     const hasValidFallback = fallbackUrl && fallbackUrl.trim().length > 0;
     const shouldFetch =
@@ -56,7 +59,8 @@ const OwnerAvatarInner: React.FC<Props> = ({
 
     return (
         <View
-            className={`${imageClassName} ${iconContainerClassName} items-center justify-center`}
+            className={`${imageClassName} ${iconContainerClassName ?? ''} items-center justify-center`}
+            style={!iconContainerClassName ? { backgroundColor: colors.cardBg2 } : undefined}
         >
             <Icon source={iconSource} size={iconSize} color={iconColor} />
         </View>

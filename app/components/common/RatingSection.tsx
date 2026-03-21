@@ -3,6 +3,7 @@ import { View, TouchableOpacity } from 'react-native';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 import { Text } from './Text';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 interface RatingSectionProps {
   rating: number;
@@ -25,6 +26,7 @@ export const RatingSection: React.FC<RatingSectionProps> = ({
   className = '',
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const formattedRating = rating?.toFixed(1) || '0.0';
 
   return (
@@ -34,20 +36,20 @@ export const RatingSection: React.FC<RatingSectionProps> = ({
         starSize={starSize}
         starStyle={{ marginHorizontal: 0 }}
       />
-      <Text className="text-white flex-1">{formattedRating}</Text>
+      <Text style={{ color: colors.sectionHeaderText }} className="flex-1">{formattedRating}</Text>
       {showReviewsLink && onPressRatings && (
         <TouchableOpacity
           onPress={onPressRatings}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text className="text-white underline mr-1 mb-0 text-xs">
+          <Text style={{ color: colors.textSecondary }} className="underline mr-1 mb-0 text-xs">
             {t('card.reviewsCount', { count: reviewCount || 0 })}
           </Text>
         </TouchableOpacity>
       )}
       {!showReviewsLink && (
-        <Text className="text-white text-xs">({reviewCount || 0})</Text>
+        <Text style={{ color: colors.textSecondary }} className="text-xs">({reviewCount || 0})</Text>
       )}
     </View>
   );

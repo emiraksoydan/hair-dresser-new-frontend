@@ -17,6 +17,7 @@ import { CreateRatingDto, ImageOwnerType } from "../../types";
 import { OwnerAvatar } from "../common/owneravatar";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 type RatingBottomSheetProps = {
   appointmentId: string;
@@ -42,6 +43,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
   const [createRating, { isLoading }] = useCreateRatingMutation();
   const { t } = useLanguage();
   const { alert, alertSuccess, alertError } = useAlert();
+  const { colors } = useTheme();
 
   const normalizedTargetImage =
     targetImage && Platform.OS === "ios" && targetImage.startsWith("file://")
@@ -96,7 +98,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
   ]);
 
   return (
-    <BottomSheetView className="flex-1 bg-[#151618]">
+    <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -108,20 +110,10 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
           keyboardShouldPersistTaps="handled"
         >
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">Değerlendirme</Text>
+            <Text className="text-lg font-bold" style={{ color: colors.sectionHeaderText }}>{t("rating.title")}</Text>
             <TouchableOpacity onPress={onClose}>
               <Icon source="close" size={24} color="#9ca3af" />
             </TouchableOpacity>
-          </View>
-
-          {/* Randevu ID */}
-          <View className="mb-3 pb-3 border-b border-[#2a2c30]">
-            <View className="flex-row items-center gap-2">
-              <Icon source="tag" size={14} color="#6b7280" />
-              <Text className="text-[#6b7280] text-xs">
-                Randevu ID: {appointmentId}
-              </Text>
-            </View>
           </View>
 
           {/* Hedef Tipi ve Fotoğraf */}
@@ -147,20 +139,20 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
                 <View className="flex-row items-center gap-2 mb-1">
                   <Text className="text-[#9ca3af] text-xs">
                     {targetType === "store"
-                      ? "Dükkan"
+                      ? t("labels.store")
                       : targetType === "freeBarber"
-                        ? "Serbest Berber"
+                        ? t("labels.freeBarber")
                         : targetType === "manuelBarber"
-                          ? "Dükkan Berberi"
-                          : "Müşteri"}
+                          ? t("appointment.labels.storeBarber")
+                          : t("card.customer")}
                   </Text>
                 </View>
-                <View className="flex-row gap-2 items-center">
-                  <Text className="text-white text-base font-semibold">
-                    {targetName} -
+                <View className="flex-row gap-2 items-center flex-wrap">
+                  <Text className="text-base font-semibold" style={{ color: colors.sectionHeaderText }}>
+                    {targetName}
                   </Text>
                   <Text className="text-[#9ca3af] text-sm">
-                    için değerlendirme yapın
+                    {t("rating.rateFor")}
                   </Text>
                 </View>
               </View>
@@ -184,9 +176,9 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
             </View>
           </View>
 
-          <Text className="text-white text-sm mb-2">Yorum (Opsiyonel)</Text>
+          <Text className="text-sm mb-2" style={{ color: colors.sectionHeaderText }}>{t("rating.commentOptional")}</Text>
           <TextInput
-            className="bg-[#2a2c30] text-white rounded-lg p-3 mb-4 min-h-[100px] font-century-gothic"
+            className="rounded-lg p-3 mb-4 min-h-[100px] font-century-gothic"
             placeholder={t("rating.commentPlaceholder")}
             placeholderTextColor="#6b7280"
             value={comment}
@@ -196,6 +188,8 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
             textAlignVertical="top"
             maxLength={500}
             style={{
+              backgroundColor: colors.cardBg2,
+              color: colors.sectionHeaderText,
               fontFamily:
                 Platform.OS === "ios" ? "CenturyGothic" : "CenturyGothic",
             }}
@@ -204,7 +198,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={isLoading || rating === 0}
-            className={`bg-[#f05e23] py-3 rounded-xl flex-row items-center justify-center mb-4 ${isLoading || rating === 0 ? "opacity-50" : ""}`}
+            className={`bg-[#ffb900] py-3 rounded-xl flex-row items-center justify-center mb-4 ${isLoading || rating === 0 ? "opacity-50" : ""}`}
           >
             {isLoading ? (
               <ActivityIndicator color="white" size="small" />
@@ -212,7 +206,7 @@ export const RatingBottomSheet: React.FC<RatingBottomSheetProps> = ({
               <>
                 <Icon source="star" size={20} color="white" />
                 <Text className="text-white font-bold ml-2">
-                  Değerlendirmeyi Gönder
+                  {t("rating.submit")}
                 </Text>
               </>
             )}

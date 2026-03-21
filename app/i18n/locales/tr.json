@@ -69,7 +69,32 @@
     "messagePlaceholder": "Mesaj yazın...",
     "submit": "İsteği Gönder",
     "requestEmpty": "Henüz istek bulunmuyor",
-    "requestCreateNew": "Yeni İstek Oluştur"
+    "requestCreateNew": "Yeni İstek Oluştur",
+    "phoneChange": "Telefon Değiştir",
+    "phoneChangeOtpTitle": "Telefon Doğrulama",
+    "phoneChangeOtpDesc": "{{phone}} numarasına gönderilen kodu girin.",
+    "phoneChangeOtpSend": "Kod Gönder",
+    "phoneChangeOtpVerify": "Doğrula ve Güncelle",
+    "phoneChangeSuccess": "Telefon numaranız güncellendi.",
+    "phoneFormat": "5XX XXX XX XX formatında girin",
+    "phoneOtpSent": "Doğrulama kodu gönderildi.",
+    "phoneOtpResend": "Kodu tekrar gönder",
+    "otpCode": "Doğrulama Kodu"
+  },
+  "subscription": {
+    "title": "Abonelik",
+    "statusTrial": "Deneme Sürümü",
+    "statusActive": "Aktif Abonelik",
+    "statusExpired": "Süresi Dolmuş",
+    "statusBanned": "Hesap Askıya Alındı",
+    "trialDaysLeft": "{{days}} gün kaldı",
+    "subscriptionDaysLeft": "{{days}} gün kaldı",
+    "trialEnds": "Deneme bitiş: {{date}}",
+    "subscriptionEnds": "Abonelik bitiş: {{date}}",
+    "upgradeButton": "Abone Ol",
+    "trialInfo": "Deneme süresinde 1 panel ekleme hakkınız bulunmaktadır.",
+    "expiredInfo": "Deneme süreniz sona ermiştir. Uygulamayı kullanmaya devam etmek için lütfen abone olunuz.",
+    "bannedInfo": "Hesabınız askıya alınmıştır. Detaylı bilgi için destek ile iletişime geçin."
   },
   "navigation": {
     "welcome": "Hoşgeldiniz",
@@ -256,7 +281,12 @@
     "searchOnMap": "Haritada Ara",
     "showAll": "Tümünü Göster",
     "showLess": "Daha Az Göster",
-    "services": "Hizmetler"
+    "services": "Hizmetler",
+    "goBack": "Geri Dön",
+    "note": "Not",
+    "customer": "Müşteri",
+    "freeBarber": "Serbest Berber",
+    "barberStore": "Berber Dükkanı"
   },
   "labels": {
     "freeBarber": "Serbest Berber",
@@ -366,7 +396,13 @@
     "targetLocationNotSet": "Hedef konumu ayarlı değil.",
     "freeBarberLocationNotSet": "Serbest berber konumu ayarlı değil.",
     "freeBarberLocationInvalid": "Serbest berber konumu geçersiz.",
-    "distanceExceeded": "Mesafe limiti aşıldı."
+    "distanceExceeded": "Mesafe limiti aşıldı.",
+    "freebarberHasActiveAppointmentUpdate": "Aktif bir randevu işleminiz bulunmaktadır. Lütfen işlem tamamlandıktan sonra güncelleyiniz.",
+    "userBlockedCannotCreateAppointment": "Engellediğiniz bir kullanıcıdan randevu alamazsınız.",
+    "userBanned": "Hesabınız yönetici tarafından askıya alınmıştır.",
+    "trialExpired": "Deneme süreniz sona ermiştir. Devam etmek için lütfen abone olunuz.",
+    "trialPanelLimitReached": "Deneme süresinde yalnızca 1 panel ekleyebilirsiniz. Birden fazla panel için lütfen abone olunuz.",
+    "barberStorePanelAlreadyExists": "Zaten bir berber dükkanı paneliniz bulunmaktadır."
   },
   "form": {
     "rentPriceRequired": "Kira ücreti gereklidir",
@@ -603,7 +639,12 @@
     "messagePlaceholder": "Mesaj yazın...",
     "messageCannotBeSentPlaceholder": "Mesaj gönderilemez",
     "noMessagesYet": "Henüz mesaj yok",
-    "sendFirstMessage": "İlk mesajı siz gönderin"
+    "sendFirstMessage": "İlk mesajı siz gönderin",
+    "participants": "Katılımcılar",
+    "someone": "Birisi",
+    "typing": "yazıyor...",
+    "serverConnectionError": "Sunucuya bağlanılamıyor. Mesaj gönderemezsiniz.",
+    "threadNotFound": "Sohbet bulunamadı"
   },
   "rating": {
     "selectRating": "Lütfen bir puan seçin.",
@@ -619,7 +660,11 @@
     "ratingAlreadyExists": "Bu randevu için bu hedefe zaten değerlendirme yaptınız. Değerlendirme güncellenemez.",
     "all": "Hepsi",
     "commentPlaceholder": "Yorumunuzu yazın...",
-    "yourBadge": "Sizin"
+    "yourBadge": "Sizin",
+    "title": "Değerlendirme",
+    "rateFor": "için değerlendirme yapın",
+    "commentOptional": "Yorum (Opsiyonel)",
+    "submit": "Değerlendirmeyi Gönder"
   },
   "notification": {
     "redirectFailed": "Yönlendirme başarısız oldu.",
@@ -694,7 +739,8 @@
     "pricingRent": "Fiyatlandırma: Koltuk kirası (Saatlik:{{value}}₺/saat)",
     "currency": "TL",
     "currencySymbol": "₺",
-    "beautyExpert": "Güzellik Uzmanı"
+    "beautyExpert": "Güzellik Uzmanı",
+    "services": "Hizmetler"
   },
   "status": {
     "open": "Açık",
@@ -805,6 +851,10 @@
     "myStores": "İşletmelerim",
     "nearbyStores": "Çevremdeki Dükkanlar",
     "nearbyFreeBarbers": "Çevremdeki Serbest Berberler"
+  },
+  "moderation": {
+    "inappropriateText": "Mesajınız uygunsuz içerik barındırmaktadır. Lütfen küfür, hakaret veya uygunsuz ifadeler kullanmayınız.",
+    "inappropriateImage": "Yüklediğiniz görsel uygunsuz içerik barındırmaktadır. Lütfen uygun bir görsel yükleyiniz."
   },
   "legal": {
     "agreementPrefix": "Kayıt olarak ",

@@ -10,6 +10,7 @@ import { CardImage } from '../common/CardImage';
 import { CardHeader } from '../common/CardHeader';
 import { TypeLabel } from '../common/TypeLabel';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 type Props = {
     customer: UserFavoriteDto;
@@ -34,6 +35,7 @@ const CustomerCard: React.FC<Props> = ({
 }) => {
     const customerName = `${customer.firstName} ${customer.lastName}`;
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: customer.id,
         targetType: FavoriteTargetType.Customer,
@@ -51,8 +53,8 @@ const CustomerCard: React.FC<Props> = ({
 
     return (
         <View
-            style={{ width: cardWidth, overflow: 'hidden' }}
-            className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'}`}
+            className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg' : 'pl-0'}`}
+            style={{ width: cardWidth, overflow: 'hidden', ...(!isList ? { backgroundColor: colors.cardBg } : {}) }}
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <View className="relative mr-2">
@@ -121,6 +123,26 @@ const CustomerCard: React.FC<Props> = ({
     );
 };
 
-export const CustomerCardInner = CustomerCard;
+export const CustomerCardInner = React.memo(CustomerCard, (prev, next) => {
+    const sameCustomer =
+        prev.customer.id === next.customer.id &&
+        prev.customer.firstName === next.customer.firstName &&
+        prev.customer.lastName === next.customer.lastName &&
+        prev.customer.rating === next.customer.rating &&
+        prev.customer.reviewCount === next.customer.reviewCount &&
+        prev.customer.favoriteCount === next.customer.favoriteCount &&
+        prev.customer.imageUrl === next.customer.imageUrl;
+
+    const sameProps =
+        prev.isList === next.isList &&
+        prev.expanded === next.expanded &&
+        prev.cardWidth === next.cardWidth &&
+        prev.typeLabel === next.typeLabel &&
+        prev.typeLabelColor === next.typeLabelColor &&
+        prev.onPressUpdate === next.onPressUpdate &&
+        prev.onPressRatings === next.onPressRatings;
+
+    return sameCustomer && sameProps;
+});
 
 export default CustomerCard;

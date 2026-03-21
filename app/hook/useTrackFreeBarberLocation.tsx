@@ -5,10 +5,11 @@ export function useTrackFreeBarberLocation(enabled: boolean, barberId: string | 
     const [updateLocation, { isLoading }] = useUpdateFreeBarberLocationMutation();
 
     const tracker = useNearbyControl({
-        enabled: enabled && !!barberId, // Sadece enabled true ise VE barberId varsa çalışır
-        moveThresholdM: 100, // 100 metre yer değiştirirse tetikle
-        staleMs: 15 * 1000, // Veya son güncellemeden 30 saniye geçtiyse tetikle
-        hardRefreshMs: 30 * 1000, // 1 dakikada bir zorunlu update (opsiyonel)
+        enabled: enabled && !!barberId,
+        moveThresholdM: 100,
+        staleMs: 15 * 1000,
+        hardRefreshMs: 30 * 1000,
+        enableBackgroundTracking: true, // Sadece free barber konum takibi arka planda çalışır
         onFetch: async (lat, lon) => {
             if (!barberId) return;
             try {

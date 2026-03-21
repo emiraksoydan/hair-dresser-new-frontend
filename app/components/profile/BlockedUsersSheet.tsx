@@ -7,6 +7,7 @@ import { BlockedGetDto, UserType } from "../../types";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
 import LottieView from "lottie-react-native";
+import { useTheme } from "../../hook/useTheme";
 
 type BlockedUsersSheetProps = {
   onClose: () => void;
@@ -15,6 +16,7 @@ type BlockedUsersSheetProps = {
 export const BlockedUsersSheet: React.FC<BlockedUsersSheetProps> = ({ onClose }) => {
   const { t } = useLanguage();
   const { showSuccess, showError } = useAlert();
+  const { colors } = useTheme();
 
   const { data: blockedUsers, isLoading, refetch } = useGetMyBlockedUsersQuery();
   const [unblockUser, { isLoading: isUnblocking }] = useUnblockUserMutation();
@@ -62,14 +64,14 @@ export const BlockedUsersSheet: React.FC<BlockedUsersSheetProps> = ({ onClose })
     const userTypeName = getUserTypeName(item.targetUserType);
 
     return (
-      <View className="mb-3 flex-row items-center rounded-xl bg-[#1e2024] p-4">
+      <View style={{ backgroundColor: colors.cardBg }} className="mb-3 flex-row items-center rounded-xl p-4">
         <View className="relative mr-3">
           <Image
             source={imageUrl ? { uri: imageUrl } : { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxxOeOXHNrUgfxDbpJZJCxcDOjTlrBRlH7wA&s' }}
             style={{ width: 48, height: 48, borderRadius: 24 }}
             resizeMode="cover"
           />
-          <Text className="text-base font-semibold text-white">{displayName}</Text>
+          <Text style={{ color: colors.sectionHeaderText }} className="text-base font-semibold">{displayName}</Text>
           {userTypeName ? (
             <Text className="text-xs text-gray-400">{userTypeName}</Text>
           ) : null}
@@ -90,17 +92,17 @@ export const BlockedUsersSheet: React.FC<BlockedUsersSheetProps> = ({ onClose })
 
   if (isLoading) {
     return (
-      <BottomSheetView className="flex-1 items-center justify-center bg-[#151618] p-4">
+      <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }} className="items-center justify-center p-4">
         <ActivityIndicator size="large" color="#f05e23" />
       </BottomSheetView>
     );
   }
 
   return (
-    <BottomSheetView className="flex-1 bg-[#151618]">
+    <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       {/* Header */}
-      <View className="border-b border-gray-800 px-4 pb-3">
-        <Text className="text-center text-lg font-bold text-white">
+      <View style={{ borderBottomColor: colors.borderColor }} className="border-b px-4 pb-3">
+        <Text style={{ color: colors.sectionHeaderText }} className="text-center text-lg font-bold">
           {t("profile.blockedUsers")}
         </Text>
       </View>

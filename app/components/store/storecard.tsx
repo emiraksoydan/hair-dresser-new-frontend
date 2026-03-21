@@ -12,6 +12,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { ServiceOfferingsList } from '../common/ServiceOfferingsList';
 import { PricingInfo } from '../common/PricingInfo';
 import { getBarberTypeLabel } from '../../utils/card-helpers';
+import { useTheme } from '../../hook/useTheme';
 
 type Props = {
     store: BarberStoreGetDto;
@@ -27,6 +28,7 @@ type Props = {
 };
 
 const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, isViewerFromFreeBr = false, typeLabel, typeLabelColor = 'bg-blue-500', onPressUpdate, onPressRatings, showImageAnimation = true }) => {
+    const { colors } = useTheme();
     const carouselWidth = Math.max(0, cardWidthStore - 20);
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: store.id,
@@ -46,11 +48,13 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
     return (
         <View
-            style={{ width: cardWidthStore, overflow: 'hidden' }}
+            style={{ width: cardWidthStore, overflow: 'hidden', borderRadius: 12 }}
             className="mt-4"
         >
-            <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
-                }`}>
+            <View
+                className={` ${!isList ? "pl-4 py-2 rounded-lg" : "rounded-xl p-3"}`}
+                style={{ backgroundColor: colors.cardBg }}
+            >
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
                         <StatusBadge
@@ -108,7 +112,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
                         {!isList && (
                             <View className="flex-row justify-between pr-2">
-                                <Text className='text-base text-gray-500'>{getBarberTypeLabel(store.type)}</Text>
+                                <Text style={{ color: colors.textSecondary }} className='text-base'>{getBarberTypeLabel(store.type)}</Text>
                                 <FavoriteButton
                                     isFavorite={isFavorite}
                                     favoriteCount={favoriteCount}

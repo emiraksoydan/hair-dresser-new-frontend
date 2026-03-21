@@ -5,6 +5,7 @@ import { Text } from '../common/Text';
 import { Icon } from 'react-native-paper';
 import { useGetImagesByOwnerQuery } from '../../store/api';
 import { ImageOwnerType, ManuelBarberFavoriteDto } from '../../types';
+import { useTheme } from '../../hook/useTheme';
 
 type Props = {
     manuelBarber: ManuelBarberFavoriteDto;
@@ -25,6 +26,7 @@ const ManuelBarberCard: React.FC<Props> = ({
     typeLabelColor = 'bg-orange-500',
     onPressUpdate
 }) => {
+    const { colors } = useTheme();
     const shouldFetchCoverImage = !manuelBarber.imageUrl && !!manuelBarber.id;
     const { data: images } = useGetImagesByOwnerQuery(
         { ownerId: manuelBarber.id, ownerType: ImageOwnerType.ManuelBarber },
@@ -39,8 +41,8 @@ const ManuelBarberCard: React.FC<Props> = ({
 
     return (
         <View
-            style={{ width: cardWidth }}
-            className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg bg-[#202123]' : 'pl-0'}`}
+            style={[{ width: cardWidth }, !isList ? { backgroundColor: colors.cardBg } : undefined]}
+            className={`${!expanded ? 'mt-0' : 'mt-4'} ${!isList ? 'pl-4 py-2 rounded-lg' : 'pl-0'}`}
         >
             <View className={`${!isList ? 'flex flex-row ' : ''}`}>
                 <TouchableOpacity onPress={handlePressCard} className="relative mr-2">
@@ -74,7 +76,8 @@ const ManuelBarberCard: React.FC<Props> = ({
                             <Text
                                 numberOfLines={1}
                                 ellipsizeMode={'tail'}
-                                className="font-century-gothic-sans-semibold text-xl flex-shrink text-white"
+                                className="font-century-gothic-sans-semibold text-xl flex-shrink"
+                style={{ color: colors.sectionHeaderText }}
                             >
                                 {manuelBarber.fullName}
                             </Text>

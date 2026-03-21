@@ -39,6 +39,7 @@ export const resetSignalRState = async () => {
       globalConnection.off('appointment.updated');
       globalConnection.off('badge.updated');
       globalConnection.off('image.updated');
+      globalConnection.off('image.removed');
       globalConnection.off('group.joined');
 
       await globalConnection.stop();

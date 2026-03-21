@@ -4,6 +4,7 @@ import { Text } from "../common/Text";
 import { TextInput, IconButton, Avatar } from "react-native-paper";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 type ManuelBarberItemProps = {
   control: Control<any>;
@@ -32,6 +33,7 @@ export const ManuelBarberItem = React.memo<ManuelBarberItemProps>(
     onAvatarPress,
   }) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const barberError = (errors as any)?.barbers?.[index];
     const nameError = (barberError as any)?.name?.message;
 
@@ -65,7 +67,7 @@ export const ManuelBarberItem = React.memo<ManuelBarberItemProps>(
                 roundness: 10,
                 colors: { onSurfaceVariant: "gray", primary: "white" },
               }}
-              style={{ backgroundColor: "#1F2937", borderWidth: 0, flex: 1, fontFamily: 'CenturyGothic' }}
+              style={{ backgroundColor: colors.cardBg, borderWidth: 0, flex: 1, fontFamily: 'CenturyGothic' }}
             />
           )}
         />

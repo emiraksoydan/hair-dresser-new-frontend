@@ -5,6 +5,7 @@ import { TextInput, HelperText, IconButton, Icon } from "react-native-paper";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { Dropdown } from "react-native-element-dropdown";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 type ChairItemProps = {
   control: Control<any>;
@@ -29,6 +30,7 @@ export const ChairItem = React.memo<ChairItemProps>(
     onModeChange,
   }) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const chairError = (errors as any)?.chairs?.[index];
     const nameError = (chairError as any)?.name?.message;
     const barberIdError = (chairError as any)?.barberId?.message;
@@ -59,9 +61,9 @@ export const ChairItem = React.memo<ChairItemProps>(
                   height: 42,
                   borderRadius: 10,
                   paddingHorizontal: 12,
-                  backgroundColor: "#1F2937",
+                  backgroundColor: colors.cardBg,
                   borderWidth: 1,
-                  borderColor: "#444",
+                  borderColor: colors.borderColor2,
                   justifyContent: "center",
                 }}
                 placeholderStyle={{
@@ -69,12 +71,12 @@ export const ChairItem = React.memo<ChairItemProps>(
                   fontFamily: "CenturyGothic",
                 }}
                 selectedTextStyle={{
-                  color: "white",
+                  color: colors.sectionHeaderText,
                   fontFamily: "CenturyGothic",
                 }}
-                itemTextStyle={{ color: "white", fontFamily: "CenturyGothic" }}
+                itemTextStyle={{ color: colors.sectionHeaderText, fontFamily: "CenturyGothic" }}
                 containerStyle={{
-                  backgroundColor: "#1F2937",
+                  backgroundColor: colors.cardBg,
                   borderWidth: 0,
                   borderRadius: 10,
                   overflow: "hidden",
@@ -106,7 +108,7 @@ export const ChairItem = React.memo<ChairItemProps>(
                     colors: { onSurfaceVariant: "gray", primary: "white" },
                   }}
                   style={{
-                    backgroundColor: "#1F2937",
+                    backgroundColor: colors.cardBg,
                     borderWidth: 0,
                     marginTop: -5,
                     fontFamily: 'CenturyGothic',

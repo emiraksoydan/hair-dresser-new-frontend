@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Text } from "./Text";
 import { Icon } from "react-native-paper";
+import { useTheme } from "../../hook/useTheme";
 
 export type StepConfig = {
   id: string;
@@ -38,6 +39,7 @@ export const StepFormIndicator = React.memo(
     completedSteps = new Set(),
     style,
   }: StepFormIndicatorProps) => {
+    const { colors, isDark } = useTheme();
     const scaleAnims = useRef<Record<number, Animated.Value>>({});
     const scrollRef = useRef<ScrollView>(null);
     const scrollViewWidth = useRef(0);
@@ -121,7 +123,7 @@ export const StepFormIndicator = React.memo(
                               ? "#ffb900"
                               : isCompleted
                                 ? "#10B981"
-                                : "#374151",
+                                : colors.cardBg2,
                             alignItems: "center",
                             justifyContent: "center",
                             borderWidth: 2,
@@ -129,11 +131,11 @@ export const StepFormIndicator = React.memo(
                           }}
                         >
                           {step.icon ? (
-                            <Icon source={step.icon as any} size={18} color="white" />
+                            <Icon source={step.icon as any} size={18} color={isDark ? 'white' : colors.sectionHeaderText} />
                           ) : isCompleted ? (
                             <Icon source="check" size={20} color="white" />
                           ) : (
-                            <Icon source="chevron-right" size={18} color="white" />
+                            <Icon source="chevron-right" size={18} color={isDark ? 'white' : colors.sectionHeaderText} />
                           )}
                         </Animated.View>
                       </TouchableOpacity>
@@ -143,7 +145,7 @@ export const StepFormIndicator = React.memo(
                         style={{
                           width: LINE_WIDTH,
                           height: 2,
-                          backgroundColor: isCompleted ? "#10B981" : "#4B5563",
+                          backgroundColor: isCompleted ? "#10B981" : colors.borderColor,
                         }}
                       />
                     )}
@@ -171,7 +173,7 @@ export const StepFormIndicator = React.memo(
                         className="font-century-gothic text-center"
                         style={{
                           fontSize: 10,
-                          color: isActive ? "#ffb900" : "white",
+                          color: isActive ? "#ffb900" : colors.sectionHeaderText,
                         }}
                         numberOfLines={1}
                       >

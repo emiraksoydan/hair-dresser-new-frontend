@@ -2,6 +2,7 @@ import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Icon } from "react-native-paper";
 import { Text } from "./Text";
+import { useTheme } from "../../hook/useTheme";
 
 export type CategoryItem = {
   label: string;
@@ -28,6 +29,7 @@ export const CategoryListSelect = React.memo(
     valueField = "value",
     singleSelect = false,
   }: CategoryListSelectProps) => {
+    const { colors } = useTheme();
     const valueSet = React.useMemo(() => new Set(value), [value]);
 
     const toggleItem = (itemValue: string) => {
@@ -42,7 +44,7 @@ export const CategoryListSelect = React.memo(
     };
 
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.cardBg }]}>
         {data.map((item, index) => {
             const itemValue = item[valueField] as string;
             const itemLabel = item[labelField] as string;
@@ -55,12 +57,12 @@ export const CategoryListSelect = React.memo(
                 activeOpacity={0.7}
                 style={[
                   styles.item,
-                  isSelected && styles.itemSelected,
+                  isSelected && [styles.itemSelected, { backgroundColor: colors.cardBg2 }],
                 ]}
               >
                 <Text
-                  className="text-white flex-1"
-                  style={styles.label}
+                  className="flex-1"
+                  style={[styles.label, { color: colors.sectionHeaderText }]}
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
@@ -77,7 +79,6 @@ export const CategoryListSelect = React.memo(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#1F2937",
     overflow: "hidden",
     marginHorizontal: 0,
     paddingHorizontal: 0,
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   itemSelected: {
-    backgroundColor: "#374151",
     borderLeftWidth: 3,
     borderLeftColor: "#ffb900",
     borderTopRightRadius: 8,

@@ -88,6 +88,7 @@ import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
 import { StepFormIndicator } from "../common/StepFormIndicator";
+import { useTheme } from "../../hook/useTheme";
 
 const createChairPricingSchema = (t: (key: string) => string) =>
   z
@@ -378,44 +379,8 @@ const createSchema = (t: (key: string) => string) =>
 
 export type FormUpdateValues = z.input<ReturnType<typeof createSchema>>;
 
-// MultiSelect stil objeleri - component dışında tanımlanarak her render'da yeni referans oluşturulması engellenir
-const MULTI_SELECT_STYLE = {
-  backgroundColor: "#1F2937",
-  borderColor: "#444",
-  borderWidth: 1,
-  borderRadius: 10,
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-} as const;
-
-const MULTI_SELECT_STYLE_ERROR = {
-  ...MULTI_SELECT_STYLE,
-  borderColor: "#b00020",
-} as const;
-
-const MULTI_SELECT_CONTAINER_STYLE = {
-  backgroundColor: "#1F2937",
-  borderWidth: 1,
-  borderColor: "#444",
-  borderRadius: 10,
-  overflow: "hidden" as const,
-};
-
-const MULTI_SELECT_INPUT_SEARCH_STYLE = {
-  backgroundColor: "#1F2937",
-  borderColor: "#ffb900",
-  borderWidth: 1,
-  borderRadius: 8,
-  color: "white",
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  fontSize: 14,
-  fontFamily: 'CenturyGothic',
-};
-
-const MULTI_SELECT_PLACEHOLDER_STYLE = { color: "gray", fontFamily: 'CenturyGothic' };
-const MULTI_SELECT_SELECTED_TEXT_STYLE = { color: "white", fontFamily: 'CenturyGothic' };
-const MULTI_SELECT_ITEM_TEXT_STYLE = { color: "white", fontFamily: 'CenturyGothic' };
+// MultiSelect stil objeleri - colors gerektirmeyen sabit değerler dışarıda tutulur
+const MULTI_SELECT_STYLE_ERROR_BORDER = { borderColor: "#b00020" } as const;
 const MULTI_SELECT_SELECTED_STYLE = {
   borderRadius: 10,
   backgroundColor: "#374151",
@@ -438,19 +403,10 @@ const MULTI_SELECT_FLAT_LIST_PROPS_LARGE = {
   updateCellsBatchingPeriod: 50,
 };
 
-const PRICE_INPUT_STYLE = {
-  backgroundColor: "#1F2937",
+const PRICE_INPUT_BASE_STYLE = {
   borderWidth: 0,
   marginTop: 20,
   height: 35,
-};
-
-const PRICE_INPUT_THEME = {
-  roundness: 10,
-  colors: {
-    onSurfaceVariant: "gray",
-    primary: "white",
-  },
 };
 
 const FormStoreUpdate = React.memo(({
@@ -469,6 +425,60 @@ const FormStoreUpdate = React.memo(({
   const { userId } = useAuth();
   const { t, currentLanguage } = useLanguage();
   const { confirm } = useAlert();
+  const { colors } = useTheme();
+
+  // MultiSelect style objects - depend on colors so defined inside component
+  const MULTI_SELECT_STYLE = useMemo(() => ({
+    backgroundColor: colors.cardBg,
+    borderColor: colors.borderColor,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  }), [colors]);
+
+  const MULTI_SELECT_STYLE_ERROR = useMemo(() => ({
+    ...MULTI_SELECT_STYLE,
+    ...MULTI_SELECT_STYLE_ERROR_BORDER,
+  }), [MULTI_SELECT_STYLE]);
+
+  const MULTI_SELECT_CONTAINER_STYLE = useMemo(() => ({
+    backgroundColor: colors.cardBg,
+    borderWidth: 1,
+    borderColor: colors.borderColor,
+    borderRadius: 10,
+    overflow: "hidden" as const,
+  }), [colors]);
+
+  const MULTI_SELECT_INPUT_SEARCH_STYLE = useMemo(() => ({
+    backgroundColor: colors.cardBg,
+    borderColor: "#ffb900",
+    borderWidth: 1,
+    borderRadius: 8,
+    color: colors.sectionHeaderText,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontFamily: 'CenturyGothic',
+  }), [colors]);
+
+  const MULTI_SELECT_PLACEHOLDER_STYLE = useMemo(() => ({ color: colors.textSecondary, fontFamily: 'CenturyGothic' }), [colors]);
+  const MULTI_SELECT_SELECTED_TEXT_STYLE = useMemo(() => ({ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }), [colors]);
+  const MULTI_SELECT_ITEM_TEXT_STYLE = useMemo(() => ({ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }), [colors]);
+
+  const PRICE_INPUT_STYLE = useMemo(() => ({
+    ...PRICE_INPUT_BASE_STYLE,
+    backgroundColor: colors.cardBg,
+  }), [colors]);
+
+  const PRICE_INPUT_THEME = useMemo(() => ({
+    roundness: 10,
+    colors: {
+      onSurfaceVariant: colors.textSecondary,
+      primary: colors.sectionHeaderText,
+    },
+  }), [colors]);
+
   const schema = useMemo(() => createSchema(t), [t, currentLanguage]);
   const resolver = useMemo(() => zodResolver(schema), [schema]);
   const [triggerGetStore, { data, isLoading, isError, error }] =
@@ -1584,16 +1594,16 @@ const FormStoreUpdate = React.memo(({
     >
       <View className="h-full">
         <View className="flex-row justify-between items-center px-2">
-          <Text className="text-white flex-1 font-century-gothic text-2xl">
+          <Text className="flex-1 font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
             {t("form.updateStore")}
           </Text>
           <IconButton
             onPress={() => onClose?.()}
             icon="close"
-            iconColor="white"
+            iconColor={colors.sectionHeaderText}
           />
         </View>
-        <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
+        <Divider style={{ height: 1, backgroundColor: colors.borderColor }} />
         {!enabled ? null : isLoading || !data ? (
           <View className="flex-1 pt-4">
             {Array.from({ length: 1 }).map((_, i) => (
@@ -1621,7 +1631,7 @@ const FormStoreUpdate = React.memo(({
               <Animated.View style={{ flex: 1, transform: [{ translateX: stepSlideAnim }] }}>
                 {currentStep === 0 && (
                   <>
-                    <Text className="text-white text-xl mt-4 px-2">
+                    <Text className="text-xl mt-4 px-2" style={{ color: colors.sectionHeaderText }}>
                       {t("form.storeImagesTitle")}
                     </Text>
                     <View className="mt-4">
@@ -1656,7 +1666,7 @@ const FormStoreUpdate = React.memo(({
                                   bottom: 0,
                                   justifyContent: "center",
                                   alignItems: "center",
-                                  backgroundColor: "#1F2937",
+                                  backgroundColor: colors.cardBg,
                                   borderRadius: 10,
                                 }}
                               >
@@ -1676,8 +1686,8 @@ const FormStoreUpdate = React.memo(({
                           <TouchableOpacity
                             onPress={pickMultipleImages}
                             disabled={isImagePickerLoading}
-                            className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                            style={{ width: 200, height: 150 }}
+                            className="rounded-xl items-center justify-center"
+                            style={{ width: 200, height: 150, backgroundColor: colors.cardBg2, borderWidth: 1, borderColor: colors.borderColor }}
                             activeOpacity={0.85}
                           >
                             {isImagePickerLoading ? (
@@ -1692,7 +1702,7 @@ const FormStoreUpdate = React.memo(({
                         )}
                       </ScrollView>
                     </View>
-                    <Text className="text-white text-xl mt-6 px-2">
+                    <Text className="text-xl mt-6 px-2" style={{ color: colors.sectionHeaderText }}>
                       {t("form.storeInformation")}
                     </Text>
                     <View className="mt-2 px-2">
@@ -1725,9 +1735,9 @@ const FormStoreUpdate = React.memo(({
                                 editable={false}
                                 dense
                                 pointerEvents="none"
-                                textColor="white"
+                                textColor={colors.sectionHeaderText}
                                 outlineColor={
-                                  errors.taxDocumentImage ? "#b00020" : "#444"
+                                  errors.taxDocumentImage ? "#b00020" : colors.borderColor2
                                 }
                                 right={
                                   isTaxDocumentLoading ? (
@@ -1737,17 +1747,17 @@ const FormStoreUpdate = React.memo(({
                                       style={{ marginRight: 12 }}
                                     />
                                   ) : (
-                                    <TextInput.Icon icon="image" color="white" />
+                                    <TextInput.Icon icon="image" color={colors.sectionHeaderText} />
                                   )
                                 }
                                 theme={{
                                   roundness: 10,
                                   colors: {
-                                    onSurfaceVariant: "gray",
-                                    primary: "white",
+                                    onSurfaceVariant: colors.textSecondary,
+                                    primary: colors.sectionHeaderText,
                                   },
                                 }}
-                                style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
+                                style={{ backgroundColor: colors.cardBg, borderWidth: 0 }}
                               />
                             </TouchableOpacity>
                             {value?.uri && !isTaxDocumentLoading && (
@@ -1786,17 +1796,17 @@ const FormStoreUpdate = React.memo(({
                                   value={value}
                                   onChangeText={onChange}
                                   onBlur={onBlur}
-                                  textColor="white"
-                                  outlineColor={errors.storeName ? "#b00020" : "#444"}
+                                  textColor={colors.sectionHeaderText}
+                                  outlineColor={errors.storeName ? "#b00020" : colors.borderColor2}
                                   theme={{
                                     roundness: 10,
                                     colors: {
-                                      onSurfaceVariant: "gray",
-                                      primary: "white",
+                                      onSurfaceVariant: colors.textSecondary,
+                                      primary: colors.sectionHeaderText,
                                     },
                                   }}
                                   style={{
-                                    backgroundColor: "#1F2937",
+                                    backgroundColor: colors.cardBg,
                                     borderWidth: 0,
                                     marginTop: -6,
                                   }}
@@ -1835,17 +1845,17 @@ const FormStoreUpdate = React.memo(({
                                       height: 42,
                                       borderRadius: 10,
                                       paddingHorizontal: 12,
-                                      backgroundColor: "#1F2937",
+                                      backgroundColor: colors.cardBg,
                                       borderWidth: 1,
-                                      borderColor: errors.type ? "#b00020" : "#444",
+                                      borderColor: errors.type ? "#b00020" : colors.borderColor2,
                                       justifyContent: "center",
                                       marginTop: 0,
                                     }}
                                     placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                                    selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                                    itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                    selectedTextStyle={{ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }}
+                                    itemTextStyle={{ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }}
                                     containerStyle={{
-                                      backgroundColor: "#1F2937",
+                                      backgroundColor: colors.cardBg,
                                       borderWidth: 0,
                                       borderRadius: 10,
                                       overflow: "hidden",
@@ -1877,7 +1887,7 @@ const FormStoreUpdate = React.memo(({
                         </Text>
                       ) : (
                         <>
-                          <Text className="text-white text-xl mb-2">
+                          <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                             {t("form.mainHeadings")}
                           </Text>
                           <Controller
@@ -1914,7 +1924,7 @@ const FormStoreUpdate = React.memo(({
                       ) : (
                         <>
                           <View>
-                            <Text className="text-white text-xl mb-2">
+                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.subHeadings")}
                             </Text>
                             <Controller
@@ -1952,7 +1962,7 @@ const FormStoreUpdate = React.memo(({
                       ) : (
                         <>
                           <View>
-                            <Text className="text-white text-xl mb-2">
+                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                               {t("form.servicesTitle")} ({selectedType})
                             </Text>
                             <Controller
@@ -1998,7 +2008,7 @@ const FormStoreUpdate = React.memo(({
                             <View
                               className="mt-0 mx-0  rounded-xl"
                               style={{
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 paddingVertical: 6,
                                 paddingHorizontal: 16,
                               }}
@@ -2009,7 +2019,7 @@ const FormStoreUpdate = React.memo(({
                                 return (
                                   <View key={categoryId}>
                                     <View className="flex-row items-center gap-2 mb-0">
-                                      <Text className="text-white w-[35%]">
+                                      <Text className="w-[35%]" style={{ color: colors.sectionHeaderText }}>
                                         {label} :
                                       </Text>
                                       <View className="w-[65%]">
@@ -2045,10 +2055,10 @@ const FormStoreUpdate = React.memo(({
                                                 };
                                                 onChange(toTR(value ?? ""));
                                               }}
-                                              textColor="white"
-                                              outlineColor={error ? "#b00020" : "#444"}
+                                              textColor={colors.sectionHeaderText}
+                                              outlineColor={error ? "#b00020" : colors.borderColor2}
                                               style={PRICE_INPUT_STYLE}
-                                              theme={PRICE_INPUT_THEME}
+                                              theme={{ roundness: 10, colors: { onSurfaceVariant: colors.textSecondary, primary: colors.sectionHeaderText } }}
                                             />
                                           )}
                                         />
@@ -2073,7 +2083,7 @@ const FormStoreUpdate = React.memo(({
                 {currentStep === 5 && (
                   <>
                     <View className="mt-2 mx-0 flex-row items-center px-2">
-                      <Text className="text-white text-xl flex-1">
+                      <Text className="text-xl flex-1" style={{ color: colors.sectionHeaderText }}>
                         {t("form.workingBarbersCount")} : {barberFields.length}{" "}
                       </Text>
                       <Button
@@ -2085,7 +2095,7 @@ const FormStoreUpdate = React.memo(({
                       </Button>
                     </View>
                     {barberFields.length > 0 && (
-                      <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4 pb-2">
+                      <View className="rounded-xl mx-2 px-3 pt-4 pb-2" style={{ backgroundColor: colors.cardBg }}>
                         {barberFields.map((item, index) => (
                           <View
                             key={item._key}
@@ -2110,17 +2120,17 @@ const FormStoreUpdate = React.memo(({
                                   dense
                                   value={value ?? ""}
                                   readOnly
-                                  textColor="white"
-                                  outlineColor="#444"
+                                  textColor={colors.sectionHeaderText}
+                                  outlineColor={colors.borderColor2}
                                   theme={{
                                     roundness: 10,
                                     colors: {
-                                      onSurfaceVariant: "gray",
-                                      primary: "white",
+                                      onSurfaceVariant: colors.textSecondary,
+                                      primary: colors.sectionHeaderText,
                                     },
                                   }}
                                   style={{
-                                    backgroundColor: "#1F2937",
+                                    backgroundColor: colors.cardBg,
                                     borderWidth: 0,
                                     flex: 1,
                                   }}
@@ -2145,7 +2155,7 @@ const FormStoreUpdate = React.memo(({
                       </View>
                     )}
                     <View className="mt-4 mx-0 px-2 flex-row items-center">
-                      <Text className="text-white text-xl flex-1">
+                      <Text className="text-xl flex-1" style={{ color: colors.sectionHeaderText }}>
                         {t("form.chairCount")} : {chairFields.length}
                       </Text>
                       <Button
@@ -2157,7 +2167,7 @@ const FormStoreUpdate = React.memo(({
                       </Button>
                     </View>
                     {chairFields.length > 0 && (
-                      <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4">
+                      <View className="rounded-xl mx-2 px-3 pt-4" style={{ backgroundColor: colors.cardBg }}>
                         {chairFields.map((item, index) => {
                           const chair = chairs[index];
                           if (!chair) return null;
@@ -2179,18 +2189,18 @@ const FormStoreUpdate = React.memo(({
                                 source={"chair-rolling"}
                                 color="#c2a523"
                               ></Icon>
-                              <View className="flex-1 bg-[#1F2937] rounded-xl items-center py-3 mt-[-5px] justify-center border-[#444] border">
+                              <View className="flex-1 rounded-xl items-center py-3 mt-[-5px] justify-center" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor2 }}>
                                 <Text className="text-gray-500 text-xs mb-1">
                                   {modeLabel}
                                 </Text>
                               </View>
-                              <View className="flex-1 items-center bg-[#1F2937] rounded-xl  py-3 mt-[-5px] justify-center border-[#444] border">
+                              <View className="flex-1 items-center rounded-xl  py-3 mt-[-5px] justify-center" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor2 }}>
                                 {!isBarberChair ? (
-                                  <Text className="text-white text-xs mb-1">
+                                  <Text className="text-xs mb-1" style={{ color: colors.sectionHeaderText }}>
                                     {chair.name}
                                   </Text>
                                 ) : (
-                                  <Text className="text-white text-xs mb-1">
+                                  <Text className="text-xs mb-1" style={{ color: colors.sectionHeaderText }}>
                                     {barberName}
                                   </Text>
                                 )}
@@ -2216,10 +2226,10 @@ const FormStoreUpdate = React.memo(({
                 {currentStep === 6 && (
                   <>
                     <View className="px-2">
-                      <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">
+                      <Text className="font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                         {t("form.chairPricing")}
                       </Text>
-                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
+                      <View className="mt-2 mx-0 rounded-xl px-3 py-3" style={{ backgroundColor: colors.cardBg }}>
                         <Controller
                           control={control}
                           name="pricingType.mode"
@@ -2238,7 +2248,7 @@ const FormStoreUpdate = React.memo(({
                                       : "border-gray-400"
                                       }`}
                                   />
-                                  <Text className="text-white">{opt.label}</Text>
+                                  <Text style={{ color: colors.sectionHeaderText }}>{opt.label}</Text>
                                 </TouchableOpacity>
                               ))}
                             </View>
@@ -2272,19 +2282,19 @@ const FormStoreUpdate = React.memo(({
                                   }}
                                   mode="outlined"
                                   label={t("form.rentPriceHourly")}
-                                  textColor="white"
+                                  textColor={colors.sectionHeaderText}
                                   outlineColor={
-                                    errors.pricingType?.rent ? "#b00020" : "#444"
+                                    errors.pricingType?.rent ? "#b00020" : colors.borderColor2
                                   }
                                   theme={{
                                     roundness: 10,
                                     colors: {
-                                      onSurfaceVariant: "gray",
-                                      primary: "white",
+                                      onSurfaceVariant: colors.textSecondary,
+                                      primary: colors.sectionHeaderText,
                                     },
                                   }}
                                   style={{
-                                    backgroundColor: "#1F2937",
+                                    backgroundColor: colors.cardBg,
                                     borderWidth: 0,
                                     marginTop: 8,
                                   }}
@@ -2331,21 +2341,21 @@ const FormStoreUpdate = React.memo(({
                                     paddingHorizontal: 12,
                                     paddingVertical: 8,
                                     borderRadius: 10,
-                                    backgroundColor: "#1F2937",
+                                    backgroundColor: colors.cardBg,
                                     borderWidth: 1,
                                     borderColor: errors.pricingType?.percent
                                       ? "#b00020"
-                                      : "#444",
+                                      : colors.borderColor2,
                                     marginTop: 12,
                                     height: 42,
                                   }}
                                   placeholderStyle={{ color: "gray", fontFamily: 'CenturyGothic' }}
-                                  selectedTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
-                                  itemTextStyle={{ color: "white", fontFamily: 'CenturyGothic' }}
+                                  selectedTextStyle={{ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }}
+                                  itemTextStyle={{ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic' }}
                                   containerStyle={{
-                                    backgroundColor: "#1F2937",
+                                    backgroundColor: colors.cardBg,
                                     borderWidth: 1,
-                                    borderColor: "#444",
+                                    borderColor: colors.borderColor2,
                                     borderRadius: 10,
                                     overflow: "hidden",
                                   }}
@@ -2368,10 +2378,10 @@ const FormStoreUpdate = React.memo(({
                 {currentStep === 7 && (
                   <>
                     <View className="px-2">
-                      <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                      <Text className="font-century-gothic ml-0 pt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                         {t("form.workingHours")}
                       </Text>
-                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                      <View className="mt-2 mx-0 rounded-xl px-2 py-3" style={{ backgroundColor: colors.cardBg }}>
                         <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
                           - {t("form.workingHoursInfo")}
                         </Text>
@@ -2393,7 +2403,7 @@ const FormStoreUpdate = React.memo(({
                                     }`}
                                   activeOpacity={0.8}
                                 >
-                                  <Text className="text-white text-xs">
+                                  <Text className="text-xs" style={{ color: colors.sectionHeaderText }}>
                                     {d.label}
                                   </Text>
                                 </TouchableOpacity>
@@ -2411,9 +2421,9 @@ const FormStoreUpdate = React.memo(({
                               (holidayDays ?? []).includes(activeDay);
                             const dayErr = errors.workingHours?.[idx];
                             return (
-                              <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
+                              <View className="mt-0 rounded-xl p-0" style={{ backgroundColor: colors.cardBg }}>
                                 <View className="flex-row items-center mt-6">
-                                  <Text className="text-white text-sm">
+                                  <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>
                                     Başlangıç saati:
                                   </Text>
                                   <DateTimePicker
@@ -2439,7 +2449,7 @@ const FormStoreUpdate = React.memo(({
                                       ]);
                                     }}
                                   />
-                                  <Text className="text-white text-sm ml-5">
+                                  <Text className="text-sm ml-5" style={{ color: colors.sectionHeaderText }}>
                                     Bitiş saati:
                                   </Text>
                                   <DateTimePicker
@@ -2477,7 +2487,7 @@ const FormStoreUpdate = React.memo(({
                               </View>
                             );
                           })()}
-                          <Text className="text-white text-xl mt-2">
+                          <Text className="text-xl mt-2" style={{ color: colors.sectionHeaderText }}>
                             Tatil Günleri
                           </Text>
                           <Controller
@@ -2519,10 +2529,10 @@ const FormStoreUpdate = React.memo(({
                 {currentStep === 8 && (
                   <>
                     <View className="px-2">
-                      <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                      <Text className="font-century-gothic ml-0 pt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                         {t("form.setAddress")}
                       </Text>
-                      <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                      <View className="mt-2 mx-0 rounded-xl px-2 py-3" style={{ backgroundColor: colors.cardBg }}>
                         <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
                           - Eğer şuanda işletmede bulunuyorsanız aşağıdaki dükkanın
                           konumunu ala tıklayınız ama değilseniz haritadan konumunuza
@@ -2575,21 +2585,21 @@ const FormStoreUpdate = React.memo(({
                                 onBlur={onBlur}
                                 multiline
                                 readOnly
-                                textColor="white"
+                                textColor={colors.sectionHeaderText}
                                 outlineColor={
                                   errors.location?.addressDescription
                                     ? "#b00020"
-                                    : "#444"
+                                    : colors.borderColor2
                                 }
                                 theme={{
                                   roundness: 10,
                                   colors: {
-                                    onSurfaceVariant: "gray",
-                                    primary: "white",
+                                    onSurfaceVariant: colors.textSecondary,
+                                    primary: colors.sectionHeaderText,
                                   },
                                 }}
                                 style={{
-                                  backgroundColor: "#1F2937",
+                                  backgroundColor: colors.cardBg,
                                   borderWidth: 0,
                                   marginTop: 0,
                                 }}

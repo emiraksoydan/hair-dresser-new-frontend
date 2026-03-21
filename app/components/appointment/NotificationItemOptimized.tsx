@@ -15,6 +15,7 @@ import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
 import { NotificationParticipantView } from "./NotificationParticipantView";
 import { getMessage } from "../../utils/errorHandler";
+import { useTheme } from "../../hook/useTheme";
 
 // ---------------------------------------------------------------------------
 // Sadeleştirilmiş Notification Item Component
@@ -182,6 +183,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
     formatRating,
     onAddStore,
   }) => {
+    const { colors, isDark } = useTheme();
     const { isAuthenticated } = useAuth();
     const { t } = useLanguage();
 
@@ -514,11 +516,12 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
       <TouchableOpacity
         onPress={handlePress}
         disabled={isAwaitingDecision}
-        className={`p-4 mb-3 rounded-xl border ${
-          unread
-            ? "bg-[#1c1d20] border-[#2a2c30]"
-            : "bg-[#151618] border-[#1f2023]"
-        }`}
+        className="p-4 mb-3 rounded-xl"
+        style={{
+          backgroundColor: unread ? (isDark ? '#1c1d20' : '#ffffff') : colors.screenBg,
+          borderWidth: 1,
+          borderColor: unread ? (isDark ? '#2a2c30' : '#e2e8f0') : (isDark ? '#1f2023' : '#f3f4f6'),
+        }}
         activeOpacity={0.7}
       >
         {/* Header */}
@@ -527,14 +530,13 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
             <View className="w-2 h-2 rounded-full bg-[#f05e23] mr-2" />
           )}
           <Text
-            className={`text-white flex-1 text-base ${unread ? "font-bold" : "font-medium"}`}
+            className={`flex-1 text-base ${unread ? "font-bold" : "font-medium"}`}
+            style={{ color: colors.sectionHeaderText }}
           >
             {getMessage(item.title)}
           </Text>
           <View className="flex-row items-center gap-2">
-            {onDelete &&
-              !isPending &&
-              appointmentStatus !== AppointmentStatus.Approved && (
+            {onDelete && (
                 <TouchableOpacity
                   onPress={handleDelete}
                   disabled={isDeleting}
@@ -555,7 +557,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
 
         {/* Payload Content */}
         {payload && (
-          <View className="mt-2 pt-3 border-t border-[#2a2c30]">
+          <View className="mt-2 pt-3 border-t" style={{ borderTopColor: colors.borderColor }}>
             {/* Date and Time */}
             {payload.date && payload.startTime && payload.endTime && (
               <View className="flex-row justify-end items-center mb-3">
@@ -587,7 +589,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
               {recipientRole === "freebarber" &&
                 payload.store?.pricingType !== undefined &&
                 payload.store?.pricingValue !== undefined && (
-                  <View className="bg-[#2a2c30] rounded-lg p-2 mb-2 mt-2">
+                  <View className="rounded-lg p-2 mb-2 mt-2" style={{ backgroundColor: isDark ? '#2a2c30' : '#f3f4f6' }}>
                     <Text className="text-[#9ca3af] text-xs">
                       {formatPricingPolicy(
                         payload.store.pricingType,
@@ -609,9 +611,10 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
                     {payload.serviceOfferings.map((service: any) => (
                       <View
                         key={service.id}
-                        className="bg-[#2a2c30] rounded-lg px-2 py-1"
+                        className="rounded-lg px-2 py-1"
+                        style={{ backgroundColor: isDark ? '#2a2c30' : '#f3f4f6' }}
                       >
-                        <Text className="text-white text-sm">
+                        <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>
                           {service.serviceName} {t("card.currencySymbol")}
                           {Number(service.price).toFixed(0)}
                         </Text>
@@ -632,8 +635,8 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
                   <Text className="text-[#9ca3af] text-xs mb-1 font-semibold">
                     {t("common.note")}:
                   </Text>
-                  <View className="bg-[#2a2c30] rounded-lg px-2 py-2">
-                    <Text className="text-white text-sm">{payload.note}</Text>
+                  <View className="rounded-lg px-2 py-2" style={{ backgroundColor: isDark ? '#2a2c30' : '#f3f4f6' }}>
+                    <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>{payload.note}</Text>
                   </View>
                 </View>
               )}
@@ -642,7 +645,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
 
         {/* Status Display */}
         {showStatus && statusKind && (
-          <View className="mt-3 pt-3 border-t border-[#2a2c30]">
+          <View className="mt-3 pt-3 border-t" style={{ borderTopColor: colors.borderColor }}>
             <View
               className={`p-3 rounded-lg border ${STATUS_CONFIG[statusKind].bg} ${STATUS_CONFIG[statusKind].border}`}
             >
@@ -664,7 +667,7 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
 
         {/* Action Buttons */}
         {canShowButtons && (
-          <View className="mt-3 pt-3 border-t border-[#2a2c30]">
+          <View className="mt-3 pt-3 border-t" style={{ borderTopColor: colors.borderColor }}>
             {showOnlyRejectButton ? (
               // FreeBarber için sadece REDDET butonu
               <TouchableOpacity

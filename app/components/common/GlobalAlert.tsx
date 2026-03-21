@@ -6,6 +6,7 @@ import { RootState } from '../../store/redux-store';
 import { hideAlert, AlertButton } from '../../store/alertSlice';
 import { Text } from './Text';
 import { Icon } from 'react-native-paper';
+import { useTheme } from '../../hook/useTheme';
 
 /**
  * Global Alert Component - React Native Paper Dialog tabanlı
@@ -16,6 +17,7 @@ export const GlobalAlert: React.FC = () => {
     (state: RootState) => state.alert
   );
   const dispatch = useDispatch();
+  const { colors } = useTheme();
 
   const handleDismiss = useCallback(() => {
     dispatch(hideAlert());
@@ -69,7 +71,7 @@ export const GlobalAlert: React.FC = () => {
         onDismiss={handleDismiss}
         dismissable={true}
         style={{
-          backgroundColor: '#1f2937',
+          backgroundColor: colors.cardBg,
           borderRadius: 16,
           maxWidth: 340,
           width: '85%',
@@ -79,7 +81,7 @@ export const GlobalAlert: React.FC = () => {
       >
         <Dialog.Title
           style={{
-            color: 'white',
+            color: colors.sectionHeaderText,
             fontFamily: 'CenturyGothic-Bold',
             fontSize: 18,
             textAlign: 'center',
@@ -87,7 +89,7 @@ export const GlobalAlert: React.FC = () => {
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <Icon source={typeConfig.icon} size={24} color={typeConfig.color} />
-            <Text style={{ color: 'white', fontFamily: 'CenturyGothic-Bold', fontSize: 18 }}>
+            <Text style={{ color: colors.sectionHeaderText, fontFamily: 'CenturyGothic-Bold', fontSize: 18 }}>
               {title}
             </Text>
           </View>
@@ -96,7 +98,7 @@ export const GlobalAlert: React.FC = () => {
         <Dialog.Content>
           <Text
             style={{
-              color: '#d1d5db',
+              color: colors.sectionHeaderText,
               fontFamily: 'CenturyGothic',
               fontSize: 15,
               textAlign: 'center',
@@ -118,7 +120,7 @@ export const GlobalAlert: React.FC = () => {
               style={{
                 borderRadius: 10,
                 minWidth: 100,
-                borderColor: button.style === 'cancel' ? '#4b5563' : 'transparent',
+                borderColor: button.style === 'cancel' ? colors.borderColor : 'transparent',
               }}
               labelStyle={{ fontFamily: 'CenturyGothic', fontSize: 14 }}
             >

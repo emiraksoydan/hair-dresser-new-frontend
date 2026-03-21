@@ -1,12 +1,12 @@
 import { Stack } from 'expo-router'
-import { View } from 'react-native'
-import { Text } from '../../components/common/Text'
+import { useTheme } from '../../hook/useTheme'
 
 const MessagesLayout = () => {
+    const { colors } = useTheme()
     return (
         <Stack screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#0d0d12' },
+            contentStyle: { backgroundColor: colors.screenBg },
         }}>
             <Stack.Screen name="index" />
             <Stack.Screen

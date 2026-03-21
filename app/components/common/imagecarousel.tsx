@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Image, Dimensions, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import Carousel, { Pagination } from 'react-native-reanimated-carousel';
 import { useSharedValue } from 'react-native-reanimated';
+import { useTheme } from '../../hook/useTheme';
 import { ImageGetDto } from '../../types/common';
 
 interface ImageCarouselProps {
@@ -25,8 +26,9 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   borderRadiusClass = '',
   containerStyle,
   showPagination = true,
-  mode = 'horizontal-stack',
+  mode,
 }) => {
+  const { colors, isDark } = useTheme();
   const width = widthProp ?? Dimensions.get('window').width;
   const [activeIndex, setActiveIndex] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
@@ -84,7 +86,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
         onProgressChange={(_, absoluteProgress) => {
           progressValue.value = absoluteProgress;
         }}
-        mode={mode}
+        {...(mode && mode !== 'default' ? { mode } : {})}
         renderItem={({ item, index }) => (
           <View
             style={{
@@ -110,7 +112,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
               onLoad={() => handleImageLoad(index)}
             />
             {!loadedImages.has(index) && (
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937', borderRadius: borderRadiusValue }}>
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.cardBg, borderRadius: borderRadiusValue }}>
                 <ActivityIndicator size="large" color="#888" />
               </View>
             )}
@@ -130,7 +132,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: 'rgba(255, 255, 255, 0.3)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)',
               marginHorizontal: 4,
             }}
             activeDotStyle={{

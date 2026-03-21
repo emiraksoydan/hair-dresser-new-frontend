@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { Text } from "../common/Text";
 import { BottomSheetView, BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { Icon } from "react-native-paper";
@@ -8,6 +8,7 @@ import { RequestGetDto } from "../../types";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
 import LottieView from "lottie-react-native";
+import { useTheme } from "../../hook/useTheme";
 
 type RequestsSheetProps = {
   onClose: () => void;
@@ -16,6 +17,7 @@ type RequestsSheetProps = {
 export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
   const { t } = useLanguage();
   const { showSuccess, showError, showConfirm } = useAlert();
+  const { colors } = useTheme();
 
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -81,11 +83,11 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
 
   const renderRequestItem = ({ item }: { item: RequestGetDto }) => {
     return (
-      <View className="mb-3 rounded-xl bg-[#1e2024] p-4">
+      <View style={{ backgroundColor: colors.cardBg }} className="mb-3 rounded-xl p-4">
         {/* Üst kısım: Başlık ve tarih */}
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
-            <Text className="text-sm font-semibold text-white">{item.requestTitle}</Text>
+            <Text style={{ color: colors.sectionHeaderText }} className="text-sm font-semibold">{item.requestTitle}</Text>
             <Text className="mt-0.5 text-xs text-gray-500">{formatDateTime(item.createdAt)}</Text>
           </View>
 
@@ -107,8 +109,8 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
         </View>
 
         {/* İstek mesajı */}
-        <View className="mt-3 rounded-lg bg-[#252830] p-3">
-          <Text className="text-sm text-gray-300">{item.requestMessage}</Text>
+        <View style={{ backgroundColor: colors.cardBg2 }} className="mt-3 rounded-lg p-3">
+          <Text style={{ color: colors.sectionHeaderText }} className="text-sm">{item.requestMessage}</Text>
         </View>
       </View>
     );
@@ -116,18 +118,18 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
 
   if (isLoading) {
     return (
-      <BottomSheetView className="flex-1 items-center justify-center bg-[#151618] p-4">
+      <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }} className="items-center justify-center p-4">
         <ActivityIndicator size="large" color="#f05e23" />
       </BottomSheetView>
     );
   }
 
   return (
-    <BottomSheetView className="flex-1 bg-[#151618]">
+    <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-gray-800 px-4 pb-3">
+      <View style={{ borderBottomColor: colors.borderColor }} className="flex-row items-center justify-between border-b px-4 pb-3">
         <View className="w-10" />
-        <Text className="text-lg font-bold text-white">
+        <Text style={{ color: colors.sectionHeaderText }} className="text-lg font-bold">
           {t("profile.myRequests")}
         </Text>
         <TouchableOpacity onPress={() => setShowForm(!showForm)} className="p-2">
@@ -152,7 +154,7 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
                 placeholder={t("profile.titlePlaceholder")}
                 placeholderTextColor="#6b7280"
                 maxLength={200}
-                className="rounded-lg bg-[#1e2024] p-3 text-white"
+                style={{ backgroundColor: colors.cardBg, color: colors.sectionHeaderText, borderRadius: 8, padding: 12 }}
               />
             </View>
 
@@ -168,7 +170,7 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
                 numberOfLines={6}
                 maxLength={2000}
                 textAlignVertical="top"
-                className="min-h-[120px] flex-1 rounded-lg bg-[#1e2024] p-3 text-white"
+                style={{ backgroundColor: colors.cardBg, color: colors.sectionHeaderText, borderRadius: 8, padding: 12, minHeight: 120, flex: 1 }}
               />
             </View>
 
@@ -177,7 +179,7 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
               onPress={handleSubmit}
               disabled={isCreating}
               style={{ backgroundColor: '#ffb900' }}
-              className="rounded-lg  p-4"
+              className="rounded-lg p-4"
             >
               {isCreating ? (
                 <ActivityIndicator color="#fff" />
@@ -204,7 +206,7 @@ export const RequestsSheet: React.FC<RequestsSheetProps> = ({ onClose }) => {
             </Text>
             <TouchableOpacity
               onPress={() => setShowForm(true)}
-              className="mt-4 rounded-lg  px-6 py-3"
+              className="mt-4 rounded-lg px-6 py-3"
               style={{ backgroundColor: '#ffb900' }}
             >
               <Text className="font-semibold text-white">

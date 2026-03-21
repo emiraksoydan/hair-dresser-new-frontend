@@ -49,7 +49,7 @@ export interface VerifyOtpRequest {
 export interface UpdateUserDto {
   firstName: string;
   lastName: string;
-  phoneNumber: string;
+  phoneNumber?: string;
 }
 
 export interface UserProfileDto {

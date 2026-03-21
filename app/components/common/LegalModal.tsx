@@ -5,6 +5,7 @@ import { Icon } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
 import { useLanguage } from '../../hook/useLanguage';
 import { getLegalDocuments, LegalDocumentType } from '../../constants/legal';
+import { useTheme } from '../../hook/useTheme';
 
 interface LegalModalProps {
     visible: boolean;
@@ -14,6 +15,7 @@ interface LegalModalProps {
 
 export const LegalModal: React.FC<LegalModalProps> = ({ visible, onClose, documentType }) => {
     const { t, currentLanguage } = useLanguage();
+    const { colors, isDark } = useTheme();
     const documents = getLegalDocuments(currentLanguage);
     const doc = documents[documentType];
 
@@ -24,11 +26,21 @@ export const LegalModal: React.FC<LegalModalProps> = ({ visible, onClose, docume
             animationType="fade"
             onRequestClose={onClose}
         >
-            <BlurView intensity={20} tint="dark" className="flex-1 justify-center items-center px-4">
-                <View className="bg-[#151618] rounded-2xl w-full max-w-lg border border-[#2a2c30]" style={{ maxHeight: '85%' }}>
+            <BlurView intensity={20} tint={isDark ? "dark" : "light"} className="flex-1 justify-center items-center px-4">
+                <View
+                    style={{
+                        backgroundColor: colors.sheetBg,
+                        borderColor: colors.borderColor,
+                        maxHeight: '85%',
+                    }}
+                    className="rounded-2xl w-full max-w-lg border"
+                >
                     {/* Header */}
-                    <View className="flex-row justify-between items-center p-4 border-b border-[#2a2c30]">
-                        <Text className="text-lg font-semibold text-white flex-1" numberOfLines={2}>
+                    <View
+                        style={{ borderBottomColor: colors.borderColor }}
+                        className="flex-row justify-between items-center p-4 border-b"
+                    >
+                        <Text style={{ color: colors.sectionHeaderText }} className="text-lg font-semibold flex-1" numberOfLines={2}>
                             {doc.title}
                         </Text>
                         <TouchableOpacity onPress={onClose} className="p-1 ml-2">
@@ -38,18 +50,19 @@ export const LegalModal: React.FC<LegalModalProps> = ({ visible, onClose, docume
 
                     {/* Content */}
                     <ScrollView className="p-4" showsVerticalScrollIndicator={true}>
-                        <Text className="text-sm text-gray-300 leading-6 font-century-gothic-sans-regular">
+                        <Text style={{ color: colors.sectionHeaderText }} className="text-sm leading-6 font-century-gothic-sans-regular">
                             {doc.content}
                         </Text>
                     </ScrollView>
 
                     {/* Close Button */}
-                    <View className="p-4 border-t border-[#2a2c30]">
+                    <View style={{ borderTopColor: colors.borderColor }} className="p-4 border-t">
                         <TouchableOpacity
                             onPress={onClose}
-                            className="w-full rounded-xl py-3 items-center bg-[#1a1a1a]"
+                            style={{ backgroundColor: colors.cardBg2 }}
+                            className="w-full rounded-xl py-3 items-center"
                         >
-                            <Text className="text-base font-semibold text-white">
+                            <Text style={{ color: colors.sectionHeaderText }} className="text-base font-semibold">
                                 {t('legal.close')}
                             </Text>
                         </TouchableOpacity>

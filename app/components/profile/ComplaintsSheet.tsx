@@ -8,6 +8,7 @@ import { ComplaintGetDto, UserType } from "../../types";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
 import LottieView from "lottie-react-native";
+import { useTheme } from "../../hook/useTheme";
 
 type ComplaintsSheetProps = {
   onClose: () => void;
@@ -16,6 +17,7 @@ type ComplaintsSheetProps = {
 export const ComplaintsSheet: React.FC<ComplaintsSheetProps> = ({ onClose }) => {
   const { t } = useLanguage();
   const { showSuccess, showError, showConfirm } = useAlert();
+  const { colors } = useTheme();
 
   const { data: complaints, isLoading, refetch } = useGetMyComplaintsQuery();
   const [deleteComplaint, { isLoading: isDeleting }] = useDeleteComplaintMutation();
@@ -71,7 +73,7 @@ export const ComplaintsSheet: React.FC<ComplaintsSheetProps> = ({ onClose }) => 
     const userTypeName = getUserTypeName(item.targetUserType);
 
     return (
-      <View className="mb-3 rounded-xl bg-[#1e2024] p-4">
+      <View style={{ backgroundColor: colors.cardBg }} className="mb-3 rounded-xl p-4">
         {/* Üst kısım: Kullanıcı bilgileri */}
         <View className="flex-row items-start">
           {/* Profil fotoğrafı */}
@@ -86,10 +88,10 @@ export const ComplaintsSheet: React.FC<ComplaintsSheetProps> = ({ onClose }) => 
           {/* Kullanıcı bilgileri */}
           <View className="flex-1">
             <View className="flex-row items-center">
-              <Text className="text-sm font-semibold text-white">{displayName}</Text>
+              <Text style={{ color: colors.sectionHeaderText }} className="text-sm font-semibold">{displayName}</Text>
               {userTypeName ? (
-                <View className="ml-2 rounded-full bg-gray-700 px-2 py-0.5">
-                  <Text className="text-xs text-gray-300">{userTypeName}</Text>
+                <View style={{ backgroundColor: colors.cardBg2 }} className="ml-2 rounded-full px-2 py-0.5">
+                  <Text style={{ color: colors.sectionHeaderText }} className="text-xs">{userTypeName}</Text>
                 </View>
               ) : null}
             </View>
@@ -107,8 +109,8 @@ export const ComplaintsSheet: React.FC<ComplaintsSheetProps> = ({ onClose }) => 
         </View>
 
         {/* Şikayet mesajı */}
-        <View className="mt-3 rounded-lg bg-[#252830] p-3">
-          <Text className="text-sm text-gray-300">{item.complaintReason}</Text>
+        <View style={{ backgroundColor: colors.cardBg2 }} className="mt-3 rounded-lg p-3">
+          <Text style={{ color: colors.sectionHeaderText }} className="text-sm">{item.complaintReason}</Text>
         </View>
       </View>
     );
@@ -116,17 +118,17 @@ export const ComplaintsSheet: React.FC<ComplaintsSheetProps> = ({ onClose }) => 
 
   if (isLoading) {
     return (
-      <BottomSheetView className="flex-1 items-center justify-center bg-[#151618] p-4">
+      <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }} className="items-center justify-center p-4">
         <ActivityIndicator size="large" color="#f05e23" />
       </BottomSheetView>
     );
   }
 
   return (
-    <BottomSheetView className="flex-1 bg-[#151618]">
+    <BottomSheetView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       {/* Header */}
-      <View className="border-b border-gray-800 px-4 pb-3">
-        <Text className="text-center text-lg font-bold text-white">
+      <View style={{ borderBottomColor: colors.borderColor }} className="border-b px-4 pb-3">
+        <Text style={{ color: colors.sectionHeaderText }} className="text-center text-lg font-bold">
           {t("profile.myComplaints")}
         </Text>
       </View>

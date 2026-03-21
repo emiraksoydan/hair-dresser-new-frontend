@@ -6,6 +6,7 @@ import { Button } from "../common/Button";
 import { useCreateComplaintMutation } from "../../store/api";
 import { useLanguage } from "../../hook/useLanguage";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 type ComplaintBottomSheetProps = {
   appointmentId: string;
@@ -26,6 +27,7 @@ export const ComplaintBottomSheet: React.FC<ComplaintBottomSheetProps> = ({
 }) => {
   const { t } = useLanguage();
   const { showSuccess, showError } = useAlert();
+  const { colors } = useTheme();
   const [reason, setReason] = useState("");
   const [createComplaint, { isLoading }] = useCreateComplaintMutation();
 
@@ -51,17 +53,23 @@ export const ComplaintBottomSheet: React.FC<ComplaintBottomSheetProps> = ({
   };
 
   return (
-    <BottomSheetScrollView className="flex-1 bg-[#151618]">
+    <BottomSheetScrollView style={{ flex: 1, backgroundColor: colors.sheetBg }}>
       {/* Header */}
-      <View className="border-b border-gray-800 px-4 pb-3">
-        <Text className="text-center text-lg font-bold text-white">
+      <View
+        className="px-4 pb-3"
+        style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}
+      >
+        <Text className="text-center text-lg font-bold" style={{ color: colors.sectionHeaderText }}>
           {t("complaint.title")}
         </Text>
       </View>
 
       <View className="px-4 py-4">
         {/* Target User Info */}
-        <View className="flex-row items-center mb-4 bg-[#1e2024] rounded-xl p-3">
+        <View
+          className="flex-row items-center mb-4 rounded-xl p-3"
+          style={{ backgroundColor: colors.cardBg2 }}
+        >
           <Image
             source={
               targetImage
@@ -75,13 +83,13 @@ export const ComplaintBottomSheet: React.FC<ComplaintBottomSheetProps> = ({
           />
           <View className="ml-3 flex-1">
             <Text className="text-gray-400 text-xs">{t("complaint.complainingAbout")}</Text>
-            <Text className="text-white text-base font-semibold">{targetName}</Text>
+            <Text className="text-base font-semibold" style={{ color: colors.sectionHeaderText }}>{targetName}</Text>
           </View>
         </View>
 
         {/* Reason Input */}
         <View className="mb-4">
-          <Text className="text-white text-sm font-semibold mb-2">
+          <Text className="text-sm font-semibold mb-2" style={{ color: colors.sectionHeaderText }}>
             {t("complaint.reason")} *
           </Text>
           <TextInput
@@ -91,8 +99,16 @@ export const ComplaintBottomSheet: React.FC<ComplaintBottomSheetProps> = ({
             placeholderTextColor="#6b7280"
             multiline
             numberOfLines={4}
-            className="bg-[#1e2024] border border-gray-700 rounded-xl p-3 text-white text-sm"
-            style={{ minHeight: 100, textAlignVertical: "top" }}
+            style={{
+              backgroundColor: colors.cardBg2,
+              borderColor: colors.borderColor,
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              color: colors.sectionHeaderText,
+              minHeight: 100,
+              textAlignVertical: "top",
+            }}
           />
         </View>
 

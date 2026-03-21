@@ -27,6 +27,7 @@ import { handlePickImage } from "../../utils/form/pick-document";
 import { getErrorMessage } from "../../utils/errorHandler";
 import { MESSAGES } from "../../constants/messages";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 type Props = {
   visible: boolean;
@@ -44,6 +45,7 @@ export const BarberEditModal: React.FC<Props> = ({
   storeId,
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const {
     control,
     handleSubmit,
@@ -264,10 +266,10 @@ export const BarberEditModal: React.FC<Props> = ({
         dismissableBackButton={false}
         visible={visible}
         onDismiss={onClose}
-        style={{ backgroundColor: "#111827" }}
+        style={{ backgroundColor: colors.cardBg }}
       >
         <Dialog.Title
-          style={{ color: "white", fontFamily: "CenturyGothic-Bold" }}
+          style={{ color: colors.sectionHeaderText, fontFamily: "CenturyGothic-Bold" }}
         >
           {title}
         </Dialog.Title>
@@ -292,8 +294,8 @@ export const BarberEditModal: React.FC<Props> = ({
             ) : (
               <TouchableOpacity
                 onPress={handlePickAvatar}
-                className="w-full bg-gray-800 rounded-xl items-center justify-center border border-gray-700"
-                style={{ aspectRatio: 2 / 1 }}
+                className="w-full rounded-xl items-center justify-center"
+                style={{ aspectRatio: 2 / 1, backgroundColor: colors.cardBg2, borderWidth: 1, borderColor: colors.borderColor }}
                 activeOpacity={0.85}
               >
                 <Icon source="image-plus" size={40} color="#888" />
@@ -313,13 +315,13 @@ export const BarberEditModal: React.FC<Props> = ({
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    textColor="white"
-                    outlineColor={errors.name ? "#b00020" : "#444"}
+                    textColor={colors.sectionHeaderText}
+                    outlineColor={errors.name ? "#b00020" : colors.borderColor2}
                     theme={{
                       roundness: 10,
-                      colors: { onSurfaceVariant: "gray", primary: "white" },
+                      colors: { onSurfaceVariant: "gray", primary: colors.sectionHeaderText },
                     }}
-                    style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
+                    style={{ backgroundColor: colors.cardBg, borderWidth: 0 }}
                   />
                   <HelperText type="error" visible={!!errors.name}>
                     {errors.name?.message}

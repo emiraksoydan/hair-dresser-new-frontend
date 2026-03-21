@@ -3,6 +3,7 @@ import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from './Text';
 import { Icon } from 'react-native-paper';
 import { MotiView } from 'moti';
+import { useTheme } from '../../hook/useTheme';
 
 interface MenuItem {
     icon: string;
@@ -21,6 +22,7 @@ export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
     iconColor = 'white',
     iconSize = 22, // Boyut biraz küçültüldü
 }) => {
+    const { colors, isDark } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
 
     const toggleMenu = () => setIsOpen((prev) => !prev);
@@ -36,9 +38,10 @@ export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
             <TouchableOpacity
                 onPress={toggleMenu}
                 activeOpacity={0.7}
-                className="w-12 h-12 items-center justify-center rounded-full bg-[#1a1b25]"
+                className="w-12 h-12 items-center justify-center rounded-full"
+                style={{ backgroundColor: isDark ? colors.cardBg : colors.screenBg }}
             >
-                <Icon source="menu" size={iconSize} color={iconColor} />
+                <Icon source="menu" size={iconSize} color={colors.headerText} />
             </TouchableOpacity>
 
             {/* Dropdown Menü İçeriği */}
@@ -54,20 +57,19 @@ export const HeaderDropdownMenu: React.FC<HeaderDropdownMenuProps> = ({
                     type: 'timing',
                     duration: 150,
                 }}
-                style={styles.dropdown}
+                style={[styles.dropdown, { backgroundColor: colors.cardBg }]}
                 pointerEvents={isOpen ? 'auto' : 'none'}
             >
                 {items.map((item, index) => (
                     <TouchableOpacity
                         key={index}
                         onPress={() => handleItemPress(item.onPress)}
-                        className="flex-row items-center px-4 py-2.5 rounded-lg active:bg-[#2D3748]"
+                        className="flex-row items-center px-4 py-2.5 rounded-lg"
                     >
                         <View style={{ marginRight: 10 }}>
-                            <Icon source={item.icon} size={18} color="white" />
+                            <Icon source={item.icon} size={18} color={colors.sectionHeaderText} />
                         </View>
-                        {/* Yazı boyutu text-sm (14px) yapılarak küçültüldü */}
-                        <Text className="text-white text-sm font-medium">
+                        <Text className="text-sm font-medium" style={{ color: colors.sectionHeaderText }}>
                             {item.label}
                         </Text>
                     </TouchableOpacity>
@@ -90,9 +92,9 @@ const styles = StyleSheet.create({
 
     dropdown: {
         position: 'absolute',
-        top: 48, // Butonun hemen altı
+        top: 48,
         right: 0,
-        backgroundColor: '#1a1b25',
+        backgroundColor: 'transparent', // useTheme ile inline style ile override edilecek
         borderRadius: 14,
         paddingVertical: 6,
         paddingHorizontal: 4,

@@ -6,11 +6,12 @@ import StoreBookingContent from "../../components/store/storebooking";
 import { useGetAllNotificationsQuery } from "../../store/api";
 import { useAuth } from "../../hook/useAuth";
 import { AppointmentStatus, StoreSelectionType, UserType } from "../../types";
+import { useTheme } from "../../hook/useTheme";
 
 
 
 export default function StoreDetail() {
-
+    const { colors, isDark } = useTheme();
     const { storeId, mode, appointmentId } = useLocalSearchParams<{ storeId: string; mode?: string; appointmentId?: string }>();
     const { userType } = useAuth();
     const { data: notifications = [] } = useGetAllNotificationsQuery(undefined, {
@@ -72,13 +73,13 @@ export default function StoreDetail() {
     const isAddStoreMode = effectiveMode === "add-store";
 
     return (
-        <View className="flex-1 bg-[#151618]">
-            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-            <StoreBookingContent 
-                storeId={storeId} 
-                isCustomer={isCustomer} 
-                isFreeBarber={isFreeBarber} 
-                isBottomSheet={false} 
+        <View style={{ flex: 1, backgroundColor: colors.screenBg }}>
+            <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? "light-content" : "dark-content"} />
+            <StoreBookingContent
+                storeId={storeId}
+                isCustomer={isCustomer}
+                isFreeBarber={isFreeBarber}
+                isBottomSheet={false}
                 mode={isAddStoreMode ? "add-store" : undefined}
                 appointmentId={effectiveAppointmentId}
             />

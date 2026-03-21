@@ -12,6 +12,7 @@ import { UserType, BarberType, ImageOwnerType } from "../../types";
 import { getBarberTypeName } from "../../utils/store/barber-type";
 import { OwnerAvatar } from "../common/owneravatar";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 interface NotificationParticipantViewProps {
   payload: NotificationPayload;
@@ -35,6 +36,7 @@ export const NotificationParticipantView: React.FC<
   formatRating,
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const hasManualBarber =
     !!payload?.chair?.manuelBarberId || !!payload?.chair?.manuelBarberName;
 
@@ -55,7 +57,7 @@ export const NotificationParticipantView: React.FC<
               <Text className="text-[#9ca3af] text-xs">
                 {t("card.customer")}
               </Text>
-              <Text className="text-white text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                 {payload.customer?.displayName || t("card.customer")}
               </Text>
               {payload.customer?.customerNumber && (
@@ -89,7 +91,7 @@ export const NotificationParticipantView: React.FC<
                 <Text className="text-[#9ca3af] text-xs">
                   {t("labels.freeBarber")}
                 </Text>
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload.freeBarber?.displayName ||
                     t("labels.freeBarberDefaultName")}
                 </Text>
@@ -122,7 +124,7 @@ export const NotificationParticipantView: React.FC<
                 <Text className="text-[#9ca3af] text-xs">
                   {t("appointment.labels.storeBarber")}
                 </Text>
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload?.chair?.manuelBarberName}
                 </Text>
                 {payload?.chair?.manuelBarberType !== undefined && (
@@ -136,11 +138,14 @@ export const NotificationParticipantView: React.FC<
             </View>
           ) : (
             <View className="flex-row items-center">
-              <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
+              <View
+                className="w-12 h-12 rounded-full mr-2 items-center justify-center"
+                style={{ backgroundColor: colors.cardBg2 }}
+              >
                 <Icon source="seat" size={24} color="#6b7280" />
               </View>
               <View className="flex-1">
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload.chair?.chairName}
                 </Text>
               </View>
@@ -168,7 +173,7 @@ export const NotificationParticipantView: React.FC<
               <Text className="text-[#9ca3af] text-xs">
                 {t("labels.store")}
               </Text>
-              <Text className="text-white text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                 {payload.store.storeName}
               </Text>
               {payload.store.type !== undefined && (
@@ -211,7 +216,7 @@ export const NotificationParticipantView: React.FC<
               <Text className="text-[#9ca3af] text-xs">
                 {t("card.customer")}
               </Text>
-              <Text className="text-white text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                 {payload.customer?.displayName || t("card.customer")}
               </Text>
               {payload.customer?.customerNumber && (
@@ -251,7 +256,7 @@ export const NotificationParticipantView: React.FC<
               <Text className="text-[#9ca3af] text-xs">
                 {t("labels.store")}
               </Text>
-              <Text className="text-white text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                 {payload.store.storeName}
               </Text>
               {payload.store.type !== undefined && (
@@ -304,7 +309,7 @@ export const NotificationParticipantView: React.FC<
                 <Text className="text-[#9ca3af] text-xs">
                   {t("labels.freeBarber")}
                 </Text>
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload.freeBarber?.displayName ||
                     t("labels.freeBarberDefaultName")}
                 </Text>
@@ -345,7 +350,7 @@ export const NotificationParticipantView: React.FC<
                 <Text className="text-[#9ca3af] text-xs">
                   {t("appointment.labels.storeBarber")}
                 </Text>
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload?.chair?.manuelBarberName}
                 </Text>
                 {payload?.chair?.manuelBarberType !== undefined && (
@@ -367,11 +372,14 @@ export const NotificationParticipantView: React.FC<
             </View>
           ) : (
             <View className="flex-row items-center">
-              <View className="w-12 h-12 rounded-full bg-[#2a2c30] mr-2 items-center justify-center">
+              <View
+                className="w-12 h-12 rounded-full mr-2 items-center justify-center"
+                style={{ backgroundColor: colors.cardBg2 }}
+              >
                 <Icon source="seat" size={24} color="#6b7280" />
               </View>
               <View className="flex-1">
-                <Text className="text-white text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>
                   {payload.chair?.chairName}
                 </Text>
               </View>

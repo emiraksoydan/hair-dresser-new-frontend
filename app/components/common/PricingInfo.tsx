@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from './Text';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 
 interface PricingInfoProps {
   pricingType: string | number;
@@ -18,6 +19,7 @@ export const PricingInfo: React.FC<PricingInfoProps> = ({
   className = '',
 }) => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   const getPricingText = () => {
     // Handle both string and enum number types
@@ -41,8 +43,8 @@ export const PricingInfo: React.FC<PricingInfoProps> = ({
   if (!text) return null;
 
   return (
-    <View className={`bg-[#1e293b] mt-2 px-3 py-2 rounded-lg ${className}`}>
-      <Text className='text-[#d1d5db] mr-1 text-sm'>
+    <View style={{ backgroundColor: colors.cardBg2 }} className={`mt-2 px-3 py-2 rounded-lg ${className}`}>
+      <Text style={{ color: colors.sectionHeaderText }} className='mr-1 text-sm'>
         {text}
       </Text>
     </View>

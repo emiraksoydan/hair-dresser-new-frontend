@@ -35,8 +35,8 @@ export const CardImage: React.FC<CardImageProps> = ({
   const imageHeight = height || (isList ? 250 : 112);
   const emptyImage = require('../../../assets/images/empty.png');
 
-  // If we have multiple images, use carousel
-  if (images && images.length > 0) {
+  // List modda birden fazla resim varsa carousel göster
+  if (images && images.length > 1 && isList) {
     return (
       <View className={`relative ${className}`}>
         <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
@@ -44,10 +44,26 @@ export const CardImage: React.FC<CardImageProps> = ({
             images={images}
             width={width}
             height={imageHeight}
-            autoPlay={autoPlay}
-            mode="default"
             borderRadiusClass={borderRadiusClass}
             showPagination={showPagination}
+            autoPlay={autoPlay}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Tek resim veya grid görünümde ilk resmi statik göster
+  if (images && images.length > 0) {
+    return (
+      <View className={`relative ${className}`}>
+        <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+          <Image
+            defaultSource={emptyImage}
+            className={`${borderRadiusClass} mb-0`}
+            style={{ width, height: imageHeight }}
+            source={{ uri: images[0].imageUrl }}
+            resizeMode="cover"
           />
         </TouchableOpacity>
       </View>

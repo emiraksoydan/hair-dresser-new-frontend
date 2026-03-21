@@ -69,6 +69,7 @@ import { ManuelBarberItem } from "./ManuelBarberItem";
 import { useOptimizedChairOptions } from "../../hooks/useOptimizedFieldArray";
 import { useAuth } from "../../hook/useAuth";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 import { MESSAGES } from "../../constants/messages";
 import { ensureLocationGateWithUI } from "../location/location-gate";
 import { LocationStatus } from "../../types";
@@ -412,6 +413,7 @@ const FormStoreAdd = ({
 
   const { userId } = useAuth();
   const { t, currentLanguage } = useLanguage();
+  const { colors } = useTheme();
 
   const stepLabels = useMemo(() => [
     t("form.stepStoreInfo"),
@@ -610,18 +612,6 @@ const FormStoreAdd = ({
     const hasUploads =
       (data.storeImages?.length ?? 0) > 0 ||
       (data.barbers ?? []).some((b) => b.avatar?.uri);
-    let existingStoreIds = new Set<string>();
-    let hasExistingSnapshot = false;
-    if (hasUploads) {
-      const existingRes = await triggerGetMineStores(undefined, true);
-      if (!("error" in existingRes) && existingRes.data) {
-        existingStoreIds = new Set((existingRes.data ?? []).map((s) => s.id));
-        hasExistingSnapshot = true;
-      } else {
-        existingStoreIds = new Set<string>();
-        hasExistingSnapshot = false;
-      }
-    }
 
     // Tax document image upload (tekli resim)
     let taxDocumentImageId: string | undefined;
@@ -746,66 +736,41 @@ const FormStoreAdd = ({
     // Store oluşturma başarılı, şimdi resim işlemleri
     let uploadError: string | null = null;
     if (hasUploads) {
-      const latestStoresRes = await triggerGetMineStores();
-      if ("error" in latestStoresRes || !latestStoresRes.data) {
+      const createdStoreId = storeResult.data?.data;
+      if (!createdStoreId) {
         uploadError = MESSAGES.FORM.STORE_ID_NOT_FOUND;
       } else {
-        const latestStores = latestStoresRes.data;
-        const signatureMatches = latestStores.filter((store) => {
-          const sameName = store.storeName === data.storeName;
-          const sameAddress =
-            (store.addressDescription ?? "") ===
-            data.location.addressDescription;
-          const latDiff = Math.abs(
-            (store.latitude ?? 0) - (data.location.latitude ?? 0),
-          );
-          const lonDiff = Math.abs(
-            (store.longitude ?? 0) - (data.location.longitude ?? 0),
-          );
-          return (
-            sameName && sameAddress && latDiff <= 0.0005 && lonDiff <= 0.0005
-          );
-        });
-
-        const createdStore = hasExistingSnapshot
-          ? (latestStores.find((s) => !existingStoreIds.has(s.id)) ??
-            signatureMatches[0] ??
-            latestStores[latestStores.length - 1])
-          : (signatureMatches[0] ?? latestStores[latestStores.length - 1]);
-
-        if (!createdStore?.id) {
-          uploadError = MESSAGES.FORM.STORE_ID_NOT_FOUND;
-        } else {
-          // Store resimleri yükle
-          if ((data.storeImages ?? []).length > 0 && !uploadError) {
-            const formData = new FormData();
-            (data.storeImages ?? []).forEach((img) => {
-              formData.append("files", {
-                uri: img.uri,
-                name: img.name ?? "photo.jpg",
-                type: img.type ?? "image/jpeg",
-              } as any);
-            });
-            formData.append("ownerType", String(ImageOwnerType.Store));
-            formData.append("ownerId", createdStore.id);
-            const uploadRes = await uploadMultipleImages(formData);
-            if ("error" in uploadRes) {
-              uploadError =
-                getErrorMessage(uploadRes.error) ||
-                MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR;
-            } else if (!uploadRes.data?.success) {
-              uploadError =
-                uploadRes.data?.message ||
-                MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR;
-            }
+        // Store resimleri yükle
+        if ((data.storeImages ?? []).length > 0 && !uploadError) {
+          const formData = new FormData();
+          (data.storeImages ?? []).forEach((img) => {
+            formData.append("files", {
+              uri: img.uri,
+              name: img.name ?? "photo.jpg",
+              type: img.type ?? "image/jpeg",
+            } as any);
+          });
+          formData.append("ownerType", String(ImageOwnerType.Store));
+          formData.append("ownerId", createdStoreId);
+          const uploadRes = await uploadMultipleImages(formData);
+          if ("error" in uploadRes) {
+            uploadError =
+              getErrorMessage(uploadRes.error) ||
+              MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR;
+          } else if (!uploadRes.data?.success) {
+            uploadError =
+              uploadRes.data?.message ||
+              MESSAGES.FORM.STORE_IMAGES_UPLOAD_ERROR;
           }
+        }
 
-          // Berber resimleri yükle
-          if (!uploadError) {
-            const barbersWithImages = (data.barbers ?? []).filter(
-              (b) => b.avatar?.uri,
-            );
-            for (const barber of barbersWithImages) {
+        // Berber resimleri paralel yükle
+        if (!uploadError) {
+          const barbersWithImages = (data.barbers ?? []).filter(
+            (b) => b.avatar?.uri,
+          );
+          const barberUploadResults = await Promise.all(
+            barbersWithImages.map(async (barber) => {
               const formData = new FormData();
               formData.append("file", {
                 uri: barber.avatar!.uri,
@@ -814,19 +779,21 @@ const FormStoreAdd = ({
               } as any);
               formData.append("ownerType", String(ImageOwnerType.ManuelBarber));
               formData.append("ownerId", barber.id);
-              const uploadRes = await uploadImage({ data: formData });
-              if ("error" in uploadRes) {
-                uploadError =
-                  getErrorMessage(uploadRes.error) ||
-                  MESSAGES.FORM.BARBER_IMAGE_UPLOAD_ERROR;
-                break;
-              }
-              if (!uploadRes.data?.success) {
-                uploadError =
-                  uploadRes.data?.message ||
-                  MESSAGES.FORM.BARBER_IMAGE_UPLOAD_ERROR;
-                break;
-              }
+              return uploadImage({ data: formData });
+            }),
+          );
+          for (const uploadRes of barberUploadResults) {
+            if ("error" in uploadRes) {
+              uploadError =
+                getErrorMessage(uploadRes.error) ||
+                MESSAGES.FORM.BARBER_IMAGE_UPLOAD_ERROR;
+              break;
+            }
+            if (!uploadRes.data?.success) {
+              uploadError =
+                uploadRes.data?.message ||
+                MESSAGES.FORM.BARBER_IMAGE_UPLOAD_ERROR;
+              break;
             }
           }
         }
@@ -1186,12 +1153,12 @@ const FormStoreAdd = ({
     >
       <View className="h-full">
         <View className="flex-row justify-between items-center px-2">
-          <Text className="text-white flex-1 font-century-gothic text-2xl">
+          <Text className="text-white flex-1 font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
             İşletme Ekle
           </Text>
-          <IconButton onPress={onClose} icon="close" iconColor="white" />
+          <IconButton onPress={onClose} icon="close" iconColor={colors.sectionHeaderText} />
         </View>
-        <Divider style={{ borderWidth: 0.1, backgroundColor: "gray" }} />
+        <Divider style={{ borderWidth: 0.1, backgroundColor: colors.borderColor }} />
         <StepFormIndicator
           steps={steps}
           currentStep={currentStep}
@@ -1211,7 +1178,7 @@ const FormStoreAdd = ({
           <Animated.View style={{ flex: 1, transform: [{ translateX: stepSlideAnim }] }}>
             {currentStep === 0 && (
               <>
-                <Text className="text-white text-xl mt-4 px-2">
+                <Text className="text-white text-xl mt-4 px-2" style={{ color: colors.sectionHeaderText }}>
                   {t("form.storeImagesTitle")}
                 </Text>
                 <Controller
@@ -1248,8 +1215,8 @@ const FormStoreAdd = ({
                           <TouchableOpacity
                             onPress={pickMultipleImages}
                             disabled={isImagePickerLoading}
-                            className="bg-gray-800 rounded-xl border border-gray-700 items-center justify-center"
-                            style={{ width: 200, height: 150 }}
+                            className="rounded-xl items-center justify-center"
+                            style={{ width: 200, height: 150, backgroundColor: colors.cardBg, borderColor: colors.borderColor, borderWidth: 1 }}
                             activeOpacity={0.85}
                           >
                             {isImagePickerLoading ? (
@@ -1268,7 +1235,7 @@ const FormStoreAdd = ({
                     </View>
                   )}
                 />
-                <Text className="text-white text-xl mt-6 px-2">
+                <Text className="text-white text-xl mt-6 px-2" style={{ color: colors.sectionHeaderText }}>
                   İşletme Bilgileri
                 </Text>
                 <View className="mt-2 px-2">
@@ -1296,23 +1263,23 @@ const FormStoreAdd = ({
                             editable={false}
                             dense
                             pointerEvents="none"
-                            textColor="white"
+                            textColor={colors.sectionHeaderText}
                             outlineColor={
-                              errors.taxDocumentImage ? "#b00020" : "#444"
+                              errors.taxDocumentImage ? "#b00020" : colors.borderColor
                             }
-                            right={<TextInput.Icon icon="image" color="white" />}
+                            right={<TextInput.Icon icon="image" color={colors.sectionHeaderText} />}
                             theme={{
                               roundness: 10,
-                              colors: { onSurfaceVariant: "gray", primary: "white" },
+                              colors: { onSurfaceVariant: colors.textSecondary, primary: colors.sectionHeaderText },
                             }}
-                            style={{ backgroundColor: "#1F2937", borderWidth: 0 }}
+                            style={{ backgroundColor: colors.cardBg, borderWidth: 0 }}
                           />
                         </TouchableOpacity>
                         <HelperText type="error" visible={!!errors.taxDocumentImage} style={{ fontFamily: 'CenturyGothic' }}>
                           {taxDocErrorText}
                         </HelperText>
                         {value?.uri && (
-                          <View className="mt-0 w-full rounded-xl overflow-hidden bg-gray-800 ">
+                          <View className="mt-0 w-full rounded-xl overflow-hidden" style={{ backgroundColor: colors.cardBg }}>
                             <Image
                               source={{ uri: value.uri }}
                               style={{ width: "100%", height: 200 }}
@@ -1337,17 +1304,17 @@ const FormStoreAdd = ({
                               value={value}
                               onChangeText={onChange}
                               onBlur={onBlur}
-                              textColor="white"
-                              outlineColor={errors.storeName ? "#b00020" : "#444"}
+                              textColor={colors.sectionHeaderText}
+                              outlineColor={errors.storeName ? "#b00020" : colors.borderColor}
                               theme={{
                                 roundness: 10,
                                 colors: {
-                                  onSurfaceVariant: "gray",
-                                  primary: "white",
+                                  onSurfaceVariant: colors.textSecondary,
+                                  primary: colors.sectionHeaderText,
                                 },
                               }}
                               style={{
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 0,
                                 marginTop: -6,
                               }}
@@ -1381,26 +1348,26 @@ const FormStoreAdd = ({
                                 height: 42,
                                 borderRadius: 10,
                                 paddingHorizontal: 12,
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 1,
-                                borderColor: errors.type ? "#b00020" : "#444",
+                                borderColor: errors.type ? "#b00020" : colors.borderColor,
                                 justifyContent: "center",
                                 marginTop: 0,
                               }}
                               placeholderStyle={{
-                                color: "gray",
+                                color: colors.textSecondary,
                                 fontFamily: "CenturyGothic",
                               }}
                               selectedTextStyle={{
-                                color: "white",
+                                color: colors.sectionHeaderText,
                                 fontFamily: "CenturyGothic",
                               }}
                               itemTextStyle={{
-                                color: "white",
+                                color: colors.sectionHeaderText,
                                 fontFamily: "CenturyGothic",
                               }}
                               containerStyle={{
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 0,
                                 borderRadius: 10,
                                 overflow: "hidden",
@@ -1431,7 +1398,7 @@ const FormStoreAdd = ({
                     </Text>
                   ) : (
                     <>
-                      <Text className="text-white text-xl mb-2">
+                      <Text className="text-white text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                         {t("form.mainHeadings")}
                       </Text>
                       <Controller
@@ -1468,7 +1435,7 @@ const FormStoreAdd = ({
                   ) : (
                     <>
                       <View>
-                        <Text className="text-white text-xl mb-2">
+                        <Text className="text-white text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                           {t("form.subHeadings")}
                         </Text>
                         <Controller
@@ -1506,7 +1473,7 @@ const FormStoreAdd = ({
                   ) : (
                     <>
                       <View>
-                        <Text className="text-white text-xl mb-2">
+                        <Text className="text-white text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
                           {t("form.servicesTitle")} ({selectedType})
                         </Text>
                         <Controller
@@ -1547,7 +1514,7 @@ const FormStoreAdd = ({
                       <View
                         className="mt-0 mx-0  rounded-xl"
                         style={{
-                          backgroundColor: "#1F2937",
+                          backgroundColor: colors.cardBg,
                           paddingVertical: 6,
                           paddingHorizontal: 16,
                         }}
@@ -1559,7 +1526,7 @@ const FormStoreAdd = ({
                           return (
                             <View key={categoryId}>
                               <View className="flex-row items-center gap-2 mb-0">
-                                <Text className="text-white w-[35%]">{label} :</Text>
+                                <Text className="text-white w-[35%]" style={{ color: colors.sectionHeaderText }}>{label} :</Text>
                                 <View className="w-[65%]">
                                   <Controller
                                     control={control}
@@ -1591,10 +1558,10 @@ const FormStoreAdd = ({
                                           };
                                           onChange(toTR(value ?? ""));
                                         }}
-                                        textColor="white"
-                                        outlineColor={error ? "#b00020" : "#444"}
+                                        textColor={colors.sectionHeaderText}
+                                        outlineColor={error ? "#b00020" : colors.borderColor}
                                         style={{
-                                          backgroundColor: "#1F2937",
+                                          backgroundColor: colors.cardBg,
                                           borderWidth: 0,
                                           marginTop: 20,
                                           height: 35,
@@ -1602,8 +1569,8 @@ const FormStoreAdd = ({
                                         theme={{
                                           roundness: 10,
                                           colors: {
-                                            onSurfaceVariant: "gray",
-                                            primary: "white",
+                                            onSurfaceVariant: colors.textSecondary,
+                                            primary: colors.sectionHeaderText,
                                           },
                                         }}
                                       />
@@ -1629,7 +1596,7 @@ const FormStoreAdd = ({
             {currentStep === 5 && (
               <>
                 <View className="mt-2 mx-0 flex-row items-center px-2">
-                  <Text className="text-white text-xl flex-1">
+                  <Text className="text-white text-xl flex-1" style={{ color: colors.sectionHeaderText }}>
                     {t("form.workingBarbersCount")} : {barberFields.length}{" "}
                   </Text>
                   <Button
@@ -1643,7 +1610,7 @@ const FormStoreAdd = ({
                   </Button>
                 </View>
                 {barberFields.length > 0 && (
-                  <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4 pb-2">
+                  <View className="rounded-xl mx-2 px-3 pt-4 pb-2" style={{ backgroundColor: colors.cardBg }}>
                     {barberFields.map((item, index) => (
                       <ManuelBarberItem
                         key={item._key}
@@ -1671,7 +1638,7 @@ const FormStoreAdd = ({
                 )}
 
                 <View className="mt-4 mx-0 px-2 flex-row items-center">
-                  <Text className="text-white text-xl flex-1">
+                  <Text className="text-white text-xl flex-1" style={{ color: colors.sectionHeaderText }}>
                     Koltuk Sayısı : {chairFields.length}
                   </Text>
                   <Button
@@ -1686,7 +1653,7 @@ const FormStoreAdd = ({
                 </View>
 
                 {chairFields.length > 0 && (
-                  <View className="bg-[#1F2937] rounded-xl mx-2 px-3 pt-4 pb-2">
+                  <View className="rounded-xl mx-2 px-3 pt-4 pb-2" style={{ backgroundColor: colors.cardBg }}>
                     {chairFields.map((item, index) => (
                       <ChairItem
                         key={item._key}
@@ -1726,10 +1693,10 @@ const FormStoreAdd = ({
             {currentStep === 6 && (
               <>
                 <View className="px-2">
-                  <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl">
+                  <Text className="text-white font-century-gothic ml-0 pt-4 mt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("form.chairPricing")}
                   </Text>
-                  <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-3 py-3">
+                  <View className="mt-2 mx-0 rounded-xl px-3 py-3" style={{ backgroundColor: colors.cardBg }}>
                     <Controller
                       control={control}
                       name="pricingType.mode"
@@ -1748,7 +1715,7 @@ const FormStoreAdd = ({
                                   : "border-gray-400"
                                   }`}
                               />
-                              <Text className="text-white">{opt.label}</Text>
+                              <Text className="text-white" style={{ color: colors.sectionHeaderText }}>{opt.label}</Text>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -1782,19 +1749,19 @@ const FormStoreAdd = ({
                               }}
                               mode="outlined"
                               label={t("form.rentPriceHourly")}
-                              textColor="white"
+                              textColor={colors.sectionHeaderText}
                               outlineColor={
-                                errors.pricingType?.rent ? "#b00020" : "#444"
+                                errors.pricingType?.rent ? "#b00020" : colors.borderColor
                               }
                               theme={{
                                 roundness: 10,
                                 colors: {
-                                  onSurfaceVariant: "gray",
-                                  primary: "white",
+                                  onSurfaceVariant: colors.textSecondary,
+                                  primary: colors.sectionHeaderText,
                                 },
                               }}
                               style={{
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 0,
                                 marginTop: 8,
                               }}
@@ -1841,30 +1808,30 @@ const FormStoreAdd = ({
                                 paddingHorizontal: 12,
                                 paddingVertical: 8,
                                 borderRadius: 10,
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 1,
                                 borderColor: errors.pricingType?.percent
                                   ? "#b00020"
-                                  : "#444",
+                                  : colors.borderColor,
                                 marginTop: 12,
                                 height: 42,
                               }}
                               placeholderStyle={{
-                                color: "gray",
+                                color: colors.textSecondary,
                                 fontFamily: "CenturyGothic",
                               }}
                               selectedTextStyle={{
-                                color: "white",
+                                color: colors.sectionHeaderText,
                                 fontFamily: "CenturyGothic",
                               }}
                               itemTextStyle={{
-                                color: "white",
+                                color: colors.sectionHeaderText,
                                 fontFamily: "CenturyGothic",
                               }}
                               containerStyle={{
-                                backgroundColor: "#1F2937",
+                                backgroundColor: colors.cardBg,
                                 borderWidth: 1,
-                                borderColor: "#444",
+                                borderColor: colors.borderColor,
                                 borderRadius: 10,
                                 overflow: "hidden",
                               }}
@@ -1887,10 +1854,10 @@ const FormStoreAdd = ({
             {currentStep === 7 && (
               <>
                 <View className="px-2">
-                  <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                  <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("form.workingHours")}
                   </Text>
-                  <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                  <View className="mt-2 mx-0 rounded-xl px-2 py-3" style={{ backgroundColor: colors.cardBg }}>
                     <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
                       - {t("form.workingHoursInfo")}
                     </Text>
@@ -1912,7 +1879,7 @@ const FormStoreAdd = ({
                                 }`}
                               activeOpacity={0.8}
                             >
-                              <Text className="text-white text-xs">{d.label}</Text>
+                              <Text className="text-white text-xs" style={{ color: colors.sectionHeaderText }}>{d.label}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -1927,9 +1894,9 @@ const FormStoreAdd = ({
                           dayRow?.isClosed || (holidayDays ?? []).includes(activeDay);
                         const dayErr = errors.workingHours?.[idx];
                         return (
-                          <View className="mt-0 bg-[#1F2937] rounded-xl p-0">
+                          <View className="mt-0 rounded-xl p-0" style={{ backgroundColor: colors.cardBg }}>
                             <View className="flex-row items-center mt-6">
-                              <Text className="text-white text-sm">
+                              <Text className="text-white text-sm" style={{ color: colors.sectionHeaderText }}>
                                 Başlangıç saati:
                               </Text>
                               <DateTimePicker
@@ -1955,7 +1922,7 @@ const FormStoreAdd = ({
                                   ]);
                                 }}
                               />
-                              <Text className="text-white text-sm ml-5">
+                              <Text className="text-white text-sm ml-5" style={{ color: colors.sectionHeaderText }}>
                                 Bitiş saati:
                               </Text>
                               <DateTimePicker
@@ -1993,7 +1960,7 @@ const FormStoreAdd = ({
                           </View>
                         );
                       })()}
-                      <Text className="text-white text-xl mt-2">
+                      <Text className="text-white text-xl mt-2" style={{ color: colors.sectionHeaderText }}>
                         {t("form.holidayDays")}
                       </Text>
                       <Controller
@@ -2025,10 +1992,10 @@ const FormStoreAdd = ({
             {currentStep === 8 && (
               <>
                 <View className="px-2">
-                  <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl">
+                  <Text className="text-white font-century-gothic ml-0 pt-4 pb-2 text-xl" style={{ color: colors.sectionHeaderText }}>
                     {t("form.setAddress")}
                   </Text>
-                  <View className="mt-2 mx-0 bg-[#1F2937] rounded-xl px-2 py-3">
+                  <View className="mt-2 mx-0 rounded-xl px-2 py-3" style={{ backgroundColor: colors.cardBg }}>
                     <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
                       - {t("form.addressInstruction")}
                     </Text>
@@ -2075,16 +2042,16 @@ const FormStoreAdd = ({
                             onBlur={onBlur}
                             multiline
                             readOnly
-                            textColor="white"
+                            textColor={colors.sectionHeaderText}
                             outlineColor={
-                              errors.location?.addressDescription ? "#b00020" : "#444"
+                              errors.location?.addressDescription ? "#b00020" : colors.borderColor
                             }
                             theme={{
                               roundness: 10,
-                              colors: { onSurfaceVariant: "gray", primary: "white" },
+                              colors: { onSurfaceVariant: colors.textSecondary, primary: colors.sectionHeaderText },
                             }}
                             style={{
-                              backgroundColor: "#1F2937",
+                              backgroundColor: colors.cardBg,
                               borderWidth: 0,
                               marginTop: 0,
                             }}

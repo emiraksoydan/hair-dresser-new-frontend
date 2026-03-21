@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { Text } from './Text';
+import { useTheme } from '../../hook/useTheme';
 
 interface FilterChipProps {
     itemKey: any
@@ -15,13 +16,15 @@ interface FilterChipProps {
 }
 
 const FilterChip: React.FC<FilterChipProps> = ({ itemKey, selected, className = 'rounded-3xl border-[1.5px] px-3 py-2 flex-row flex-1', fontSize = 12, isDisabled = false, onPress, children, icon }) => {
+    const { colors } = useTheme();
+
     return (
         <TouchableOpacity
             key={itemKey}
             disabled={isDisabled}
             onPress={onPress}
             style={{
-                backgroundColor: selected ? '#ffb900' : '#1f2937',
+                backgroundColor: selected ? '#ffb900' : colors.cardBg,
                 borderColor: selected ? '#ffb900' : '#fb9400'
             }}
             className={`items-center justify-center   ${className}`}
@@ -30,7 +33,7 @@ const FilterChip: React.FC<FilterChipProps> = ({ itemKey, selected, className = 
             {typeof children === 'string' || typeof children === 'number' ? (
                 <Text
                     style={{
-                        color: selected ? 'white' : '#d1d5db',
+                        color: selected ? 'white' : colors.sectionHeaderText,
                         fontSize: fontSize,
                     }}
                 >

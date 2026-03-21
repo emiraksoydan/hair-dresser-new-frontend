@@ -11,6 +11,7 @@ import { RatingSection } from '../common/RatingSection';
 import { StatusBadge } from '../common/StatusBadge';
 import { ServiceOfferingsList } from '../common/ServiceOfferingsList';
 import { getBarberTypeLabel } from '../../utils/card-helpers';
+import { useTheme } from '../../hook/useTheme';
 
 type Props = {
     store: BarberStoreMineDto;
@@ -24,6 +25,7 @@ type Props = {
 
 const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, onPressUpdate, onPressRatings, showImageAnimation = true }) => {
     const carouselWidth = Math.max(0, cardWidthStore - 20);
+    const { colors } = useTheme();
 
     const { isFavorite, favoriteCount, isLoading, toggleFavorite } = useFavoriteToggle({
         targetId: store.id,
@@ -46,7 +48,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
             style={{ width: cardWidthStore, overflow: 'hidden' }}
             className="mt-4"
         >
-            <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
+            <View style={{ backgroundColor: colors.cardBg }} className={` ${!isList ? "pl-4 py-2 rounded-lg" : "rounded-xl p-3"
                 }`}>
                 {!isList && (
                     <View className='flex-row justify-end px-2 pb-0'>
@@ -106,7 +108,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
 
                         {!isList && (
                             <View className="flex-row justify-between pr-2">
-                                <Text className='text-base text-gray-500'>{getBarberTypeLabel(store.type)}</Text>
+                                <Text style={{ color: colors.textSecondary }} className='text-base'>{getBarberTypeLabel(store.type)}</Text>
                                 <FavoriteButton
                                     isFavorite={isFavorite}
                                     favoriteCount={favoriteCount}

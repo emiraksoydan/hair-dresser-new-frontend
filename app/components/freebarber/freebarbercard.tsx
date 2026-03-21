@@ -15,6 +15,7 @@ import { ServiceOfferingsList } from "../common/ServiceOfferingsList";
 import { TypeLabel } from "../common/TypeLabel";
 import { getShortBarberTypeLabel } from "../../utils/card-helpers";
 import { useAlert } from "../../hook/useAlert";
+import { useTheme } from "../../hook/useTheme";
 
 type Props = {
   freeBarber: FreeBarGetDto;
@@ -45,6 +46,7 @@ const FreeBarberCard: React.FC<Props> = ({
   storeId,
   showImageAnimation = true,
 }) => {
+  const { colors } = useTheme();
   const carouselWidth = Math.max(0, cardWidthFreeBarber - 20);
   const { t } = useLanguage();
   const { alertSuccess, alertError, confirm } = useAlert();
@@ -153,11 +155,13 @@ const FreeBarberCard: React.FC<Props> = ({
   ]);
   return (
     <View
-      style={{ width: cardWidthFreeBarber, overflow: "hidden" }}
+      style={{ width: cardWidthFreeBarber, overflow: "hidden", borderRadius: 12 }}
       className="mt-4"
     >
-      <View className={` ${!isList ? "pl-4 py-2 rounded-lg bg-[#1a1b25]" : "bg-[#1a1b25] rounded-xl p-3"
-        }`}>
+      <View
+        className={` ${!isList ? "pl-4 py-2 rounded-lg" : "rounded-xl p-3"}`}
+        style={{ backgroundColor: colors.cardBg }}
+      >
         {!isList && (
           <View className="flex-row justify-end items-center gap-1 px-2 pb-2">
             {hasBeautySalonCertificate && (
@@ -171,6 +175,17 @@ const FreeBarberCard: React.FC<Props> = ({
               type={isAvailable ? "available" : "busy"}
               isList={false}
             />
+            {mode === "barbershop" && isAvailable && !hasCalled && (
+              <TouchableOpacity
+                onPress={handleCallFreeBarber}
+                disabled={isCalling}
+                className="bg-[#ffb900] flex-row items-center px-2 py-0.5 rounded-full"
+              >
+                <Text className="text-white text-xs font-century-gothic-sans-semibold">
+                  {isCalling ? t("card.calling") : t("card.callBarber")}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         <View className={isList ? "" : "flex flex-row"}>
@@ -208,10 +223,9 @@ const FreeBarberCard: React.FC<Props> = ({
                   <TouchableOpacity
                     onPress={handleCallFreeBarber}
                     disabled={isCalling}
-                    className="bg-[#f05e23] flex-row items-center px-2 py-2 rounded-full shadow-sm"
-                    style={{ elevation: 5 }}
+                    className="bg-[#ffb900] flex-row items-center px-2 py-0.5 rounded-full"
                   >
-                    <Text className="text-white text-sm font-century-gothic-sans-semibold ml-1">
+                    <Text className="text-white text-xs font-century-gothic-sans-semibold">
                       {isCalling ? t("card.calling") : t("card.callBarber")}
                     </Text>
                   </TouchableOpacity>
@@ -242,7 +256,7 @@ const FreeBarberCard: React.FC<Props> = ({
             </View>
             {!isList && (
               <View className="flex-row justify-between pr-2">
-                <Text className="text-base text-gray-500">
+                <Text style={{ color: colors.textSecondary }} className="text-base">
                   {getShortBarberTypeLabel(freeBarber.type)}
                 </Text>
                 <FavoriteButton

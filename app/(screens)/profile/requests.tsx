@@ -9,11 +9,13 @@ import { useAlert } from "../../hook/useAlert";
 import { LottieViewComponent } from "../../components/common/lottieview";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../hook/useTheme";
 
 export default function RequestsPage() {
     const router = useRouter();
     const { t } = useLanguage();
     const { showSuccess, showError, showConfirm } = useAlert();
+    const { colors } = useTheme();
 
     const [showForm, setShowForm] = useState(false);
     const [title, setTitle] = useState("");
@@ -79,10 +81,10 @@ export default function RequestsPage() {
 
     const renderRequestItem = ({ item }: { item: RequestGetDto }) => {
         return (
-            <View className="mb-3 rounded-xl bg-[#1e2024] p-4">
+            <View className="mb-3 rounded-xl p-4" style={{ backgroundColor: colors.cardBg2 }}>
                 <View className="flex-row items-start justify-between">
                     <View className="flex-1">
-                        <Text className="text-sm font-semibold text-white">{item.requestTitle}</Text>
+                        <Text className="text-sm font-semibold" style={{ color: colors.sectionHeaderText }}>{item.requestTitle}</Text>
                         <Text className="mt-0.5 text-xs text-gray-500">{formatDateTime(item.createdAt)}</Text>
                     </View>
                     <View className={`ml-2 rounded-full px-2 py-0.5 ${item.isProcessed ? "bg-green-900" : "bg-yellow-900"}`}>
@@ -98,7 +100,7 @@ export default function RequestsPage() {
                         <Icon source="delete-outline" size={18} color="#ef4444" />
                     </TouchableOpacity>
                 </View>
-                <View className="mt-3 rounded-lg bg-[#252830] p-3">
+                <View className="mt-3 rounded-lg p-3" style={{ backgroundColor: colors.cardBg3 }}>
                     <Text className="text-sm text-gray-300">{item.requestMessage}</Text>
                 </View>
             </View>
@@ -106,13 +108,16 @@ export default function RequestsPage() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#151618]" edges={["top"]}>
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-800">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.screenBg }} edges={["top"]}>
+            <View
+                className="flex-row items-center justify-between px-4 py-3"
+                style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}
+            >
                 <View className="flex-row items-center">
                     <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Icon source="chevron-left" size={28} color="white" />
+                        <Icon source="chevron-left" size={28} color={colors.sectionHeaderText} />
                     </TouchableOpacity>
-                    <Text className="text-lg font-bold text-white ml-2">
+                    <Text className="text-lg font-bold ml-2" style={{ color: colors.sectionHeaderText }}>
                         {t("profile.myRequests")}
                     </Text>
                 </View>
@@ -139,7 +144,11 @@ export default function RequestsPage() {
                                 placeholder={t("profile.titlePlaceholder")}
                                 placeholderTextColor="#6b7280"
                                 maxLength={200}
-                                className="rounded-lg bg-[#1e2024] p-3 text-white"
+                                className="rounded-lg p-3"
+                                style={{
+                                    backgroundColor: colors.cardBg2,
+                                    color: colors.sectionHeaderText,
+                                }}
                             />
                         </View>
                         <View className="mb-4 flex-1">
@@ -153,7 +162,11 @@ export default function RequestsPage() {
                                 numberOfLines={6}
                                 maxLength={2000}
                                 textAlignVertical="top"
-                                className="min-h-[120px] flex-1 rounded-lg bg-[#1e2024] p-3 text-white"
+                                className="min-h-[120px] flex-1 rounded-lg p-3"
+                                style={{
+                                    backgroundColor: colors.cardBg2,
+                                    color: colors.sectionHeaderText,
+                                }}
                             />
                         </View>
                         <TouchableOpacity

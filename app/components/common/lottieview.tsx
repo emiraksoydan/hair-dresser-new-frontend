@@ -3,6 +3,7 @@ import { View, StyleProp, ViewStyle, TouchableOpacity } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { MotiText } from 'moti';
 import { useLanguage } from '../../hook/useLanguage';
+import { useTheme } from '../../hook/useTheme';
 import { Text } from './Text';
 
 type EmptyStateProps = {
@@ -26,6 +27,7 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
     animationKey,
 }) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const defaultMessage = message || t('empty.noBarbersNearby');
 
     // Stable key for animation - prevents reset on parent re-renders
@@ -53,8 +55,8 @@ export const LottieViewComponent: React.FC<EmptyStateProps> = ({
                     repeat: Infinity,
                     repeatReverse: true,
                 }}
-                className="mt-2 text-white text-base text-center px-4"
-                style={{ fontFamily: 'CenturyGothic' }}
+                className="mt-2 text-base text-center px-4"
+                style={{ fontFamily: 'CenturyGothic', color: colors.sectionHeaderText }}
                 numberOfLines={3}
             >
                 {defaultMessage}

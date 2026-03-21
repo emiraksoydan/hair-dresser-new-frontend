@@ -12,6 +12,7 @@ import { getErrorMessage } from "../../utils/errorHandler";
 import { FreeBarberPanelDto } from "../../types";
 import { useTrackFreeBarberLocation } from "../../hook/useTrackFreeBarberLocation";
 import { useLanguage } from "../../hook/useLanguage";
+import { useTheme } from "../../hook/useTheme";
 
 interface Props {
   isList: boolean;
@@ -53,6 +54,7 @@ export const FreeBarberPanelSection = memo(
     onRetry,
   }: Props) => {
     const { t } = useLanguage();
+    const { colors } = useTheme();
     const [expandedMineStore, setExpandedMineStore] = useState(true);
     const hasMineFreeBarber = !isLoading && freeBarber?.fullName != null;
     const cardWidthFreeBarber = useMemo(
@@ -80,7 +82,7 @@ export const FreeBarberPanelSection = memo(
       <>
         <View className="flex flex-row justify-between items-center mt-4">
           <View className="flex-row items-center gap-2">
-            <Text className="font-century-gothic-sans-regular text-xl text-white">
+            <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-sans-regular text-xl">
               {t("panel.myPanel")}
             </Text>
             {hasMineFreeBarber && isTracking && (
@@ -106,7 +108,7 @@ export const FreeBarberPanelSection = memo(
             ))}
           </View>
         ) : !hasMineFreeBarber ? (
-          <View className="bg-[#1a1b25] rounded-xl mt-2">
+          <View style={{ backgroundColor: colors.cardBg }} className="rounded-xl mt-2">
             <LottieViewComponent message={t("empty.noPanelAdded")} />
             <Button
               style={{ marginTop: -10, marginBottom: 10, marginHorizontal: 10 }}

@@ -7,7 +7,7 @@ import type { Language } from '../hook/useLanguage';
 
 export type LegalDocumentType = 'kvkk' | 'terms' | 'privacy' | 'consent';
 
-export const KVKK_EMAIL = 'kvkk@hairdresserapp.com';
+export const KVKK_EMAIL = 'gumusmakastr@gmail.com';
 
 export interface LegalDocument {
   title: string;
