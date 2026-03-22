@@ -121,7 +121,7 @@ const StoreMineCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStor
                         )}
                         <View
                             className="flex-row justify-between items-center"
-                            style={{ marginTop: !isList ? -5 : -10, minWidth: 0, maxWidth: '100%' }}
+                            style={{ minWidth: 0, maxWidth: '100%' }}
                         >
                             <RatingSection
                                 rating={store.rating}

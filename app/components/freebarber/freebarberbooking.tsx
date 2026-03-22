@@ -16,6 +16,7 @@ import {
   TextInput,
   Platform,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Text } from "../common/Text";
 import { useRouter } from "expo-router";
 import { Icon, IconButton } from "react-native-paper";
@@ -123,7 +124,7 @@ const FreeBarberBookingContent = ({
   } | null>(null);
   const [isMapMode, setIsMapMode] = useState(false);
   const { alert, alertSuccess, alertError } = useAlert();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   // Action kontrolü: Error veya location denied durumunda işlem yapılamaz
   const { error: freeBarberDataError } = useGetFreeBarberForUsersQuery(
@@ -218,7 +219,7 @@ const FreeBarberBookingContent = ({
 
       const avatarUrl = store?.imageList?.[0]?.imageUrl;
       const bg =
-        store.type == 0 ? "#2563e" : store.type == 1 ? "#db2777" : "#16a34a";
+        store.type == 0 ? "#2563eb" : store.type == 1 ? "#db2777" : "#16a34a";
       const iconName =
         store.type == 2 ? "store" : store.type == 0 ? "face-man" : "face-woman";
 
@@ -295,9 +296,10 @@ const FreeBarberBookingContent = ({
   }
 
   const borderRadiusClass = isBottomSheet ? "rounded-t-sm" : "";
+  const ScrollContainer = isBottomSheet ? BottomSheetScrollView : ScrollView;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.screenBg }} className="w-full">
+    <View style={{ flex: 1, backgroundColor: colors.sheetBg }} className="w-full">
       {!isAddStoreMode && (
         <View className={`relative w-full h-[250px]`}>
           <ImageCarousel
@@ -368,7 +370,7 @@ const FreeBarberBookingContent = ({
         </View>
       )}
 
-      <ScrollView nestedScrollEnabled className="p-4 gap-3" contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollContainer nestedScrollEnabled className="p-4 gap-3" contentContainerStyle={{ paddingBottom: 140 }}>
         {currentUserType === UserType.BarberStore &&
           isBarberMode &&
           !isAddStoreMode && (
@@ -376,7 +378,7 @@ const FreeBarberBookingContent = ({
               <Text style={{ color: colors.sectionHeaderText }} className="font-century-gothic-bold text-lg">
                 Serbest Berber Çağır
               </Text>
-              <Text className="text-gray-300 text-sm">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 Tarih ve saat seçmeden çağrı gönderebilirsiniz.
               </Text>
               <TouchableOpacity
@@ -521,8 +523,11 @@ const FreeBarberBookingContent = ({
               </TouchableOpacity>
               <TouchableOpacity
                 disabled={!freeBarberData?.isAvailable}
-                className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${!freeBarberData?.isAvailable ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
-                style={{ opacity: !freeBarberData?.isAvailable ? 0.7 : 1 }}
+                className={`py-4 flex-row justify-center gap-2 rounded-xl items-center`}
+                style={{
+                  backgroundColor: !freeBarberData?.isAvailable ? '#4b5563' : '#fea60e',
+                  opacity: !freeBarberData?.isAvailable ? 0.7 : 1,
+                }}
                 onPress={() => {
                   if (!freeBarberData?.isAvailable) {
                     alert(
@@ -566,7 +571,7 @@ const FreeBarberBookingContent = ({
                     {t("common.services")}
                   </Text>
                   <View style={{ backgroundColor: colors.cardBg2 }} className="px-3 py-1.5 rounded-lg">
-                    <Text className="text-[#a3e635] font-century-gothic-bold text-base">
+                    <Text className="font-century-gothic-bold text-base" style={{ color: '#FFB900' }}>
                       {totalPrice} {t("card.currencySymbol")}
                     </Text>
                   </View>
@@ -582,18 +587,18 @@ const FreeBarberBookingContent = ({
                       <TouchableOpacity
                         onPress={() => toggleService(item.id)}
                         activeOpacity={0.7}
-                        style={isSelected ? { backgroundColor: '#14532d', borderColor: '#22c55e', borderWidth: 1 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
+                        style={isSelected ? { backgroundColor: isDark ? 'rgba(254,166,14,0.2)' : 'rgba(254,166,14,0.1)', borderColor: '#fea60e', borderWidth: 1.5 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
                         className={`flex-row items-center justify-between px-4 py-3 rounded-xl`}
                       >
                         <View className="flex-row items-center flex-1 mr-2">
                           <Icon
                             source={isSelected ? "check-circle" : "circle-outline"}
                             size={22}
-                            color={isSelected ? "#22c55e" : "#6b7280"}
+                            color={isSelected ? "#fea60e" : "#6b7280"}
                           />
                           <Text
                             className="ml-3 text-sm flex-1"
-                            style={{ color: isSelected ? "#e2e8f0" : "#d1d5db" }}
+                            style={{ color: isSelected ? (isDark ? '#e2e8f0' : '#166534') : colors.sectionHeaderText }}
                             numberOfLines={1}
                           >
                             {item.serviceName}
@@ -601,7 +606,7 @@ const FreeBarberBookingContent = ({
                         </View>
                         <Text
                           className="text-sm font-century-gothic-bold"
-                          style={{ color: isSelected ? "#a3e635" : "#9ca3af" }}
+                          style={{ color: isSelected ? "#fea60e" : colors.textSecondary }}
                         >
                           {item.price} {t("card.currencySymbol")}
                         </Text>
@@ -643,8 +648,8 @@ const FreeBarberBookingContent = ({
               {/* Randevu Gönder Butonu */}
               <TouchableOpacity
                 disabled={isCreating}
-                className={`py-4 flex-row justify-center gap-2 rounded-2xl items-center ${isCreating ? "bg-[#4b5563]" : "bg-[#16a34a]"}`}
-                style={{ opacity: isCreating ? 0.7 : 1, elevation: 6, shadowColor: '#22c55e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 }}
+                className={`py-4 flex-row justify-center gap-2 rounded-2xl items-center ${isCreating ? "bg-[#4b5563]" : ""}`}
+                style={isCreating ? { opacity: 0.7 } : { backgroundColor: '#fea60e', opacity: 1, elevation: 6, shadowColor: '#fea60e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 }}
                 onPress={async () => {
                   try {
                     // Error veya location denied kontrolü
@@ -794,8 +799,8 @@ const FreeBarberBookingContent = ({
 
               <TouchableOpacity
                 disabled={isCreating}
-                className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${isCreating ? "bg-[#4b5563]" : "bg-[#22c55e]"}`}
-                style={{ opacity: isCreating ? 0.7 : 1 }}
+                className={`py-4 flex-row justify-center gap-2 rounded-xl items-center ${isCreating ? "bg-[#4b5563]" : ""}`}
+                style={isCreating ? { opacity: 0.7 } : { backgroundColor: '#fea60e', opacity: 1 }}
                 onPress={async () => {
                   try {
                     // Error veya location denied kontrolü
@@ -882,7 +887,7 @@ const FreeBarberBookingContent = ({
               </TouchableOpacity>
             </View>
           )}
-      </ScrollView>
+      </ScrollContainer>
 
       {/* Dükkan Seçimi Bottom Sheet - Customer Panel Yapısı */}
       {isAddStoreMode && (

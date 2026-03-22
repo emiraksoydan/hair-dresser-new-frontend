@@ -34,6 +34,7 @@ export const RatingSection: React.FC<RatingSectionProps> = ({
       <StarRatingDisplay
         rating={rating || 0}
         starSize={starSize}
+        color="#ffb900"
         starStyle={{ marginHorizontal: 0 }}
       />
       <Text style={{ color: colors.sectionHeaderText }} className="flex-1">{formattedRating}</Text>

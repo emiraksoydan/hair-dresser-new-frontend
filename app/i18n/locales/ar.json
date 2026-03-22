@@ -143,6 +143,7 @@
       "active": "نشط",
       "completed": "مكتمل",
       "cancelled": "ملغي",
+      "pending": "قيد الانتظار",
       "all": "الكل"
     },
     "alerts": {
@@ -219,6 +220,7 @@
     "services": "الخدمات",
     "selectService": "اختر الخدمة",
     "pricingType": "نوع التسعير",
+    "pricingTitle": "التسعير",
     "priceSort": "ترتيب السعر",
     "priceRange": "نطاق السعر",
     "minPrice": "الحد الأدنى للسعر (₺)",
@@ -565,7 +567,13 @@
     "selectHolidays": "اختر أيام العطل",
     "addressPlaceholder": "مثال: شارع X، شارع Y رقم Z، مدخل المحل على يمين المبنى...",
     "selectBarber": "اختر الحلاق",
-    "selectChair": "اختر الكرسي"
+    "selectChair": "اختر الكرسي",
+    "selectTime": "اختر الوقت",
+    "selectedTime": "الوقت المحدد",
+    "hours": "ساعة",
+    "workingHoursTitle": "ساعات العمل",
+    "pricingTitle": "التسعير",
+    "beautyExpert": "خبير تجميل"
   },
   "languages": {
     "tr": "التركية",
@@ -664,7 +672,8 @@
     "title": "التقييم",
     "rateFor": "قيّم",
     "commentOptional": "التعليق (اختياري)",
-    "submit": "إرسال التقييم"
+    "submit": "إرسال التقييم",
+    "myReviews": "تقييماتي"
   },
   "notification": {
     "redirectFailed": "فشل إعادة التوجيه.",
@@ -731,7 +740,8 @@
     "callBarber": "اتصل بالحلاق",
     "callBarberConfirm": "هل أنت متأكد أنك تريد الاتصال بالحلاق المسمى {{name}}؟",
     "customerNumber": "رقم العميل",
-    "storeOwnerNumber": "رقم المتجر",
+    "storeNo": "رقم المتجر",
+    "storeOwnerNumber": "رقم صاحب المتجر",
     "freeBarberNumber": "رقم الحلاق",
     "customerOf": "عميل",
     "pricing": "التسعير",

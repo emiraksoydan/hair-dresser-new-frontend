@@ -100,6 +100,11 @@ export const NotificationParticipantView: React.FC<
                     {getBarberTypeName(payload.freeBarber.type as BarberType)}
                   </Text>
                 )}
+                {(payload.freeBarber as any)?.customerNumber && (
+                  <Text className="text-[#6b7280] text-xs mt-0.5">
+                    {t("card.customerNumber")}: {(payload.freeBarber as any).customerNumber}
+                  </Text>
+                )}
                 {isFreeBarberInFavorites && (
                   <View className="flex-row items-center mt-0.5">
                     <Icon source="heart" size={12} color="#f05e23" />
@@ -179,6 +184,16 @@ export const NotificationParticipantView: React.FC<
               {payload.store.type !== undefined && (
                 <Text className="text-[#9ca3af] text-xs mt-0.5">
                   {getBarberTypeName(payload.store.type as BarberType)}
+                </Text>
+              )}
+              {(payload.store as any)?.storeNo && (
+                <Text className="text-[#6b7280] text-xs mt-0.5">
+                  {t("card.storeNo")}: {(payload.store as any).storeNo}
+                </Text>
+              )}
+              {payload.store.storeOwnerNumber && (
+                <Text className="text-[#6b7280] text-xs mt-0.5">
+                  {t("card.storeOwnerNumber")}: {payload.store.storeOwnerNumber}
                 </Text>
               )}
               {payload.store.addressDescription && (
@@ -264,6 +279,16 @@ export const NotificationParticipantView: React.FC<
                   {getBarberTypeName(payload.store.type as BarberType)}
                 </Text>
               )}
+              {(payload.store as any)?.storeNo && (
+                <Text className="text-[#6b7280] text-xs mt-0.5">
+                  {t("card.storeNo")}: {(payload.store as any).storeNo}
+                </Text>
+              )}
+              {payload.store.storeOwnerNumber && (
+                <Text className="text-[#6b7280] text-xs mt-0.5">
+                  {t("card.storeOwnerNumber")}: {payload.store.storeOwnerNumber}
+                </Text>
+              )}
               {payload.store.addressDescription && (
                 <View className="mt-1 flex-row items-start">
                   <View className="mt-0.5">
@@ -316,6 +341,11 @@ export const NotificationParticipantView: React.FC<
                 {payload.freeBarber?.type !== undefined && (
                   <Text className="text-[#9ca3af] text-xs mt-0.5">
                     {getBarberTypeName(payload.freeBarber.type as BarberType)}
+                  </Text>
+                )}
+                {(payload.freeBarber as any)?.customerNumber && (
+                  <Text className="text-[#6b7280] text-xs mt-0.5">
+                    {t("card.customerNumber")}: {(payload.freeBarber as any).customerNumber}
                   </Text>
                 )}
                 {payload.freeBarber?.rating !== undefined && (

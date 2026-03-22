@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Text } from "../common/Text";
 import { ActivityIndicator, Icon } from "react-native-paper";
 import { useLanguage } from "../../hook/useLanguage";
@@ -209,7 +210,6 @@ const StoreBookingContent = ({
     selectedSlotKeys,
     isFreeBarber: isFreeBarber || isAddStoreMode,
   });
-  console.log(isCustomer);
 
   const { alert, alertSuccess, alertError } = useAlert();
 
@@ -234,6 +234,8 @@ const StoreBookingContent = ({
     selectedServices.length,
     requireServices,
   ]);
+
+  const ScrollContainer = isBottomSheet ? BottomSheetScrollView : ScrollView;
 
   return (
     <>
@@ -301,7 +303,7 @@ const StoreBookingContent = ({
         )}
       </View>
 
-      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollContainer nestedScrollEnabled contentContainerStyle={{ paddingBottom: 140 }}>
         <View className="p-4 z-0 gap-3">
           <View className="flex-row justify-between items-center">
             <Text className="font-century-gothic mt-3 text-xl" style={{ color: colors.sectionHeaderText }}>
@@ -330,30 +332,27 @@ const StoreBookingContent = ({
                     className="items-center rounded-2xl px-3 py-2.5 min-w-[68px]"
                     style={
                       disabled
-                        ? { backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', borderColor: isDark ? '#2a2a2a' : '#d1d5db', borderWidth: 1, opacity: 0.4 }
+                        ? { backgroundColor: isDark ? '#1a1a2e' : '#fef2f2', borderColor: '#ef4444', borderWidth: 1.5 }
                         : active
-                          ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                          ? { backgroundColor: isDark ? 'rgba(254,166,14,0.25)' : 'rgba(254,166,14,0.15)', borderColor: '#fea60e', borderWidth: 1.5 }
                           : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
                     }
                   >
                     <Text
-                      className={`text-xs font-century-gothic ${
-                        disabled ? "text-gray-600" : active ? "text-green-100" : "text-gray-400"
-                      }`}
+                      className="text-xs font-century-gothic"
+                      style={{ color: disabled ? '#ef4444' : active ? '#fea60e' : colors.textSecondary }}
                     >
                       {info.isToday ? "Bugün" : info.dayShort}
                     </Text>
                     <Text
-                      className={`text-2xl font-century-gothic-bold my-0.5 ${
-                        disabled ? "text-gray-600" : active ? "text-white" : "text-white"
-                      }`}
+                      className="text-2xl font-century-gothic-bold my-0.5"
+                      style={{ color: disabled ? '#ef4444' : active ? colors.sectionHeaderText : colors.sectionHeaderText }}
                     >
                       {info.dayNum}
                     </Text>
                     <Text
-                      className={`text-xs font-century-gothic ${
-                        disabled ? "text-gray-600" : active ? "text-green-100" : "text-gray-400"
-                      }`}
+                      className="text-xs font-century-gothic"
+                      style={{ color: disabled ? '#ef4444' : active ? '#fea60e' : colors.textSecondary }}
                     >
                       {info.monthShort}
                     </Text>
@@ -361,12 +360,12 @@ const StoreBookingContent = ({
                       <Icon
                         source="calendar-month"
                         size={14}
-                        color={disabled ? "#4b5563" : active ? "#86efac" : "#60a5fa"}
+                        color={disabled ? "#ef4444" : active ? "#fea60e" : "#60a5fa"}
                       />
                     </View>
                     {disabled && (
-                      <View className="mt-1 bg-red-900/50 px-1.5 py-0.5 rounded">
-                        <Text className="text-red-400 text-[10px]">Kapalı</Text>
+                      <View className="mt-1 bg-red-500 px-1.5 py-0.5 rounded">
+                        <Text className="text-white text-[10px] font-semibold">Kapalı</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -379,17 +378,17 @@ const StoreBookingContent = ({
               <ActivityIndicator />
             </View>
           )}
-          {chairs.length === 0 ? (
+          {!isLoading && !isFetching && chairs.length === 0 ? (
             <View className="rounded-xl p-4 items-center" style={{ backgroundColor: colors.cardBg2 }}>
               <Icon source="seat-outline" size={28} color="#6b7280" />
               <Text className="text-gray-400 mt-2">
                 Bu gün için koltuk/slot bulunamadı.
               </Text>
             </View>
-          ) : (
+          ) : chairs.length > 0 ? (
             <View>
-              <Text className="text-gray-400 text-xs font-century-gothic mb-2">
-                Koltuk Seçin
+              <Text className="text-sm font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>
+                {t("form.selectChair")}
               </Text>
               <ScrollView
                 horizontal
@@ -415,25 +414,27 @@ const StoreBookingContent = ({
                         className="items-center min-w-[110px] px-3 py-3 rounded-2xl"
                         style={
                           isSelected
-                            ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                            ? { backgroundColor: isDark ? 'rgba(254,166,14,0.25)' : 'rgba(254,166,14,0.15)', borderColor: '#fea60e', borderWidth: 1.5 }
                             : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
                         }
                       >
                         <View
                           className="rounded-full p-2 mb-1.5"
-                          style={isSelected ? { backgroundColor: 'rgba(255,255,255,0.2)' } : { backgroundColor: isDark ? '#334155' : '#e2e8f0' }}
+                          style={isSelected ? { backgroundColor: 'rgba(254,166,14,0.2)' } : { backgroundColor: isDark ? '#334155' : '#e2e8f0' }}
                         >
-                          <Icon source="seat" size={22} color={isSelected ? "white" : "#94a3b8"} />
+                          <Icon source="seat" size={22} color={isSelected ? "#fea60e" : "#94a3b8"} />
                         </View>
                         <Text
-                          className={`font-century-gothic-bold text-sm ${isSelected ? "text-white" : "text-gray-200"}`}
+                          className="font-century-gothic-bold text-sm"
+                          style={{ color: isSelected ? '#fea60e' : colors.sectionHeaderText }}
                           numberOfLines={1}
                         >
                           {chairName}
                         </Text>
                         {hasBarber && (
                           <Text
-                            className={`font-century-gothic text-xs mt-0.5 ${isSelected ? "text-green-100" : "text-gray-400"}`}
+                            className="font-century-gothic text-xs mt-0.5"
+                            style={{ color: isSelected ? '#fea60e' : colors.textSecondary }}
                             numberOfLines={1}
                           >
                             {barberName}
@@ -457,7 +458,7 @@ const StoreBookingContent = ({
                 </View>
               </ScrollView>
             </View>
-          )}
+          ) : null}
 
           {!selectedChair ? (
             <View className="rounded-xl p-4 items-center" style={{ backgroundColor: colors.cardBg2 }}>
@@ -466,8 +467,8 @@ const StoreBookingContent = ({
             </View>
           ) : (
             <View>
-              <Text className="text-gray-400 text-xs font-century-gothic mb-2">
-                Saat Seçin
+              <Text className="text-sm font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>
+                {t("form.selectTime")}
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {selectedChair.slots.map((s) => {
@@ -487,23 +488,21 @@ const StoreBookingContent = ({
                         isBooked
                           ? { backgroundColor: 'rgba(127,29,29,0.4)', borderColor: 'rgba(153,27,27,0.5)', borderWidth: 1, opacity: 0.6 }
                           : isPast
-                            ? { backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', borderColor: isDark ? '#2a2a2a' : '#d1d5db', borderWidth: 1, opacity: 0.4 }
+                            ? { backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', borderColor: isDark ? '#2a2a2a' : '#d1d5db', borderWidth: 1, opacity: 0.5 }
                             : isSelected
-                              ? { backgroundColor: '#16a34a', borderColor: '#22c55e', borderWidth: 1 }
+                              ? { backgroundColor: isDark ? 'rgba(254,166,14,0.25)' : 'rgba(254,166,14,0.15)', borderColor: '#fea60e', borderWidth: 1.5 }
                               : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }
                       }
                     >
                       <Text
-                        className={`text-sm font-century-gothic-bold ${
-                          isBooked || isPast ? "text-gray-500" : isSelected ? "text-white" : "text-gray-200"
-                        }`}
+                        className="text-sm font-century-gothic-bold"
+                        style={{ color: isBooked || isPast ? (isDark ? '#6b7280' : '#9ca3af') : isSelected ? '#fea60e' : colors.sectionHeaderText }}
                       >
                         {normalizeTime(s.start)}
                       </Text>
                       <Text
-                        className={`text-[10px] font-century-gothic ${
-                          isBooked || isPast ? "text-gray-600" : isSelected ? "text-green-200" : "text-gray-500"
-                        }`}
+                        className="text-[10px] font-century-gothic"
+                        style={{ color: isBooked || isPast ? (isDark ? '#4b5563' : '#9ca3af') : isSelected ? '#fea60e' : colors.textSecondary }}
                       >
                         {normalizeTime(s.end)}
                       </Text>
@@ -526,24 +525,24 @@ const StoreBookingContent = ({
           {!!startHHmm && !!endHHmm && (
             <View className="rounded-2xl p-4 flex-row items-center justify-between" style={{ backgroundColor: colors.cardBg3, borderColor: isDark ? '#1e3a5f' : '#e2e8f0', borderWidth: 1 }}>
               <View className="flex-row items-center gap-3">
-                <View className="bg-[#16a34a] rounded-full p-2">
+                <View className="rounded-full p-2" style={{ backgroundColor: '#fea60e' }}>
                   <Icon source="clock-check" size={20} color="white" />
                 </View>
                 <View>
-                  <Text className="text-gray-400 text-xs font-century-gothic">Seçilen Saat</Text>
-                  <Text className="text-white font-century-gothic-bold text-base">
+                  <Text className="text-xs font-century-gothic" style={{ color: colors.textSecondary }}>{t("form.selectedTime")}</Text>
+                  <Text className="font-century-gothic-bold text-base" style={{ color: colors.sectionHeaderText }}>
                     {startHHmm} - {endHHmm}
                   </Text>
                 </View>
               </View>
               <View className="items-end gap-1">
                 <View className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: colors.cardBg2 }}>
-                  <Text className="text-[#60a5fa] font-century-gothic-bold text-sm">
-                    {selectedSlotKeys.length} saat
+                  <Text className="font-century-gothic-bold text-sm" style={{ color: '#FFB900' }}>
+                    {selectedSlotKeys.length} {t("form.hours")}
                   </Text>
                 </View>
                 {isHourlyFree && slotPriceTotal > 0 && (
-                  <Text className="text-[#a3e635] font-century-gothic-bold text-sm">
+                  <Text className="font-century-gothic-bold text-sm" style={{ color: '#fea60e' }}>
                     {slotPriceTotal} {t("card.currencySymbol")}
                   </Text>
                 )}
@@ -555,9 +554,9 @@ const StoreBookingContent = ({
             {isFreeBarber && (
               <View className="px-3 py-2 rounded-lg mb-2" style={{ backgroundColor: colors.cardBg }}>
                 <Text className="text-base font-century-gothic" style={{ color: colors.sectionHeaderText }}>
-                  {storeData?.pricingType!.toLowerCase() === "percent"
+                  {storeData?.pricingType?.toLowerCase() === "percent"
                     ? `ℹ️ ${t("card.pricingPercent", { value: storeData?.pricingValue })}`
-                    : storeData?.pricingType!.toLowerCase() === "rent"
+                    : storeData?.pricingType?.toLowerCase() === "rent"
                       ? `ℹ️ ${t("card.pricingRent", { value: storeData?.pricingValue })}`
                       : ""}
                 </Text>
@@ -570,7 +569,7 @@ const StoreBookingContent = ({
                     {t("common.services")}
                   </Text>
                   <View className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: colors.cardBg2 }}>
-                    <Text className="text-[#a3e635] font-century-gothic-bold text-lg">
+                    <Text className="font-century-gothic-bold text-lg" style={{ color: '#fea60e' }}>
                       {servicePriceTotal} {t("card.currencySymbol")}
                     </Text>
                   </View>
@@ -588,17 +587,17 @@ const StoreBookingContent = ({
                         onPress={() => toggleService(item.id)}
                         activeOpacity={0.7}
                         className="flex-row items-center justify-between px-4 py-3 rounded-xl"
-                        style={isSelected ? { backgroundColor: '#14532d', borderColor: '#22c55e', borderWidth: 1 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
+                        style={isSelected ? { backgroundColor: isDark ? 'rgba(254,166,14,0.2)' : 'rgba(254,166,14,0.1)', borderColor: '#fea60e', borderWidth: 1.5 } : { backgroundColor: colors.cardBg2, borderColor: colors.borderColor, borderWidth: 1 }}
                       >
                         <View className="flex-row items-center flex-1 mr-2">
                           <Icon
                             source={isSelected ? "check-circle" : "circle-outline"}
                             size={22}
-                            color={isSelected ? "#22c55e" : "#6b7280"}
+                            color={isSelected ? "#fea60e" : (isDark ? "#6b7280" : "#9ca3af")}
                           />
                           <Text
                             className="ml-3 text-sm flex-1"
-                            style={{ color: isSelected ? "#e2e8f0" : "#d1d5db" }}
+                            style={{ color: isSelected ? colors.sectionHeaderText : colors.sectionHeaderText }}
                             numberOfLines={1}
                           >
                             {item.serviceName}
@@ -606,7 +605,7 @@ const StoreBookingContent = ({
                         </View>
                         <Text
                           className="text-sm font-century-gothic-bold"
-                          style={{ color: isSelected ? "#a3e635" : "#9ca3af" }}
+                          style={{ color: isSelected ? "#fea60e" : colors.textSecondary }}
                         >
                           {item.price} {t("card.currencySymbol")}
                         </Text>
@@ -634,8 +633,8 @@ const StoreBookingContent = ({
               isCreatingStore ||
               isAddingStore
             }
-            className={`py-4 flex-row justify-center gap-2 rounded-2xl mt-2 items-center ${!canSubmit ? "bg-[#4b5563] opacity-60" : "bg-[#16a34a] opacity-100"}`}
-            style={canSubmit ? { elevation: 6, shadowColor: '#22c55e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 } : undefined}
+            className={`py-4 flex-row justify-center gap-2 rounded-2xl mt-2 items-center ${!canSubmit ? "bg-[#4b5563] opacity-60" : "opacity-100"}`}
+            style={canSubmit ? { backgroundColor: '#fea60e', elevation: 6, shadowColor: '#fea60e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 } : undefined}
             onPress={async () => {
               try {
                 // Error kontrolü: Sunucu çalışmıyorsa işlem yapılamaz
@@ -847,7 +846,7 @@ const StoreBookingContent = ({
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScrollContainer>
     </>
   );
 };

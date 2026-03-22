@@ -101,11 +101,11 @@ export const ChairItem = React.memo<ChairItemProps>(
                   value={value ?? ""}
                   onChangeText={onChange}
                   onBlur={onBlur}
-                  textColor="white"
-                  outlineColor="#444"
+                  textColor={colors.sectionHeaderText}
+                  outlineColor={colors.borderColor}
                   theme={{
                     roundness: 10,
-                    colors: { onSurfaceVariant: "gray", primary: "white" },
+                    colors: { onSurfaceVariant: colors.textSecondary, primary: colors.sectionHeaderText },
                   }}
                   style={{
                     backgroundColor: colors.cardBg,
@@ -137,30 +137,30 @@ export const ChairItem = React.memo<ChairItemProps>(
                     height: 42,
                     borderRadius: 10,
                     paddingHorizontal: 12,
-                    backgroundColor: "#1F2937",
+                    backgroundColor: colors.cardBg,
                     borderWidth: 1,
-                    borderColor: "#444",
+                    borderColor: colors.borderColor2,
                     justifyContent: "center",
                   }}
                   containerStyle={{
-                    backgroundColor: "#1F2937",
+                    backgroundColor: colors.cardBg,
                     borderWidth: 0,
                     borderRadius: 10,
                     overflow: "hidden",
                   }}
                   placeholderStyle={{
-                    color: "gray",
+                    color: colors.textSecondary,
                     fontFamily: "CenturyGothic",
                   }}
                   selectedTextStyle={{
-                    color: "white",
+                    color: colors.sectionHeaderText,
                     fontFamily: "CenturyGothic",
                   }}
                   itemTextStyle={{
-                    color: "white",
+                    color: colors.sectionHeaderText,
                     fontFamily: "CenturyGothic",
                   }}
-                  activeColor="#0f766e"
+                  activeColor="#3a3b3d"
                 />
               )}
             />

@@ -32,7 +32,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   };
 
   return (
-    <View className={`flex-row h-8 flex-1 ${isList ? 'items-center' : ''} ${className}`}>
+    <View className={`flex-row flex-1 ${isList ? 'items-center' : ''} ${className}`}>
       <Text
         numberOfLines={1}
         ellipsizeMode="tail"

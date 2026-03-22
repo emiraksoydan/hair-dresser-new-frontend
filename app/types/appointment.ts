@@ -65,6 +65,7 @@ export enum AppointmentFilter {
   Active = 1,
   Completed = 2,
   Cancelled = 3,
+  Pending = 4,
 }
 
 // Hizmet Detayı

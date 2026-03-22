@@ -4,7 +4,7 @@ import { Text } from '../../components/common/Text'
 import { Avatar, IconButton, TextInput, HelperText, Icon, Switch, Portal, Modal as PaperModal } from 'react-native-paper';
 import { OtpInput } from 'react-native-otp-entry';
 import { Button } from '../../components/common/Button';
-import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation, useUpdateImageBlobMutation, useSendPhoneChangeOtpMutation, useUpdatePhoneMutation } from '../../store/api';
+import { useRevokeMutation, useGetMeQuery, useUpdateProfileMutation, useUploadImageMutation, useUpdateImageBlobMutation, useSendPhoneChangeOtpMutation, useUpdatePhoneMutation, useGetSettingQuery, useUpdateSettingMutation } from '../../store/api';
 import { tokenStore } from '../../lib/tokenStore';
 import { clearStoredTokens, saveTokens } from '../../lib/tokenStorage';
 import { resetSignalRState } from '../../store/signalrSlice';
@@ -16,7 +16,7 @@ import { handlePickImage } from '../../utils/form/pick-document';
 import { ImageOwnerType } from '../../types';
 import { useAppDispatch } from '../../store/hook';
 import { showSnack } from '../../store/snackbarSlice';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ProfileSkeleton } from '../../components/common/profileskeleton';
 import { getErrorMessage } from '../../utils/errorHandler';
 import { LottieViewComponent } from '../../components/common/lottieview';
@@ -56,6 +56,9 @@ const Index = () => {
     const [updateImageBlob] = useUpdateImageBlobMutation();
     const [sendPhoneChangeOtp, { isLoading: isSendingOtp }] = useSendPhoneChangeOtpMutation();
     const [updatePhone, { isLoading: isUpdatingPhone }] = useUpdatePhoneMutation();
+    const { data: settingData } = useGetSettingQuery();
+    const [updateSetting] = useUpdateSettingMutation();
+    const isUpdatingSettingRef = useRef(false);
     const dispatch = useAppDispatch();
     const [refreshing, setRefreshing] = useState(false);
     const [phoneModalVisible, setPhoneModalVisible] = useState(false);
@@ -339,7 +342,7 @@ const Index = () => {
                         height: 120, 
                         borderRadius: 60, 
                         borderWidth: 1.5, 
-                        borderColor: '#ffb900',
+                        borderColor: '#fea60e',
                         overflow: 'hidden',
                         justifyContent: 'center',
                         alignItems: 'center'
@@ -390,10 +393,10 @@ const Index = () => {
                                         onBlur={onBlur}
                                         textColor={colors.sectionHeaderText}
                                         error={!!errors.firstName}
-                                        outlineColor={errors.firstName ? "#b00020" : "#FFB900"}
+                                        outlineColor={errors.firstName ? "#b00020" : "#fea60e"}
                                         theme={{
                                             roundness: 10,
-                                            colors: { onSurfaceVariant: "#FFB900", primary: "white" }
+                                            colors: { onSurfaceVariant: "#fea60e", primary: "#fea60e" }
                                         }}
                                         style={{ backgroundColor: colors.cardBg, marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
@@ -415,10 +418,10 @@ const Index = () => {
                                         onBlur={onBlur}
                                         textColor={colors.sectionHeaderText}
                                         error={!!errors.lastName}
-                                        outlineColor={errors.lastName ? "#b00020" : "#FFB900"}
+                                        outlineColor={errors.lastName ? "#b00020" : "#fea60e"}
                                         theme={{
                                             roundness: 10,
-                                            colors: { onSurfaceVariant: "#FFB900", primary: "white" }
+                                            colors: { onSurfaceVariant: "#fea60e", primary: "#fea60e" }
                                         }}
                                         style={{ backgroundColor: colors.cardBg, marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
@@ -449,20 +452,21 @@ const Index = () => {
                                 <TextInput
                                     dense
                                     label={t('profile.phonePlaceholder')}
-                                    mode="outlined"
+                                    mode="flat"
                                     value={value}
                                     editable={false}
                                     textColor="#9ca3af"
-                                    outlineColor={colors.borderColor}
+                                    underlineColor="transparent"
+                                    activeUnderlineColor="transparent"
                                     theme={{
                                         roundness: 10,
                                         colors: { onSurfaceVariant: "#6b7280", primary: "#6b7280" }
                                     }}
-                                    style={{ backgroundColor: isDark ? '#111' : '#f3f4f6', flex: 1, fontFamily: 'CenturyGothic' }}
+                                    style={{ backgroundColor: isDark ? '#1f2937' : '#f3f4f6', flex: 1, fontFamily: 'CenturyGothic', borderRadius: 8 }}
                                 />
                                 <TouchableOpacity
                                     onPress={() => setPhoneModalVisible(true)}
-                                    style={{ backgroundColor: '#1d4ed8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 }}
+                                    style={{ backgroundColor: '#3B83BD', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 }}
                                 >
                                     <Text style={{ color: 'white', fontFamily: 'CenturyGothic', fontSize: 12 }}>{t('profile.phoneChange')}</Text>
                                 </TouchableOpacity>
@@ -476,7 +480,7 @@ const Index = () => {
                         loading={isUpdating}
                         disabled={!isDirty || isUpdating}
                         className="mt-4 mb-2"
-                        buttonColor="#059669"
+                        buttonColor="#fea60e"
                         textColor="white"
                     >
                         {t('profile.save')}
@@ -546,6 +550,30 @@ const Index = () => {
                             color='#60a5fa'
                         />
                     </View>
+                    <View style={{ height: 1, backgroundColor: colors.borderColor, marginVertical: 8 }} />
+                    <View className='flex-row items-center justify-between'>
+                        <View className='flex-1 mr-4'>
+                            <Text className='text-base font-century-gothic-bold' style={{ color: colors.sectionHeaderText }}>{t('profile.imageAnimation')}</Text>
+                            <Text className='text-sm' style={{ color: colors.textSecondary }}>{t('profile.imageAnimationDescription')}</Text>
+                        </View>
+                        <Switch
+                            value={settingData?.data?.showImageAnimation ?? true}
+                            onValueChange={async (value) => {
+                                if (isUpdatingSettingRef.current) return;
+                                isUpdatingSettingRef.current = true;
+                                try {
+                                    const settingResult = await updateSetting({ showImageAnimation: value }).unwrap();
+                                    dispatch(showSnack({ message: settingResult.message || t('settings.updateSuccess'), isError: false }));
+                                } catch (error: any) {
+                                    const errorMessage = error?.data?.message || getErrorMessage(error);
+                                    dispatch(showSnack({ message: errorMessage || t('profile.settingUpdateError'), isError: true }));
+                                } finally {
+                                    isUpdatingSettingRef.current = false;
+                                }
+                            }}
+                            color='#fea60e'
+                        />
+                    </View>
                 </View>
 
 
@@ -597,8 +625,8 @@ const Index = () => {
                   keyboardType="phone-pad"
                   maxLength={10}
                   textColor={colors.sectionHeaderText}
-                  outlineColor="#FFB900"
-                  theme={{ roundness: 10, colors: { onSurfaceVariant: "#FFB900", primary: "white" } }}
+                  outlineColor="#fea60e"
+                  theme={{ roundness: 10, colors: { onSurfaceVariant: "#fea60e", primary: "#fea60e" } }}
                   style={{ backgroundColor: colors.cardBg, fontFamily: 'CenturyGothic' }}
                 />
                 <HelperText type="info" visible style={{ color: '#9ca3af', fontFamily: 'CenturyGothic' }}>
@@ -621,7 +649,7 @@ const Index = () => {
                 <OtpInput
                   numberOfDigits={6}
                   onFilled={(code) => { setOtpCode(code); }}
-                  focusColor="#FFB900"
+                  focusColor="#fea60e"
                   theme={{
                     containerStyle: { marginBottom: 12 },
                     pinCodeContainerStyle: {
@@ -654,7 +682,7 @@ const Index = () => {
                   mode="text"
                   onPress={() => setPhoneChangeStep('input')}
                   className="mt-1"
-                  textColor="#FFB900"
+                  textColor="#fea60e"
                 >
                   {t('profile.phoneOtpResend')}
                 </Button>

@@ -43,6 +43,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
   const [selectedRatingFilter, setSelectedRatingFilter] = useState<
     number | null
   >(null); // null = Hepsi
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
 
   const safeRatings = Array.isArray(ratings) ? ratings : [];
   const formatDateTime = (dateStr: string) => {
@@ -62,11 +63,11 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
   // Filtrelenmiş yorumlar
   const filteredRatings = useMemo(() => {
     if (!Array.isArray(safeRatings)) return [];
-    if (selectedRatingFilter === null) return safeRatings;
-    return safeRatings.filter(
-      (r: RatingGetDto) => Math.round(r.score) === selectedRatingFilter,
-    );
-  }, [safeRatings, selectedRatingFilter]);
+    let result = safeRatings;
+    if (showOnlyMine) result = result.filter((r: RatingGetDto) => isMyRating(r));
+    if (selectedRatingFilter !== null) result = result.filter((r: RatingGetDto) => Math.round(r.score) === selectedRatingFilter);
+    return result;
+  }, [safeRatings, selectedRatingFilter, showOnlyMine]);
 
   // UserType ve BarberType'a göre görünen isim
   const getDisplayName = (rating: RatingGetDto) => {
@@ -156,7 +157,7 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
                   </View>
                 )}
             </View>
-            <Text className="text-[#9ca3af] text-sm">
+            <Text style={{ color: colors.textSecondary }} className="text-xs">
               {formatDateTime(item.createdAt)}
             </Text>
             {/* Yorum metni */}
@@ -198,8 +199,22 @@ export const RatingsBottomSheet: React.FC<RatingsBottomSheetProps> = ({
           {t("card.reviews")}
         </Text>
 
-        {/* Rating Filtreleri - Sadece veri varsa göster */}
+        {/* Benim Yorumlarım Toggle */}
         {!isLoading && safeRatings.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setShowOnlyMine(v => !v)}
+            className={`self-start mb-3 flex-row items-center gap-1.5 rounded-full px-3 py-1.5 ${showOnlyMine ? 'bg-[#ffb900]' : 'border border-[#ffb900] bg-transparent'}`}
+            activeOpacity={0.8}
+          >
+            <Icon source="account-heart" size={14} color={showOnlyMine ? '#fff' : '#ffb900'} />
+            <Text className={`text-xs font-semibold ${showOnlyMine ? 'text-white' : 'text-[#ffb900]'}`}>
+              {t("rating.myReviews")}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Rating Filtreleri - Sadece veri varsa göster */}
+        {!isLoading && safeRatings.length > 0 && !showOnlyMine && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}

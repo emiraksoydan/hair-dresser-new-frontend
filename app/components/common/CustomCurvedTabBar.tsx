@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -76,6 +77,7 @@ export const CustomCurvedTabBar: React.FC<CustomCurvedTabBarProps> = ({
   inactiveIconColor = '#9CA3AF',
   height = 60,
 }) => {
+  const insets = useSafeAreaInsets();
   const tabWidth = SCREEN_WIDTH / tabs.length;
   const floatSize = 44; // Daha da küçültüldü
   const floatOffset = 18; // Float'ın ne kadar yukarı çıkacağı
@@ -183,13 +185,15 @@ export const CustomCurvedTabBar: React.FC<CustomCurvedTabBarProps> = ({
     };
   });
 
+  const bottomPadding = Math.max(insets.bottom, 0);
+
   return (
-    <View style={[styles.container, { height: height + floatOffset }]}>
+    <View style={[styles.container, { height: height + floatOffset + bottomPadding }]}>
       {/* Curved Background with concave notch */}
       <View style={[styles.backgroundContainer, { top: floatOffset }]}>
         <CurvedBackground
           width={SCREEN_WIDTH}
-          height={height}
+          height={height + bottomPadding}
           notchCenterX={notchCenterX}
           notchRadius={floatSize / 2 + 3}
           backgroundColor={backgroundColor}
@@ -270,9 +274,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     marginTop: 2,
+    paddingHorizontal: 2,
   },
   badge: {
     position: 'absolute',

@@ -143,6 +143,7 @@
       "active": "Aktif",
       "completed": "Tamamlanan",
       "cancelled": "İptal Edilen",
+      "pending": "Bekleyen",
       "all": "Tümü"
     },
     "alerts": {
@@ -219,6 +220,7 @@
     "services": "Hizmetler",
     "selectService": "Hizmet seçin",
     "pricingType": "Fiyatlandırma Türü",
+    "pricingTitle": "Fiyatlandırma",
     "priceSort": "Fiyat Sıralaması",
     "priceRange": "Fiyat Aralığı",
     "minPrice": "Min Fiyat (₺)",
@@ -565,7 +567,13 @@
     "selectHolidays": "Tatil günlerini seç",
     "addressPlaceholder": "Örn: X caddesi, Y sk. Z no, dükkan girişi apartman sağında...",
     "selectBarber": "Berber Seçin",
-    "selectChair": "Koltuk Seçin"
+    "selectChair": "Koltuk Seçin",
+    "selectTime": "Saat Seçin",
+    "selectedTime": "Seçilen Saat",
+    "hours": "saat",
+    "workingHoursTitle": "Çalışma Saatleri",
+    "pricingTitle": "Fiyatlandırma",
+    "beautyExpert": "Güzellik Uzmanı"
   },
   "languages": {
     "tr": "Türkçe",
@@ -659,6 +667,7 @@
     "invalidTargetForRating": "Geçersiz hedef. Sadece Store ID, FreeBarber ID veya Customer UserId ile değerlendirme yapılabilir. ManuelBarber'a değerlendirme yapılamaz.",
     "ratingAlreadyExists": "Bu randevu için bu hedefe zaten değerlendirme yaptınız. Değerlendirme güncellenemez.",
     "all": "Hepsi",
+    "myReviews": "Benim Yorumlarım",
     "commentPlaceholder": "Yorumunuzu yazın...",
     "yourBadge": "Sizin",
     "title": "Değerlendirme",
@@ -731,7 +740,8 @@
     "callBarber": "Berberi Çağır",
     "callBarberConfirm": "{{name}} adlı berberi çağırmak istediğinize emin misiniz?",
     "customerNumber": "Müşteri No",
-    "storeOwnerNumber": "İşletme No",
+    "storeNo": "Dükkan No",
+    "storeOwnerNumber": "İşletme Sahibi No",
     "freeBarberNumber": "Berber No",
     "customerOf": "Müşterisi",
     "pricing": "Fiyatlandırma",

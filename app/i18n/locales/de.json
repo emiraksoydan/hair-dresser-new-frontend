@@ -143,6 +143,7 @@
       "active": "Aktiv",
       "completed": "Abgeschlossen",
       "cancelled": "Storniert",
+      "pending": "Ausstehend",
       "all": "Alle"
     },
     "alerts": {
@@ -219,6 +220,7 @@
     "services": "Dienstleistungen",
     "selectService": "Dienstleistung auswählen",
     "pricingType": "Preistyp",
+    "pricingTitle": "Preisgestaltung",
     "priceSort": "Preissortierung",
     "priceRange": "Preisspanne",
     "minPrice": "Mindestpreis (₺)",
@@ -565,7 +567,13 @@
     "selectHolidays": "Feiertage auswählen",
     "addressPlaceholder": "Z.B.: X Straße, Y Str. Z Nr., Ladeneingang rechts vom Gebäude...",
     "selectBarber": "Friseur auswählen",
-    "selectChair": "Stuhl auswählen"
+    "selectChair": "Stuhl auswählen",
+    "selectTime": "Zeit auswählen",
+    "selectedTime": "Ausgewählte Zeit",
+    "hours": "Stunde",
+    "workingHoursTitle": "Arbeitszeiten",
+    "pricingTitle": "Preisgestaltung",
+    "beautyExpert": "Schönheitsexperte"
   },
   "languages": {
     "tr": "Türkisch",
@@ -664,7 +672,8 @@
     "title": "Bewertung",
     "rateFor": "bewerten",
     "commentOptional": "Kommentar (Optional)",
-    "submit": "Bewertung absenden"
+    "submit": "Bewertung absenden",
+    "myReviews": "Meine Bewertungen"
   },
   "notification": {
     "redirectFailed": "Weiterleitung fehlgeschlagen.",
@@ -731,7 +740,8 @@
     "callBarber": "Friseur anrufen",
     "callBarberConfirm": "Sind Sie sicher, dass Sie den Friseur namens {{name}} anrufen möchten?",
     "customerNumber": "Kundennummer",
-    "storeOwnerNumber": "Geschäft Nr.",
+    "storeNo": "Geschäft Nr.",
+    "storeOwnerNumber": "Inhaber Nr.",
     "freeBarberNumber": "Friseur Nr.",
     "customerOf": "Kunde von",
     "pricing": "Preisgestaltung",

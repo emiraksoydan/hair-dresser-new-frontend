@@ -31,7 +31,7 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
   const { t } = useLanguage();
   const { colors } = useTheme();
   const filterSheet = useBottomSheet({
-    snapPoints: ["60%", "100%"],
+    snapPoints: ["100%"],
     enablePanDownToClose: true,
   });
 

@@ -155,7 +155,7 @@ const FreeBarberCard: React.FC<Props> = ({
   ]);
   return (
     <View
-      style={{ width: cardWidthFreeBarber, overflow: "hidden", borderRadius: 12 }}
+      style={{ width: cardWidthFreeBarber, borderRadius: 12 }}
       className="mt-4"
     >
       <View
@@ -272,7 +272,6 @@ const FreeBarberCard: React.FC<Props> = ({
 
             <View
               className="flex-row justify-between items-center"
-              style={{ marginTop: !isList ? -5 : -10 }}
             >
               <RatingSection
                 rating={freeBarber.rating}

@@ -143,6 +143,7 @@
       "active": "Active",
       "completed": "Completed",
       "cancelled": "Cancelled",
+      "pending": "Pending",
       "all": "All"
     },
     "alerts": {
@@ -206,14 +207,20 @@
     "noNearbyStores": "No nearby stores found",
     "noNearbyFreeBarbers": "No nearby free barbers found",
     "noNearbyStoresOrFreeBarbers": "No nearby stores or free barbers found",
-    "noResultsFound": "No results found matching the filter criteria"
+    "noResultsFound": "No results found matching the filter criteria",
+    "noStoresAdded": "You haven't added any barber shops yet.",
+    "noFreeBarbersFound": "No free barbers found matching the filter criteria",
+    "freeBarberNotFound": "Free barber not found",
+    "storeNotFound": "Business not found"
   },
   "filters": {
+    "title": "Filters",
     "userType": "User Type",
     "mainCategory": "Main Category",
     "services": "Services",
     "selectService": "Select service",
     "pricingType": "Pricing Type",
+    "pricingTitle": "Pricing",
     "priceSort": "Price Sort",
     "priceRange": "Price Range",
     "minPrice": "Min Price (₺)",
@@ -341,6 +348,8 @@
     "appointmentPastDate": "Cannot make appointments for past dates.",
     "appointmentPastTime": "Cannot make appointments for past times.",
     "appointmentTimeoutExpired": "Appointment time expired (unanswered).",
+    "appointmentEndTimeCalculationFailed": "Appointment end time could not be calculated.",
+    "startTimeEndTimeRequired": "Start and end time are required.",
     "invalidDate": "Invalid date.",
     "invalidTime": "Invalid time.",
     "appointmentDateCannotBePast": "Appointment date cannot be in the past.",
@@ -564,7 +573,13 @@
     "addressPlaceholder": "Ex: X street, Y ave. No Z, building entrance on the right side...",
     "selectBarber": "Select Barber",
     "selectChair": "Select Chair",
-    "beautySalonCertificate": "Beauty Salon Certificate"
+    "selectTime": "Select Time",
+    "selectedTime": "Selected Time",
+    "hours": "hour",
+    "workingHoursTitle": "Working Hours",
+    "pricingTitle": "Pricing",
+    "beautySalonCertificate": "Beauty Salon Certificate",
+    "beautyExpert": "Beauty Expert"
   },
   "languages": {
     "tr": "Turkish",
@@ -658,6 +673,7 @@
     "invalidTargetForRating": "Invalid target. Ratings can only be made with Store ID, FreeBarber ID or Customer UserId. Cannot rate ManuelBarber.",
     "ratingAlreadyExists": "You have already rated this target for this appointment. Rating cannot be updated.",
     "all": "All",
+    "myReviews": "My Reviews",
     "commentPlaceholder": "Write your comment...",
     "yourBadge": "You",
     "title": "Rate",
@@ -730,7 +746,8 @@
     "callBarber": "Call Barber",
     "callBarberConfirm": "Are you sure you want to call the barber named {{name}}?",
     "customerNumber": "Customer No",
-    "storeOwnerNumber": "Store No",
+    "storeNo": "Store No",
+    "storeOwnerNumber": "Store Owner No",
     "freeBarberNumber": "Barber No",
     "customerOf": "Customer of",
     "pricing": "Pricing",
@@ -779,7 +796,13 @@
     "locationClosedMessage": "You need to enable device location to continue.",
     "cancel": "Cancel",
     "openLocation": "Open Location",
-    "settings": "Settings"
+    "unavailable": "Location service unavailable",
+    "settings": "Settings",
+    "permissionRequired": "Location permission required",
+    "permissionRequiredMessage": "You need to grant location permission to show nearby businesses.",
+    "permissionDeniedMessage": "Location permission appears to be disabled. You need to enable location permission from settings.",
+    "tryAgain": "Try again",
+    "dragLocation": "You can drag and drop the location"
   },
   "settings": {
     "updateSuccess": "Setting updated successfully"

@@ -361,13 +361,13 @@ const Index = () => {
       id: string;
       type:
       | "stores-header"
-      | "store"
+      | "stores-list"
       | "stores-empty"
       | "stores-loading"
       | "stores-error"
       | "stores-content-horizontal"
       | "freebarbers-header"
-      | "freebarber"
+      | "freebarbers-list"
       | "freebarbers-empty"
       | "freebarbers-loading"
       | "freebarbers-error"
@@ -390,9 +390,7 @@ const Index = () => {
         items.push({ id: "stores-error", type: "stores-error" });
       } else if (filteredStores.length > 0) {
         if (expandedStores) {
-          filteredStores.forEach((store) => {
-            items.push({ id: `store-${store.id}`, type: "store", data: store });
-          });
+          items.push({ id: "stores-list", type: "stores-list", data: filteredStores });
         } else {
           items.push({
             id: "stores-content-horizontal",
@@ -413,13 +411,7 @@ const Index = () => {
         items.push({ id: "freebarbers-error", type: "freebarbers-error" });
       } else if (filteredFreeBarbers.length > 0) {
         if (expandedFreeBarbers) {
-          filteredFreeBarbers.forEach((fb) => {
-            items.push({
-              id: `freebarber-${(fb as any).id}`,
-              type: "freebarber",
-              data: fb,
-            });
-          });
+          items.push({ id: "freebarbers-list", type: "freebarbers-list", data: filteredFreeBarbers });
         } else {
           items.push({
             id: "freebarbers-content-horizontal",
@@ -469,8 +461,8 @@ const Index = () => {
         </View>
       </View>
 
-      {isMapMode ? (
-        <View className="absolute inset-0 z-0">
+      {isMapMode && (
+        <View className="absolute inset-0" style={{ zIndex: 5, elevation: 5 }}>
           <MapView
             style={{ flex: 1 }}
             userInterfaceStyle={isDark ? "dark" : "light"}
@@ -482,12 +474,14 @@ const Index = () => {
             {freeBarberMarkers}
           </MapView>
         </View>
-      ) : (
+      )}
+      <View style={{ flex: 1 }} pointerEvents={isMapMode ? 'none' : 'auto'}>
         <FlatList
           data={listData}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -499,7 +493,7 @@ const Index = () => {
             if (item.type === "stores-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-4">
-                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
+                  <Text className="font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyStores")}
                   </Text>
                   {filteredStores.length > 0 && (
@@ -560,13 +554,21 @@ const Index = () => {
                 </View>
               );
             }
-            if (item.type === "store") {
-              return renderStoreItem({ item: item.data });
+            if (item.type === "stores-list") {
+              return (
+                <View>
+                  {item.data.map((store: BarberStoreGetDto) => (
+                    <View key={store.id}>
+                      {renderStoreItem({ item: store })}
+                    </View>
+                  ))}
+                </View>
+              );
             }
 
             if (item.type === "stores-content-horizontal") {
               return (
-                <View style={{ overflow: "hidden", minHeight: 200 }}>
+                <View style={{ minHeight: 200 }}>
                   <FlatList
                     data={item.data}
                     keyExtractor={(store) => store.id}
@@ -582,7 +584,7 @@ const Index = () => {
             if (item.type === "freebarbers-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-12">
-                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
+                  <Text className="font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
                   {filteredFreeBarbers.length > 0 && (
@@ -648,13 +650,21 @@ const Index = () => {
               );
             }
 
-            if (item.type === "freebarber") {
-              return renderFreeBarberItem({ item: item.data });
+            if (item.type === "freebarbers-list") {
+              return (
+                <View>
+                  {item.data.map((fb: FreeBarGetDto) => (
+                    <View key={(fb as any).id}>
+                      {renderFreeBarberItem({ item: fb })}
+                    </View>
+                  ))}
+                </View>
+              );
             }
 
             if (item.type === "freebarbers-content-horizontal") {
               return (
-                <View style={{ overflow: "hidden", minHeight: 200 }}>
+                <View style={{ minHeight: 200 }}>
                   <FlatList
                     data={item.data}
                     keyExtractor={(fb: FreeBarGetDto) => (fb as any).id}
@@ -670,7 +680,7 @@ const Index = () => {
             return null;
           }}
         />
-      )}
+      </View>
 
       {/* Map toggle button */}
       <TouchableOpacity
@@ -726,7 +736,7 @@ const Index = () => {
         onChangePricingType={(value) =>
           updateFilterCriteria({ pricingType: value })
         }
-        showPricingType={true}
+        showPricingType={false}
         statusFilter={(filterCriteria.status || "all") as "all" | "available" | "unavailable"}
         onChangeStatus={(value) =>
           updateFilterCriteria({ status: value as "all" | "available" | "unavailable" })

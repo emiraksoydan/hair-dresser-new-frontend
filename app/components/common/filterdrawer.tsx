@@ -5,6 +5,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, ScrollView, Dimensions, Modal, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './Text';
 import Animated, {
     useSharedValue,
@@ -137,6 +138,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
 }) => {
     const { t } = useLanguage();
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const translateX = useSharedValue(-DRAWER_WIDTH);
 
     const multiSelectStylesDynamic = useMemo(() => ({
@@ -338,7 +340,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 <GestureDetector gesture={panGesture}>
                     <Animated.View style={[styles.drawer, { backgroundColor: colors.sheetBg }, drawerStyle]}>
                         {/* Header */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: Math.max(16, insets.top + 8), borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
                             <Text className="text-white text-xl font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>{t('filters.title')}</Text>
                             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
                                 <Icon source="close" size={22} color={colors.textSecondary} />

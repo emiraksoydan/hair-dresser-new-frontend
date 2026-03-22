@@ -71,7 +71,7 @@ const Index = () => {
     // Memoize theme objects
     const textInputTheme = useMemo(() => ({
         roundness: 10,
-        colors: { onSurfaceVariant: "#FFB900", primary: "white" }
+        colors: { onSurfaceVariant: "#fea60e", primary: "#fea60e" }
     }), []);
 
     // Memoize avatar source
@@ -349,7 +349,7 @@ const Index = () => {
                         height: 120,
                         borderRadius: 60,
                         borderWidth: 1.5,
-                        borderColor: '#ffb900',
+                        borderColor: '#fea60e',
                         overflow: 'hidden',
                         justifyContent: 'center',
                         alignItems: 'center'
@@ -401,7 +401,7 @@ const Index = () => {
                                         onBlur={onBlur}
                                         textColor={colors.sectionHeaderText}
                                         error={!!errors.firstName}
-                                        outlineColor={errors.firstName ? "#b00020" : colors.borderColor}
+                                        outlineColor={errors.firstName ? "#b00020" : "#fea60e"}
                                         theme={textInputTheme}
                                         style={{ backgroundColor: colors.cardBg, marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
@@ -423,7 +423,7 @@ const Index = () => {
                                         onBlur={onBlur}
                                         textColor={colors.sectionHeaderText}
                                         error={!!errors.lastName}
-                                        outlineColor={errors.lastName ? "#b00020" : colors.borderColor}
+                                        outlineColor={errors.lastName ? "#b00020" : "#fea60e"}
                                         theme={textInputTheme}
                                         style={{ backgroundColor: colors.cardBg, marginBottom: 0, fontFamily: 'CenturyGothic' }}
                                     />
@@ -454,20 +454,21 @@ const Index = () => {
                                 <TextInput
                                     dense
                                     label={t('profile.phonePlaceholder')}
-                                    mode="outlined"
+                                    mode="flat"
                                     value={value}
                                     editable={false}
                                     textColor="#9ca3af"
-                                    outlineColor={colors.borderColor}
+                                    underlineColor="transparent"
+                                    activeUnderlineColor="transparent"
                                     theme={{
                                         roundness: 10,
                                         colors: { onSurfaceVariant: "#6b7280", primary: "#6b7280" }
                                     }}
-                                    style={{ backgroundColor: isDark ? '#111' : '#f3f4f6', flex: 1, fontFamily: 'CenturyGothic' }}
+                                    style={{ backgroundColor: isDark ? '#1f2937' : '#f3f4f6', flex: 1, fontFamily: 'CenturyGothic', borderRadius: 8 }}
                                 />
                                 <TouchableOpacity
                                     onPress={() => setPhoneModalVisible(true)}
-                                    style={{ backgroundColor: '#1d4ed8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 }}
+                                    style={{ backgroundColor: '#3B83BD', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 }}
                                 >
                                     <Text style={{ color: 'white', fontFamily: 'CenturyGothic', fontSize: 12 }}>{t('profile.phoneChange')}</Text>
                                 </TouchableOpacity>
@@ -480,7 +481,7 @@ const Index = () => {
                         loading={isUpdating}
                         disabled={!isDirty || isUpdating}
                         className="mt-4 mb-2"
-                        buttonColor="#059669"
+                        buttonColor="#fea60e"
                         textColor="white"
                     >
                         {t('profile.save')}
@@ -594,7 +595,7 @@ const Index = () => {
                                     subscriptionData.data.status === 'Banned' ? '#ef4444' :
                                     subscriptionData.data.status === 'Expired' ? '#f97316' :
                                     subscriptionData.data.status === 'Active' ? '#22c55e' :
-                                    '#FFB900',
+                                    '#fea60e',
                             }}
                         >
                             <View className='flex-row items-center mb-2'>
@@ -610,7 +611,7 @@ const Index = () => {
                                         subscriptionData.data.status === 'Banned' ? '#ef4444' :
                                         subscriptionData.data.status === 'Expired' ? '#f97316' :
                                         subscriptionData.data.status === 'Active' ? '#22c55e' :
-                                        '#FFB900'
+                                        '#fea60e'
                                     }
                                 />
                                 <Text
@@ -620,7 +621,7 @@ const Index = () => {
                                             subscriptionData.data.status === 'Banned' ? '#f87171' :
                                             subscriptionData.data.status === 'Expired' ? '#fb923c' :
                                             subscriptionData.data.status === 'Active' ? '#4ade80' :
-                                            '#FFB900',
+                                            '#fea60e',
                                     }}
                                 >
                                     {t(`subscription.status${subscriptionData.data.status}`)}
@@ -690,8 +691,8 @@ const Index = () => {
                   keyboardType="phone-pad"
                   maxLength={10}
                   textColor={colors.sectionHeaderText}
-                  outlineColor="#FFB900"
-                  theme={{ roundness: 10, colors: { onSurfaceVariant: "#FFB900", primary: "white" } }}
+                  outlineColor="#fea60e"
+                  theme={{ roundness: 10, colors: { onSurfaceVariant: "#fea60e", primary: "#fea60e" } }}
                   style={{ backgroundColor: colors.cardBg, fontFamily: 'CenturyGothic' }}
                 />
                 <HelperText type="info" visible style={{ color: '#9ca3af', fontFamily: 'CenturyGothic' }}>
@@ -714,7 +715,7 @@ const Index = () => {
                 <OtpInput
                   numberOfDigits={6}
                   onFilled={(code) => { setOtpCode(code); }}
-                  focusColor="#FFB900"
+                  focusColor="#fea60e"
                   theme={{
                     containerStyle: { marginBottom: 12 },
                     pinCodeContainerStyle: {
@@ -747,7 +748,7 @@ const Index = () => {
                   mode="text"
                   onPress={() => setPhoneChangeStep('input')}
                   className="mt-1"
-                  textColor="#FFB900"
+                  textColor="#fea60e"
                 >
                   {t('profile.phoneOtpResend')}
                 </Button>

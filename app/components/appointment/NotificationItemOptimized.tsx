@@ -500,14 +500,16 @@ export const NotificationItemOptimized = React.memo<NotificationItemProps>(
 
     // Tıklama: Aksiyon bildirimlerinde (onay/red) dokunarak okuma yok; sadece diğer türlerde.
     // Karar bekleyen + süresi dolmamış aksiyonlarda kart tıklanmasın (butonlara odaklanılsın).
+    // ANCAK: Status belli olan bildirimlerde (onaylandı/reddedildi/iptal vb.) tap ile okunabilir.
     const isAwaitingDecision =
       isActionableType && isPending && !isExpired && !hasMyDecision;
     const handlePress = React.useCallback(() => {
-      if (isActionableType) return; // Aksiyon tiplerinde dokunarak okuma yapılmaz
-      if (!isAwaitingDecision && !item.isRead) {
+      // Karar bekleyen aksiyon bildirimlerinde dokunarak okuma yapılmaz (butonlara odaklanılsın)
+      if (isActionableType && !showStatus) return;
+      if (!item.isRead) {
         onMarkRead(item);
       }
-    }, [isActionableType, isAwaitingDecision, item, onMarkRead]);
+    }, [isActionableType, showStatus, item, onMarkRead]);
 
     const unread = !item.isRead;
 

@@ -343,13 +343,13 @@ const Index = () => {
       id: string;
       type:
       | "stores-header"
-      | "store"
+      | "stores-list"
       | "stores-empty"
       | "stores-loading"
       | "stores-content-horizontal"
       | "stores-error"
       | "freebarbers-header"
-      | "freebarber"
+      | "freebarbers-list"
       | "freebarbers-empty"
       | "freebarbers-loading"
       | "freebarbers-content-horizontal"
@@ -374,13 +374,7 @@ const Index = () => {
 
         if (hasStoresToShow) {
           if (expandedStores) {
-            storesToDisplay.forEach((store) => {
-              items.push({
-                id: `store-${store.id}`,
-                type: "store",
-                data: store,
-              });
-            });
+            items.push({ id: "stores-list", type: "stores-list", data: storesToDisplay });
           } else {
             items.push({
               id: "stores-content-horizontal",
@@ -411,13 +405,7 @@ const Index = () => {
 
         if (hasFreeBarbersToShow) {
           if (expandedFreeBarbers) {
-            freeBarbersToDisplay.forEach((fb) => {
-              items.push({
-                id: `freebarber-${fb.id}`,
-                type: "freebarber",
-                data: fb,
-              });
-            });
+            items.push({ id: "freebarbers-list", type: "freebarbers-list", data: freeBarbersToDisplay });
           } else {
             items.push({
               id: "freebarbers-content-horizontal",
@@ -515,8 +503,8 @@ const Index = () => {
         </View>
       </View>
 
-      {isMapMode ? (
-        <View className="absolute inset-0 z-0">
+      {isMapMode && (
+        <View className="absolute inset-0" style={{ zIndex: 5, elevation: 5 }}>
           <MapView
             style={{ flex: 1 }}
             userInterfaceStyle={isDark ? "dark" : "light"}
@@ -526,12 +514,14 @@ const Index = () => {
             {storeMarkers}
           </MapView>
         </View>
-      ) : (
+      )}
+      <View style={{ flex: 1 }} pointerEvents={isMapMode ? 'none' : 'auto'}>
         <FlatList
           data={listData}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -539,17 +529,13 @@ const Index = () => {
               tintColor="#f05e23"
             />
           }
-          // Performance optimizations - removeClippedSubviews kaldırıldı (overlap sorununa neden oluyordu)
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={5}
-          updateCellsBatchingPeriod={100}
-          initialNumToRender={5}
-          windowSize={3}
+          initialNumToRender={10}
+          windowSize={21}
           renderItem={({ item }) => {
             if (item.type === "stores-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-4">
-                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
+                  <Text className="font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.myStores")}
                   </Text>
                   {hasStores && (
@@ -608,24 +594,20 @@ const Index = () => {
                 </View>
               );
             }
-            if (item.type === "store") {
+            if (item.type === "stores-list") {
               return (
-                <StoreMineCardComp
-                  store={item.data}
-                  isList={isList}
-                  expanded={expandedStores}
-                  cardWidthStore={cardWidthStore}
-                  onPressUpdate={handlePressUpdateStore}
-                  onPressRatings={handlePressRatings}
-                  showImageAnimation={
-                    settingData?.data?.showImageAnimation ?? true
-                  }
-                />
+                <View>
+                  {item.data.map((store: BarberStoreMineDto) => (
+                    <View key={store.id}>
+                      {renderStoreItem({ item: store })}
+                    </View>
+                  ))}
+                </View>
               );
             }
             if (item.type === "stores-content-horizontal") {
               return (
-                <View style={{ overflow: "hidden", minHeight: 200 }}>
+                <View style={{ minHeight: 200 }}>
                   <FlatList
                     data={item.data}
                     keyExtractor={(store) => store.id}
@@ -640,7 +622,7 @@ const Index = () => {
             if (item.type === "freebarbers-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-12">
-                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
+                  <Text className="font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyFreeBarbers")}
                   </Text>
                   {hasFreeBarbers && (
@@ -703,26 +685,20 @@ const Index = () => {
                 </View>
               );
             }
-            if (item.type === "freebarber") {
+            if (item.type === "freebarbers-list") {
               return (
-                <FreeBarberCardInner
-                  freeBarber={item.data}
-                  isList={isList}
-                  expanded={expandedFreeBarbers}
-                  cardWidthFreeBarber={cardWidthFreeBarber}
-                  mode="barbershop"
-                  onPressRatings={handlePressRatings}
-                  onCallFreeBarber={() => manualFetch()}
-                  storeId={stores?.[0]?.id}
-                  showImageAnimation={
-                    settingData?.data?.showImageAnimation ?? true
-                  }
-                />
+                <View>
+                  {item.data.map((fb: FreeBarGetDto) => (
+                    <View key={fb.id}>
+                      {renderFreeBarberItem({ item: fb })}
+                    </View>
+                  ))}
+                </View>
               );
             }
             if (item.type === "freebarbers-content-horizontal") {
               return (
-                <View style={{ overflow: "hidden", minHeight: 200 }}>
+                <View style={{ minHeight: 200 }}>
                   <FlatList
                     data={item.data}
                     keyExtractor={(fb: FreeBarGetDto) => (fb as any).id}
@@ -737,7 +713,7 @@ const Index = () => {
             return null;
           }}
         />
-      )}
+      </View>
 
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}
@@ -846,7 +822,7 @@ const Index = () => {
         backgroundStyle={{ backgroundColor: colors.sheetBg }}
         backdropComponent={mapDetailSheet.makeBackdrop()}
       >
-        <BottomSheetView style={{ flex: 1, padding: 0, margin: 0 }}>
+        <BottomSheetView style={{ flex: 1, padding: 0, margin: 0, backgroundColor: colors.sheetBg }}>
           <DeferredRender
             active={mapDetailSheet.isOpen && !!selectedMapItem}
             placeholder={

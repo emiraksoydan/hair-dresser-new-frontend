@@ -180,7 +180,7 @@ const Index = () => {
   // Bu süre boyunca resend butonu devre dışı olmalı
   useEffect(() => {
     if (modalVisible) {
-      setLeft(300); // 5 minutes (300 seconds) - NetGSM OTP validity period
+      setLeft(120); // 2 minutes (120 seconds) - NetGSM OTP validity period
     }
   }, [modalVisible]);
 
@@ -438,7 +438,7 @@ const Index = () => {
                 letterSpacing: 0.5,
               }}
             >
-              {t("auth.title").toUpperCase()}
+              {t("auth.title").toLocaleUpperCase('tr-TR')}
             </Text>
           </View>
 
@@ -806,7 +806,7 @@ const Index = () => {
           <Portal>
             <Modal
               visible={modalVisible}
-              onDismiss={() => setModalVisible(false)}
+              dismissable={false}
               contentContainerStyle={{
                 padding: 20,
                 margin: 20,

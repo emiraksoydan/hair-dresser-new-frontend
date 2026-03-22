@@ -51,6 +51,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withNotificationChannel",
       [
         "expo-location",
         {

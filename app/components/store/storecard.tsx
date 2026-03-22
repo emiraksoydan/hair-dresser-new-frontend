@@ -48,7 +48,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
 
     return (
         <View
-            style={{ width: cardWidthStore, overflow: 'hidden', borderRadius: 12 }}
+            style={{ width: cardWidthStore, borderRadius: 12 }}
             className="mt-4"
         >
             <View
@@ -125,7 +125,7 @@ const StoreCard: React.FC<Props> = ({ store, isList, expanded, cardWidthStore, i
                         )}
                         <View
                             className="flex-row justify-between items-center"
-                            style={{ marginTop: !isList ? -5 : -10, minWidth: 0, maxWidth: '100%' }}
+                            style={{ minWidth: 0, maxWidth: '100%' }}
                         >
                             <RatingSection
                                 rating={store.rating}

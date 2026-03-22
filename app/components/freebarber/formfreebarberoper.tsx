@@ -1607,26 +1607,28 @@ export const FormFreeBarberOperation = React.memo(
                 {currentStep === 1 && (
                   <>
                     <View className="mt-2">
-                      <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
+                      <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
                         {t("form.mainCategories")} *
                       </Text>
-                      <Controller
-                        control={control}
-                        name="selectedMainCategories"
-                        render={({ field: { value, onChange }, fieldState: { error } }) => (
-                          <>
-                            <CategoryListSelect
-                              data={parentCategoriesDropdownData}
-                              value={(value ?? []) as string[]}
-                              onChange={onChange}
-                              singleSelect
-                            />
-                            <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
-                              {errors?.selectedMainCategories?.message as string}
-                            </HelperText>
-                          </>
-                        )}
-                      />
+                      <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
+                        <Controller
+                          control={control}
+                          name="selectedMainCategories"
+                          render={({ field: { value, onChange }, fieldState: { error } }) => (
+                            <>
+                              <CategoryListSelect
+                                data={parentCategoriesDropdownData}
+                                value={(value ?? []) as string[]}
+                                onChange={onChange}
+                                singleSelect
+                              />
+                              <HelperText type="error" visible={!!error} style={{ fontFamily: 'CenturyGothic' }}>
+                                {errors?.selectedMainCategories?.message as string}
+                              </HelperText>
+                            </>
+                          )}
+                        />
+                      </View>
                     </View>
                   </>
                 )}
@@ -1639,28 +1641,30 @@ export const FormFreeBarberOperation = React.memo(
                         </Text>
                       ) : (
                         <>
-                          <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
                             {t("form.mainHeadings")}
                           </Text>
-                          <Controller
-                            control={control}
-                            name="selectedMainHeadings"
-                            render={({ field: { value, onChange } }) => (
-                              <>
-                                <CategoryListSelect
-                                  data={mainHeadingOptions}
-                                  value={(value ?? []) as string[]}
-                                  onChange={onChange}
-                                />
-                                <HelperText
-                                  type="error"
-                                  visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
-                                >
-                                  {errors.selectedMainHeadings?.message}
-                                </HelperText>
-                              </>
-                            )}
-                          />
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
+                            <Controller
+                              control={control}
+                              name="selectedMainHeadings"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={mainHeadingOptions}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
+                                  >
+                                    {errors.selectedMainHeadings?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
                         </>
                       )}
                     </View>
@@ -1675,10 +1679,10 @@ export const FormFreeBarberOperation = React.memo(
                         </Text>
                       ) : (
                         <>
-                          <View>
-                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.subHeadings")}
-                            </Text>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                            {t("form.subHeadings")}
+                          </Text>
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
                             <Controller
                               control={control}
                               name="selectedSubHeadings"
@@ -1713,10 +1717,10 @@ export const FormFreeBarberOperation = React.memo(
                         </Text>
                       ) : (
                         <>
-                          <View>
-                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.servicesTitle")}
-                            </Text>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                            {t("form.servicesTitle")}
+                          </Text>
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
                             <Controller
                               control={control}
                               name="selectedCategories"
@@ -1750,10 +1754,10 @@ export const FormFreeBarberOperation = React.memo(
                         {t("form.beautySalonCategories")}
                       </Text>
 
-                      {/* Güzellik Salonu Belgesi (Opsiyonel) */}
+                      {/* Güzellik Uzmanı Belgesi (Opsiyonel) */}
                       <View className="mb-4">
-                        <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
-                          {t("form.beautySalonCertificate")} ({t("common.optional")})
+                        <Text className="text-lg mb-2 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                          {t("form.beautyExpert")} ({t("common.optional")})
                         </Text>
                         <Controller
                           control={control}
@@ -1837,85 +1841,91 @@ export const FormFreeBarberOperation = React.memo(
                     {/* Güzellik Salonu Kategorileri (Belge seçildiyse veya mevcut güzellik hizmetleri varsa) */}
                     {(beautySalonCertificateImage || (selectedBeautySalonCategories?.length ?? 0) > 0) && beautySalonMainHeadingOptions.length > 0 ? (
                       <View>
-                        {/* Güzellik Salonu Ana Başlıklar */}
-                        <View className="mt-1">
-                          <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
+                        {/* Güzellik Uzmanı Ana Başlıklar */}
+                        <View className="mt-2">
+                          <Text className="text-lg mb-2 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
                             {t("form.beautySalonMainHeadings")} *
                           </Text>
-                          <Controller
-                            control={control}
-                            name="selectedBeautySalonMainHeadings"
-                            render={({ field: { value, onChange }, fieldState: { error } }) => (
-                              <>
-                                <CategoryListSelect
-                                  data={beautySalonMainHeadingOptions}
-                                  value={(value ?? []) as string[]}
-                                  onChange={onChange}
-                                />
-                                <HelperText type="error" visible={!(value?.length) && !!error} style={{ fontFamily: 'CenturyGothic' }}>
-                                  {error?.message as string}
-                                </HelperText>
-                              </>
-                            )}
-                          />
-                        </View>
-
-                        {/* Güzellik Salonu Alt Başlıklar */}
-                        {selectedBeautySalonMainHeadings.length > 0 && beautySalonSubHeadingOptions.length > 0 && (
-                          <View className="mt-1">
-                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.beautySalonSubHeadings")}
-                            </Text>
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
                             <Controller
                               control={control}
-                              name="selectedBeautySalonSubHeadings"
-                              render={({ field: { value, onChange } }) => (
+                              name="selectedBeautySalonMainHeadings"
+                              render={({ field: { value, onChange }, fieldState: { error } }) => (
                                 <>
                                   <CategoryListSelect
-                                    data={beautySalonSubHeadingOptions}
+                                    data={beautySalonMainHeadingOptions}
                                     value={(value ?? []) as string[]}
                                     onChange={onChange}
                                   />
-                                  <HelperText
-                                    type="error"
-                                    visible={!selectedBeautySalonSubHeadings.length && !!errors.selectedBeautySalonSubHeadings}
-                                  >
-                                    {errors.selectedBeautySalonSubHeadings?.message}
+                                  <HelperText type="error" visible={!(value?.length) && !!error} style={{ fontFamily: 'CenturyGothic' }}>
+                                    {error?.message as string}
                                   </HelperText>
                                 </>
                               )}
                             />
                           </View>
-                        )}
+                        </View>
 
-                        {/* Güzellik Salonu Hizmetleri */}
-                        {selectedBeautySalonSubHeadings.length > 0 && beautySalonCategoryOptions.length > 0 && (
-                          <View className="mt-1">
-                            <Text className="text-lg mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.beautySalonServices")}
+                        {/* Güzellik Uzmanı Alt Başlıklar */}
+                        {selectedBeautySalonMainHeadings.length > 0 && beautySalonSubHeadingOptions.length > 0 && (
+                          <View className="mt-3">
+                            <Text className="text-lg mb-2 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                              {t("form.beautySalonSubHeadings")}
                             </Text>
-                            <Controller
-                              control={control}
-                              name="selectedBeautySalonCategories"
-                              render={({ field: { value, onChange }, fieldState: { error } }) => {
-                                const currentValue = value ?? [];
-                                return (
+                            <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
+                              <Controller
+                                control={control}
+                                name="selectedBeautySalonSubHeadings"
+                                render={({ field: { value, onChange } }) => (
                                   <>
                                     <CategoryListSelect
-                                      data={beautySalonCategoryOptionsWithSelected}
-                                      value={currentValue as string[]}
+                                      data={beautySalonSubHeadingOptions}
+                                      value={(value ?? []) as string[]}
                                       onChange={onChange}
                                     />
                                     <HelperText
                                       type="error"
-                                      visible={!currentValue.length && !!error}
+                                      visible={!selectedBeautySalonSubHeadings.length && !!errors.selectedBeautySalonSubHeadings}
                                     >
-                                      {error?.message}
+                                      {errors.selectedBeautySalonSubHeadings?.message}
                                     </HelperText>
                                   </>
-                                );
-                              }}
-                            />
+                                )}
+                              />
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Güzellik Uzmanı Hizmetleri */}
+                        {selectedBeautySalonSubHeadings.length > 0 && beautySalonCategoryOptions.length > 0 && (
+                          <View className="mt-3">
+                            <Text className="text-lg mb-2 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                              {t("form.beautySalonServices")}
+                            </Text>
+                            <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
+                              <Controller
+                                control={control}
+                                name="selectedBeautySalonCategories"
+                                render={({ field: { value, onChange }, fieldState: { error } }) => {
+                                  const currentValue = value ?? [];
+                                  return (
+                                    <>
+                                      <CategoryListSelect
+                                        data={beautySalonCategoryOptionsWithSelected}
+                                        value={currentValue as string[]}
+                                        onChange={onChange}
+                                      />
+                                      <HelperText
+                                        type="error"
+                                        visible={!currentValue.length && !!error}
+                                      >
+                                        {error?.message}
+                                      </HelperText>
+                                    </>
+                                  );
+                                }}
+                              />
+                            </View>
                           </View>
                         )}
                       </View>
@@ -2076,10 +2086,10 @@ export const FormFreeBarberOperation = React.memo(
                       <View className="rounded-xl p-4 gap-3" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor }}>
                         {(getValues("images") ?? []).length > 0 && (
                           <View className="mb-3">
-                            <Text className="text-gray-400 text-sm mb-2">{t("form.panelImagesTitle")}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                            <Text className="text-base font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>{t("form.panelImagesTitle")}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                               {(getValues("images") ?? []).map((img: { uri: string }, idx: number) => (
-                                <Image key={idx} source={{ uri: img.uri }} style={{ width: 80, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                                <Image key={idx} source={{ uri: img.uri }} style={{ width: 140, height: 110, borderRadius: 10 }} resizeMode="cover" />
                               ))}
                             </ScrollView>
                           </View>
@@ -2092,15 +2102,15 @@ export const FormFreeBarberOperation = React.memo(
                         {/* Sertifika Resmi */}
                         {getValues("certificateImage")?.uri && (
                           <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
-                            <Text className="text-gray-400 text-sm mb-2">{t("form.certificateImage")}</Text>
-                            <Image source={{ uri: getValues("certificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                            <Text className="text-base font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>{t("form.certificateImage")}</Text>
+                            <Image source={{ uri: getValues("certificateImage")!.uri }} style={{ width: "100%", height: 160, borderRadius: 10 }} resizeMode="cover" />
                           </View>
                         )}
-                        {/* Güzellik Salonu Sertifika Resmi */}
+                        {/* Güzellik Uzmanı Sertifika Resmi */}
                         {getValues("beautySalonCertificateImage")?.uri && (
                           <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
-                            <Text className="text-gray-400 text-sm mb-2">{t("form.beautySalonCertificate")}</Text>
-                            <Image source={{ uri: getValues("beautySalonCertificateImage")!.uri }} style={{ width: 120, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                            <Text className="text-base font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>{t("form.beautyExpert")}</Text>
+                            <Image source={{ uri: getValues("beautySalonCertificateImage")!.uri }} style={{ width: "100%", height: 160, borderRadius: 10 }} resizeMode="cover" />
                           </View>
                         )}
                         {/* Güzellik Salonu Kategorileri */}
@@ -2125,7 +2135,7 @@ export const FormFreeBarberOperation = React.memo(
                             })}
                           </View>
                         )}
-                        <Row label={t("form.locationRequired")} value={getValues("location")?.latitude && getValues("location")?.longitude ? `${getValues("location").latitude.toFixed(4)}, ${getValues("location").longitude.toFixed(4)}` : t("form.locationNotSet")} colors={colors} />
+                        {/* Konum önizlemede gösterilmiyor */}
                       </View>
                     </View>
                   </>
@@ -2153,7 +2163,7 @@ export const FormFreeBarberOperation = React.memo(
                   </>
                 )}
 
-                <View className="px-0 my-4 flex-row gap-3 pb-6">
+                <View className="px-3 my-4 flex-row gap-3 pb-6">
                   {currentStep > 0 && (
                     <Button
                       className="flex-1 font-century-gothic"

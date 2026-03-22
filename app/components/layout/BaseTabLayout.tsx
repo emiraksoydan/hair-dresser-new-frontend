@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Tabs } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { CustomCurvedTabBar, CustomTabItem } from "../common/CustomCurvedTabBar";
@@ -55,6 +56,7 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const dispatch = useAppDispatch();
   const { userName, isAuthenticated } = useAuth();
@@ -143,12 +145,12 @@ export const BaseTabLayout: React.FC<BaseTabLayoutProps> = ({
   const tabScreenOptions = useMemo(() =>
     tabs.map((tab) => ({
       name: tab.name,
-      headerStyle: { backgroundColor: colors.headerBg, height: 80 },
+      headerStyle: { backgroundColor: colors.headerBg, height: Math.max(80, 56 + insets.top) },
       headerTitleAlign: (tab.headerTitleAlign || "center") as "left" | "center",
       showHeaderLeft: tab.showHeaderLeft,
       headerTitle: tab.headerTitle,
     })),
-    [tabs, colors.headerBg]
+    [tabs, colors.headerBg, insets.top]
   );
 
   // Custom Curved Tab Bar renderer

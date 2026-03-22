@@ -31,7 +31,6 @@ import './i18n/config';
 import { ThemeProvider } from './context/ThemeContext';
 import { useTheme } from './hook/useTheme';
 
-
 SplashScreen.preventAutoHideAsync();
 
 function ThemedStatusBar() {

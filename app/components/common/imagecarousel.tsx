@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Image, Dimensions, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Image, Dimensions, StyleProp, ViewStyle } from 'react-native';
 import Carousel, { Pagination } from 'react-native-reanimated-carousel';
 import { useSharedValue } from 'react-native-reanimated';
 import { useTheme } from '../../hook/useTheme';
@@ -17,6 +17,8 @@ interface ImageCarouselProps {
   mode?: any; // Allow any mode supported by the carousel library
 }
 
+const emptyImage = require('../../../assets/images/empty.png');
+
 export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   images,
   width: widthProp,
@@ -28,21 +30,13 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
   showPagination = true,
   mode,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const width = widthProp ?? Dimensions.get('window').width;
   const [activeIndex, setActiveIndex] = useState(0);
-  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
   const progressValue = useSharedValue<number>(0);
 
   // Memoize image data to prevent re-renders
   const imageData = useMemo(() => images || [], [images]);
-
-
-
-  const handleImageLoad = (index: number) => {
-    setLoadedImages(prev => new Set([...prev, index]));
-  };
-
 
   // Parse borderRadiusClass to get border radius value
   const getBorderRadius = () => {
@@ -51,7 +45,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
     if (borderRadiusClass.includes('rounded-lg')) return 8;
     if (borderRadiusClass.includes('rounded-md')) return 6;
     if (borderRadiusClass.includes('rounded-sm')) return 4;
-    if (borderRadiusClass.includes('rounded-t-sm')) return 4; // top only
+    if (borderRadiusClass.includes('rounded-t-sm')) return 4;
     return 0;
   };
 
@@ -62,7 +56,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
     return (
       <View style={[{ width, height, borderRadius: borderRadiusValue, overflow: 'hidden' }, containerStyle]}>
         <Image
-          source={require('../../../assets/images/empty.png')}
+          source={emptyImage}
           style={{ width: '100%', height: '100%', borderRadius: borderRadiusValue }}
           resizeMode="cover"
         />
@@ -70,8 +64,6 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
     );
   }
 
-  // Multiple images - show carousel
-  // Always use full width to show only 1 photo at a time
   return (
     <View style={[{ width, height, overflow: 'hidden', borderRadius: borderRadiusValue }, containerStyle]}>
       <Carousel
@@ -87,7 +79,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
           progressValue.value = absoluteProgress;
         }}
         {...(mode && mode !== 'default' ? { mode } : {})}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <View
             style={{
               width: width,
@@ -97,30 +89,20 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
             }}
           >
             <Image
-              key={`img-${index}-${item.imageUrl}`}
-              source={
-                item.imageUrl
-                  ? { uri: item.imageUrl }
-                  : require('../../../assets/images/empty.png')
-              }
+              source={item.imageUrl ? { uri: item.imageUrl } : emptyImage}
+              defaultSource={emptyImage}
               style={{
                 width: '100%',
                 height: '100%',
                 borderRadius: borderRadiusValue,
               }}
               resizeMode="cover"
-              onLoad={() => handleImageLoad(index)}
             />
-            {!loadedImages.has(index) && (
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.cardBg, borderRadius: borderRadiusValue }}>
-                <ActivityIndicator size="large" color="#888" />
-              </View>
-            )}
           </View>
         )}
       />
 
-      {/* Pagination Dots - Using Carousel's built-in Pagination */}
+      {/* Pagination Dots */}
       {showPagination && imageData.length > 1 && (
         <View className="absolute bottom-3 left-0 right-0">
           <Pagination.Basic
@@ -148,7 +130,6 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = React.memo(({
     </View>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison to prevent unnecessary re-renders
   const sameImages = prevProps.images === nextProps.images;
   const sameAutoPlay = prevProps.autoPlay === nextProps.autoPlay;
   const sameBorderRadius = prevProps.borderRadiusClass === nextProps.borderRadiusClass;

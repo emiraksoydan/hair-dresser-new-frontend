@@ -379,6 +379,26 @@ const createSchema = (t: (key: string) => string) =>
 
 export type FormUpdateValues = z.input<ReturnType<typeof createSchema>>;
 
+const PreviewRow = ({ label, value, colors }: { label: string; value: string; colors: any }) => (
+  <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+    <Text className="text-gray-400 text-sm mb-0.5">{label}</Text>
+    <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>{value || "—"}</Text>
+  </View>
+);
+
+const PreviewRowList = ({ label, items, colors }: { label: string; items: string[]; colors: any }) => {
+  const unique = React.useMemo(() => Array.from(new Set(items)), [items]);
+  if (unique.length === 0) return null;
+  return (
+    <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+      <Text className="text-gray-400 text-sm mb-1">{label}</Text>
+      {unique.map((item, i) => (
+        <Text key={`${item}-${i}`} className="text-sm py-0.5" style={{ color: colors.sectionHeaderText }}>{item}</Text>
+      ))}
+    </View>
+  );
+};
+
 // MultiSelect stil objeleri - colors gerektirmeyen sabit değerler dışarıda tutulur
 const MULTI_SELECT_STYLE_ERROR_BORDER = { borderColor: "#b00020" } as const;
 const MULTI_SELECT_SELECTED_STYLE = {
@@ -510,6 +530,7 @@ const FormStoreUpdate = React.memo(({
     t("form.stepStorePricing"),
     t("form.stepStoreHours"),
     t("form.stepStoreAddress"),
+    t("form.stepPreview"),
   ], [t, currentLanguage]);
 
   const steps = React.useMemo(
@@ -528,6 +549,7 @@ const FormStoreUpdate = React.memo(({
     6: ["pricingType"],
     7: ["workingHours", "holidayDays"],
     8: ["location"],
+    9: [],
   }), []);
 
   const {
@@ -1592,7 +1614,7 @@ const FormStoreUpdate = React.memo(({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
-      <View className="h-full">
+      <View className="h-full" style={{ backgroundColor: colors.sheetBg }}>
         <View className="flex-row justify-between items-center px-2">
           <Text className="flex-1 font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
             {t("form.updateStore")}
@@ -1644,7 +1666,7 @@ const FormStoreUpdate = React.memo(({
                           <View
                             key={index}
                             className="relative"
-                            style={{ width: 200, height: 150 }}
+                            style={{ width: 260, height: 200 }}
                           >
                             <Image
                               className="w-full h-full rounded-xl"
@@ -1687,7 +1709,7 @@ const FormStoreUpdate = React.memo(({
                             onPress={pickMultipleImages}
                             disabled={isImagePickerLoading}
                             className="rounded-xl items-center justify-center"
-                            style={{ width: 200, height: 150, backgroundColor: colors.cardBg2, borderWidth: 1, borderColor: colors.borderColor }}
+                            style={{ width: 260, height: 200, backgroundColor: colors.cardBg2, borderWidth: 1, borderColor: colors.borderColor }}
                             activeOpacity={0.85}
                           >
                             {isImagePickerLoading ? (
@@ -1887,28 +1909,30 @@ const FormStoreUpdate = React.memo(({
                         </Text>
                       ) : (
                         <>
-                          <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
                             {t("form.mainHeadings")}
                           </Text>
-                          <Controller
-                            control={control}
-                            name="selectedMainHeadings"
-                            render={({ field: { value, onChange } }) => (
-                              <>
-                                <CategoryListSelect
-                                  data={mainHeadingOptions}
-                                  value={(value ?? []) as string[]}
-                                  onChange={onChange}
-                                />
-                                <HelperText
-                                  type="error"
-                                  visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
-                                >
-                                  {errors.selectedMainHeadings?.message}
-                                </HelperText>
-                              </>
-                            )}
-                          />
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
+                            <Controller
+                              control={control}
+                              name="selectedMainHeadings"
+                              render={({ field: { value, onChange } }) => (
+                                <>
+                                  <CategoryListSelect
+                                    data={mainHeadingOptions}
+                                    value={(value ?? []) as string[]}
+                                    onChange={onChange}
+                                  />
+                                  <HelperText
+                                    type="error"
+                                    visible={!selectedMainHeadings.length && !!errors.selectedMainHeadings}
+                                  >
+                                    {errors.selectedMainHeadings?.message}
+                                  </HelperText>
+                                </>
+                              )}
+                            />
+                          </View>
                         </>
                       )}
                     </View>
@@ -1923,10 +1947,10 @@ const FormStoreUpdate = React.memo(({
                         </Text>
                       ) : (
                         <>
-                          <View>
-                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.subHeadings")}
-                            </Text>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                            {t("form.subHeadings")}
+                          </Text>
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
                             <Controller
                               control={control}
                               name="selectedSubHeadings"
@@ -1961,10 +1985,10 @@ const FormStoreUpdate = React.memo(({
                         </Text>
                       ) : (
                         <>
-                          <View>
-                            <Text className="text-xl mb-2" style={{ color: colors.sectionHeaderText }}>
-                              {t("form.servicesTitle")} ({selectedType})
-                            </Text>
+                          <Text className="text-xl mb-3 font-century-gothic-bold" style={{ color: colors.sectionHeaderText }}>
+                            {t("form.servicesTitle")} ({selectedType})
+                          </Text>
+                          <View className="rounded-xl p-3" style={{ borderWidth: 1, borderColor: colors.borderColor, backgroundColor: colors.cardBg }}>
                             <Controller
                               control={control}
                               name="selectedCategories"
@@ -2382,9 +2406,6 @@ const FormStoreUpdate = React.memo(({
                         {t("form.workingHours")}
                       </Text>
                       <View className="mt-2 mx-0 rounded-xl px-2 py-3" style={{ backgroundColor: colors.cardBg }}>
-                        <Text className="text-[#c2a523] font-century-gothic ml-0 pt-0 pb-2 text-sm">
-                          - {t("form.workingHoursInfo")}
-                        </Text>
                         <View className="mt-2 px-0">
                           <View className="flex-row  gap-2">
                             {DAYS_TR.map((d) => {
@@ -2487,7 +2508,10 @@ const FormStoreUpdate = React.memo(({
                               </View>
                             );
                           })()}
-                          <Text className="text-xl mt-2" style={{ color: colors.sectionHeaderText }}>
+                          <Text className="text-[#c2a523] font-century-gothic pt-2 pb-1 text-sm">
+                            - {t("form.workingHoursInfo")}
+                          </Text>
+                          <Text className="text-xl mt-1" style={{ color: colors.sectionHeaderText }}>
                             Tatil Günleri
                           </Text>
                           <Controller
@@ -2621,9 +2645,114 @@ const FormStoreUpdate = React.memo(({
                     </View>
                   </>
                 )}
+                {currentStep === 9 && (
+                  <>
+                    <View className="px-2 py-4">
+                      <Text className="text-lg font-bold mb-4" style={{ color: colors.sectionHeaderText }}>
+                        {t("form.stepPreview")}
+                      </Text>
+                      <View className="rounded-xl p-4 gap-3" style={{ backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.borderColor }}>
+                        {(getValues("storeImages") ?? []).length > 0 && (
+                          <View className="mb-3">
+                            <Text className="text-base font-century-gothic-bold mb-2" style={{ color: colors.sectionHeaderText }}>{t("form.panelImagesTitle")}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                              {(getValues("storeImages") ?? []).map((img: { uri: string }, idx: number) => (
+                                <Image key={idx} source={{ uri: img.uri }} style={{ width: 140, height: 110, borderRadius: 10 }} resizeMode="cover" />
+                              ))}
+                            </ScrollView>
+                          </View>
+                        )}
+                        {/* Vergi Levhası */}
+                        {getValues("taxDocumentImage")?.uri && (
+                          <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                            <Text className="text-gray-400 text-sm mb-1">{t("form.taxDocumentImage")}</Text>
+                            <Image source={{ uri: getValues("taxDocumentImage").uri }} style={{ width: 160, height: 110, borderRadius: 8 }} resizeMode="cover" />
+                          </View>
+                        )}
+                        <PreviewRow label={t("form.storeNameLabel")} value={getValues("storeName") ?? ""} colors={colors} />
+                        <PreviewRowList label={t("form.stepMainHeadings")} items={(getValues("selectedMainHeadings") ?? []).map((id: string) => mainHeadings.find((h: any) => h.id === id)?.name ?? id)} colors={colors} />
+                        <PreviewRowList label={t("form.stepSubHeadings")} items={(getValues("selectedSubHeadings") ?? []).map((id: string) => subHeadings.find((h: any) => h.id === id)?.name ?? id)} colors={colors} />
+                        <PreviewRowList label={t("form.servicesTitle")} items={(getValues("selectedCategories") ?? []).map((id: string) => services.find((s: any) => s.id === id)?.name ?? id)} colors={colors} />
+                        {Object.keys(getValues("prices") ?? {}).length > 0 && (
+                          <View className="mt-2">
+                            <Text className="text-gray-400 text-sm mb-1">{t("form.stepStorePrices")}</Text>
+                            {Object.entries(getValues("prices") ?? {}).map(([catId, price], idx) => (
+                              <View key={`price-${idx}`} className="flex-row justify-between py-1">
+                                <Text className="flex-1 text-sm" style={{ color: colors.sectionHeaderText }}>
+                                  {services.find((s: any) => s.id === catId)?.name ?? catId}
+                                </Text>
+                                <Text className="text-sm" style={{ color: '#fea60e' }}>{typeof price === "string" ? price : ""}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                        {/* Fiyatlandırma Tipi */}
+                        {(() => {
+                          const pt = getValues("pricingType");
+                          if (!pt?.mode) return null;
+                          const isRent = pt.mode === "rent";
+                          const ptValue = isRent ? (pt.rent ?? "—") : (pt.percent != null ? `%${pt.percent}` : "—");
+                          const ptLabel = isRent ? "Kira (Koltuk kirası)" : "Yüzde (Komisyon)";
+                          return (
+                            <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                              <Text className="text-gray-400 text-sm mb-0.5">{t("form.pricingTitle") || "Fiyatlandırma Tipi"}</Text>
+                              <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>{ptLabel}: <Text style={{ color: '#fea60e' }}>{ptValue}</Text></Text>
+                            </View>
+                          );
+                        })()}
+                        {/* Koltuklar */}
+                        {(getValues("chairs") ?? []).length > 0 && (
+                          <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                            <Text className="text-gray-400 text-sm mb-1">{"Berber Koltukları"}</Text>
+                            {(getValues("chairs") ?? []).map((chair: any, idx: number) => {
+                              const isBarberChair = !!(chair.barberId) || chair.mode === "barber";
+                              const barberName = isBarberChair && chair.barberId
+                                ? (barberMap.get(chair.barberId) ?? (getValues("barbers") ?? []).find((b: any) => b.id === chair.barberId)?.name ?? "—")
+                                : null;
+                              const label = isBarberChair ? (barberName || "—") : (chair.name || "—");
+                              return (
+                                <View key={`chair-${idx}`} className="flex-row items-center py-0.5 gap-2">
+                                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{idx + 1}.</Text>
+                                  <Text className="text-sm flex-1" style={{ color: colors.sectionHeaderText }}>{label}</Text>
+                                  <Text className="text-xs" style={{ color: colors.textSecondary }}>{isBarberChair ? "Berbere atanmış" : "İsimli"}</Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                        {/* Çalışma Saatleri */}
+                        {(() => {
+                          const wh = getValues("workingHours") ?? [];
+                          const hd = new Set(getValues("holidayDays") ?? []);
+                          const rows = DAYS_TR.map((d) => {
+                            const row = wh.find((w: any) => w.dayOfWeek === d.day);
+                            const isHoliday = hd.has(d.day);
+                            if (!row) return null;
+                            return { label: d.full, isClosed: isHoliday || row.isClosed, start: row.startTime, end: row.endTime };
+                          }).filter(Boolean);
+                          if (rows.length === 0) return null;
+                          return (
+                            <View className="py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.borderColor }}>
+                              <Text className="text-gray-400 text-sm mb-1">{t("form.workingHours")}</Text>
+                              {rows.map((r: any, i: number) => (
+                                <View key={i} className="flex-row justify-between py-0.5">
+                                  <Text className="text-sm" style={{ color: colors.sectionHeaderText }}>{r.label}</Text>
+                                  <Text className="text-sm" style={{ color: r.isClosed ? '#ef4444' : '#fea60e' }}>
+                                    {r.isClosed ? "Kapalı" : `${r.start} - ${r.end}`}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          );
+                        })()}
+                        <PreviewRow label={t("form.addressDescription")} value={getValues("location.addressDescription") ?? ""} colors={colors} />
+                      </View>
+                    </View>
+                  </>
+                )}
               </Animated.View>
             </ScrollView>
-            <View className="px-0 my-3 flex-row gap-3">
+            <View className="px-6 my-3 flex-row gap-3">
               {currentStep > 0 && (
                 <Button
                   className="flex-1"

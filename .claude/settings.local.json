@@ -24,7 +24,9 @@
       "Bash(npx expo:*)",
       "Bash(xargs basename:*)",
       "Bash(sed \"s/ =>$//g\")",
-      "Bash(sed 's/:$//')"
+      "Bash(sed 's/:$//')",
+      "Bash(ls -la \"/c/Users/yazilimciemir/Desktop/Calismalar/hair-dresser-new-frontend/app/\\(screens\\)/\")",
+      "Bash(find \"/c/Users/yazilimciemir/Desktop/Calismalar/hair-dresser-new-frontend/app/\\(barberstoretabs\\)\\(panel\\)\" -type f)"
     ],
     "additionalDirectories": [
       "C:\\Users\\yazilimciemir\\source\\repos\\HairDresser\\Business\\Concrete",

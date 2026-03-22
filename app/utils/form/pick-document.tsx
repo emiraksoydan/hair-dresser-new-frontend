@@ -3,6 +3,17 @@ import * as ImagePicker from 'expo-image-picker';
 import { FileObject } from "../../types";
 import { FieldValues, Path, UseFormSetValue } from 'react-hook-form';
 
+/** HEIC/HEIF dosyalarını JPEG olarak yeniden adlandırır (expo-image-picker uri zaten JPEG içerir) */
+const normalizeImageFile = (uri: string, fileName: string | null | undefined, type: string | undefined, index?: number): FileObject => {
+  const rawName = fileName ?? `photo${index !== undefined ? `_${index}` : ''}.jpg`;
+  const isHeic = /\.(heic|heif)$/i.test(rawName);
+  return {
+    uri,
+    name: isHeic ? rawName.replace(/\.(heic|heif)$/i, '.jpg') : rawName,
+    type: isHeic ? 'image/jpeg' : (type ?? 'image/jpeg'),
+  };
+};
+
 
 export const pickPdf = async () => {
     const res = await DocumentPicker.getDocumentAsync({
@@ -43,11 +54,7 @@ export const handlePickImage = async (): Promise<FileObject | null> => {
     });
     if (!result.canceled) {
         const file = result.assets[0];
-        return {
-            uri: file.uri,
-            name: file.fileName ?? 'photo.jpg',
-            type: file.type ?? 'image/jpeg',
-        };
+        return normalizeImageFile(file.uri, file.fileName, file.type);
     }
     return null;
 };
@@ -67,11 +74,9 @@ export const handlePickMultipleImages = async (maxImages: number = 3): Promise<F
     });
 
     if (!result.canceled && result.assets) {
-        return result.assets.map((file, index) => ({
-            uri: file.uri,
-            name: file.fileName ?? `photo_${index}.jpg`,
-            type: file.type ?? 'image/jpeg',
-        }));
+        return result.assets.map((file, index) =>
+            normalizeImageFile(file.uri, file.fileName, file.type, index)
+        );
     }
     return [];
 };
@@ -87,11 +92,7 @@ export const handleTakePhoto = async (): Promise<FileObject | null> => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        return {
-            uri: file.uri,
-            name: file.fileName ?? 'photo.jpg',
-            type: file.type ?? 'image/jpeg',
-        };
+        return normalizeImageFile(file.uri, file.fileName, file.type);
     }
     return null;
 };

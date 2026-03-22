@@ -45,6 +45,10 @@ export const Button: React.FC<ButtonProps> = ({
         if (color === '#10B981') {
             return '#059669'; // emerald-600 (daha koyu)
         }
+        // Ana tema rengi — soluk/şeffaf versiyonu
+        if (color === '#fea60e' || color === '#FFB900' || color === '#ffb900') {
+            return 'rgba(254,166,14,0.35)';
+        }
         // Diğer renkler için genel koyu versiyon
         return '#374151'; // gray-700 (fallback)
     };

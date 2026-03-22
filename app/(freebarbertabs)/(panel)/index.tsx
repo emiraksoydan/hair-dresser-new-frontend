@@ -360,7 +360,7 @@ const Index = () => {
       type:
       | "freebarber-section"
       | "stores-header"
-      | "store"
+      | "stores-list"
       | "stores-empty"
       | "stores-loading"
       | "stores-error"
@@ -394,13 +394,7 @@ const Index = () => {
 
         if (hasStoresToShow) {
           if (expandedStoreBarber) {
-            storesToDisplay.forEach((store) => {
-              items.push({
-                id: `store-${store.id}`,
-                type: "store",
-                data: store,
-              });
-            });
+            items.push({ id: "stores-list", type: "stores-list", data: storesToDisplay });
           } else {
             items.push({
               id: "stores-content-horizontal",
@@ -498,19 +492,21 @@ const Index = () => {
         </View>
       </View>
 
-      {isMapMode ? (
-        <View className="absolute inset-0 z-0">
+      {isMapMode && (
+        <View className="absolute inset-0" style={{ zIndex: 5, elevation: 5 }}>
           <MapView style={{ flex: 1 }} userInterfaceStyle={isDark ? "dark" : "light"}>
             {storeMarkers}
             {myPanelMarker}
           </MapView>
         </View>
-      ) : (
+      )}
+      <View style={{ flex: 1 }} pointerEvents={isMapMode ? 'none' : 'auto'}>
         <FlatList
           data={listData}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -519,7 +515,6 @@ const Index = () => {
             />
           }
           // Performance optimizations - removeClippedSubviews kaldırıldı (overlap sorununa neden oluyordu)
-          removeClippedSubviews={false}
           maxToRenderPerBatch={5}
           updateCellsBatchingPeriod={100}
           initialNumToRender={5}
@@ -552,7 +547,7 @@ const Index = () => {
             if (item.type === "stores-header") {
               return (
                 <View className="flex flex-row justify-between items-center mt-4">
-                  <Text className="font-century-gothic text-xl" style={{ color: colors.sectionHeaderText }}>
+                  <Text className="font-century-gothic text-2xl" style={{ color: colors.sectionHeaderText }}>
                     {t("panel.nearbyStores")}
                   </Text>
                   {hasStoreBarbers && (
@@ -615,25 +610,31 @@ const Index = () => {
                 </View>
               );
             }
-            if (item.type === "store") {
+            if (item.type === "stores-list") {
               return (
-                <StoreCardInner
-                  store={item.data}
-                  isList={isList}
-                  expanded={expandedStoreBarber}
-                  cardWidthStore={cardWidthStores}
-                  isViewerFromFreeBr={true}
-                  onPressUpdate={goStoreDetail}
-                  onPressRatings={handlePressRatings}
-                  showImageAnimation={
-                    settingData?.data?.showImageAnimation ?? true
-                  }
-                />
+                <View>
+                  {item.data.map((store: BarberStoreGetDto) => (
+                    <View key={store.id}>
+                      <StoreCardInner
+                        store={store}
+                        isList={isList}
+                        expanded={expandedStoreBarber}
+                        cardWidthStore={cardWidthStores}
+                        isViewerFromFreeBr={true}
+                        onPressUpdate={goStoreDetail}
+                        onPressRatings={handlePressRatings}
+                        showImageAnimation={
+                          settingData?.data?.showImageAnimation ?? true
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
               );
             }
             if (item.type === "stores-content-horizontal") {
               return (
-                <View style={{ overflow: "hidden", minHeight: 200 }}>
+                <View style={{ minHeight: 200 }}>
                   <FlatList
                     data={filteredStores}
                     keyExtractor={(store) => store.id}
@@ -652,7 +653,7 @@ const Index = () => {
             return null;
           }}
         />
-      )}
+      </View>
 
       <TouchableOpacity
         onPress={() => setIsMapMode(!isMapMode)}

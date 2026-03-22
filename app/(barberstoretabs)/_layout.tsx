@@ -9,9 +9,11 @@ import { DeferredRender } from "../components/common/deferredrender";
 import { CrudSkeletonComponent } from "../components/common/crudskeleton";
 import FormStoreAdd from "../components/store/formstoreadd";
 import { getCommonTabs, panelTabConfigs, accentColors } from "../config/tabConfig";
+import { useTheme } from "../hook/useTheme";
 
 const BarberStoreLayout = () => {
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   // Bottom sheet hook for add store
   const addStoreSheet = useBottomSheet({
@@ -48,8 +50,8 @@ const BarberStoreLayout = () => {
     <BottomSheetModal
       ref={addStoreSheet.ref}
       backdropComponent={addStoreSheet.makeBackdrop()}
-      handleIndicatorStyle={{ backgroundColor: "#47494e" }}
-      backgroundStyle={{ backgroundColor: "#151618" }}
+      handleIndicatorStyle={{ backgroundColor: colors.sheetHandle }}
+      backgroundStyle={{ backgroundColor: colors.sheetBg }}
       onChange={addStoreSheet.handleChange}
       snapPoints={addStoreSheet.snapPoints}
       enableOverDrag={addStoreSheet.enableOverDrag}

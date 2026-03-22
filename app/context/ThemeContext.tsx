@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance } from 'react-native';
 
 const THEME_KEY = '@app_theme_preference';
 
@@ -12,17 +11,15 @@ interface ThemeContextType {
   setTheme: (mode: ThemeMode) => void;
 }
 
-// Sistem temasını başlangıç değeri olarak kullan → AsyncStorage'dan önce doğru tema
-const systemTheme: ThemeMode = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
-
+// Uygulama her zaman light moddan başlar; kullanıcının AsyncStorage tercihi varsa onu yükler
 const ThemeContext = createContext<ThemeContextType>({
-  themeMode: systemTheme,
+  themeMode: 'light',
   toggleTheme: () => {},
   setTheme: () => {},
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [themeMode, setThemeMode] = useState<ThemeMode>(systemTheme);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((stored) => {
